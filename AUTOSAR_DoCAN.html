@@ -1,0 +1,2436 @@
+<!DOCTYPE html>
+<html lang="vi" class="dark" data-native-vars="true">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>UDS Core Services Simulator — Trình Mô Phỏng Các Dịch Vụ UDS Quan Trọng Nhất (ISO 14229-1 / AUTOSAR)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(148, 163, 184, 0.35);
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(148, 163, 184, 0.6);
+    }
+
+    .service-pill {
+      transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .service-pill:hover {
+      transform: translateY(-1px);
+    }
+    .service-pill.active-sid {
+      box-shadow: 0 0 0 2px #0ea5e9, 0 4px 14px rgba(14, 165, 233, 0.25);
+    }
+
+    .byte-cell {
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+    .byte-cell:hover {
+      transform: translateY(-2px);
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 selection:bg-sky-500/30">
+
+  <!-- ================= TOP HEADER & LIVE ECU STATUS BAR ================= -->
+  <header class="sticky top-0 z-30 bg-white/95 dark:bg-slate-950/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-3 md:px-5 py-2.5 shadow-sm">
+    <div class="max-w-[1920px] mx-auto flex flex-wrap items-center justify-between gap-3">
+      <!-- Brand Title -->
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-500 via-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-sky-500/20 font-mono font-extrabold text-sm">
+          UDS
+        </div>
+        <div>
+          <div class="flex items-center gap-2 flex-wrap">
+            <h1 class="text-base md:text-lg font-extrabold tracking-tight text-slate-900 dark:text-white">
+              UDS Core Services Simulator (UDS on CAN & ISO-TP)
+            </h1>
+            <span class="px-2 py-0.5 rounded-full text-[11px] font-mono font-semibold bg-sky-500/15 text-sky-700 dark:text-sky-300 border border-sky-500/30">
+              ISO 14229-1 • ISO 15765-2 • AUTOSAR DCM/CanTp
+            </span>
+          </div>
+          <p class="text-xs text-slate-500 dark:text-slate-400">
+            Mô phỏng trực quan 12 dịch vụ UDS trọng tâm, thứ tự kiểm tra NRC của DCM và phân mảnh gói tin CAN-TP (SF / FF / FC / CF)
+          </p>
+        </div>
+      </div>
+
+      <!-- Header Right Actions: Reset ECU, Theme Toggle, Download HTML -->
+      <div class="flex items-center gap-2">
+        <button onclick="resetEcuState()" title="Đưa toàn bộ trạng thái ECU về mặc định khi mới khởi động"
+          class="px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-200/80 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-700 transition flex items-center gap-1.5">
+          <span>🔄 Reset ECU</span>
+        </button>
+
+        <button onclick="downloadStandaloneHtml()" title="Tải về file HTML độc lập để lưu trữ hoặc đưa vào Simulation Hub"
+          class="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-sm border border-emerald-400/30 transition flex items-center gap-1.5">
+          <span>💾 Tải file HTML (.html)</span>
+        </button>
+
+        <button onclick="toggleTheme()" id="btnThemeToggle" title="Chuyển đổi giao diện Sáng / Tối (Đồng bộ với Simulation Hub)"
+          class="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-800 text-amber-500 dark:text-amber-300 border border-slate-300 dark:border-slate-700 transition">
+          <svg id="iconSun" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+          </svg>
+          <svg id="iconMoon" class="w-5 h-5 hidden text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- ECU LIVE STATUS STRIP (SESSION, S3 TIMER, SECURITY, DTC/COM/IO STATE) -->
+    <div class="max-w-[1920px] mx-auto mt-2.5 pt-2.5 border-t border-slate-200 dark:border-slate-800/80 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2 text-xs">
+      <!-- 1. Active Diagnostic Session -->
+      <div class="bg-slate-100 dark:bg-slate-900/90 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2">
+        <div>
+          <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400">1. Phiên Chẩn Đoán (0x10)</div>
+          <div id="statusSessionBadge" class="font-mono font-extrabold text-xs text-sky-600 dark:text-sky-400 mt-0.5">
+            0x01 Default Session
+          </div>
+        </div>
+        <div class="flex items-center gap-1">
+          <button onclick="quickSendHex('10 01')" title="Chuyển nhanh về Default (10 01)" class="px-1.5 py-0.5 rounded text-[10px] font-mono bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 hover:border-sky-500">01</button>
+          <button onclick="quickSendHex('10 03')" title="Chuyển nhanh sang Extended (10 03)" class="px-1.5 py-0.5 rounded text-[10px] font-mono bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 hover:border-sky-500">03</button>
+          <button onclick="quickSendHex('10 02')" title="Chuyển nhanh sang Programming (10 02)" class="px-1.5 py-0.5 rounded text-[10px] font-mono bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 hover:border-sky-500">02</button>
+        </div>
+      </div>
+
+      <!-- 2. S3Server Timer (5000ms) -->
+      <div class="bg-slate-100 dark:bg-slate-900/90 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 flex flex-col justify-between">
+        <div class="flex items-center justify-between">
+          <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">2. S3Server Timer (5000ms)</span>
+          <span id="statusS3Text" class="font-mono font-bold text-[11px] text-slate-500">Tắt (Đang ở Default)</span>
+        </div>
+        <div class="w-full h-1.5 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden my-1">
+          <div id="statusS3Bar" class="h-full bg-emerald-500 transition-all duration-100" style="width: 0%"></div>
+        </div>
+        <label class="flex items-center gap-1.5 text-[10px] text-slate-500 dark:text-slate-400 cursor-pointer">
+          <input type="checkbox" id="chkAutoTesterPresent" checked class="rounded text-sky-500 focus:ring-0" />
+          <span>Tự động gửi <code class="font-mono text-sky-600 dark:text-sky-400">3E 80</code> giữ phiên</span>
+        </label>
+      </div>
+
+      <!-- 3. Security Access (0x27) -->
+      <div class="bg-slate-100 dark:bg-slate-900/90 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2">
+        <div class="min-w-0">
+          <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400">3. Bảo Mật Security (0x27)</div>
+          <div id="statusSecurityBadge" class="font-mono font-extrabold text-xs text-rose-600 dark:text-rose-400 mt-0.5 truncate">
+            🔒 Locked (Level 0)
+          </div>
+          <div id="statusSeedHint" class="text-[10px] font-mono text-slate-500 truncate">Chưa xin Seed • Sai: 0/3</div>
+        </div>
+        <button id="btnQuickUnlock" onclick="quickUnlockSecurity()" title="Chạy nhanh 10 03 -> 27 01 -> 27 02 để mở khóa Security Level 1"
+          class="px-2 py-1 rounded-lg text-[10px] font-bold bg-amber-500/20 hover:bg-amber-500/30 text-amber-700 dark:text-amber-300 border border-amber-500/30 shrink-0 transition">
+          🔑 Mở khóa nhanh
+        </button>
+      </div>
+
+      <!-- 4. DTC Memory & DTC Setting (0x19 / 0x14 / 0x85) -->
+      <div class="bg-slate-100 dark:bg-slate-900/90 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2">
+        <div>
+          <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400">4. Bộ Nhớ DTC & 0x85</div>
+          <div id="statusDtcBadge" class="font-mono font-bold text-xs text-amber-600 dark:text-amber-400 mt-0.5">
+            3 DTC lưu • Ghi DTC: ON
+          </div>
+          <div class="text-[10px] font-mono text-slate-500">0x010511 (Conf), 0x030000 (Pend)</div>
+        </div>
+      </div>
+
+      <!-- 5. I/O Fan (0x2F), Com (0x28) & Flash State (0x34) -->
+      <div class="bg-slate-100 dark:bg-slate-900/90 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2">
+        <div class="min-w-0">
+          <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400">5. Trạng Thái I/O & Flash</div>
+          <div id="statusIoFlashBadge" class="font-mono font-bold text-xs text-emerald-600 dark:text-emerald-400 mt-0.5 truncate">
+            Quạt: Auto (30%) • Com: ON
+          </div>
+          <div id="statusFlashStep" class="text-[10px] font-mono text-slate-500 truncate">Flash: Idle (Chưa Erase/0x34)</div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ================= MAIN WORKSPACE (LEFT BUILDER + RIGHT 3 SUB-TABS) ================= -->
+  <main class="flex-1 max-w-[1920px] w-full mx-auto p-3 md:p-4 grid grid-cols-1 lg:grid-cols-12 gap-4">
+
+    <!-- ================= LEFT COLUMN: 12 CORE UDS SERVICES PICKER & PAYLOAD BUILDER (4 COLS) ================= -->
+    <section class="lg:col-span-4 flex flex-col gap-3.5">
+
+      <!-- Card 1: 12 Core UDS Services Picker -->
+      <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 shadow-sm space-y-3">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-sky-500"></span>
+            <h2 class="text-xs font-extrabold uppercase tracking-wider text-slate-800 dark:text-slate-100">
+              1. Chọn Dịch Vụ UDS Quan Trọng Nhất (12 SIDs)
+            </h2>
+          </div>
+          <span class="text-[10px] font-mono text-slate-400">PosRsp = SID + 0x40</span>
+        </div>
+
+        <!-- Group A: Session, Reset, Security, TesterPresent -->
+        <div class="space-y-1.5">
+          <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400">A. Quản lý Phiên, Reset & Bảo mật</div>
+          <div class="grid grid-cols-2 gap-1.5">
+            <button onclick="selectService('0x10')" id="sidBtn-0x10" class="service-pill text-left p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950">
+              <div class="flex items-center justify-between">
+                <span class="font-mono font-extrabold text-xs text-sky-600 dark:text-sky-400">0x10</span>
+                <span class="text-[10px] font-mono px-1.5 rounded bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">➔ 0x50</span>
+              </div>
+              <div class="text-[11px] font-bold text-slate-800 dark:text-slate-200 truncate">SessionControl</div>
+              <div class="text-[10px] text-slate-500 truncate">Default / Prog / Extended</div>
+            </button>
+
+            <button onclick="selectService('0x27')" id="sidBtn-0x27" class="service-pill text-left p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950">
+              <div class="flex items-center justify-between">
+                <span class="font-mono font-extrabold text-xs text-amber-600 dark:text-amber-400">0x27</span>
+                <span class="text-[10px] font-mono px-1.5 rounded bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">➔ 0x67</span>
+              </div>
+              <div class="text-[11px] font-bold text-slate-800 dark:text-slate-200 truncate">SecurityAccess</div>
+              <div class="text-[10px] text-slate-500 truncate">Request Seed & Send Key</div>
+            </button>
+
+            <button onclick="selectService('0x11')" id="sidBtn-0x11" class="service-pill text-left p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950">
+              <div class="flex items-center justify-between">
+                <span class="font-mono font-extrabold text-xs text-rose-600 dark:text-rose-400">0x11</span>
+                <span class="text-[10px] font-mono px-1.5 rounded bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">➔ 0x51</span>
+              </div>
+              <div class="text-[11px] font-bold text-slate-800 dark:text-slate-200 truncate">ECUReset</div>
+              <div class="text-[10px] text-slate-500 truncate">Hard (01) / Soft (03)</div>
+            </button>
+
+            <button onclick="selectService('0x3E')" id="sidBtn-0x3E" class="service-pill text-left p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950">
+              <div class="flex items-center justify-between">
+                <span class="font-mono font-extrabold text-xs text-teal-600 dark:text-teal-400">0x3E</span>
+                <span class="text-[10px] font-mono px-1.5 rounded bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">➔ 0x7E</span>
+              </div>
+              <div class="text-[11px] font-bold text-slate-800 dark:text-slate-200 truncate">TesterPresent</div>
+              <div class="text-[10px] text-slate-500 truncate">Giữ S3Server (00 / 80)</div>
+            </button>
+          </div>
+        </div>
+
+        <!-- Group B: Data Read/Write & I/O Control -->
+        <div class="space-y-1.5">
+          <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400">B. Đọc / Ghi Dữ liệu (DID) & Điều khiển I/O</div>
+          <div class="grid grid-cols-3 gap-1.5">
+            <button onclick="selectService('0x22')" id="sidBtn-0x22" class="service-pill text-left p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950">
+              <div class="flex items-center justify-between">
+                <span class="font-mono font-extrabold text-xs text-sky-600 dark:text-sky-400">0x22</span>
+                <span class="text-[10px] font-mono text-emerald-500">0x62</span>
+              </div>
+              <div class="text-[11px] font-bold text-slate-800 dark:text-slate-200 truncate">ReadDID</div>
+              <div class="text-[10px] text-slate-500 truncate">VIN, RPM, Temp</div>
+            </button>
+
+            <button onclick="selectService('0x2E')" id="sidBtn-0x2E" class="service-pill text-left p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950">
+              <div class="flex items-center justify-between">
+                <span class="font-mono font-extrabold text-xs text-indigo-600 dark:text-indigo-400">0x2E</span>
+                <span class="text-[10px] font-mono text-emerald-500">0x6E</span>
+              </div>
+              <div class="text-[11px] font-bold text-slate-800 dark:text-slate-200 truncate">WriteDID</div>
+              <div class="text-[10px] text-slate-500 truncate">Ghi NvM (Cần Sec)</div>
+            </button>
+
+            <button onclick="selectService('0x2F')" id="sidBtn-0x2F" class="service-pill text-left p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950">
+              <div class="flex items-center justify-between">
+                <span class="font-mono font-extrabold text-xs text-purple-600 dark:text-purple-400">0x2F</span>
+                <span class="text-[10px] font-mono text-emerald-500">0x6F</span>
+              </div>
+              <div class="text-[11px] font-bold text-slate-800 dark:text-slate-200 truncate">IOControl</div>
+              <div class="text-[10px] text-slate-500 truncate">Cưỡng bức Quạt</div>
+            </button>
+          </div>
+        </div>
+
+        <!-- Group C: DTC & Communication / DTC Setting -->
+        <div class="space-y-1.5">
+          <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400">C. Chẩn đoán Mã lỗi DTC & Điều khiển Mạng</div>
+          <div class="grid grid-cols-2 gap-1.5">
+            <button onclick="selectService('0x19')" id="sidBtn-0x19" class="service-pill text-left p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950">
+              <div class="flex items-center justify-between">
+                <span class="font-mono font-extrabold text-xs text-amber-600 dark:text-amber-400">0x19</span>
+                <span class="text-[10px] font-mono px-1.5 rounded bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">➔ 0x59</span>
+              </div>
+              <div class="text-[11px] font-bold text-slate-800 dark:text-slate-200 truncate">ReadDTCInfo</div>
+              <div class="text-[10px] text-slate-500 truncate">Sub 01 / 02 / 04 / 0A</div>
+            </button>
+
+            <button onclick="selectService('0x14')" id="sidBtn-0x14" class="service-pill text-left p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950">
+              <div class="flex items-center justify-between">
+                <span class="font-mono font-extrabold text-xs text-rose-600 dark:text-rose-400">0x14</span>
+                <span class="text-[10px] font-mono px-1.5 rounded bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">➔ 0x54</span>
+              </div>
+              <div class="text-[11px] font-bold text-slate-800 dark:text-slate-200 truncate">ClearDTC</div>
+              <div class="text-[10px] text-slate-500 truncate">Xóa lỗi (FF FF FF)</div>
+            </button>
+
+            <button onclick="selectService('0x85')" id="sidBtn-0x85" class="service-pill text-left p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950">
+              <div class="flex items-center justify-between">
+                <span class="font-mono font-extrabold text-xs text-teal-600 dark:text-teal-400">0x85</span>
+                <span class="text-[10px] font-mono px-1.5 rounded bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">➔ 0xC5</span>
+              </div>
+              <div class="text-[11px] font-bold text-slate-800 dark:text-slate-200 truncate">ControlDTCSetting</div>
+              <div class="text-[10px] text-slate-500 truncate">Bật (01) / Tắt (02) DTC</div>
+            </button>
+
+            <button onclick="selectService('0x28')" id="sidBtn-0x28" class="service-pill text-left p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950">
+              <div class="flex items-center justify-between">
+                <span class="font-mono font-extrabold text-xs text-cyan-600 dark:text-cyan-400">0x28</span>
+                <span class="text-[10px] font-mono px-1.5 rounded bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">➔ 0x68</span>
+              </div>
+              <div class="text-[11px] font-bold text-slate-800 dark:text-slate-200 truncate">ComControl</div>
+              <div class="text-[10px] text-slate-500 truncate">Bật/Tắt truyền thông</div>
+            </button>
+          </div>
+        </div>
+
+        <!-- Group D: RoutineControl & Flash Reprogramming -->
+        <div class="space-y-1.5">
+          <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400">D. Tác vụ (Routine) & Nạp Phần mềm (Flash)</div>
+          <div class="grid grid-cols-2 gap-1.5">
+            <button onclick="selectService('0x31')" id="sidBtn-0x31" class="service-pill text-left p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950">
+              <div class="flex items-center justify-between">
+                <span class="font-mono font-extrabold text-xs text-purple-600 dark:text-purple-400">0x31</span>
+                <span class="text-[10px] font-mono px-1.5 rounded bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">➔ 0x71</span>
+              </div>
+              <div class="text-[11px] font-bold text-slate-800 dark:text-slate-200 truncate">RoutineControl</div>
+              <div class="text-[10px] text-slate-500 truncate">Start / Stop / Result</div>
+            </button>
+
+            <button onclick="selectService('0x34')" id="sidBtn-0x34" class="service-pill text-left p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950">
+              <div class="flex items-center justify-between">
+                <span class="font-mono font-extrabold text-xs text-emerald-600 dark:text-emerald-400">0x34/36/37</span>
+                <span class="text-[10px] font-mono px-1.5 rounded bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">➔ 74/76/77</span>
+              </div>
+              <div class="text-[11px] font-bold text-slate-800 dark:text-slate-200 truncate">Flash Download</div>
+              <div class="text-[10px] text-slate-500 truncate">ReqDownload & Transfer</div>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 2: Interactive Payload Builder & Fault Injector -->
+      <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 shadow-sm space-y-3 text-xs">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+            <h2 class="text-xs font-extrabold uppercase tracking-wider text-slate-800 dark:text-slate-100">
+              2. Cấu Hình Tham Số & Tự Tạo Payload
+            </h2>
+          </div>
+          <span id="lblActiveSidRule" class="text-[10px] font-mono text-sky-600 dark:text-sky-400 font-semibold">SID 0x10</span>
+        </div>
+
+        <!-- Preset Variant Dropdown for Selected SID -->
+        <div class="space-y-1">
+          <label class="text-[11px] font-bold text-slate-600 dark:text-slate-300">Chọn mẫu lệnh phổ biến của dịch vụ này:</label>
+          <select id="presetSelect" onchange="onPresetChange()"
+            class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 font-mono text-xs focus:border-sky-500 focus:outline-none">
+          </select>
+        </div>
+
+        <!-- Helper for Security Seed/Key autofill -->
+        <div id="securityKeyHelperBox" class="hidden p-2.5 rounded-xl bg-amber-500/15 border border-amber-500/40 flex items-center justify-between gap-2">
+          <div class="text-[11px] text-amber-800 dark:text-amber-200">
+            <div>Công thức Key: <code class="font-mono font-bold">Key = Seed XOR 0xFFFF</code></div>
+            <div id="lblCalculatedKeyHint" class="font-mono text-[10px] mt-0.5">Hãy gọi 27 01 (Request Seed) trước!</div>
+          </div>
+          <button onclick="fillCorrectSecurityKey()" class="px-2.5 py-1.5 rounded-lg text-[11px] font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 shrink-0 transition">
+            🔑 Điền Key đúng
+          </button>
+        </div>
+
+        <!-- Checkboxes: Suppress PosRsp & Functional Addressing -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+          <label class="flex items-start gap-2 p-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 cursor-pointer">
+            <input type="checkbox" id="chkSuppressPosRsp" onchange="onSuppressBitToggle()" class="mt-0.5 rounded text-sky-500" />
+            <div>
+              <div class="font-bold text-[11px] text-slate-800 dark:text-slate-200">Suppress PosRsp (Bit 7=1)</div>
+              <div class="text-[10px] text-slate-500">Cộng <code class="font-mono">+0x80</code> vào Sub-function</div>
+            </div>
+          </label>
+
+          <label class="flex items-start gap-2 p-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 cursor-pointer">
+            <input type="checkbox" id="chkFunctionalAddr" class="mt-0.5 rounded text-sky-500" />
+            <div>
+              <div class="font-bold text-[11px] text-slate-800 dark:text-slate-200">Functional ID (0x7DF)</div>
+              <div class="text-[10px] text-slate-500">Ẩn NRC 0x11, 12, 31, 7E, 7F</div>
+            </div>
+          </label>
+        </div>
+
+        <!-- Editable Raw Hex Payload Input -->
+        <div class="space-y-1.5">
+          <div class="flex items-center justify-between">
+            <label class="text-[11px] font-bold text-slate-700 dark:text-slate-300">Gói UDS Request (Nhập Hex tự do):</label>
+            <span id="lblPayloadByteCount" class="text-[10px] font-mono text-slate-400">2 bytes (Single Frame)</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <input id="rawHexInput" type="text" value="10 03" oninput="onRawHexEdit()"
+              placeholder="VD: 22 F1 90 hoặc 2E F1 90 56 4E..."
+              class="flex-1 px-3 py-2 rounded-xl bg-slate-950 text-emerald-400 font-mono font-bold text-sm border border-slate-700 focus:border-sky-500 focus:outline-none tracking-wider" />
+            <button onclick="sendUdsRequestFromUI()"
+              class="px-4 py-2 rounded-xl text-xs font-extrabold bg-sky-500 hover:bg-sky-400 text-slate-950 shadow-md shadow-sky-500/20 transition shrink-0">
+              🚀 Gửi Request
+            </button>
+          </div>
+        </div>
+
+        <!-- Quick Negative Response (NRC) Fault Injection Buttons -->
+        <div class="space-y-1 pt-1 border-t border-slate-200 dark:border-slate-800">
+          <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Thử nghiệm bẫy lỗi NRC nhanh:</div>
+          <div class="flex flex-wrap gap-1.5">
+            <button onclick="quickSendHex('99 01 02')" class="px-2 py-1 rounded-lg text-[10px] font-mono bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-300 border border-rose-500/30">
+              SID lạ 0x99 (NRC 0x11)
+            </button>
+            <button onclick="injectWrongLength()" class="px-2 py-1 rounded-lg text-[10px] font-mono bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-300 border border-rose-500/30">
+              Sai độ dài (NRC 0x13)
+            </button>
+            <button onclick="quickSendHex('22 99 99')" class="px-2 py-1 rounded-lg text-[10px] font-mono bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-300 border border-rose-500/30">
+              DID không tồn tại (NRC 0x31)
+            </button>
+            <button onclick="quickSendHex('27 02 11 22')" class="px-2 py-1 rounded-lg text-[10px] font-mono bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-300 border border-rose-500/30">
+              Gửi Key sai (NRC 0x24 / 0x35)
+            </button>
+          </div>
+        </div>
+
+        <!-- ECU Environment Preconditions Checkboxes -->
+        <div class="space-y-1.5 pt-2 border-t border-slate-200 dark:border-slate-800">
+          <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400">3. Giả lập Điều kiện Môi trường ECU (Config):</div>
+          <label class="flex items-center gap-2 text-[11px] text-slate-700 dark:text-slate-300 cursor-pointer">
+            <input type="checkbox" id="chkVehicleMoving" class="rounded text-rose-500" />
+            <span>🚗 <strong>Xe đang chạy (Speed = 45 km/h)</strong> ➔ Chặn <code class="font-mono">10 02, 11, 2E, 2F, 31</code> với <code class="font-mono text-rose-500 font-bold">NRC 0x22</code></span>
+          </label>
+          <label class="flex items-center gap-2 text-[11px] text-slate-700 dark:text-slate-300 cursor-pointer">
+            <input type="checkbox" id="chkSimulatePending0x78" class="rounded text-amber-500" />
+            <span>⏳ <strong>Tác vụ NvM / Flash chậm</strong> ➔ Bắn <code class="font-mono text-amber-500 font-bold">7F [SID] 78 (ResponsePending)</code> trước khi trả PosRsp</span>
+          </label>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ================= RIGHT COLUMN: 3 SUB-TABS WORKSPACE (8 COLS) ================= -->
+    <section class="lg:col-span-8 flex flex-col gap-3.5">
+
+      <!-- Sub-tab Navigation Bar -->
+      <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-1.5 flex flex-wrap items-center justify-between gap-2 shadow-sm">
+        <div class="flex flex-wrap items-center gap-1">
+          <button onclick="switchMainTab('inspector')" id="tabBtn-inspector"
+            class="px-3.5 py-2 rounded-xl text-xs font-extrabold transition bg-sky-500 text-slate-950 shadow-sm">
+            🔍 1. Giải Mã Gói Tin & Phễu Kiểm Tra NRC (DCM)
+          </button>
+          <button onclick="switchMainTab('cantp')" id="tabBtn-cantp"
+            class="px-3.5 py-2 rounded-xl text-xs font-bold transition text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800">
+            🚌 2. Mô Phỏng Tầng TP (ISO-TP SF / FF / FC / CF)
+          </button>
+          <button onclick="switchMainTab('handbook')" id="tabBtn-handbook"
+            class="px-3.5 py-2 rounded-xl text-xs font-bold transition text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800">
+            📖 3. Sổ Tay Tra Cứu Nhanh UDS & NRC
+          </button>
+        </div>
+      </div>
+
+      <!-- ================= SUB-TAB 1: LIVE UDS INSPECTOR, WORKFLOWS & NRC WATERFALL ================= -->
+      <div id="tabPanel-inspector" class="space-y-3.5">
+
+        <!-- 1-Click Guided Workflows Bar -->
+        <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-3 shadow-sm">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-[11px] font-extrabold uppercase tracking-wider text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
+              <span>⚡ 4 Luồng Chạy Thực Tế Phổ Biến (Chạy Tự Động Từng Bước):</span>
+            </span>
+            <span id="workflowStatusLabel" class="text-[11px] font-mono text-sky-600 dark:text-sky-400 font-semibold"></span>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2">
+            <button onclick="runGuidedWorkflow('write_vin')"
+              class="p-2 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-sky-500 bg-slate-50 dark:bg-slate-950 text-left transition">
+              <div class="text-xs font-bold text-slate-900 dark:text-white">▶ 1. Mở khóa & Ghi DID</div>
+              <div class="text-[10px] font-mono text-slate-500 mt-0.5">10 03 ➔ 27 01 ➔ 27 02 ➔ 2E F1 90</div>
+            </button>
+
+            <button onclick="runGuidedWorkflow('dtc_scan_clear')"
+              class="p-2 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-sky-500 bg-slate-50 dark:bg-slate-950 text-left transition">
+              <div class="text-xs font-bold text-slate-900 dark:text-white">▶ 2. Đọc & Xóa Lỗi DTC</div>
+              <div class="text-[10px] font-mono text-slate-500 mt-0.5">19 02 08 ➔ 19 04 ➔ 14 FF FF FF</div>
+            </button>
+
+            <button onclick="runGuidedWorkflow('io_control')"
+              class="p-2 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-sky-500 bg-slate-50 dark:bg-slate-950 text-left transition">
+              <div class="text-xs font-bold text-slate-900 dark:text-white">▶ 3. Cưỡng bức I/O (0x2F)</div>
+              <div class="text-[10px] font-mono text-slate-500 mt-0.5">10 03 ➔ Unlock ➔ 2F Quạt 80% ➔ Return</div>
+            </button>
+
+            <button onclick="runGuidedWorkflow('flash_update')"
+              class="p-2 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-sky-500 bg-slate-50 dark:bg-slate-950 text-left transition">
+              <div class="text-xs font-bold text-slate-900 dark:text-white">▶ 4. Chu trình Nạp Flash</div>
+              <div class="text-[10px] font-mono text-slate-500 mt-0.5">85 02 ➔ 28 03 ➔ 10 02 ➔ 27 ➔ 31 ➔ 34/36/37</div>
+            </button>
+          </div>
+        </div>
+
+        <!-- Request & Response Byte-by-Byte Dissector -->
+        <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-sm space-y-4">
+          <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 dark:border-slate-800 pb-2.5">
+            <div>
+              <h3 class="text-xs font-extrabold uppercase tracking-wider text-slate-800 dark:text-white">
+                Giải Phẫu Gói Tin UDS (Request vs Response Frame Format)
+              </h3>
+              <p id="dissectorSummaryTitle" class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                Hãy bấm "🚀 Gửi Request" hoặc chọn một dịch vụ ở cột trái để xem giải mã từng byte.
+              </p>
+            </div>
+            <span id="dissectorVerdictBadge" class="px-3 py-1 rounded-full font-mono text-xs font-extrabold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+              Sẵn sàng
+            </span>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- Request Frame Box -->
+            <div class="bg-slate-50 dark:bg-slate-950 p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 space-y-2.5">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-sky-600 dark:text-sky-400">📤 Tester Request (Chiều gửi xuống ECU)</span>
+                <span id="reqCanIdBadge" class="font-mono text-[11px] px-2 py-0.5 rounded bg-sky-500/15 text-sky-600 dark:text-sky-300">CAN ID: 0x7E0</span>
+              </div>
+              <div id="reqByteBoxes" class="flex flex-wrap gap-1.5"></div>
+              <div id="reqFieldBreakdown" class="space-y-1 text-[11px] text-slate-600 dark:text-slate-300 border-t border-slate-200 dark:border-slate-800 pt-2"></div>
+            </div>
+
+            <!-- Response Frame Box -->
+            <div class="bg-slate-50 dark:bg-slate-950 p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 space-y-2.5">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-emerald-600 dark:text-emerald-400">📥 ECU Response (Phản hồi từ DCM)</span>
+                <span id="resCanIdBadge" class="font-mono text-[11px] px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-600 dark:text-emerald-300">CAN ID: 0x7E8</span>
+              </div>
+              <div id="resByteBoxes" class="flex flex-wrap gap-1.5"></div>
+              <div id="resFieldBreakdown" class="space-y-1 text-[11px] text-slate-600 dark:text-slate-300 border-t border-slate-200 dark:border-slate-800 pt-2"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- DCM NRC Evaluation Priority Pipeline + CAN Frames & AUTOSAR Callbacks -->
+        <div class="grid grid-cols-1 xl:grid-cols-12 gap-3.5">
+
+          <!-- Left 6 cols: 9-Step DCM NRC Evaluation Waterfall -->
+          <div class="xl:col-span-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-sm flex flex-col justify-between">
+            <div>
+              <div class="flex items-center justify-between mb-2.5">
+                <h3 class="text-xs font-extrabold uppercase tracking-wider text-slate-800 dark:text-white">
+                  🛡️ Thứ Tự Kiểm Tra NRC Trong AUTOSAR DCM (DSD ➔ DSP)
+                </h3>
+                <span class="text-[10px] font-mono text-slate-400">ISO 14229-1 Annex A</span>
+              </div>
+              <div id="nrcWaterfallContainer" class="space-y-1.5 text-xs">
+                <!-- Populated dynamically by JS -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Right 6 cols: CAN Bus Frames (ISO-TP) & AUTOSAR API Call Sequence -->
+          <div class="xl:col-span-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+            <div>
+              <div class="flex items-center justify-between mb-2">
+                <h3 class="text-xs font-extrabold uppercase tracking-wider text-slate-800 dark:text-white">
+                  🚌 Khung Truyền CAN / ISO-TP Thực Tế (8 Bytes/Frame)
+                </h3>
+                <button onclick="openCurrentInTpPlayground()" class="text-[11px] font-semibold text-sky-600 dark:text-sky-400 hover:underline">
+                  Mở trong Tab TP Layer ➔
+                </button>
+              </div>
+              <div id="liveCanTpFramesBox" class="bg-slate-950 text-slate-200 p-3 rounded-xl font-mono text-[11px] space-y-1.5 max-h-48 overflow-y-auto border border-slate-800">
+                <!-- Populated by JS -->
+              </div>
+            </div>
+
+            <div class="border-t border-slate-200 dark:border-slate-800 pt-2.5">
+              <div class="flex items-center justify-between mb-1.5">
+                <h3 class="text-xs font-extrabold uppercase tracking-wider text-slate-800 dark:text-white">
+                  ⚙️ Chuỗi Hàm API Chuẩn AUTOSAR (CanIf ➔ CanTp ➔ PduR ➔ Dcm)
+                </h3>
+              </div>
+              <div id="liveAutosarApiBox" class="bg-slate-50 dark:bg-slate-950 p-3 rounded-xl font-mono text-[11px] space-y-1 max-h-44 overflow-y-auto border border-slate-200 dark:border-slate-800">
+                <!-- Populated by JS -->
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Bottom Communication Trace Log -->
+        <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-sm">
+          <div class="flex items-center justify-between mb-2.5">
+            <h3 class="text-xs font-extrabold uppercase tracking-wider text-slate-800 dark:text-white">
+              📜 Nhật Ký Giao Tiếp UDS (Diagnostic Trace Log)
+            </h3>
+            <button onclick="clearTraceLog()" class="text-xs text-slate-400 hover:text-rose-500">Xóa Log</button>
+          </div>
+          <div class="overflow-x-auto max-h-56">
+            <table class="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr class="border-b border-slate-200 dark:border-slate-800 text-[10px] uppercase font-mono text-slate-400 bg-slate-50 dark:bg-slate-950">
+                  <th class="py-1.5 px-2.5">Thời gian</th>
+                  <th class="py-1.5 px-2.5">Dịch vụ</th>
+                  <th class="py-1.5 px-2.5">Request (Hex)</th>
+                  <th class="py-1.5 px-2.5">Response (Hex)</th>
+                  <th class="py-1.5 px-2.5">Kết quả / Trạng thái ECU</th>
+                </tr>
+              </thead>
+              <tbody id="traceLogTableBody" class="divide-y divide-slate-200 dark:divide-slate-800/70 font-mono text-[11px]"></tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ================= SUB-TAB 2: ISO-TP (CanTp) SEGMENTATION & FLOW CONTROL SIMULATOR ================= -->
+      <div id="tabPanel-cantp" class="hidden space-y-4">
+        <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-sm space-y-4">
+          <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 dark:border-slate-800 pb-3">
+            <div>
+              <h3 class="text-sm font-extrabold text-slate-900 dark:text-white">
+                🚌 Mô Phỏng Tầng Giao Vận CAN-TP (ISO 15765-2 Segmentation & Flow Control)
+              </h3>
+              <p class="text-xs text-slate-500 dark:text-slate-400">
+                Tùy chỉnh độ dài Dummy Data và thông số Flow Control (<code class="font-mono">FS, BS, STmin</code>) để quan sát cách gói UDS dài được cắt thành First Frame (<code class="font-mono">FF</code>) và các Consecutive Frame (<code class="font-mono">CF</code>).
+              </p>
+            </div>
+            <button onclick="generateIsoTpSimulation()" class="px-4 py-2 rounded-xl text-xs font-extrabold bg-sky-500 hover:bg-sky-400 text-slate-950 shadow transition">
+              🔄 Chạy Phân Mảnh ISO-TP
+            </button>
+          </div>
+
+          <!-- TP Configuration Controls -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 text-xs">
+            <div class="bg-slate-50 dark:bg-slate-950 p-3 rounded-xl border border-slate-200 dark:border-slate-800 space-y-1">
+              <label class="font-bold text-slate-700 dark:text-slate-300">1. Độ dài UDS Payload (Bytes):</label>
+              <div class="flex items-center gap-2">
+                <input id="tpLengthSlider" type="range" min="2" max="64" value="20" oninput="syncTpLengthInput(this.value)" class="flex-1" />
+                <input id="tpLengthNumber" type="number" min="1" max="256" value="20" onchange="syncTpLengthInput(this.value)"
+                  class="w-16 px-2 py-1 rounded bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 font-mono font-bold text-center" />
+              </div>
+              <div class="text-[10px] text-slate-400">≤ 7B: Single Frame (SF) • &gt; 7B: Multi-Frame</div>
+            </div>
+
+            <div class="bg-slate-50 dark:bg-slate-950 p-3 rounded-xl border border-slate-200 dark:border-slate-800 space-y-1">
+              <label class="font-bold text-slate-700 dark:text-slate-300">2. Flow Status (FS):</label>
+              <select id="tpFsSelect" onchange="generateIsoTpSimulation()" class="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 font-mono text-xs">
+                <option value="0">0 = ContinueToSend (0x30)</option>
+                <option value="1">1 = Wait - Tạm dừng (0x31)</option>
+                <option value="2">2 = Overflow - Tràn bộ đệm (0x32)</option>
+              </select>
+              <div class="text-[10px] text-slate-400">Byte đầu của FC: <code class="font-mono">0x30 | FS</code></div>
+            </div>
+
+            <div class="bg-slate-50 dark:bg-slate-950 p-3 rounded-xl border border-slate-200 dark:border-slate-800 space-y-1">
+              <label class="font-bold text-slate-700 dark:text-slate-300">3. Block Size (BS):</label>
+              <input id="tpBsInput" type="number" min="0" max="16" value="3" onchange="generateIsoTpSimulation()"
+                class="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 font-mono font-bold text-xs" />
+              <div class="text-[10px] text-slate-400">0 = Gửi liền mạch • &gt;0 = Số CF mỗi đợt</div>
+            </div>
+
+            <div class="bg-slate-50 dark:bg-slate-950 p-3 rounded-xl border border-slate-200 dark:border-slate-800 space-y-1">
+              <label class="font-bold text-slate-700 dark:text-slate-300">4. STmin (Thời gian nghỉ):</label>
+              <input id="tpStminInput" type="number" min="0" max="127" value="10" onchange="generateIsoTpSimulation()"
+                class="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 font-mono font-bold text-xs" />
+              <div class="text-[10px] text-slate-400">Khoảng cách tối thiểu giữa 2 CF (0..127 ms)</div>
+            </div>
+
+            <div class="bg-slate-50 dark:bg-slate-950 p-3 rounded-xl border border-slate-200 dark:border-slate-800 space-y-1">
+              <label class="font-bold text-slate-700 dark:text-slate-300">5. Padding Byte (CanTp):</label>
+              <select id="tpPaddingSelect" onchange="generateIsoTpSimulation()" class="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 font-mono text-xs">
+                <option value="CC">0xCC (Chuẩn AUTOSAR)</option>
+                <option value="AA">0xAA (Alternating Bits)</option>
+                <option value="00">0x00 (Zero Padding)</option>
+                <option value="FF">0xFF (Recessive Padding)</option>
+              </select>
+              <div class="text-[10px] text-slate-400">Lấp đầy đủ 8 bytes cho SF / FC / CF cuối</div>
+            </div>
+          </div>
+
+          <!-- N_PCI Legend Banner -->
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-2 text-[11px] font-mono">
+            <div class="p-2.5 rounded-xl bg-sky-500/10 border border-sky-500/30 text-sky-700 dark:text-sky-300">
+              <strong>SF (Single Frame):</strong> <code class="font-bold">[0x0 | DL] [D0..D6]</code> (Tối đa 7 bytes UDS trên CAN 2.0)
+            </div>
+            <div class="p-2.5 rounded-xl bg-indigo-500/10 border border-indigo-500/30 text-indigo-700 dark:text-indigo-300">
+              <strong>FF (First Frame):</strong> <code class="font-bold">[0x1 | DL_hi] [DL_lo] [D0..D5]</code> (Chứa 12-bit tổng độ dài + 6 bytes đầu)
+            </div>
+            <div class="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300">
+              <strong>FC (Flow Control):</strong> <code class="font-bold">[0x3 | FS] [BS] [STmin] [Pad..]</code> (Bên nhận điều tiết tốc độ gửi)
+            </div>
+            <div class="p-2.5 rounded-xl bg-purple-500/10 border border-purple-500/30 text-purple-700 dark:text-purple-300">
+              <strong>CF (Consecutive Frame):</strong> <code class="font-bold">[0x2 | SN] [D_next..7B]</code> (SN quay vòng <code class="font-bold">1..F ➔ 0..F</code>)
+            </div>
+          </div>
+
+          <!-- Generated ISO-TP Frame Sequence Table -->
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr class="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 font-mono text-[10px] uppercase text-slate-400">
+                  <th class="py-2 px-3">#</th>
+                  <th class="py-2 px-3">Thời điểm</th>
+                  <th class="py-2 px-3">Chiều & CAN ID</th>
+                  <th class="py-2 px-3">Loại Frame (N_PCI)</th>
+                  <th class="py-2 px-3">8 Bytes CAN Frame (PCI được tô nổi bật)</th>
+                  <th class="py-2 px-3">Hàm AUTOSAR CanTp / PduR / Dcm tương ứng</th>
+                </tr>
+              </thead>
+              <tbody id="isoTpTableBody" class="divide-y divide-slate-200 dark:divide-slate-800/70 font-mono text-[11px]"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= SUB-TAB 3: QUICK REFERENCE HANDBOOK ================= -->
+      <div id="tabPanel-handbook" class="hidden space-y-4">
+        <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-sm space-y-4 text-xs">
+          <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 dark:border-slate-800 pb-3">
+            <div>
+              <h3 class="text-sm font-extrabold text-slate-900 dark:text-white">
+                📖 Sổ Tay Tra Cứu Nhanh: Cấu Trúc Frame UDS, Bảng Mã Lỗi NRC & Kiến Trúc AUTOSAR
+              </h3>
+              <p class="text-xs text-slate-500 dark:text-slate-400">
+                Tổng hợp ngắn gọn công thức đóng gói Request/Response cho 12 SID quan trọng nhất và ý nghĩa các mã NRC thường gặp.
+              </p>
+            </div>
+            <input type="text" id="handbookSearchInput" oninput="filterHandbookTables(this.value)" placeholder="🔍 Lọc nhanh SID, tên dịch vụ, mã NRC..."
+              class="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-xs w-64 focus:border-sky-500 focus:outline-none" />
+          </div>
+
+          <!-- Table 1: 12 Core UDS Services Cheat Sheet -->
+          <div class="space-y-2">
+            <h4 class="font-extrabold text-sky-600 dark:text-sky-400 uppercase tracking-wider">1. Bảng Tra Cứu 12 Dịch Vụ UDS Quan Trọng Nhất (ISO 14229-1)</h4>
+            <div class="overflow-x-auto">
+              <table class="w-full text-left border-collapse" id="hbServicesTable">
+                <thead>
+                  <tr class="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 font-mono text-[10px] uppercase text-slate-400">
+                    <th class="p-2.5">SID</th>
+                    <th class="p-2.5">PosRsp</th>
+                    <th class="p-2.5">Tên Dịch Vụ</th>
+                    <th class="p-2.5">Sub-Func?</th>
+                    <th class="p-2.5">Cấu Trúc Request</th>
+                    <th class="p-2.5">Cấu Trúc Positive Response</th>
+                    <th class="p-2.5">Session / Security & Ghi Chú AUTOSAR</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-200 dark:divide-slate-800/70 font-mono text-[11px]">
+                  <tr>
+                    <td class="p-2.5 font-bold text-sky-500">0x10</td>
+                    <td class="p-2.5 text-emerald-500 font-bold">0x50</td>
+                    <td class="p-2.5 font-sans font-bold">DiagnosticSessionControl</td>
+                    <td class="p-2.5">Có (01,02,03)</td>
+                    <td class="p-2.5">[10] [SubFunc]</td>
+                    <td class="p-2.5">[50] [Sub] [P2_hi P2_lo] [P2*_hi P2*_lo]</td>
+                    <td class="p-2.5 font-sans">Đổi phiên làm việc trong <code class="font-mono">DSL</code>; chuyển từ Non-Default về Default sẽ khóa lại Security (<code class="font-mono">0x27</code>).</td>
+                  </tr>
+                  <tr>
+                    <td class="p-2.5 font-bold text-sky-500">0x11</td>
+                    <td class="p-2.5 text-emerald-500 font-bold">0x51</td>
+                    <td class="p-2.5 font-sans font-bold">ECUReset</td>
+                    <td class="p-2.5">Có (01,02,03)</td>
+                    <td class="p-2.5">[11] [ResetType]</td>
+                    <td class="p-2.5">[51] [ResetType]</td>
+                    <td class="p-2.5 font-sans">Gọi <code class="font-mono">SchM_Switch_DcmEcuReset</code>; đưa Session về <code class="font-mono">0x01</code> và khóa Security.</td>
+                  </tr>
+                  <tr>
+                    <td class="p-2.5 font-bold text-sky-500">0x14</td>
+                    <td class="p-2.5 text-emerald-500 font-bold">0x54</td>
+                    <td class="p-2.5 font-sans font-bold">ClearDiagnosticInformation</td>
+                    <td class="p-2.5">Không</td>
+                    <td class="p-2.5">[14] [Group_Hi Mid Lo]</td>
+                    <td class="p-2.5">[54]</td>
+                    <td class="p-2.5 font-sans">Gọi <code class="font-mono">Dem_ClearDTC(0xFFFFFF)</code> xóa Status Byte của mọi DTC về <code class="font-mono">0x50</code>.</td>
+                  </tr>
+                  <tr>
+                    <td class="p-2.5 font-bold text-sky-500">0x19</td>
+                    <td class="p-2.5 text-emerald-500 font-bold">0x59</td>
+                    <td class="p-2.5 font-sans font-bold">ReadDTCInformation</td>
+                    <td class="p-2.5">Có (01,02,04,0A)</td>
+                    <td class="p-2.5">[19] [Sub] [Mask / DTC]</td>
+                    <td class="p-2.5">[59] [Sub] [AvailMask] [DTC+Status...]</td>
+                    <td class="p-2.5 font-sans">Sub <code class="font-mono">02</code> lọc DTC theo StatusMask (<code class="font-mono">0x08</code> Confirmed, <code class="font-mono">0x04</code> Pending).</td>
+                  </tr>
+                  <tr>
+                    <td class="p-2.5 font-bold text-sky-500">0x22</td>
+                    <td class="p-2.5 text-emerald-500 font-bold">0x62</td>
+                    <td class="p-2.5 font-sans font-bold">ReadDataByIdentifier</td>
+                    <td class="p-2.5">Không</td>
+                    <td class="p-2.5">[22] [DID_Hi] [DID_Lo]</td>
+                    <td class="p-2.5">[62] [DID_Hi] [DID_Lo] [Data...]</td>
+                    <td class="p-2.5 font-sans">Đọc 1 hoặc nhiều DID qua <code class="font-mono">Rte_Call_DataServices_DID_ReadData()</code>.</td>
+                  </tr>
+                  <tr>
+                    <td class="p-2.5 font-bold text-sky-500">0x27</td>
+                    <td class="p-2.5 text-emerald-500 font-bold">0x67</td>
+                    <td class="p-2.5 font-sans font-bold">SecurityAccess</td>
+                    <td class="p-2.5">Có (Lẻ=Seed, Chẵn=Key)</td>
+                    <td class="p-2.5">[27] [2n-1] / [27] [2n] [Key]</td>
+                    <td class="p-2.5">[67] [2n-1] [Seed] / [67] [2n]</td>
+                    <td class="p-2.5 font-sans">Chỉ hoạt động ở Non-Default Session. Nếu đã mở khóa sẵn mà xin Seed sẽ trả Seed <code class="font-mono">00 00</code>.</td>
+                  </tr>
+                  <tr>
+                    <td class="p-2.5 font-bold text-sky-500">0x28</td>
+                    <td class="p-2.5 text-emerald-500 font-bold">0x68</td>
+                    <td class="p-2.5 font-sans font-bold">CommunicationControl</td>
+                    <td class="p-2.5">Có (00..03)</td>
+                    <td class="p-2.5">[28] [CtrlType] [ComType]</td>
+                    <td class="p-2.5">[68] [CtrlType]</td>
+                    <td class="p-2.5 font-sans">Tắt các bản tin Application CAN (<code class="font-mono">ComType=01/03</code>) để dồn băng thông nạp Flash.</td>
+                  </tr>
+                  <tr>
+                    <td class="p-2.5 font-bold text-sky-500">0x2E</td>
+                    <td class="p-2.5 text-emerald-500 font-bold">0x6E</td>
+                    <td class="p-2.5 font-sans font-bold">WriteDataByIdentifier</td>
+                    <td class="p-2.5">Không</td>
+                    <td class="p-2.5">[2E] [DID_Hi] [DID_Lo] [Data...]</td>
+                    <td class="p-2.5">[6E] [DID_Hi] [DID_Lo]</td>
+                    <td class="p-2.5 font-sans">Thường yêu cầu <code class="font-mono">Extended Session (0x03)</code> + <code class="font-mono">Security Unlocked</code> + xe đứng yên.</td>
+                  </tr>
+                  <tr>
+                    <td class="p-2.5 font-bold text-sky-500">0x2F</td>
+                    <td class="p-2.5 text-emerald-500 font-bold">0x6F</td>
+                    <td class="p-2.5 font-sans font-bold">InputOutputControlById</td>
+                    <td class="p-2.5">Không (Dùng IOCP)</td>
+                    <td class="p-2.5">[2F] [DID] [IOCP: 00/02/03] [State]</td>
+                    <td class="p-2.5">[6F] [DID] [IOCP] [State]</td>
+                    <td class="p-2.5 font-sans"><code class="font-mono">03</code>=ShortTermAdj (cưỡng bức ngõ ra), <code class="font-mono">00</code>=ReturnControlToECU.</td>
+                  </tr>
+                  <tr>
+                    <td class="p-2.5 font-bold text-sky-500">0x31</td>
+                    <td class="p-2.5 text-emerald-500 font-bold">0x71</td>
+                    <td class="p-2.5 font-sans font-bold">RoutineControl</td>
+                    <td class="p-2.5">Có (01=Start,02=Stop,03=Res)</td>
+                    <td class="p-2.5">[31] [Sub] [RID_Hi] [RID_Lo] [Opt]</td>
+                    <td class="p-2.5">[71] [Sub] [RID_Hi] [RID_Lo] [Status]</td>
+                    <td class="p-2.5 font-sans">Chạy tác vụ xóa Flash (<code class="font-mono">FF 00</code>), kiểm tra điều kiện nạp (<code class="font-mono">02 03</code>), kiểm tra Checksum.</td>
+                  </tr>
+                  <tr>
+                    <td class="p-2.5 font-bold text-sky-500">0x34/36/37</td>
+                    <td class="p-2.5 text-emerald-500 font-bold">74/76/77</td>
+                    <td class="p-2.5 font-sans font-bold">Download Sequence</td>
+                    <td class="p-2.5">Không</td>
+                    <td class="p-2.5">34 [Fmt][Addr][Size] ➔ 36 [BSC][Data] ➔ 37</td>
+                    <td class="p-2.5">[74][LFID][MaxBlk] ➔ [76][BSC] ➔ [77]</td>
+                    <td class="p-2.5 font-sans">Bắt buộc chạy trong <code class="font-mono">Programming Session (0x02)</code> + mở khóa Security.</td>
+                  </tr>
+                  <tr>
+                    <td class="p-2.5 font-bold text-sky-500">0x3E / 0x85</td>
+                    <td class="p-2.5 text-emerald-500 font-bold">7E / C5</td>
+                    <td class="p-2.5 font-sans font-bold">TesterPresent & ControlDTC</td>
+                    <td class="p-2.5">Có</td>
+                    <td class="p-2.5">[3E] [00/80] | [85] [01/02]</td>
+                    <td class="p-2.5">[7E] [00] | [C5] [01/02]</td>
+                    <td class="p-2.5 font-sans"><code class="font-mono">3E 80</code> reset bộ đếm <code class="font-mono">S3Server</code> mà không gửi phản hồi dương.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Table 2: NRC Priority & Troubleshooting -->
+          <div class="space-y-2 pt-3 border-t border-slate-200 dark:border-slate-800">
+            <h4 class="font-extrabold text-rose-600 dark:text-rose-400 uppercase tracking-wider">2. Bảng Thứ Tự Ưu Tiên Mã Lỗi NRC Trong DCM ([7F] [SID] [NRC])</h4>
+            <div class="overflow-x-auto">
+              <table class="w-full text-left border-collapse" id="hbNrcTable">
+                <thead>
+                  <tr class="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 font-mono text-[10px] uppercase text-slate-400">
+                    <th class="p-2.5">Thứ tự</th>
+                    <th class="p-2.5">Mã NRC</th>
+                    <th class="p-2.5">Tên Chuẩn ISO 14229-1</th>
+                    <th class="p-2.5">Phân lớp kiểm tra</th>
+                    <th class="p-2.5">Nguyên nhân & Cách khắc phục</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-200 dark:divide-slate-800/70 font-mono text-[11px]">
+                  <tr>
+                    <td class="p-2.5">Bước 1</td>
+                    <td class="p-2.5 font-bold text-rose-500">0x11</td>
+                    <td class="p-2.5">serviceNotSupported</td>
+                    <td class="p-2.5">DCM — DSD</td>
+                    <td class="p-2.5 font-sans">SID không có trong <code class="font-mono">DcmDsdServiceTable</code> của ECU.</td>
+                  </tr>
+                  <tr>
+                    <td class="p-2.5">Bước 2</td>
+                    <td class="p-2.5 font-bold text-rose-500">0x7F</td>
+                    <td class="p-2.5">serviceNotSupportedInActiveSession</td>
+                    <td class="p-2.5">DCM — DSD</td>
+                    <td class="p-2.5 font-sans">Dịch vụ không được phép chạy ở Session hiện tại (Cần gửi <code class="font-mono">10 03</code> hoặc <code class="font-mono">10 02</code> trước).</td>
+                  </tr>
+                  <tr>
+                    <td class="p-2.5">Bước 3</td>
+                    <td class="p-2.5 font-bold text-rose-500">0x33</td>
+                    <td class="p-2.5">securityAccessDenied</td>
+                    <td class="p-2.5">DCM — DSD / DSP</td>
+                    <td class="p-2.5 font-sans">ECU đang ở trạng thái Locked. Cần mở khóa bằng <code class="font-mono">27 01 -> 27 02</code> trước.</td>
+                  </tr>
+                  <tr>
+                    <td class="p-2.5">Bước 4 & 7</td>
+                    <td class="p-2.5 font-bold text-rose-500">0x13</td>
+                    <td class="p-2.5">incorrectMessageLengthOrInvalidFormat</td>
+                    <td class="p-2.5">DCM — DSD / DSP</td>
+                    <td class="p-2.5 font-sans">Độ dài tổng số byte gửi lên ngắn hơn hoặc dài hơn quy định của SID/DID đó.</td>
+                  </tr>
+                  <tr>
+                    <td class="p-2.5">Bước 5</td>
+                    <td class="p-2.5 font-bold text-rose-500">0x12 / 0x7E</td>
+                    <td class="p-2.5">subFunctionNotSupported (InActiveSession)</td>
+                    <td class="p-2.5">DCM — DSD / DSP</td>
+                    <td class="p-2.5 font-sans">Byte Sub-function không hợp lệ (<code class="font-mono">0x12</code>) hoặc Sub-function đó bị cấm trong Session hiện tại (<code class="font-mono">0x7E</code>).</td>
+                  </tr>
+                  <tr>
+                    <td class="p-2.5">Bước 6</td>
+                    <td class="p-2.5 font-bold text-rose-500">0x31</td>
+                    <td class="p-2.5">requestOutOfRange</td>
+                    <td class="p-2.5">DCM — DSP</td>
+                    <td class="p-2.5 font-sans">Mã <code class="font-mono">DID / RID</code> không tồn tại, hoặc giá trị dữ liệu ghi nằm ngoài dải cho phép.</td>
+                  </tr>
+                  <tr>
+                    <td class="p-2.5">Bước 8</td>
+                    <td class="p-2.5 font-bold text-rose-500">0x22</td>
+                    <td class="p-2.5">conditionsNotCorrect</td>
+                    <td class="p-2.5">DCM — DSP / SWC</td>
+                    <td class="p-2.5 font-sans">Điều kiện an toàn chưa thỏa mãn (Ví dụ: Tốc độ xe &gt; 0 km/h, điện áp ắc-quy yếu, động cơ đang nổ máy).</td>
+                  </tr>
+                  <tr>
+                    <td class="p-2.5">Bước 9</td>
+                    <td class="p-2.5 font-bold text-rose-500">0x24</td>
+                    <td class="p-2.5">requestSequenceError</td>
+                    <td class="p-2.5">DCM — DSP</td>
+                    <td class="p-2.5 font-sans">Gửi sai trình tự (Gửi Key <code class="font-mono">27 02</code> khi chưa xin Seed <code class="font-mono">27 01</code>; Gửi <code class="font-mono">0x36</code> khi chưa gọi <code class="font-mono">0x34</code>).</td>
+                  </tr>
+                  <tr>
+                    <td class="p-2.5">Bước 10</td>
+                    <td class="p-2.5 font-bold text-rose-500">0x35 / 0x36</td>
+                    <td class="p-2.5">invalidKey / exceededNumberOfAttempts</td>
+                    <td class="p-2.5">DCM — DSP (0x27)</td>
+                    <td class="p-2.5 font-sans">Gửi sai Key (<code class="font-mono">0x35</code>); nếu sai quá 3 lần liên tiếp sẽ bị khóa tạm thời với <code class="font-mono">0x36</code>.</td>
+                  </tr>
+                  <tr>
+                    <td class="p-2.5">Đặc biệt</td>
+                    <td class="p-2.5 font-bold text-amber-500">0x78</td>
+                    <td class="p-2.5">requestCorrectlyReceived-ResponsePending</td>
+                    <td class="p-2.5">DCM — DSL</td>
+                    <td class="p-2.5 font-sans">ECU đã nhận lệnh hợp lệ nhưng đang bận ghi Flash/NvM; Tester cần mở rộng thời gian chờ từ <code class="font-mono">P2 (50ms)</code> sang <code class="font-mono">P2* (5000ms)</code>.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </section>
+  </main>
+
+  <!-- ================= JAVASCRIPT SIMULATION ENGINE ================= -->
+  <script>
+    // =========================================================================
+    // 1. ECU LIVE STATE & CORE UDS SERVICE CATALOG
+    // =========================================================================
+    const ecu = {
+      session: 0x01,           // 0x01 Default, 0x02 Programming, 0x03 Extended
+      s3RemainingMs: 0,        // 5000ms when in non-default session
+      securityLevel: 0,        // 0 = Locked, 1 = Level 1 (Extended), 2 = Level 2 (Programming)
+      activeSeed: null,        // e.g. [0x12, 0x34]
+      pendingSeedLevel: 0,
+      failedKeyAttempts: 0,
+      dtcSettingOn: true,      // 0x85 (true = ON, false = OFF)
+      comEnabled: true,        // 0x28 (true = Enabled, false = Disabled)
+      fanControlMode: 'Auto (ECU 30%)',
+      flashErased: false,
+      downloadActive: false,
+      expectedBlockCounter: 1,
+      dids: {
+        'F190': {
+          name: 'VIN (Số khung xe 17-byte — Multi-frame)',
+          data: [0x56, 0x4E, 0x48, 0x59, 0x55, 0x4E, 0x44, 0x41, 0x49, 0x32, 0x30, 0x32, 0x36, 0x45, 0x43, 0x55, 0x31], // "VNHYUNDAI2026ECU1"
+          writable: true
+        },
+        'F187': {
+          name: 'Vehicle Manufacturer Spare Part Number',
+          data: [0x33, 0x39, 0x31, 0x30, 0x30, 0x2D, 0x32, 0x42, 0x30, 0x30], // "39100-2B00"
+          writable: false
+        },
+        '0105': {
+          name: 'Engine Coolant Temperature (°C)',
+          data: [0x5A], // 90°C
+          writable: true
+        },
+        '010C': {
+          name: 'Engine Speed (RPM)',
+          data: [0x09, 0xC4], // 2500 RPM
+          writable: false
+        }
+      },
+      dtcs: [
+        { code: [0x01, 0x05, 0x11], status: 0x2F, name: 'Coolant Temp Sensor Circuit Low (Confirmed + Active)', snapshot: [0x01, 0x05, 0x5A] },
+        { code: [0x03, 0x00, 0x00], status: 0x24, name: 'Random Cylinder Misfire Detected (Pending)', snapshot: [0x01, 0x0C, 0x09, 0xC4] },
+        { code: [0xC1, 0x00, 0x00], status: 0x28, name: 'Lost Communication With ECM/PCM (History Confirmed)', snapshot: [0x01, 0x05, 0x40] }
+      ]
+    };
+
+    const SERVICE_PRESETS = {
+      '0x10': {
+        name: 'DiagnosticSessionControl',
+        hasSubFunc: true,
+        ruleHint: 'Hỗ trợ mọi Session • Sub: 01, 02, 03',
+        presets: [
+          { label: '10 03 — Chuyển sang Extended Session (0x03)', hex: '10 03' },
+          { label: '10 02 — Chuyển sang Programming Session (0x02 - Cần tắt Com/Xe dừng)', hex: '10 02' },
+          { label: '10 01 — Quay về Default Session (0x01 - Khóa lại Security)', hex: '10 01' },
+          { label: '10 83 — Extended Session có bật Suppress PosRsp (Bit 7 = 1)', hex: '10 83' }
+        ]
+      },
+      '0x11': {
+        name: 'ECUReset',
+        hasSubFunc: true,
+        ruleHint: 'Hỗ trợ mọi Session • Chặn nếu xe đang chạy (NRC 0x22)',
+        presets: [
+          { label: '11 01 — Hard Reset (Khởi động lại phần cứng MCU)', hex: '11 01' },
+          { label: '11 03 — Soft Reset (Khởi động lại phần mềm ứng dụng)', hex: '11 03' },
+          { label: '11 81 — Hard Reset có Suppress PosRsp (Bit 7 = 1)', hex: '11 81' }
+        ]
+      },
+      '0x27': {
+        name: 'SecurityAccess',
+        hasSubFunc: true,
+        ruleHint: 'Yêu cầu Non-Default Session (0x02/0x03) • Xin Seed (Lẻ) trước khi gửi Key (Chẵn)',
+        presets: [
+          { label: '27 01 — Bước 1: Request Seed Level 1 (Extended Session)', hex: '27 01' },
+          { label: '27 02 [Key] — Bước 2: Send Key Level 1 (Mở khóa ghi DID / I/O)', hex: '27 02 ED CB' },
+          { label: '27 03 — Bước 1: Request Seed Level 2 (Programming Session)', hex: '27 03' },
+          { label: '27 04 [Key] — Bước 2: Send Key Level 2 (Mở khóa nạp Flash)', hex: '27 04 5A A5' }
+        ]
+      },
+      '0x3E': {
+        name: 'TesterPresent',
+        hasSubFunc: true,
+        ruleHint: 'Reset đồng hồ S3Server về 5000ms để giữ phiên Non-Default',
+        presets: [
+          { label: '3E 00 — TesterPresent (Trả lời 7E 00)', hex: '3E 00' },
+          { label: '3E 80 — TesterPresent Suppress PosRsp (Thực tế dùng nhiều nhất)', hex: '3E 80' }
+        ]
+      },
+      '0x22': {
+        name: 'ReadDataByIdentifier',
+        hasSubFunc: false,
+        ruleHint: 'Không có Sub-function • Truyền DID 2-byte (Có thể đọc 17B VIN qua ISO-TP)',
+        presets: [
+          { label: '22 F1 90 — Đọc số khung VIN 17-byte (Trả về qua Multi-frame FF/FC/CF)', hex: '22 F1 90' },
+          { label: '22 F1 87 — Đọc mã phụ tùng ECU (Spare Part Number - 10 bytes)', hex: '22 F1 87' },
+          { label: '22 01 05 — Đọc nhiệt độ nước làm mát (Single Frame)', hex: '22 01 05' },
+          { label: '22 01 0C — Đọc tốc độ vòng tua động cơ RPM (Single Frame)', hex: '22 01 0C' }
+        ]
+      },
+      '0x2E': {
+        name: 'WriteDataByIdentifier',
+        hasSubFunc: false,
+        ruleHint: 'Yêu cầu Extended/Prog Session (NRC 0x7F) + Mở khóa Security (NRC 0x33)',
+        presets: [
+          { label: '2E 01 05 64 — Ghi ngưỡng nhiệt độ mới (100°C - Single Frame)', hex: '2E 01 05 64' },
+          { label: '2E F1 90 [17B VIN] — Ghi số VIN mới (20 bytes -> Multi-frame FF/FC/CF)', hex: '2E F1 90 56 4E 48 59 55 4E 44 41 49 32 30 32 36 50 52 4F 39' }
+        ]
+      },
+      '0x2F': {
+        name: 'InputOutputControlByIdentifier',
+        hasSubFunc: false,
+        ruleHint: 'Yêu cầu Extended Session (0x03) + Security Level 1 • Byte 3 là IOCP (00, 02, 03)',
+        presets: [
+          { label: '2F 02 01 03 50 — ShortTermAdjustment (03): Cưỡng bức Quạt chạy 80% (0x50)', hex: '2F 02 01 03 50' },
+          { label: '2F 02 01 02 — FreezeCurrentState (02): Giữ nguyên tốc độ quạt hiện tại', hex: '2F 02 01 02' },
+          { label: '2F 02 01 00 — ReturnControlToECU (00): Trả quyền điều khiển quạt về SWC', hex: '2F 02 01 00' }
+        ]
+      },
+      '0x19': {
+        name: 'ReadDTCInformation',
+        hasSubFunc: true,
+        ruleHint: 'Gọi sang module AUTOSAR DEM (Dem_SetDTCFilter / Dem_GetNextFilteredDTC)',
+        presets: [
+          { label: '19 02 08 — Đọc danh sách DTC đã Confirmed (StatusMask = 0x08)', hex: '19 02 08' },
+          { label: '19 02 04 — Đọc danh sách DTC đang Pending (StatusMask = 0x04)', hex: '19 02 04' },
+          { label: '19 01 08 — Đếm số lượng DTC khớp mặt nạ Confirmed (Sub 01)', hex: '19 01 08' },
+          { label: '19 04 01 05 11 01 — Đọc Snapshot / FreezeFrame của DTC 0x010511', hex: '19 04 01 05 11 01' },
+          { label: '19 0A — Đọc toàn bộ DTC được ECU hỗ trợ (Multi-frame)', hex: '19 0A' }
+        ]
+      },
+      '0x14': {
+        name: 'ClearDiagnosticInformation',
+        hasSubFunc: false,
+        ruleHint: 'Không có Sub-function • Kèm 3 byte GroupOfDTC (FF FF FF = Xóa tất cả)',
+        presets: [
+          { label: '14 FF FF FF — Xóa toàn bộ bộ nhớ lỗi DTC trong DEM & NvM', hex: '14 FF FF FF' },
+          { label: '14 01 05 11 — Xóa riêng mã lỗi DTC 0x010511', hex: '14 01 05 11' }
+        ]
+      },
+      '0x85': {
+        name: 'ControlDTCSetting',
+        hasSubFunc: true,
+        ruleHint: 'Yêu cầu Extended Session (0x03) • Dùng trước khi nạp Flash để tránh báo lỗi ảo',
+        presets: [
+          { label: '85 02 — Tắt ghi nhận DTC trong DEM (DTCSetting = OFF)', hex: '85 02' },
+          { label: '85 01 — Bật lại ghi nhận DTC trong DEM (DTCSetting = ON)', hex: '85 01' }
+        ]
+      },
+      '0x28': {
+        name: 'CommunicationControl',
+        hasSubFunc: true,
+        ruleHint: 'Yêu cầu Extended Session (0x03) • Byte 2 là CommunicationType (01=Normal, 03=All)',
+        presets: [
+          { label: '28 03 03 — DisableRxAndTx (03) cho toàn bộ mạng (Chuẩn bị nạp Flash)', hex: '28 03 03' },
+          { label: '28 00 03 — EnableRxAndTx (00) khôi phục truyền thông bình thường', hex: '28 00 03' }
+        ]
+      },
+      '0x31': {
+        name: 'RoutineControl',
+        hasSubFunc: true,
+        ruleHint: 'Sub: 01 (Start), 02 (Stop), 03 (Result) + 2-byte Routine ID (RID)',
+        presets: [
+          { label: '31 01 02 03 — Start Routine kiểm tra điều kiện nạp (Check Preconditions)', hex: '31 01 02 03' },
+          { label: '31 01 FF 00 — Start Routine Xóa vùng nhớ Flash (Erase Memory - Cần 10 02 + Sec)', hex: '31 01 FF 00' },
+          { label: '31 03 FF 00 — Request Results của Routine Erase Memory', hex: '31 03 FF 00' }
+        ]
+      },
+      '0x34': {
+        name: 'RequestDownload / TransferData / TransferExit',
+        hasSubFunc: false,
+        ruleHint: 'Chu trình nạp Flash: 0x34 (Mở phiên) ➔ 0x36 (Truyền khối dữ liệu) ➔ 0x37 (Đóng phiên)',
+        presets: [
+          { label: '34 00 44 08 00 40 00 00 00 00 20 — 1. RequestDownload (Địa chỉ 0x08004000, 32B)', hex: '34 00 44 08 00 40 00 00 00 00 20' },
+          { label: '36 01 AA BB CC DD 11 22 33 44 55 66 — 2. TransferData Block #01 (Multi-frame)', hex: '36 01 AA BB CC DD 11 22 33 44 55 66' },
+          { label: '37 — 3. RequestTransferExit (Kết thúc truyền dữ liệu Flash)', hex: '37' }
+        ]
+      }
+    };
+
+    let currentSidKey = '0x10';
+    let lastTransaction = null;
+
+    // =========================================================================
+    // 2. HELPER UTILITIES
+    // =========================================================================
+    function toHex(b) {
+      return (b & 0xFF).toString(16).toUpperCase().padStart(2, '0');
+    }
+
+    function bytesToHexStr(arr) {
+      return arr.map(toHex).join(' ');
+    }
+
+    function parseHexStr(str) {
+      const cleaned = (str || '').replace(/[^0-9a-fA-F]/g, ' ').trim();
+      if (!cleaned) return [];
+      return cleaned.split(/\s+/).map(tok => parseInt(tok, 16)).filter(n => !isNaN(n) && n >= 0 && n <= 255);
+    }
+
+    // =========================================================================
+    // 3. UI PICKER & PRESET HANDLERS
+    // =========================================================================
+    function selectService(sidKey) {
+      currentSidKey = sidKey;
+      document.querySelectorAll('.service-pill').forEach(btn => btn.classList.remove('active-sid'));
+      const activeBtn = document.getElementById('sidBtn-' + sidKey);
+      if (activeBtn) activeBtn.classList.add('active-sid');
+
+      const meta = SERVICE_PRESETS[sidKey];
+      document.getElementById('lblActiveSidRule').textContent = `${sidKey} ${meta.name}`;
+
+      const sel = document.getElementById('presetSelect');
+      sel.innerHTML = meta.presets.map((p, idx) => `<option value="${idx}">${p.label}</option>`).join('');
+
+      const chkSup = document.getElementById('chkSuppressPosRsp');
+      chkSup.disabled = !meta.hasSubFunc;
+      if (!meta.hasSubFunc) chkSup.checked = false;
+
+      const secBox = document.getElementById('securityKeyHelperBox');
+      if (sidKey === '0x27') secBox.classList.remove('hidden');
+      else secBox.classList.add('hidden');
+
+      onPresetChange();
+    }
+
+    function onPresetChange() {
+      const meta = SERVICE_PRESETS[currentSidKey];
+      const idx = parseInt(document.getElementById('presetSelect').value, 10) || 0;
+      const preset = meta.presets[idx] || meta.presets[0];
+      document.getElementById('rawHexInput').value = preset.hex;
+
+      const bytes = parseHexStr(preset.hex);
+      if (meta.hasSubFunc && bytes.length >= 2) {
+        document.getElementById('chkSuppressPosRsp').checked = ((bytes[1] & 0x80) !== 0);
+      }
+      onRawHexEdit();
+    }
+
+    function onSuppressBitToggle() {
+      const meta = SERVICE_PRESETS[currentSidKey];
+      if (!meta.hasSubFunc) return;
+      const bytes = parseHexStr(document.getElementById('rawHexInput').value);
+      if (bytes.length >= 2) {
+        const suppress = document.getElementById('chkSuppressPosRsp').checked;
+        if (suppress) bytes[1] = bytes[1] | 0x80;
+        else bytes[1] = bytes[1] & 0x7F;
+        document.getElementById('rawHexInput').value = bytesToHexStr(bytes);
+        onRawHexEdit();
+      }
+    }
+
+    function onRawHexEdit() {
+      const bytes = parseHexStr(document.getElementById('rawHexInput').value);
+      const countEl = document.getElementById('lblPayloadByteCount');
+      if (bytes.length <= 7) {
+        countEl.textContent = `${bytes.length} bytes (Single Frame - SF)`;
+        countEl.className = 'text-[10px] font-mono text-emerald-500 font-semibold';
+      } else {
+        countEl.textContent = `${bytes.length} bytes (Multi-Frame: FF + FC + CF)`;
+        countEl.className = 'text-[10px] font-mono text-amber-500 font-bold';
+      }
+    }
+
+    function fillCorrectSecurityKey() {
+      if (!ecu.activeSeed) {
+        quickSendHex('27 01');
+        return;
+      }
+      const key0 = ecu.activeSeed[0] ^ 0xFF;
+      const key1 = ecu.activeSeed[1] ^ 0xFF;
+      const sendKeySub = (ecu.pendingSeedLevel === 2) ? 0x04 : 0x02;
+      const cmd = `27 ${toHex(sendKeySub)} ${toHex(key0)} ${toHex(key1)}`;
+      document.getElementById('rawHexInput').value = cmd;
+      onRawHexEdit();
+      sendUdsRequestFromUI();
+    }
+
+    function injectWrongLength() {
+      const bytes = parseHexStr(document.getElementById('rawHexInput').value);
+      const sid = bytes[0] || 0x22;
+      quickSendHex(toHex(sid));
+    }
+
+    function quickSendHex(hexStr) {
+      document.getElementById('rawHexInput').value = hexStr;
+      onRawHexEdit();
+      sendUdsRequestFromUI();
+    }
+
+    function quickUnlockSecurity() {
+      runGuidedWorkflow('unlock_only');
+    }
+
+    // =========================================================================
+    // 4. CORE AUTOSAR DCM UDS PROCESSOR & 9-STEP NRC PIPELINE EVALUATOR
+    // =========================================================================
+    function sendUdsRequestFromUI() {
+      const reqBytes = parseHexStr(document.getElementById('rawHexInput').value);
+      if (!reqBytes.length) return;
+      processUdsTransaction(reqBytes);
+    }
+
+    function processUdsTransaction(reqBytes) {
+      const isFunctional = document.getElementById('chkFunctionalAddr').checked;
+      const isVehicleMoving = document.getElementById('chkVehicleMoving').checked;
+      const isSlowPending = document.getElementById('chkSimulatePending0x78').checked;
+
+      // Reset S3Server timer on any valid request in non-default session
+      if (ecu.session !== 0x01) {
+        ecu.s3RemainingMs = 5000;
+      }
+
+      // Initialize 9-step NRC Evaluation Waterfall
+      const nrcSteps = [
+        { id: 1, code: '0x11', title: '1. Kiểm tra SID có được hỗ trợ? (DSD Service Table)', status: 'pending', detail: '' },
+        { id: 2, code: '0x7F', title: '2. Kiểm tra SID có cho phép trong Session hiện tại? (DSD)', status: 'pending', detail: '' },
+        { id: 3, code: '0x33', title: '3. Kiểm tra quyền bảo mật Security Access? (DSD/DSP)', status: 'pending', detail: '' },
+        { id: 4, code: '0x13', title: '4. Kiểm tra độ dài tối thiểu (Min Length Check)?', status: 'pending', detail: '' },
+        { id: 5, code: '0x12/0x7E', title: '5. Kiểm tra Sub-function hợp lệ & hỗ trợ trong Session?', status: 'pending', detail: '' },
+        { id: 6, code: '0x31', title: '6. Kiểm tra DID / RID / Tham số có tồn tại (OutOfRange)?', status: 'pending', detail: '' },
+        { id: 7, code: '0x13', title: '7. Kiểm tra tổng độ dài gói tin chính xác (Total Length)?', status: 'pending', detail: '' },
+        { id: 8, code: '0x22', title: '8. Kiểm tra điều kiện vận hành ECU (Tốc độ xe / Điện áp)?', status: 'pending', detail: '' },
+        { id: 9, code: '0x24/0x35', title: '9. Kiểm tra trình tự Sequence & Xác thực Key (0x24/0x35/0x36)?', status: 'pending', detail: '' }
+      ];
+
+      function failAtStep(stepIndex, nrcByte, reasonText) {
+        for (let i = 0; i < stepIndex; i++) {
+          nrcSteps[i].status = 'pass';
+          if (!nrcSteps[i].detail) nrcSteps[i].detail = 'Hợp lệ (Passed)';
+        }
+        nrcSteps[stepIndex].status = 'fail';
+        nrcSteps[stepIndex].detail = reasonText;
+
+        const sid = reqBytes[0];
+        // Functional Addressing NRC Suppression Rule (ISO 14229-1): suppress 0x11, 0x12, 0x31, 0x7E, 0x7F
+        const suppressedByFunctional = isFunctional && [0x11, 0x12, 0x31, 0x7E, 0x7F].includes(nrcByte);
+
+        return {
+          isPositive: false,
+          suppressed: suppressedByFunctional,
+          suppressReason: suppressedByFunctional ? `Functional Addressing (0x7DF) tự động ẩn NRC 0x${toHex(nrcByte)}` : null,
+          nrc: nrcByte,
+          resBytes: [0x7F, sid, nrcByte],
+          summary: reasonText,
+          nrcSteps,
+          pending0x78Sent: false
+        };
+      }
+
+      const sid = reqBytes[0];
+      const supportedSids = [0x10, 0x11, 0x14, 0x19, 0x22, 0x27, 0x28, 0x2E, 0x2F, 0x31, 0x34, 0x36, 0x37, 0x3E, 0x85];
+
+      // STEP 1: SID Supported? (0x11)
+      if (!supportedSids.includes(sid)) {
+        const outcome = failAtStep(0, 0x11, `SID 0x${toHex(sid)} không tồn tại trong bảng DcmDsdServiceTable -> NRC 0x11 (serviceNotSupported)`);
+        finalizeTransaction(reqBytes, outcome, isFunctional);
+        return;
+      }
+      nrcSteps[0].status = 'pass';
+      nrcSteps[0].detail = `SID 0x${toHex(sid)} được hỗ trợ trong DcmDsdServiceTable`;
+
+      // STEP 2: Session Allowed at SID level? (0x7F)
+      const nonDefaultOnlySids = [0x27, 0x28, 0x2E, 0x2F, 0x85];
+      const progOnlySids = [0x34, 0x36, 0x37];
+      if (nonDefaultOnlySids.includes(sid) && ecu.session === 0x01) {
+        const outcome = failAtStep(1, 0x7F, `SID 0x${toHex(sid)} không chạy ở Default Session (0x01). Hãy gửi "10 03" (Extended) trước -> NRC 0x7F`);
+        finalizeTransaction(reqBytes, outcome, isFunctional);
+        return;
+      }
+      if (progOnlySids.includes(sid) && ecu.session !== 0x02) {
+        const outcome = failAtStep(1, 0x7F, `Dịch vụ nạp Flash 0x${toHex(sid)} bắt buộc ở Programming Session (0x02). Hãy gửi "10 02" trước -> NRC 0x7F`);
+        finalizeTransaction(reqBytes, outcome, isFunctional);
+        return;
+      }
+      nrcSteps[1].status = 'pass';
+      nrcSteps[1].detail = `Session hiện tại (0x${toHex(ecu.session)}) cho phép gọi SID 0x${toHex(sid)}`;
+
+      // STEP 3: Security Level Check? (0x33)
+      const secRequiredSids = [0x2E, 0x2F, 0x34, 0x36, 0x37];
+      const isEraseRoutine = (sid === 0x31 && reqBytes.length >= 4 && reqBytes[2] === 0xFF && reqBytes[3] === 0x00);
+      if ((secRequiredSids.includes(sid) || isEraseRoutine) && ecu.securityLevel === 0) {
+        const outcome = failAtStep(2, 0x33, `Chưa mở khóa Security Access (0x27). Hãy xin Seed (27 01) và gửi Key (27 02) trước -> NRC 0x33`);
+        finalizeTransaction(reqBytes, outcome, isFunctional);
+        return;
+      }
+      nrcSteps[2].status = 'pass';
+      nrcSteps[2].detail = (secRequiredSids.includes(sid) || isEraseRoutine)
+        ? `Đã mở khóa Security (Level ${ecu.securityLevel})`
+        : 'Không yêu cầu khóa bảo mật ở mức SID';
+
+      // STEP 4: Minimum Length Check? (0x13)
+      const minLenMap = {
+        0x10: 2, 0x11: 2, 0x14: 4, 0x19: 2, 0x22: 3, 0x27: 2,
+        0x28: 3, 0x2E: 4, 0x2F: 4, 0x31: 4, 0x34: 5, 0x36: 3, 0x37: 1, 0x3E: 2, 0x85: 2
+      };
+      if (reqBytes.length < (minLenMap[sid] || 2)) {
+        const outcome = failAtStep(3, 0x13, `Gói tin chỉ có ${reqBytes.length} byte (tối thiểu cần ${minLenMap[sid]} byte cho SID 0x${toHex(sid)}) -> NRC 0x13`);
+        finalizeTransaction(reqBytes, outcome, isFunctional);
+        return;
+      }
+      nrcSteps[3].status = 'pass';
+      nrcSteps[3].detail = `Độ dài tối thiểu hợp lệ (${reqBytes.length} >= ${minLenMap[sid]} bytes)`;
+
+      // STEP 5: Sub-function Check (0x12 / 0x7E)
+      const sidsWithSubFunc = [0x10, 0x11, 0x19, 0x27, 0x28, 0x31, 0x3E, 0x85];
+      let subFunc = null;
+      let suppressPosRsp = false;
+
+      if (sidsWithSubFunc.includes(sid)) {
+        suppressPosRsp = ((reqBytes[1] & 0x80) !== 0);
+        subFunc = reqBytes[1] & 0x7F;
+
+        const validSubs = {
+          0x10: [0x01, 0x02, 0x03],
+          0x11: [0x01, 0x02, 0x03],
+          0x19: [0x01, 0x02, 0x04, 0x0A],
+          0x27: [0x01, 0x02, 0x03, 0x04],
+          0x28: [0x00, 0x01, 0x03],
+          0x31: [0x01, 0x02, 0x03],
+          0x3E: [0x00],
+          0x85: [0x01, 0x02]
+        };
+
+        if (!validSubs[sid].includes(subFunc)) {
+          const outcome = failAtStep(4, 0x12, `Sub-function 0x${toHex(subFunc)} không tồn tại cho SID 0x${toHex(sid)} -> NRC 0x12 (subFunctionNotSupported)`);
+          finalizeTransaction(reqBytes, outcome, isFunctional);
+          return;
+        }
+
+        // Check Sub-function supported in active session (0x7E)
+        if (sid === 0x10 && subFunc === 0x02 && ecu.session === 0x01) {
+          // Many OEMs require going Default -> Extended (10 03) -> Programming (10 02), or allow if conditions met. Let's allow 10 02 from Extended or Default unless moving.
+        }
+        if (sid === 0x27 && (subFunc === 0x03 || subFunc === 0x04) && ecu.session !== 0x02) {
+          const outcome = failAtStep(4, 0x7E, `Security Level 2 (Sub 03/04) chỉ hỗ trợ trong Programming Session (0x02) -> NRC 0x7E`);
+          finalizeTransaction(reqBytes, outcome, isFunctional);
+          return;
+        }
+
+        nrcSteps[4].status = 'pass';
+        nrcSteps[4].detail = `Sub-function 0x${toHex(subFunc)} hợp lệ (Bit 7 SuppressPosRsp = ${suppressPosRsp ? '1' : '0'})`;
+      } else {
+        nrcSteps[4].status = 'pass';
+        nrcSteps[4].detail = 'Dịch vụ không dùng Sub-function (Bỏ qua bước 5)';
+      }
+
+      // STEP 6: Target ID (DID / RID / Memory / Parameter) OutOfRange Check? (0x31)
+      let didKey = null;
+      let ridKey = null;
+      if ([0x22, 0x2E, 0x2F].includes(sid)) {
+        didKey = toHex(reqBytes[1]) + toHex(reqBytes[2]);
+        if (sid === 0x2F) {
+          if (didKey !== '0201') {
+            const outcome = failAtStep(5, 0x31, `DID 0x${didKey} không hỗ trợ điều khiển I/O (Chỉ hỗ trợ 0x0201 Cooling Fan) -> NRC 0x31`);
+            finalizeTransaction(reqBytes, outcome, isFunctional);
+            return;
+          }
+          const iocp = reqBytes[3];
+          if (![0x00, 0x01, 0x02, 0x03].includes(iocp)) {
+            const outcome = failAtStep(5, 0x31, `Tham số InputOutputControlParameter 0x${toHex(iocp)} ngoài dải (00..03) -> NRC 0x31`);
+            finalizeTransaction(reqBytes, outcome, isFunctional);
+            return;
+          }
+        } else {
+          if (!ecu.dids[didKey]) {
+            const outcome = failAtStep(5, 0x31, `DID 0x${didKey} không tồn tại trong ECU -> NRC 0x31 (requestOutOfRange)`);
+            finalizeTransaction(reqBytes, outcome, isFunctional);
+            return;
+          }
+          if (sid === 0x2E && !ecu.dids[didKey].writable) {
+            const outcome = failAtStep(5, 0x31, `DID 0x${didKey} là Read-Only (Không cho phép ghi bằng 0x2E) -> NRC 0x31`);
+            finalizeTransaction(reqBytes, outcome, isFunctional);
+            return;
+          }
+        }
+      } else if (sid === 0x31) {
+        ridKey = toHex(reqBytes[2]) + toHex(reqBytes[3]);
+        if (!['0203', 'FF00'].includes(ridKey)) {
+          const outcome = failAtStep(5, 0x31, `Routine ID 0x${ridKey} không được hỗ trợ -> NRC 0x31`);
+          finalizeTransaction(reqBytes, outcome, isFunctional);
+          return;
+        }
+      } else if (sid === 0x28) {
+        const comType = reqBytes[2];
+        if (![0x01, 0x02, 0x03].includes(comType)) {
+          const outcome = failAtStep(5, 0x31, `CommunicationType 0x${toHex(comType)} không hợp lệ (Chỉ hỗ trợ 01, 02, 03) -> NRC 0x31`);
+          finalizeTransaction(reqBytes, outcome, isFunctional);
+          return;
+        }
+      }
+      nrcSteps[5].status = 'pass';
+      nrcSteps[5].detail = 'Tham số DID / RID / Vùng nhớ nằm trong dải hợp lệ';
+
+      // STEP 7: Exact Total Length Check? (0x13)
+      const exactLenMap = {
+        0x10: 2, 0x11: 2, 0x14: 4, 0x22: 3, 0x28: 3, 0x37: 1, 0x3E: 2, 0x85: 2
+      };
+      if (exactLenMap[sid] && reqBytes.length !== exactLenMap[sid]) {
+        const outcome = failAtStep(6, 0x13, `Dịch vụ 0x${toHex(sid)} yêu cầu đúng ${exactLenMap[sid]} bytes nhưng nhận ${reqBytes.length} bytes -> NRC 0x13`);
+        finalizeTransaction(reqBytes, outcome, isFunctional);
+        return;
+      }
+      if (sid === 0x27) {
+        const isReqSeed = (subFunc % 2 === 1);
+        const expectedLen = isReqSeed ? 2 : 4;
+        if (reqBytes.length !== expectedLen) {
+          const outcome = failAtStep(6, 0x13, `0x27 Sub 0x${toHex(subFunc)} yêu cầu đúng ${expectedLen} bytes nhưng nhận ${reqBytes.length} bytes -> NRC 0x13`);
+          finalizeTransaction(reqBytes, outcome, isFunctional);
+          return;
+        }
+      }
+      if (sid === 0x19) {
+        if ((subFunc === 0x01 || subFunc === 0x02) && reqBytes.length !== 3) {
+          const outcome = failAtStep(6, 0x13, `19 0${subFunc} yêu cầu đúng 3 bytes ([19] [Sub] [StatusMask]) -> NRC 0x13`);
+          finalizeTransaction(reqBytes, outcome, isFunctional);
+          return;
+        }
+        if (subFunc === 0x04 && reqBytes.length !== 6) {
+          const outcome = failAtStep(6, 0x13, `19 04 yêu cầu đúng 6 bytes ([19] [04] [DTC 3B] [RecNum 1B]) -> NRC 0x13`);
+          finalizeTransaction(reqBytes, outcome, isFunctional);
+          return;
+        }
+        if (subFunc === 0x0A && reqBytes.length !== 2) {
+          const outcome = failAtStep(6, 0x13, `19 0A yêu cầu đúng 2 bytes -> NRC 0x13`);
+          finalizeTransaction(reqBytes, outcome, isFunctional);
+          return;
+        }
+      }
+      if (sid === 0x2F) {
+        const iocp = reqBytes[3];
+        const expectedLen = (iocp === 0x03) ? 5 : 4;
+        if (reqBytes.length !== expectedLen) {
+          const outcome = failAtStep(6, 0x13, `0x2F với IOCP=0x${toHex(iocp)} yêu cầu ${expectedLen} bytes -> NRC 0x13`);
+          finalizeTransaction(reqBytes, outcome, isFunctional);
+          return;
+        }
+      }
+      nrcSteps[6].status = 'pass';
+      nrcSteps[6].detail = `Tổng độ dài gói tin (${reqBytes.length} bytes) hoàn toàn chính xác`;
+
+      // STEP 8: Environment Conditions Check (0x22)
+      if (isVehicleMoving && ([0x11, 0x2E, 0x2F, 0x31, 0x34, 0x36].includes(sid) || (sid === 0x10 && subFunc === 0x02))) {
+        const outcome = failAtStep(7, 0x22, `Xe đang di chuyển (Speed = 45 km/h > 0). ECU chặn thực thi để đảm bảo an toàn -> NRC 0x22 (conditionsNotCorrect)`);
+        finalizeTransaction(reqBytes, outcome, isFunctional);
+        return;
+      }
+      if (sid === 0x31 && ridKey === 'FF00' && ecu.session !== 0x02) {
+        const outcome = failAtStep(7, 0x22, `Routine Erase Flash (FF 00) chỉ được phép chạy trong Programming Session (0x02) -> NRC 0x22`);
+        finalizeTransaction(reqBytes, outcome, isFunctional);
+        return;
+      }
+      nrcSteps[7].status = 'pass';
+      nrcSteps[7].detail = 'Điều kiện môi trường vận hành ECU thỏa mãn (Speed = 0 km/h, Voltage = 13.8V)';
+
+      // STEP 9: Sequence & Key Verification (0x24 / 0x35 / 0x36 / 0x73)
+      if (sid === 0x27 && (subFunc % 2 === 0)) {
+        const targetLv = (subFunc === 0x02) ? 1 : 2;
+        if (!ecu.activeSeed || ecu.pendingSeedLevel !== targetLv) {
+          const outcome = failAtStep(8, 0x24, `Gửi Key (27 0${subFunc}) khi chưa gọi Request Seed (27 0${subFunc - 1}) -> NRC 0x24 (requestSequenceError)`);
+          finalizeTransaction(reqBytes, outcome, isFunctional);
+          return;
+        }
+        const exp0 = ecu.activeSeed[0] ^ 0xFF;
+        const exp1 = ecu.activeSeed[1] ^ 0xFF;
+        if (reqBytes[2] !== exp0 || reqBytes[3] !== exp1) {
+          ecu.failedKeyAttempts++;
+          ecu.activeSeed = null;
+          if (ecu.failedKeyAttempts >= 3) {
+            const outcome = failAtStep(8, 0x36, `Nhập sai Key 3 lần liên tiếp! Khóa Security Delay Timer -> NRC 0x36 (exceededNumberOfAttempts)`);
+            finalizeTransaction(reqBytes, outcome, isFunctional);
+            return;
+          }
+          const outcome = failAtStep(8, 0x35, `Key gửi lên (${toHex(reqBytes[2])} ${toHex(reqBytes[3])}) không khớp với Key đúng (${toHex(exp0)} ${toHex(exp1)}) -> NRC 0x35 (invalidKey)`);
+          finalizeTransaction(reqBytes, outcome, isFunctional);
+          return;
+        }
+      }
+      if (sid === 0x36) {
+        if (!ecu.downloadActive) {
+          const outcome = failAtStep(8, 0x24, `Gửi TransferData (0x36) khi chưa mở phiên bằng RequestDownload (0x34) -> NRC 0x24 (requestSequenceError)`);
+          finalizeTransaction(reqBytes, outcome, isFunctional);
+          return;
+        }
+        if (reqBytes[1] !== ecu.expectedBlockCounter) {
+          const outcome = failAtStep(8, 0x73, `Sai BlockSequenceCounter (Nhận 0x${toHex(reqBytes[1])}, kỳ vọng 0x${toHex(ecu.expectedBlockCounter)}) -> NRC 0x73`);
+          finalizeTransaction(reqBytes, outcome, isFunctional);
+          return;
+        }
+      }
+      if (sid === 0x37 && !ecu.downloadActive) {
+        const outcome = failAtStep(8, 0x24, `Gửi RequestTransferExit (0x37) khi chưa có phiên Download đang mở -> NRC 0x24`);
+        finalizeTransaction(reqBytes, outcome, isFunctional);
+        return;
+      }
+
+      nrcSteps[8].status = 'pass';
+      nrcSteps[8].detail = 'Trình tự Sequence & xác thực dữ liệu hợp lệ 100%';
+
+      // =====================================================================
+      // ALL CHECKS PASSED -> EXECUTE SERVICE & BUILD POSITIVE RESPONSE
+      // =====================================================================
+      let resBytes = [];
+      let actionSummary = '';
+      const posSid = (sid + 0x40) & 0xFF;
+
+      switch (sid) {
+        case 0x10: {
+          ecu.session = subFunc;
+          if (subFunc === 0x01) {
+            ecu.securityLevel = 0;
+            ecu.activeSeed = null;
+            ecu.s3RemainingMs = 0;
+          } else {
+            ecu.s3RemainingMs = 5000;
+          }
+          // PosRsp: [50] [SubFunc] [P2_max = 0x0032 (50ms)] [P2*_max = 0x01F4 (5000ms)]
+          resBytes = [0x50, subFunc, 0x00, 0x32, 0x01, 0xF4];
+          actionSummary = `Chuyển sang Session 0x${toHex(subFunc)} thành công (P2=50ms, P2*=5000ms).`;
+          break;
+        }
+        case 0x11: {
+          const resetName = subFunc === 0x01 ? 'Hard Reset' : 'Soft Reset';
+          resetEcuInternalOnly();
+          resBytes = [0x51, subFunc];
+          actionSummary = `Thực thi ${resetName}: ECU khởi động lại về Default Session (0x01) & khóa Security.`;
+          break;
+        }
+        case 0x27: {
+          if (subFunc % 2 === 1) {
+            const targetLv = (subFunc === 0x01) ? 1 : 2;
+            if (ecu.securityLevel === targetLv) {
+              // Already unlocked -> return 00 00 Seed per ISO 14229-1
+              resBytes = [0x67, subFunc, 0x00, 0x00];
+              actionSummary = `Security Level ${targetLv} đã mở khóa sẵn -> Trả về Seed = 00 00.`;
+            } else {
+              ecu.activeSeed = (targetLv === 1) ? [0x12, 0x34] : [0xA5, 0x5A];
+              ecu.pendingSeedLevel = targetLv;
+              resBytes = [0x67, subFunc, ecu.activeSeed[0], ecu.activeSeed[1]];
+              const k0 = ecu.activeSeed[0] ^ 0xFF;
+              const k1 = ecu.activeSeed[1] ^ 0xFF;
+              actionSummary = `Cấp Seed = ${toHex(ecu.activeSeed[0])} ${toHex(ecu.activeSeed[1])}. Key đúng cần gửi ở bước tiếp theo là: ${toHex(k0)} ${toHex(k1)}.`;
+            }
+          } else {
+            const targetLv = (subFunc === 0x02) ? 1 : 2;
+            ecu.securityLevel = targetLv;
+            ecu.activeSeed = null;
+            ecu.failedKeyAttempts = 0;
+            resBytes = [0x67, subFunc];
+            actionSummary = `Xác thực Key thành công! Đã mở khóa Security Level ${targetLv}.`;
+          }
+          break;
+        }
+        case 0x3E: {
+          if (ecu.session !== 0x01) ecu.s3RemainingMs = 5000;
+          resBytes = [0x7E, 0x00];
+          actionSummary = `TesterPresent: Đã làm mới bộ đếm S3Server = 5000ms.`;
+          break;
+        }
+        case 0x22: {
+          const didObj = ecu.dids[didKey];
+          resBytes = [0x62, reqBytes[1], reqBytes[2], ...didObj.data];
+          actionSummary = `Đọc thành công DID 0x${didKey} (${didObj.name}) — ${didObj.data.length} bytes dữ liệu.`;
+          break;
+        }
+        case 0x2E: {
+          const newPayload = reqBytes.slice(3);
+          ecu.dids[didKey].data = newPayload;
+          resBytes = [0x6E, reqBytes[1], reqBytes[2]];
+          actionSummary = `Ghi thành công ${newPayload.length} bytes mới vào DID 0x${didKey} trong NvM.`;
+          break;
+        }
+        case 0x2F: {
+          const iocp = reqBytes[3];
+          if (iocp === 0x03) {
+            const duty = reqBytes[4];
+            ecu.fanControlMode = `Forced ${duty}% (0x${toHex(duty)})`;
+            resBytes = [0x6F, reqBytes[1], reqBytes[2], 0x03, duty];
+            actionSummary = `ShortTermAdjustment: Cưỡng bức quạt làm mát chạy ở mức 0x${toHex(duty)}.`;
+          } else if (iocp === 0x02) {
+            ecu.fanControlMode = `Frozen`;
+            resBytes = [0x6F, reqBytes[1], reqBytes[2], 0x02];
+            actionSummary = `FreezeCurrentState: Đóng băng trạng thái ngõ ra hiện tại.`;
+          } else {
+            ecu.fanControlMode = 'Auto (ECU 30%)';
+            resBytes = [0x6F, reqBytes[1], reqBytes[2], iocp];
+            actionSummary = `ReturnControlToECU: Trả quyền điều khiển quạt về thuật toán SWC.`;
+          }
+          break;
+        }
+        case 0x19: {
+          if (subFunc === 0x01) {
+            const mask = reqBytes[2];
+            const matched = ecu.dtcs.filter(d => (d.status & mask) !== 0).length;
+            resBytes = [0x59, 0x01, 0x2F, 0x01, 0x00, matched];
+            actionSummary = `Đếm số DTC khớp mặt nạ 0x${toHex(mask)}: Tìm thấy ${matched} DTC.`;
+          } else if (subFunc === 0x02) {
+            const mask = reqBytes[2];
+            const matched = ecu.dtcs.filter(d => (d.status & mask) !== 0);
+            resBytes = [0x59, 0x02, 0x2F];
+            matched.forEach(d => resBytes.push(...d.code, d.status));
+            actionSummary = `Đọc danh sách DTC khớp mặt nạ 0x${toHex(mask)}: Trả về ${matched.length} mã lỗi.`;
+          } else if (subFunc === 0x04) {
+            const targetDtc = ecu.dtcs[0];
+            const snap = targetDtc ? targetDtc.snapshot : [0x01, 0x05, 0x5A];
+            resBytes = [0x59, 0x04, reqBytes[2], reqBytes[3], reqBytes[4], 0x2F, 0x01, 0x01, ...snap];
+            actionSummary = `Đọc dữ liệu đóng băng (FreezeFrame Record #01) của DTC.`;
+          } else {
+            resBytes = [0x59, 0x0A, 0x2F];
+            ecu.dtcs.forEach(d => resBytes.push(...d.code, d.status));
+            actionSummary = `Đọc toàn bộ ${ecu.dtcs.length} DTC hỗ trợ trong DEM.`;
+          }
+          break;
+        }
+        case 0x14: {
+          ecu.dtcs.forEach(d => { d.status = 0x50; });
+          resBytes = [0x54];
+          actionSummary = `Dem_ClearDTC(): Đã xóa toàn bộ lỗi, đưa Status Byte các DTC về 0x50 (TNCTOC=1, TNCSLC=1).`;
+          break;
+        }
+        case 0x85: {
+          ecu.dtcSettingOn = (subFunc === 0x01);
+          resBytes = [0xC5, subFunc];
+          actionSummary = `ControlDTCSetting: Đã ${ecu.dtcSettingOn ? 'BẬT (ON)' : 'TẮT (OFF)'} cập nhật trạng thái lỗi trong DEM.`;
+          break;
+        }
+        case 0x28: {
+          ecu.comEnabled = (subFunc === 0x00);
+          resBytes = [0x68, subFunc];
+          actionSummary = `CommunicationControl: Đã ${ecu.comEnabled ? 'BẬT (EnableRxAndTx)' : 'TẮT (DisableRxAndTx)'} truyền thông mạng.`;
+          break;
+        }
+        case 0x31: {
+          if (ridKey === 'FF00') ecu.flashErased = true;
+          resBytes = [0x71, subFunc, reqBytes[2], reqBytes[3], 0x00];
+          actionSummary = `RoutineControl (0x${ridKey}): Thực thi thành công (RoutineInfo = 0x00 OK).`;
+          break;
+        }
+        case 0x34: {
+          ecu.downloadActive = true;
+          ecu.expectedBlockCounter = 1;
+          resBytes = [0x74, 0x20, 0x00, 0x80]; // MaxBlockLength = 0x0080 (128 bytes)
+          actionSummary = `RequestDownload: Mở phiên nạp Flash, cho phép MaxNumberOfBlockLength = 128 bytes.`;
+          break;
+        }
+        case 0x36: {
+          const bsc = reqBytes[1];
+          ecu.expectedBlockCounter = (bsc + 1) & 0xFF;
+          resBytes = [0x76, bsc];
+          actionSummary = `TransferData: Đã ghi thành công Block #0x${toHex(bsc)} vào Flash.`;
+          break;
+        }
+        case 0x37: {
+          ecu.downloadActive = false;
+          resBytes = [0x77];
+          actionSummary = `RequestTransferExit: Đã đóng phiên truyền dữ liệu Flash thành công.`;
+          break;
+        }
+        default: {
+          resBytes = [posSid];
+          actionSummary = 'Thực thi dịch vụ thành công.';
+        }
+      }
+
+      const outcome = {
+        isPositive: true,
+        suppressed: suppressPosRsp,
+        suppressReason: suppressPosRsp ? 'Bit 7 (suppressPosRspMsgIndicationBit = 1) nên DCM không phát bản tin Positive Response lên CAN bus' : null,
+        nrc: null,
+        resBytes,
+        summary: actionSummary,
+        nrcSteps,
+        pending0x78Sent: isSlowPending
+      };
+
+      finalizeTransaction(reqBytes, outcome, isFunctional);
+    }
+
+    function finalizeTransaction(reqBytes, outcome, isFunctional) {
+      lastTransaction = { reqBytes, outcome, isFunctional };
+      updateLiveEcuHeaderUI();
+      renderDissectorUI(reqBytes, outcome, isFunctional);
+      renderNrcWaterfallUI(outcome.nrcSteps);
+      renderLiveCanTpAndAutosarUI(reqBytes, outcome, isFunctional);
+      appendTraceLogRow(reqBytes, outcome, isFunctional);
+    }
+
+    // =========================================================================
+    // 5. RENDERING FUNCTIONS (DISSECTOR, NRC WATERFALL, CAN-TP FRAMES, LOG)
+    // =========================================================================
+    function updateLiveEcuHeaderUI() {
+      const sesNames = { 0x01: '0x01 Default Session', 0x02: '0x02 Programming Session', 0x03: '0x03 Extended Session' };
+      const sesEl = document.getElementById('statusSessionBadge');
+      sesEl.textContent = sesNames[ecu.session] || `0x${toHex(ecu.session)}`;
+      sesEl.className = ecu.session === 0x01
+        ? 'font-mono font-extrabold text-xs text-sky-600 dark:text-sky-400 mt-0.5'
+        : (ecu.session === 0x02 ? 'font-mono font-extrabold text-xs text-purple-600 dark:text-purple-400 mt-0.5' : 'font-mono font-extrabold text-xs text-emerald-600 dark:text-emerald-400 mt-0.5');
+
+      const secEl = document.getElementById('statusSecurityBadge');
+      if (ecu.securityLevel === 0) {
+        secEl.textContent = '🔒 Locked (Level 0)';
+        secEl.className = 'font-mono font-extrabold text-xs text-rose-600 dark:text-rose-400 mt-0.5 truncate';
+      } else {
+        secEl.textContent = `🔓 Unlocked (Level ${ecu.securityLevel})`;
+        secEl.className = 'font-mono font-extrabold text-xs text-emerald-600 dark:text-emerald-400 mt-0.5 truncate';
+      }
+
+      const seedHint = document.getElementById('statusSeedHint');
+      const keyHelper = document.getElementById('lblCalculatedKeyHint');
+      if (ecu.activeSeed) {
+        const k0 = toHex(ecu.activeSeed[0] ^ 0xFF);
+        const k1 = toHex(ecu.activeSeed[1] ^ 0xFF);
+        seedHint.textContent = `Seed: ${toHex(ecu.activeSeed[0])} ${toHex(ecu.activeSeed[1])} ➔ Key: ${k0} ${k1}`;
+        if (keyHelper) keyHelper.textContent = `Seed hiện tại: ${toHex(ecu.activeSeed[0])} ${toHex(ecu.activeSeed[1])} ➔ Key đúng: ${k0} ${k1}`;
+      } else {
+        seedHint.textContent = `Seed: Chưa cấp • Sai Key: ${ecu.failedKeyAttempts}/3`;
+        if (keyHelper) keyHelper.textContent = `Hãy gửi 27 01 (Request Seed) trước để lấy Seed!`;
+      }
+
+      const activeDtcCount = ecu.dtcs.filter(d => (d.status & 0x0C) !== 0).length;
+      document.getElementById('statusDtcBadge').textContent = `${activeDtcCount} DTC lỗi • Ghi DTC: ${ecu.dtcSettingOn ? 'ON' : 'OFF'}`;
+      document.getElementById('statusIoFlashBadge').textContent = `Quạt: ${ecu.fanControlMode} • Com: ${ecu.comEnabled ? 'ON' : 'OFF'}`;
+      document.getElementById('statusFlashStep').textContent = ecu.downloadActive
+        ? `Flash: Đang nạp (Chờ 0x36 Block #${ecu.expectedBlockCounter})`
+        : (ecu.flashErased ? 'Flash: Đã Erase (Sẵn sàng 0x34)' : 'Flash: Idle');
+    }
+
+    function renderDissectorUI(reqBytes, outcome, isFunctional) {
+      document.getElementById('dissectorSummaryTitle').textContent = outcome.summary;
+      document.getElementById('reqCanIdBadge').textContent = isFunctional ? 'CAN ID: 0x7DF (Functional)' : 'CAN ID: 0x7E0 (Physical)';
+
+      const verdictEl = document.getElementById('dissectorVerdictBadge');
+      if (outcome.suppressed) {
+        verdictEl.textContent = '🔇 Suppressed (Không phát Response)';
+        verdictEl.className = 'px-3 py-1 rounded-full font-mono text-xs font-extrabold bg-amber-500/20 text-amber-600 dark:text-amber-300 border border-amber-500/40';
+      } else if (outcome.isPositive) {
+        verdictEl.textContent = `✅ Positive Response (0x${toHex(outcome.resBytes[0])})`;
+        verdictEl.className = 'px-3 py-1 rounded-full font-mono text-xs font-extrabold bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 border border-emerald-500/40';
+      } else {
+        verdictEl.textContent = `❌ Negative Response (NRC 0x${toHex(outcome.nrc)})`;
+        verdictEl.className = 'px-3 py-1 rounded-full font-mono text-xs font-extrabold bg-rose-500/20 text-rose-600 dark:text-rose-300 border border-rose-500/40';
+      }
+
+      // Render Request Byte Boxes
+      const reqBoxes = document.getElementById('reqByteBoxes');
+      reqBoxes.innerHTML = reqBytes.map((b, idx) => {
+        const cls = idx === 0
+          ? 'bg-sky-500 text-slate-950 font-extrabold border-sky-400'
+          : (idx === 1 ? 'bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 font-bold border-indigo-500/40' : 'bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border-slate-300 dark:border-slate-700');
+        return `<div class="byte-cell px-2.5 py-1.5 rounded-lg border font-mono text-xs text-center ${cls}">
+          <div class="text-[9px] opacity-75">B${idx}</div>
+          <div>${toHex(b)}</div>
+        </div>`;
+      }).join('');
+
+      const sid = reqBytes[0];
+      const reqDesc = [`<div>• <strong>Byte 0 (0x${toHex(sid)}):</strong> Service ID (SID)</div>`];
+      if ([0x10, 0x11, 0x19, 0x27, 0x28, 0x31, 0x3E, 0x85].includes(sid) && reqBytes.length >= 2) {
+        const spr = (reqBytes[1] & 0x80) ? '1 (Ẩn PosRsp)' : '0 (Có PosRsp)';
+        const sf = toHex(reqBytes[1] & 0x7F);
+        reqDesc.push(`<div>• <strong>Byte 1 (0x${toHex(reqBytes[1])}):</strong> Bit 7 SuppressPosRsp = <code class="font-mono font-bold">${spr}</code> | Bit 6..0 Sub-function = <code class="font-mono font-bold">0x${sf}</code></div>`);
+      } else if ([0x22, 0x2E, 0x2F].includes(sid) && reqBytes.length >= 3) {
+        reqDesc.push(`<div>• <strong>Byte 1..2 (0x${toHex(reqBytes[1])}${toHex(reqBytes[2])}):</strong> Data Identifier (DID 16-bit)</div>`);
+      }
+      if (reqBytes.length > 3) {
+        reqDesc.push(`<div>• <strong>Payload (${reqBytes.length - 3} bytes):</strong> Tham số / Dữ liệu kèm theo</div>`);
+      }
+      document.getElementById('reqFieldBreakdown').innerHTML = reqDesc.join('');
+
+      // Render Response Byte Boxes
+      const resBoxes = document.getElementById('resByteBoxes');
+      const resDesc = [];
+
+      if (outcome.suppressed) {
+        resBoxes.innerHTML = `<div class="px-3 py-2 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-700 dark:text-amber-300 text-xs font-semibold">
+          🔇 ${outcome.suppressReason}
+        </div>`;
+        resDesc.push(`<div>• ECU đã thực thi lệnh nội bộ nhưng không phát khung trả lời lên CAN bus.</div>`);
+      } else {
+        resBoxes.innerHTML = outcome.resBytes.map((b, idx) => {
+          let cls = 'bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border-slate-300 dark:border-slate-700';
+          if (outcome.isPositive && idx === 0) cls = 'bg-emerald-500 text-slate-950 font-extrabold border-emerald-400';
+          if (!outcome.isPositive && idx === 0) cls = 'bg-rose-600 text-white font-extrabold border-rose-500';
+          if (!outcome.isPositive && idx === 2) cls = 'bg-amber-500 text-slate-950 font-extrabold border-amber-400';
+          return `<div class="byte-cell px-2.5 py-1.5 rounded-lg border font-mono text-xs text-center ${cls}">
+            <div class="text-[9px] opacity-75">B${idx}</div>
+            <div>${toHex(b)}</div>
+          </div>`;
+        }).join('');
+
+        if (outcome.isPositive) {
+          resDesc.push(`<div>• <strong>Byte 0 (0x${toHex(outcome.resBytes[0])}):</strong> Positive Response SID = <code class="font-mono font-bold">0x${toHex(sid)} + 0x40</code></div>`);
+          if (outcome.resBytes.length > 1) {
+            resDesc.push(`<div>• <strong>Byte 1..${outcome.resBytes.length - 1}:</strong> Phản hồi Echo Sub-function/DID & Dữ liệu trả về</div>`);
+          }
+        } else {
+          resDesc.push(`<div>• <strong>Byte 0 (0x7F):</strong> Cờ báo Negative Response cố định của UDS</div>`);
+          resDesc.push(`<div>• <strong>Byte 1 (0x${toHex(outcome.resBytes[1])}):</strong> Echo lại SID bị từ chối</div>`);
+          resDesc.push(`<div>• <strong>Byte 2 (0x${toHex(outcome.resBytes[2])}):</strong> Mã lỗi NRC — ${outcome.summary}</div>`);
+        }
+      }
+      document.getElementById('resFieldBreakdown').innerHTML = resDesc.join('');
+    }
+
+    function renderNrcWaterfallUI(nrcSteps) {
+      const container = document.getElementById('nrcWaterfallContainer');
+      container.innerHTML = nrcSteps.map(st => {
+        if (st.status === 'pass') {
+          return `<div class="px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between gap-2">
+            <div class="flex items-center gap-2 min-w-0">
+              <span class="text-emerald-500 font-extrabold">✓</span>
+              <span class="font-semibold text-slate-800 dark:text-slate-200 truncate">${st.title}</span>
+            </div>
+            <span class="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 shrink-0">PASS</span>
+          </div>`;
+        } else if (st.status === 'fail') {
+          return `<div class="p-2.5 rounded-xl bg-rose-500/15 border-2 border-rose-500 space-y-1">
+            <div class="flex items-center justify-between">
+              <span class="font-extrabold text-rose-600 dark:text-rose-400">✗ ${st.title}</span>
+              <span class="px-2 py-0.5 rounded bg-rose-600 text-white font-mono text-[10px] font-bold">CHẶN TẠI ĐÂY (${st.code})</span>
+            </div>
+            <div class="text-[11px] text-rose-700 dark:text-rose-200">${st.detail}</div>
+          </div>`;
+        } else {
+          return `<div class="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800/70 opacity-50 flex items-center justify-between">
+            <span class="text-slate-500">${st.title}</span>
+            <span class="text-[10px] font-mono text-slate-400">Chưa xét tới</span>
+          </div>`;
+        }
+      }).join('');
+    }
+
+    // Build 8-byte CAN-TP frames for any payload
+    function buildCanTpFramesForPayload(payloadBytes, canIdHex, dirLabel, padByte = 0xCC) {
+      const frames = [];
+      const len = payloadBytes.length;
+
+      if (len <= 7) {
+        const pci = len & 0x0F;
+        const raw = [pci, ...payloadBytes];
+        while (raw.length < 8) raw.push(padByte);
+        frames.push({
+          dir: dirLabel,
+          canId: canIdHex,
+          type: `SF (Len=${len})`,
+          bytes: raw,
+          pciCount: 1
+        });
+      } else {
+        const ffHi = 0x10 | ((len >> 8) & 0x0F);
+        const ffLo = len & 0xFF;
+        const ffRaw = [ffHi, ffLo, ...payloadBytes.slice(0, 6)];
+        frames.push({
+          dir: dirLabel,
+          canId: canIdHex,
+          type: `FF (Len=${len})`,
+          bytes: ffRaw,
+          pciCount: 2
+        });
+
+        const fcId = canIdHex === '0x7E8' ? '0x7E0' : '0x7E8';
+        const fcDir = dirLabel === 'TX (Tester➔ECU)' ? 'RX (ECU➔Tester)' : 'TX (Tester➔ECU)';
+        frames.push({
+          dir: fcDir,
+          canId: fcId,
+          type: `FC (CTS, BS=0, ST=10ms)`,
+          bytes: [0x30, 0x00, 0x0A, padByte, padByte, padByte, padByte, padByte],
+          pciCount: 3
+        });
+
+        let offset = 6;
+        let sn = 1;
+        while (offset < len) {
+          const chunk = payloadBytes.slice(offset, offset + 7);
+          const cfRaw = [0x20 | (sn & 0x0F), ...chunk];
+          while (cfRaw.length < 8) cfRaw.push(padByte);
+          frames.push({
+            dir: dirLabel,
+            canId: canIdHex,
+            type: `CF (SN=${sn})`,
+            bytes: cfRaw,
+            pciCount: 1
+          });
+          offset += 7;
+          sn = (sn + 1) & 0x0F;
+        }
+      }
+      return frames;
+    }
+
+    function renderLiveCanTpAndAutosarUI(reqBytes, outcome, isFunctional) {
+      const reqId = isFunctional ? '0x7DF' : '0x7E0';
+      const allFrames = [];
+
+      allFrames.push(...buildCanTpFramesForPayload(reqBytes, reqId, 'TX (Tester➔ECU)'));
+
+      if (outcome.pending0x78Sent && !outcome.suppressed) {
+        allFrames.push(...buildCanTpFramesForPayload([0x7F, reqBytes[0], 0x78], '0x7E8', 'RX (ECU NRC 0x78)'));
+      }
+
+      if (!outcome.suppressed) {
+        allFrames.push(...buildCanTpFramesForPayload(outcome.resBytes, '0x7E8', 'RX (ECU➔Tester)'));
+      }
+
+      const framesBox = document.getElementById('liveCanTpFramesBox');
+      framesBox.innerHTML = allFrames.map(f => {
+        const byteSpans = f.bytes.map((b, i) => {
+          if (i < f.pciCount) return `<span class="text-amber-400 font-bold">${toHex(b)}</span>`;
+          if (b === 0xCC) return `<span class="text-slate-600">${toHex(b)}</span>`;
+          return `<span class="text-emerald-300">${toHex(b)}</span>`;
+        }).join(' ');
+        return `<div class="flex items-center justify-between gap-2 border-b border-slate-800/80 pb-1">
+          <span class="text-sky-400 w-28 shrink-0">${f.canId} [${f.type}]</span>
+          <span class="tracking-wider">${byteSpans}</span>
+        </div>`;
+      }).join('');
+
+      // AUTOSAR API Sequence
+      const sid = reqBytes[0];
+      const apis = [
+        `1. CanIf_RxIndication() ➔ CanTp_RxIndication(CanTpRxPduId)`,
+        reqBytes.length > 7
+          ? `2. PduR_CanTpStartOfReception(Len=${reqBytes.length}) + N x PduR_CanTpCopyRxData()`
+          : `2. PduR_CanTpStartOfReception(Len=${reqBytes.length}) + PduR_CanTpCopyRxData()`,
+        `3. PduR_CanTpRxIndication(E_OK) ➔ Dcm_TpRxIndication(DcmRxPduId, E_OK)`,
+        `4. DCM DSD: Kiểm tra Service Table, Session (0x${toHex(ecu.session)}) & Security`
+      ];
+
+      if (!outcome.isPositive) {
+        apis.push(`5. DCM DSD/DSP phát hiện lỗi ➔ Dcm_ExternalSetNegResponse(NRC=0x${toHex(outcome.nrc)})`);
+      } else {
+        if ([0x14, 0x19, 0x85].includes(sid)) {
+          apis.push(`5. DCM DSP gọi sang DEM: ${sid === 0x14 ? 'Dem_ClearDTC()' : (sid === 0x19 ? 'Dem_SetDTCFilter() & Dem_GetNextFilteredDTC()' : 'Dem_DisableDTCSetting()')}`);
+        } else if ([0x22, 0x2E, 0x2F, 0x31].includes(sid)) {
+          apis.push(`5. DCM DSP gọi qua RTE sang SWC: Rte_Call_DataServices / RoutineServices()`);
+        } else {
+          apis.push(`5. DCM DSP/DSL xử lý nội bộ (Session / Security / Reset)`);
+        }
+      }
+
+      if (outcome.pending0x78Sent && !outcome.suppressed) {
+        apis.push(`6. [P2 Timeout 50ms] DSL tự phát: PduR_DcmTransmit([7F ${toHex(sid)} 78]) & mở P2* (5000ms)`);
+      }
+
+      if (outcome.suppressed) {
+        apis.push(`6. DCM DSD: suppressPosRspMsgIndicationBit == TRUE ➔ Giải phóng DcmBuffer (Không gọi PduR_DcmTransmit)`);
+      } else {
+        apis.push(`6. Dcm_ProcessingDone() ➔ PduR_DcmTransmit() ➔ CanTp_Transmit(${bytesToHexStr(outcome.resBytes)})`);
+      }
+
+      document.getElementById('liveAutosarApiBox').innerHTML = apis.map(line => `<div class="text-slate-700 dark:text-slate-300">${line}</div>`).join('');
+    }
+
+    function appendTraceLogRow(reqBytes, outcome, isFunctional) {
+      const tbody = document.getElementById('traceLogTableBody');
+      const now = new Date().toLocaleTimeString('vi-VN', { hour12: false });
+      const sidHex = '0x' + toHex(reqBytes[0]);
+      const resHex = outcome.suppressed
+        ? '(Suppressed - Không phản hồi)'
+        : bytesToHexStr(outcome.resBytes);
+      const resCls = outcome.suppressed
+        ? 'text-amber-500'
+        : (outcome.isPositive ? 'text-emerald-500 font-bold' : 'text-rose-500 font-bold');
+
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td class="py-1.5 px-2.5 text-slate-400">${now}</td>
+        <td class="py-1.5 px-2.5 font-bold text-sky-500">${sidHex} ${isFunctional ? '(Func)' : '(Phys)'}</td>
+        <td class="py-1.5 px-2.5">${bytesToHexStr(reqBytes)}</td>
+        <td class="py-1.5 px-2.5 ${resCls}">${resHex}</td>
+        <td class="py-1.5 px-2.5 font-sans text-slate-600 dark:text-slate-300">${outcome.summary}</td>
+      `;
+      tbody.prepend(tr);
+    }
+
+    function clearTraceLog() {
+      document.getElementById('traceLogTableBody').innerHTML = '';
+    }
+
+    // =========================================================================
+    // 6. GUIDED 1-CLICK AUTOMATED WORKFLOWS
+    // =========================================================================
+    let workflowTimer = null;
+
+    function runGuidedWorkflow(flowKey) {
+      if (workflowTimer) clearInterval(workflowTimer);
+      document.getElementById('chkVehicleMoving').checked = false;
+      document.getElementById('chkFunctionalAddr').checked = false;
+
+      const flows = {
+        unlock_only: [
+          { hex: '10 03', note: 'Bước 1/3: Chuyển sang Extended Session (10 03)' },
+          { hex: '27 01', note: 'Bước 2/3: Xin cấp Seed Level 1 (27 01)' },
+          { hex: '27 02 ED CB', note: 'Bước 3/3: Gửi Key đúng (27 02 ED CB) -> Mở khóa Security!' }
+        ],
+        write_vin: [
+          { hex: '10 03', note: 'Bước 1/4: Mở Extended Session (10 03)' },
+          { hex: '27 01', note: 'Bước 2/4: Request Seed Level 1 (27 01)' },
+          { hex: '27 02 ED CB', note: 'Bước 3/4: Send Key (27 02 ED CB) mở khóa Security' },
+          { hex: '2E F1 90 56 4E 48 59 55 4E 44 41 49 32 30 32 36 50 52 4F 39', note: 'Bước 4/4: Ghi số VIN 17-byte mới bằng 0x2E (Multi-frame ISO-TP)' }
+        ],
+        dtc_scan_clear: [
+          { hex: '19 02 08', note: 'Bước 1/3: Quét danh sách mã lỗi Confirmed DTC (19 02 08)' },
+          { hex: '19 04 01 05 11 01', note: 'Bước 2/3: Đọc dữ liệu FreezeFrame của lỗi 0x010511 (19 04)' },
+          { hex: '14 FF FF FF', note: 'Bước 3/3: Xóa sạch toàn bộ DTC về 0x50 (14 FF FF FF)' }
+        ],
+        io_control: [
+          { hex: '10 03', note: 'Bước 1/4: Chuyển sang Extended Session (10 03)' },
+          { hex: '27 01', note: 'Bước 2/4: Request Seed (27 01)' },
+          { hex: '27 02 ED CB', note: 'Bước 3/4: Send Key mở khóa (27 02 ED CB)' },
+          { hex: '2F 02 01 03 50', note: 'Bước 4/4: Cưỡng bức quạt làm mát chạy 80% bằng ShortTermAdjustment (2F 02 01 03 50)' }
+        ],
+        flash_update: [
+          { hex: '10 03', note: 'Bước 1/9: Vào Extended Session (10 03)' },
+          { hex: '85 02', note: 'Bước 2/9: Tắt cập nhật lỗi DTC (85 02 ControlDTCSetting OFF)' },
+          { hex: '28 03 03', note: 'Bước 3/9: Tắt truyền thông CAN thường (28 03 03 ComControl Disable)' },
+          { hex: '10 02', note: 'Bước 4/9: Nhảy sang Bootloader Programming Session (10 02)' },
+          { hex: '27 03', note: 'Bước 5/9: Xin Seed bảo mật nạp Flash Level 2 (27 03)' },
+          { hex: '27 04 5A A5', note: 'Bước 6/9: Gửi Key Level 2 mở khóa Flash (27 04 5A A5)' },
+          { hex: '31 01 FF 00', note: 'Bước 7/9: Xóa vùng nhớ Flash (31 01 FF 00 Erase Memory)' },
+          { hex: '34 00 44 08 00 40 00 00 00 00 20', note: 'Bước 8/9: Mở phiên RequestDownload (0x34)' },
+          { hex: '36 01 AA BB CC DD 11 22 33 44 55 66', note: 'Bước 9/9: Truyền dữ liệu Firmware xuống Flash (0x36 TransferData)' }
+        ]
+      };
+
+      const steps = flows[flowKey];
+      if (!steps) return;
+
+      let idx = 0;
+      const lbl = document.getElementById('workflowStatusLabel');
+
+      function runStep() {
+        if (idx >= steps.length) {
+          clearInterval(workflowTimer);
+          workflowTimer = null;
+          lbl.textContent = '✅ Đã hoàn tất chuỗi kịch bản tự động!';
+          return;
+        }
+        const st = steps[idx];
+        lbl.textContent = `⏳ ${st.note}`;
+        quickSendHex(st.hex);
+        idx++;
+      }
+
+      runStep();
+      workflowTimer = setInterval(runStep, 1100);
+    }
+
+    // =========================================================================
+    // 7. SUB-TAB 2: ISO-TP (CanTp) SEGMENTATION & FLOW CONTROL PLAYGROUND
+    // =========================================================================
+    function syncTpLengthInput(val) {
+      const n = Math.max(1, Math.min(256, parseInt(val, 10) || 1));
+      document.getElementById('tpLengthSlider').value = Math.min(64, n);
+      document.getElementById('tpLengthNumber').value = n;
+      generateIsoTpSimulation();
+    }
+
+    function openCurrentInTpPlayground() {
+      const reqBytes = parseHexStr(document.getElementById('rawHexInput').value);
+      const len = Math.max(1, reqBytes.length);
+      document.getElementById('tpLengthNumber').value = len;
+      document.getElementById('tpLengthSlider').value = Math.min(64, len);
+      switchMainTab('cantp');
+      generateIsoTpSimulation(reqBytes);
+    }
+
+    function generateIsoTpSimulation(customBytes = null) {
+      const len = parseInt(document.getElementById('tpLengthNumber').value, 10) || 20;
+      const fs = parseInt(document.getElementById('tpFsSelect').value, 10) || 0;
+      const bs = Math.max(0, parseInt(document.getElementById('tpBsInput').value, 10) || 0);
+      const stmin = Math.max(0, parseInt(document.getElementById('tpStminInput').value, 10) || 0);
+      const padHex = document.getElementById('tpPaddingSelect').value || 'CC';
+      const padVal = parseInt(padHex, 16);
+
+      // Build dummy UDS payload (e.g., 2E F1 90 + dummy bytes)
+      let payload = [];
+      if (customBytes && customBytes.length === len) {
+        payload = [...customBytes];
+      } else {
+        payload = [0x2E, 0xF1, 0x90];
+        for (let i = 3; i < len; i++) {
+          payload.push((i - 2) & 0xFF);
+        }
+        payload = payload.slice(0, len);
+      }
+
+      const rows = [];
+      let timeMs = 0;
+
+      if (len <= 7) {
+        const frame = [len & 0x0F, ...payload];
+        while (frame.length < 8) frame.push(padVal);
+        rows.push({
+          step: 1,
+          time: `${timeMs} ms`,
+          dir: 'Tester ➔ ECU (0x7E0)',
+          type: `Single Frame (SF_DL = ${len})`,
+          bytes: frame,
+          pciLen: 1,
+          api: `CanTp_RxIndication() ➔ PduR_CanTpStartOfReception(${len}) ➔ PduR_CanTpCopyRxData() ➔ Dcm_TpRxIndication(E_OK)`
+        });
+      } else {
+        // 1. First Frame (FF)
+        const ffHi = 0x10 | ((len >> 8) & 0x0F);
+        const ffLo = len & 0xFF;
+        const ffFrame = [ffHi, ffLo, ...payload.slice(0, 6)];
+        rows.push({
+          step: 1,
+          time: `${timeMs} ms`,
+          dir: 'Tester ➔ ECU (0x7E0)',
+          type: `First Frame (FF_DL = ${len} bytes)`,
+          bytes: ffFrame,
+          pciLen: 2,
+          api: `PduR_CanTpStartOfReception(TpSduLength=${len}) + PduR_CanTpCopyRxData(6 bytes đầu)`
+        });
+
+        timeMs += 2;
+        const fcPci = 0x30 | (fs & 0x0F);
+        const fcFrame = [fcPci, bs & 0xFF, stmin & 0xFF, padVal, padVal, padVal, padVal, padVal];
+
+        if (fs === 2) {
+          // Overflow!
+          rows.push({
+            step: 2,
+            time: `${timeMs} ms`,
+            dir: 'ECU ➔ Tester (0x7E8)',
+            type: `Flow Control (FS=2 OVERFLOW!)`,
+            bytes: fcFrame,
+            pciLen: 3,
+            api: `Dcm_StartOfReception trả về BUFREQ_E_OVFL (Vượt quá DcmDslBufferSize) ➔ CanTp gửi FC(OVFLW) & hủy phiên!`
+          });
+        } else {
+          if (fs === 1) {
+            rows.push({
+              step: 2,
+              time: `${timeMs} ms`,
+              dir: 'ECU ➔ Tester (0x7E8)',
+              type: `Flow Control (FS=1 WAIT - Bảo Tester đợi)`,
+              bytes: fcFrame,
+              pciLen: 3,
+              api: `ECU đang bận Buffer ➔ Gửi FC(Wait). Sau 50ms ECU gửi tiếp FC(CTS=0x30) để tiếp tục.`
+            });
+            timeMs += 50;
+          }
+
+          const ctsFrame = [0x30, bs & 0xFF, stmin & 0xFF, padVal, padVal, padVal, padVal, padVal];
+          rows.push({
+            step: rows.length + 1,
+            time: `${timeMs} ms`,
+            dir: 'ECU ➔ Tester (0x7E8)',
+            type: `Flow Control (CTS, BS=${bs}, STmin=${stmin}ms)`,
+            bytes: ctsFrame,
+            pciLen: 3,
+            api: `CanTp gửi FlowControl cho phép truyền Consecutive Frames (BS=${bs}, STmin=${stmin}ms)`
+          });
+
+          let offset = 6;
+          let sn = 1;
+          let blockCount = 0;
+
+          while (offset < len) {
+            timeMs += Math.max(1, stmin);
+            const chunk = payload.slice(offset, offset + 7);
+            const cfFrame = [0x20 | (sn & 0x0F), ...chunk];
+            while (cfFrame.length < 8) cfFrame.push(padVal);
+            offset += 7;
+            const isLast = offset >= len;
+
+            rows.push({
+              step: rows.length + 1,
+              time: `${timeMs} ms`,
+              dir: 'Tester ➔ ECU (0x7E0)',
+              type: `Consecutive Frame (SN = 0x${sn.toString(16).toUpperCase()})`,
+              bytes: cfFrame,
+              pciLen: 1,
+              api: isLast
+                ? `PduR_CanTpCopyRxData(${chunk.length}B cuối) ➔ Dcm_TpRxIndication(E_OK) (Đủ ${len}B, kích hoạt DCM xử lý!)`
+                : `PduR_CanTpCopyRxData(${chunk.length}B) — Đã nhận ${Math.min(offset, len)}/${len} bytes`
+            });
+
+            sn = (sn + 1) & 0x0F;
+            blockCount++;
+
+            if (bs > 0 && blockCount === bs && !isLast) {
+              timeMs += 2;
+              rows.push({
+                step: rows.length + 1,
+                time: `${timeMs} ms`,
+                dir: 'ECU ➔ Tester (0x7E8)',
+                type: `Flow Control (CTS cho đợt ${bs} CF tiếp theo)`,
+                bytes: ctsFrame,
+                pciLen: 3,
+                api: `Đã nhận đủ 1 Block (${bs} CF) ➔ ECU gửi lại FC(CTS) để xin đợt CF tiếp theo`
+              });
+              blockCount = 0;
+            }
+          }
+        }
+      }
+
+      const tbody = document.getElementById('isoTpTableBody');
+      tbody.innerHTML = rows.map(r => {
+        const isFc = r.type.startsWith('Flow Control');
+        const formattedBytes = r.bytes.map((b, idx) => {
+          if (idx < r.pciLen) {
+            return `<span class="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-600 dark:text-amber-300 font-extrabold border border-amber-500/40">${toHex(b)}</span>`;
+          }
+          if (b === padVal && idx >= r.pciLen) {
+            return `<span class="px-1 py-0.5 text-slate-400">${toHex(b)}</span>`;
+          }
+          return `<span class="px-1 py-0.5 text-emerald-600 dark:text-emerald-400 font-bold">${toHex(b)}</span>`;
+        }).join(' ');
+
+        return `<tr class="${isFc ? 'bg-emerald-500/5' : ''}">
+          <td class="py-2 px-3 font-bold text-slate-400">#${r.step}</td>
+          <td class="py-2 px-3 text-sky-500">${r.time}</td>
+          <td class="py-2 px-3 font-bold">${r.dir}</td>
+          <td class="py-2 px-3 font-semibold text-indigo-600 dark:text-indigo-300">${r.type}</td>
+          <td class="py-2 px-3 whitespace-nowrap">${formattedBytes}</td>
+          <td class="py-2 px-3 font-sans text-slate-600 dark:text-slate-300">${r.api}</td>
+        </tr>`;
+      }).join('');
+    }
+
+    // =========================================================================
+    // 8. SUB-TAB SWITCHING, S3 TIMER, HANDBOOK FILTER & THEME SYNC
+    // =========================================================================
+    function switchMainTab(tabName) {
+      ['inspector', 'cantp', 'handbook'].forEach(t => {
+        const panel = document.getElementById('tabPanel-' + t);
+        const btn = document.getElementById('tabBtn-' + t);
+        if (t === tabName) {
+          panel.classList.remove('hidden');
+          btn.className = 'px-3.5 py-2 rounded-xl text-xs font-extrabold transition bg-sky-500 text-slate-950 shadow-sm';
+        } else {
+          panel.classList.add('hidden');
+          btn.className = 'px-3.5 py-2 rounded-xl text-xs font-bold transition text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800';
+        }
+      });
+      if (tabName === 'cantp') generateIsoTpSimulation();
+    }
+
+    function filterHandbookTables(query) {
+      const q = (query || '').trim().toLowerCase();
+      ['hbServicesTable', 'hbNrcTable'].forEach(tblId => {
+        const rows = document.querySelectorAll(`#${tblId} tbody tr`);
+        rows.forEach(r => {
+          const text = r.textContent.toLowerCase();
+          r.style.display = (!q || text.includes(q)) ? '' : 'none';
+        });
+      });
+    }
+
+    function resetEcuInternalOnly() {
+      ecu.session = 0x01;
+      ecu.s3RemainingMs = 0;
+      ecu.securityLevel = 0;
+      ecu.activeSeed = null;
+      ecu.pendingSeedLevel = 0;
+      ecu.failedKeyAttempts = 0;
+      ecu.dtcSettingOn = true;
+      ecu.comEnabled = true;
+      ecu.fanControlMode = 'Auto (ECU 30%)';
+      ecu.flashErased = false;
+      ecu.downloadActive = false;
+      ecu.expectedBlockCounter = 1;
+    }
+
+    function resetEcuState() {
+      resetEcuInternalOnly();
+      ecu.dtcs[0].status = 0x2F;
+      ecu.dtcs[1].status = 0x24;
+      ecu.dtcs[2].status = 0x28;
+      updateLiveEcuHeaderUI();
+      quickSendHex('10 01');
+    }
+
+    // S3Server Countdown Loop (Every 100ms)
+    setInterval(() => {
+      const s3Text = document.getElementById('statusS3Text');
+      const s3Bar = document.getElementById('statusS3Bar');
+
+      if (ecu.session === 0x01) {
+        s3Text.textContent = 'Tắt (Đang ở Default)';
+        s3Bar.style.width = '0%';
+        return;
+      }
+
+      ecu.s3RemainingMs = Math.max(0, ecu.s3RemainingMs - 100);
+      const autoTp = document.getElementById('chkAutoTesterPresent').checked;
+
+      if (autoTp && ecu.s3RemainingMs <= 1000) {
+        // Auto TesterPresent 3E 80 keeps S3 alive
+        ecu.s3RemainingMs = 5000;
+      }
+
+      if (ecu.s3RemainingMs === 0) {
+        // S3 Timeout -> Fallback to Default Session 0x01 & lock Security
+        resetEcuInternalOnly();
+        updateLiveEcuHeaderUI();
+        s3Text.textContent = 'S3 Timeout ➔ Về 0x01 Default!';
+        s3Bar.style.width = '0%';
+        return;
+      }
+
+      s3Text.textContent = `${(ecu.s3RemainingMs / 1000).toFixed(1)}s / 5.0s`;
+      s3Bar.style.width = `${(ecu.s3RemainingMs / 5000) * 100}%`;
+    }, 100);
+
+    // =========================================================================
+    // 9. LIGHT / DARK THEME & SIMULATION HUB POSTMESSAGE HANDSHAKE
+    // =========================================================================
+    function applyTheme(theme) {
+      const htmlEl = document.documentElement;
+      const sun = document.getElementById('iconSun');
+      const moon = document.getElementById('iconMoon');
+      if (theme === 'light') {
+        htmlEl.classList.remove('dark');
+        htmlEl.setAttribute('data-theme', 'light');
+        sun.classList.add('hidden');
+        moon.classList.remove('hidden');
+      } else {
+        htmlEl.classList.add('dark');
+        htmlEl.setAttribute('data-theme', 'dark');
+        sun.classList.remove('hidden');
+        moon.classList.add('hidden');
+      }
+      try {
+        localStorage.setItem('sim_hub_theme', theme);
+        localStorage.setItem('autosar_sim_hub_theme_v2', theme);
+      } catch (e) {}
+    }
+
+    function toggleTheme() {
+      const isDark = document.documentElement.classList.contains('dark');
+      applyTheme(isDark ? 'light' : 'dark');
+    }
+
+    // Listen to Simulation Hub Parent Theme Sync
+    window.addEventListener('message', (event) => {
+      if (event.data && event.data.type === 'SIM_HUB_SET_THEME') {
+        applyTheme(event.data.theme === 'light' ? 'light' : 'dark');
+        if (window.parent !== window) {
+          window.parent.postMessage({ type: 'SIM_HUB_THEME_ACK' }, '*');
+        }
+      }
+    });
+
+    function downloadStandaloneHtml() {
+      const fullHtml = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+      const blob = new Blob([fullHtml], { type: 'text/html;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'AUTOSAR_UDS_on_CAN_Simulator.html';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    window.onload = function() {
+      const savedTheme = localStorage.getItem('autosar_sim_hub_theme_v2') || localStorage.getItem('sim_hub_theme') || 'dark';
+      applyTheme(savedTheme);
+      if (window.parent !== window) {
+        window.parent.postMessage({ type: 'SIM_HUB_THEME_ACK' }, '*');
+      }
+      selectService('0x10');
+      sendUdsRequestFromUI();
+    };
+  </script>
+</body>
+</html>
+<!-- 
+```
+### Tóm tắt các tính năng trong **UDS Core Services Simulator**:
+1. **Chọn nhanh 12 Dịch vụ UDS cốt lõi (`0x10`, `0x11`, `0x27`, `0x3E`, `0x22`, `0x2E`, `0x2F`, `0x19`, `0x14`, `0x85`, `0x28`, `0x31`, `0x34/36/37`)**: Tự động nạp các mẫu lệnh thực tế và hỗ trợ tự gõ chuỗi Hex tùy ý.
+2. **Phễu kiểm tra NRC 9 bước chuẩn AUTOSAR DCM (`DSD` $\rightarrow$ `DSP`)**: Hiển thị trực quan từng chốt kiểm tra (`0x11` $\rightarrow$ `0x7F` $\rightarrow$ `0x33` $\rightarrow$ `0x13` $\rightarrow$ `0x12/0x7E` $\rightarrow$ `0x31` $\rightarrow$ `0x13` $\rightarrow$ `0x22` $\rightarrow$ `0x24/0x35/0x36`) và chỉ rõ lý do gói tin bị từ chối hoặc được chấp nhận.
+3. **Mô phỏng phân mảnh gói tin CAN / ISO-TP (`Sub-tab 2`)**: Cho phép kéo thanh trượt độ dài dữ liệu (`1..256 bytes`), tùy chỉnh Flow Control (`FS = CTS / Wait / Overflow`, `BS`, `STmin`, `Padding Byte`) và xem bảng phân mảnh `SF`, `FF`, `FC`, `CF` kèm chuỗi hàm callback AUTOSAR (`CanTp` $\leftrightarrow$ `PduR` $\leftrightarrow$ `Dcm`).
+4. **Tương thích Native Light/Dark Mode với `Simulation_Hub_Index.html`**: Tự động chuyển đổi giao diện Sáng/Tối sắc nét khi bạn bấm nút `☀️/🌙` trên trang chủ của Hub.
+ -->
