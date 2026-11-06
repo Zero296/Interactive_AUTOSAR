@@ -854,19 +854,19 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
             <span>🎛️ Trình Mô Phỏng DEM</span>
           </button>
           <button id="btnViewHandbook" onclick="switchMainView('handbook')" class="px-3 py-1.5 rounded-lg text-xs font-bold text-slate-300 hover:text-white hover:bg-slate-800 transition flex items-center gap-1.5">
-            <span>📖 Sổ Tay Tra Cứu Nhanh (5 Mục)</span>
+            <span>📖 Sổ Tay Tra Cứu Nhanh (6 Mục)</span>
           </button>
         </div>
 
-        <!-- Quick ClearDTC (0x14) Button -->
-        <button onclick="triggerClearDtc()" title="Gửi lệnh UDS 0x14 ClearDiagnosticInformation qua DCM sang DEM" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 transition flex items-center gap-1.5">
-          <span>🧹 Quick ClearDTC (0x14)</span>
+        <!-- Quick ClearDTC (0x14) Buttons -->
+        <button onclick="triggerClearDtc('ALL')" title="Gửi lệnh UDS 0x14 Clear All DTCs (0xFFFFFF) qua DCM sang DEM" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 transition flex items-center gap-1.5">
+          <span>🧹 Clear All (0xFFFFFF)</span>
+        </button>
+        <button onclick="triggerClearDtc('SINGLE')" title="Gửi lệnh UDS 0x14 Clear Single DTC đang chọn qua DCM sang DEM" class="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 transition flex items-center gap-1.5">
+          <span>🎯 Clear Single DTC</span>
         </button>
 
-        <!-- Sudden Power Loss / Hard Reset Button -->
-        <button onclick="triggerSuddenPowerLoss()" title="Giả lập rút cọc ắc-quy / mất nguồn đột ngột trước khi ECU kịp chạy NvM_WriteAll()" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 transition flex items-center gap-1.5">
-          <span>⚡ Ngắt Nguồn Đột Ngột (Power Loss)</span>
-        </button>
+
 
         <!-- Download Standalone HTML -->
         <button onclick="downloadStandaloneHTML()" class="px-3.5 py-1.5 rounded-lg text-xs font-bold bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-md shadow-emerald-950/50 border border-emerald-400/30 transition flex items-center gap-1.5">
@@ -893,19 +893,25 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
           <option value="6">Luồng 6 [Nêu bật Event Displacement]: Đầy Primary Memory (3/3 Slot) &amp; Đẩy DTC Priority thấp ra ngoài</option>
           <option value="7">Luồng 7 [Nêu bật ClearDTC 0x14]: Xóa lỗi chờ Flash NvM (DEM_PENDING ➔ DCM NRC 0x78 ➔ 0x50)</option>
           <option value="8">Luồng 8 [Nêu bật Cổng chặn Input]: Khóa ghi DTC bằng EnableCondition=FALSE &amp; DCM 0x85</option>
+          <option value="9">Luồng 9 [Nêu bật Debounce Counter-Based]: Lọc Nhiễu FDC &amp; Bước Nhảy JumpUp / JumpDown (PREFAILED / PREPASSED)</option>
         </select>
       </div>
 
       <!-- Scenario Playback Controls -->
       <div class="lg:col-span-6 flex flex-wrap items-center justify-between lg:justify-end gap-2">
-        <div class="flex items-center gap-1.5 bg-slate-900 px-2.5 py-1 rounded-lg border border-slate-800">
-          <button onclick="resetAndLoadScenario()" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium transition">
-            ↺ Khởi tạo Kịch bản
+        <div class="flex items-center gap-1.5 bg-slate-900 px-2 py-1 rounded-lg border border-slate-800">
+          <button onclick="resetAndLoadScenario()" title="Khởi tạo lại kịch bản từ đầu (Reset)" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium transition flex items-center gap-1">
+            ↺ Khởi tạo
           </button>
-          <button onclick="runNextScenarioStep()" id="btnScenarioNext" class="px-3 py-1 rounded bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-bold shadow transition">
-            ⏭ Chạy Bước Tiếp (<span id="lblScenarioProgress">0/5</span>)
+          <!-- Step Backward (◀) -->
+          <button onclick="runPrevScenarioStep()" id="btnScenarioPrev" title="Lùi lại 1 bước trong sequence mô phỏng (Step Backward)" class="px-2.5 py-1 rounded bg-slate-900 text-slate-600 text-xs font-bold transition border border-slate-800 cursor-not-allowed" disabled>
+            ◀
           </button>
-          <button onclick="toggleScenarioAutoPlay()" id="btnScenarioAuto" class="px-2.5 py-1 rounded bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 text-xs font-semibold transition">▶ Tự động chạy</button>
+          <!-- Step Forward (▶) -->
+          <button onclick="runNextScenarioStep()" id="btnScenarioNext" title="Tiến 1 bước trong sequence mô phỏng (Step Forward)" class="px-3 py-1 rounded bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-bold shadow transition flex items-center gap-1">
+            ▶ (<span id="lblScenarioProgress">0/5</span>)
+          </button>
+          <button onclick="toggleScenarioAutoPlay()" id="btnScenarioAuto" title="Tự động chạy các bước" class="px-2.5 py-1 rounded bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 text-xs font-semibold transition">▶ Tự động</button>
         </div>
 
         <button onclick="resetAllSim()" class="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-800 text-xs transition">
@@ -1022,12 +1028,86 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
         </div>
       </div>
 
+      <!-- Card B2: Cấu Hình Thuật Toán Debounce Counter-Based (DemDebounceCounterBasedClass) -->
+      <div class="bg-slate-900/95 border border-cyan-500/30 rounded-xl p-3.5 shadow-lg space-y-2.5">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-cyan-400"></span>
+            <h2 class="text-xs font-bold uppercase tracking-wider text-white">3. Cấu Hình Debounce Counter-Based</h2>
+          </div>
+          <span class="text-[10px] font-mono text-cyan-300">DemDebounceCounterBasedClass</span>
+        </div>
+
+        <div class="space-y-2.5 text-xs">
+          <!-- StepUp & StepDown in 2-column grid -->
+          <div class="grid grid-cols-2 gap-2">
+            <div class="bg-slate-950/90 p-2 rounded-lg border border-slate-800">
+              <div class="flex items-center justify-between">
+                <span class="font-semibold text-rose-300">StepUp (+PREFAILED)</span>
+                <span class="text-[9px] font-mono text-slate-500">1..127</span>
+              </div>
+              <div class="text-[9px] font-mono text-slate-400 truncate" title="DemDebounceCounterIncrementStepSize">DemDebounceCounterIncrementStepSize</div>
+              <input id="numStepUp" type="number" min="1" max="127" value="64" onchange="onConfigChange()" class="mt-1 w-full bg-slate-900 text-center font-mono font-bold text-sm text-rose-300 py-1 rounded border border-slate-700 focus:border-rose-400 focus:outline-none">
+            </div>
+
+            <div class="bg-slate-950/90 p-2 rounded-lg border border-slate-800">
+              <div class="flex items-center justify-between">
+                <span class="font-semibold text-emerald-300">StepDown (-PREPASSED)</span>
+                <span class="text-[9px] font-mono text-slate-500">1..128</span>
+              </div>
+              <div class="text-[9px] font-mono text-slate-400 truncate" title="DemDebounceCounterDecrementStepSize">DemDebounceCounterDecrementStepSize</div>
+              <input id="numStepDown" type="number" min="1" max="128" value="64" onchange="onConfigChange()" class="mt-1 w-full bg-slate-900 text-center font-mono font-bold text-sm text-emerald-300 py-1 rounded border border-slate-700 focus:border-emerald-400 focus:outline-none">
+            </div>
+          </div>
+
+          <!-- Jump Up Settings -->
+          <div class="bg-slate-950/90 p-2.5 rounded-lg border border-slate-800 space-y-1.5">
+            <div class="flex items-center justify-between">
+              <label class="flex items-center gap-2 cursor-pointer">
+                <input id="chkJumpUp" type="checkbox" checked onchange="onConfigChange()" class="rounded bg-slate-800 border-slate-600 text-cyan-500">
+                <span class="font-semibold text-cyan-200">Enable Jump Up</span>
+              </label>
+              <div class="flex items-center gap-1.5">
+                <span class="text-[10px] text-slate-400 font-mono">Jump Value:</span>
+                <input id="numJumpUpVal" type="number" min="-128" max="127" value="0" onchange="onConfigChange()" class="w-14 bg-slate-900 text-center font-mono font-bold text-xs text-cyan-300 py-0.5 rounded border border-slate-700 focus:border-cyan-400 focus:outline-none">
+              </div>
+            </div>
+            <div class="text-[10px] font-mono text-slate-400">
+              <code class="text-cyan-300">DemDebounceCounterJumpUp</code> &bull; <code class="text-cyan-300">DemDebounceCounterJumpUpValue</code>
+            </div>
+            <p class="text-[10px] text-slate-400 leading-tight">
+              Nếu FDC &lt; JumpUpValue, khi nhận PREFAILED sẽ nhảy tức thì lên <code class="text-cyan-300">JumpUpValue + StepUp</code> ([SWS_Dem_00421]).
+            </p>
+          </div>
+
+          <!-- Jump Down Settings -->
+          <div class="bg-slate-950/90 p-2.5 rounded-lg border border-slate-800 space-y-1.5">
+            <div class="flex items-center justify-between">
+              <label class="flex items-center gap-2 cursor-pointer">
+                <input id="chkJumpDown" type="checkbox" checked onchange="onConfigChange()" class="rounded bg-slate-800 border-slate-600 text-teal-500">
+                <span class="font-semibold text-teal-200">Enable Jump Down</span>
+              </label>
+              <div class="flex items-center gap-1.5">
+                <span class="text-[10px] text-slate-400 font-mono">Jump Value:</span>
+                <input id="numJumpDownVal" type="number" min="-128" max="127" value="0" onchange="onConfigChange()" class="w-14 bg-slate-900 text-center font-mono font-bold text-xs text-teal-300 py-0.5 rounded border border-slate-700 focus:border-teal-400 focus:outline-none">
+              </div>
+            </div>
+            <div class="text-[10px] font-mono text-slate-400">
+              <code class="text-teal-300">DemDebounceCounterJumpDown</code> &bull; <code class="text-teal-300">DemDebounceCounterJumpDownValue</code>
+            </div>
+            <p class="text-[10px] text-slate-400 leading-tight">
+              Nếu FDC &gt; JumpDownValue, khi nhận PREPASSED sẽ nhảy tức thì xuống <code class="text-teal-300">JumpDownValue - StepDown</code> ([SWS_Dem_00423]).
+            </p>
+          </div>
+        </div>
+      </div>
+
       <!-- Card C: Interactive Checkboxes for AUTOSAR DEM Parameters -->
       <div class="bg-slate-900/95 border border-slate-800 rounded-xl p-3.5 shadow-lg space-y-3">
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-2">
             <span class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
-            <h2 class="text-xs font-bold uppercase tracking-wider text-white">3. Checkbox Cấu Hình AUTOSAR DEM</h2>
+            <h2 class="text-xs font-bold uppercase tracking-wider text-white">4. Checkbox Cấu Hình AUTOSAR DEM</h2>
           </div>
           <span class="text-[10px] font-mono text-emerald-400">Thay đổi áp dụng tức thời</span>
         </div>
@@ -1060,12 +1140,12 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
 
           <label class="flex items-start gap-2 text-xs text-slate-200 cursor-pointer">
             <input id="chkAgingReqTested" type="checkbox" checked="" onchange="onConfigChange()" class="mt-0.5 rounded bg-slate-800 border-slate-600 text-cyan-500">
-            <span><strong>Aging bắt buộc chu kỳ phải chạy xong Test (Bit 6 TNCTOC == 0)</strong> (<code class="text-[11px] text-emerald-300">DemAgingRequieresTestedCycle</code>)</span>
+            <span><strong>Aging bắt buộc chu kỳ phải chạy xong Test (Bit 6 TNCTOC == 0)</strong> (<code class="text-[11px] text-emerald-300">DemAgingRequiresTestedCycle</code>)</span>
           </label>
 
           <label class="flex items-start gap-2 text-xs text-slate-200 cursor-pointer">
             <input id="chkClearBit5OnAging" type="checkbox" onchange="onConfigChange()" class="mt-0.5 rounded bg-slate-800 border-slate-600 text-cyan-500">
-            <span><strong>Xóa luôn Bit 5 (TFSLC) khi Aging xong</strong> (<code class="text-[11px] text-purple-300">DEM_STATUS_BIT_AGING_AND_DISPLACEMENT</code>)</span>
+            <span><strong>Xóa luôn Bit 5 (TFSLC) khi Aging xong</strong> (<code class="text-[11px] text-purple-300">DemStatusBitHandlingTestFailedSinceLastClear = DEM_STATUS_BIT_AGING_AND_DISPLACEMENT</code>)</span>
           </label>
         </div>
 
@@ -1082,7 +1162,7 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
 
           <label class="flex items-start gap-2 text-xs text-slate-200 cursor-pointer">
             <input id="chkStoreBit2" type="checkbox" checked="" onchange="onConfigChange()" class="mt-0.5 rounded bg-slate-800 border-slate-600 text-amber-500">
-            <span><strong>Lưu Bit 2 (pendingDTC) vào NvM</strong> (<code class="text-[11px] text-amber-300">DemStatusBitStoragePendingDtc</code>)</span>
+            <span><strong>Lưu Bit 2 (pendingDTC) vào NvM khi 1st Trip</strong> (<code class="text-[11px] text-amber-300">DemEventMemoryEntryStorageTrigger = DEM_TRIGGER_PENDING</code> / <code class="text-[11px] text-slate-400">DemStatusBitStoragePendingDtc</code>)</span>
           </label>
 
           <label class="flex items-start gap-2 text-xs text-slate-200 cursor-pointer">
@@ -1130,8 +1210,23 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
           </label>
 
           <label class="flex items-start gap-2 text-xs text-slate-200 cursor-pointer">
-            <input id="chkClearOnlyConfirmed" type="checkbox" onchange="onConfigChange()" class="mt-0.5 rounded bg-slate-800 border-slate-600 text-rose-500">
-            <span><strong>Giới hạn chỉ cho phép xóa khi đã Confirmed</strong> (<code class="text-[11px] text-rose-300">DemClearDTCLimitation = ONLY_CONFIRMED</code>)</span>
+            <input id="chkClearLimitationOnlyAll" type="checkbox" onchange="onConfigChange()" class="mt-0.5 rounded bg-slate-800 border-slate-600 text-rose-500">
+            <div>
+              <strong>Chỉ cho phép xóa All DTCs (0xFFFFFF)</strong> (<code class="text-[11px] text-rose-300">DemClearDTCLimitation = DEM_ONLY_CLEAR_ALL_DTCS</code>)
+              <div class="text-[10px] text-slate-400 leading-tight mt-0.5">
+                Theo chuẩn <code class="text-amber-300">[SWS_Dem_00570]</code>: DEM từ chối yêu cầu xóa Single DTC lẻ, trả <code class="text-rose-300">DEM_WRONG_DTC</code> ➔ DCM gửi <code class="text-rose-300">NRC 0x31 (RequestOutOfRange)</code>.
+              </div>
+            </div>
+          </label>
+
+          <label class="flex items-start gap-2 text-xs text-slate-200 cursor-pointer">
+            <input id="chkClearOnlyConfirmed" type="checkbox" onchange="onConfigChange()" class="mt-0.5 rounded bg-slate-800 border-slate-600 text-purple-500">
+            <div>
+              <strong>[Tùy biến OEM] Chặn xóa khi chưa Confirmed</strong>
+              <div class="text-[10px] text-slate-400 leading-tight mt-0.5">
+                Quy tắc riêng ngoài AUTOSAR: Từ chối xóa nếu DTC chưa đạt <code class="text-purple-300">Bit 3 Confirmed == 1</code>.
+              </div>
+            </div>
           </label>
 
           <div class="pt-1 border-t border-slate-800/80 grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -1166,7 +1261,7 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
           <!-- Report PREFAILED -->
           <button onclick="reportMonitorEvent('PREFAILED')" class="p-2 rounded-lg bg-rose-950/50 hover:bg-rose-900/70 border border-rose-500/40 text-rose-200 transition flex flex-col items-center justify-center text-center">
             <span class="text-xs font-bold">📈 PREFAILED</span>
-            <span class="text-[10px] font-mono text-rose-300 mt-0.5">FDC +StepUp</span>
+            <span id="lblBtnPrefailedStep" class="text-[10px] font-mono text-rose-300 mt-0.5">FDC +64</span>
           </button>
 
           <!-- Report FAILED (Direct) -->
@@ -1178,7 +1273,7 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
           <!-- Report PREPASSED -->
           <button onclick="reportMonitorEvent('PREPASSED')" class="p-2 rounded-lg bg-emerald-950/50 hover:bg-emerald-900/70 border border-emerald-500/40 text-emerald-200 transition flex flex-col items-center justify-center text-center">
             <span class="text-xs font-bold">📉 PREPASSED</span>
-            <span class="text-[10px] font-mono text-emerald-300 mt-0.5">FDC -StepDown</span>
+            <span id="lblBtnPrepassedStep" class="text-[10px] font-mono text-emerald-300 mt-0.5">FDC -64</span>
           </button>
 
           <!-- Report PASSED (Direct) -->
@@ -1362,6 +1457,9 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
               <span>-128 (PASS: Bit0=0)</span>
               <span id="lblDebounceAlgo">Algo: COUNTER</span>
               <span>+127 (FAIL: Bit0=1)</span>
+            </div>
+            <div id="lblDebounceParams" class="text-[10px] font-mono text-cyan-300/80 mt-1.5 pt-1 border-t border-slate-800/80 text-center truncate">
+              Step: +64 / -64 | JumpUp: ON (0) | JumpDown: ON (0)
             </div>
           </div>
 
@@ -1783,7 +1881,7 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
       <div class="flex flex-wrap items-center justify-between gap-3 pb-4 mb-5 border-b border-slate-800">
         <div>
           <h2 class="text-lg font-bold text-white">📖 Sổ Tay Kỹ Thuật AUTOSAR DEM &amp; DTC Status Byte (Tra Cứu Nhanh)</h2>
-          <p class="text-xs text-slate-400">Tổng hợp kiến trúc I/O từng Module, 8-Bit DTC Status, Debounce, Trip/Healing/Aging, NvM, Event Displacement &amp; Tham số ECUC</p>
+          <p class="text-xs text-slate-400">Tổng hợp kiến trúc I/O từng Module, 8-Bit DTC Status, Debounce Counter-Based &amp; Đồ Thị FDC, Trip/Healing/Aging, NvM &amp; Toàn Bộ Tham Số ECUC (AUTOSAR R22+)</p>
         </div>
         <div class="flex flex-wrap items-center gap-1.5">
           <button id="hbBtn1" onclick="switchHandbookTab(1)" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-cyan-500 text-slate-950 transition">
@@ -1793,13 +1891,16 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
             2. Giải Mã 8-Bit DTC &amp; Quan Hệ Nhân Quả
           </button>
           <button id="hbBtn3" onclick="switchHandbookTab(3)" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 hover:text-white transition">
-            3. Debounce, Trip, Healing &amp; Aging
+            3. Thuật Toán Debounce Counter-Based &amp; Đồ Thị FDC
           </button>
           <button id="hbBtn4" onclick="switchHandbookTab(4)" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 hover:text-white transition">
-            4. NvM, Power Loss, Displacement &amp; 0x14
+            4. Chu Trình Trip, Healing &amp; Aging (Bit 1, 2, 3, 7)
           </button>
           <button id="hbBtn5" onclick="switchHandbookTab(5)" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 hover:text-white transition">
-            5. Từ Điển ECUC &amp; Requirement SWS_Dem
+            5. NvM Storage, Power Loss &amp; Event Displacement
+          </button>
+          <button id="hbBtn6" onclick="switchHandbookTab(6)" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 hover:text-white transition">
+            6. Toàn Bộ Từ Điển Cấu Hình ECUC Chuẩn AUTOSAR DEM (R22+)
           </button>
         </div>
       </div>
@@ -1995,51 +2096,422 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
         </div>
       </div>
 
-      <!-- HANDBOOK TAB 3: DEBOUNCE, TRIP, HEALING & AGING -->
+            <!-- HANDBOOK TAB 3: DEBOUNCE COUNTER-BASED & FDC GRAPH -->
       <div id="hbPanel3" class="hidden space-y-4 text-xs leading-relaxed">
+        <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+          <div class="flex items-center gap-2">
+            <span class="w-3 h-3 rounded-full bg-cyan-400"></span>
+            <h3 class="text-sm font-bold text-cyan-300 uppercase tracking-wider">3. Cơ Chế Lọc Nhiễu Debounce Counter-Based &amp; Đồ Thị Phân Tích FDC (AUTOSAR SWS_Dem)</h3>
+          </div>
+          <span class="text-[11px] font-mono text-cyan-400 bg-cyan-950/60 px-2.5 py-0.5 rounded border border-cyan-500/30">Container: DemDebounceCounterBasedClass</span>
+        </div>
+
+        <!-- 3 Architecture Algorithm Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+          <div class="bg-slate-950 p-3.5 rounded-xl border border-cyan-500/30 shadow-lg">
+            <div class="flex items-center justify-between mb-2">
+              <span class="font-bold text-cyan-300 text-sm">1. Thang Đo FDC (-128 .. +127)</span>
+              <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-500/40">SWS_Dem_00419</span>
+            </div>
+            <p class="text-slate-300 mb-2">
+              <strong>Fault Detection Counter (FDC)</strong> là bộ đếm số nguyên có dấu 8-bit (<code class="text-cyan-300">sint8</code>) biểu diễn mức độ lỗi tích lũy của cảm biến/chức năng:
+            </p>
+            <ul class="space-y-1.5 text-slate-300">
+              <li>• <strong>Ngưỡng FAILED (<code class="text-rose-400">+127</code>):</strong> Khi FDC chạm ngưỡng <code class="text-rose-300">DemDebounceCounterFailedThreshold</code>, lỗi chính thức được xác nhận (<strong class="text-rose-300">Qualified FAILED</strong>) ➔ Bật ngay <code class="text-rose-300">Bit 0 (testFailed = 1)</code>.</li>
+              <li>• <strong>Ngưỡng PASSED (<code class="text-emerald-400">-128</code>):</strong> Khi FDC chạm ngưỡng <code class="text-emerald-300">DemDebounceCounterPassedThreshold</code>, bài kiểm tra đạt chuẩn (<strong class="text-emerald-300">Qualified PASSED</strong>) ➔ Hạ ngay <code class="text-emerald-300">Bit 0 (testFailed = 0)</code>.</li>
+              <li>• <strong>Mốc khởi tạo &amp; Vùng trung lập:</strong> FDC khởi tạo bằng <code class="text-amber-300">0</code> khi mở chu kỳ hoặc sau ClearDTC. Khoảng <code class="text-slate-400">-127 .. +126</code> là vùng lọc nhiễu, trạng thái lỗi chưa bị thay đổi.</li>
+            </ul>
+          </div>
+
+          <div class="bg-slate-950 p-3.5 rounded-xl border border-amber-500/30 shadow-lg">
+            <div class="flex items-center justify-between mb-2">
+              <span class="font-bold text-amber-300 text-sm">2. Cơ Chế Jump-Up &amp; Jump-Down</span>
+              <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-950 text-amber-300 border border-amber-500/40">SWS_Dem_00421 / 00423</span>
+            </div>
+            <p class="text-slate-300 mb-2">
+              Cơ chế <strong>Jump (Bước Nhảy Vượt)</strong> loại bỏ độ trễ tích lũy khi tín hiệu đổi chiều đột ngột:
+            </p>
+            <ul class="space-y-1.5 text-slate-300">
+              <li>• <strong>Jump-Up (<code class="text-cyan-300">DemDebounceCounterJumpUp = TRUE</code>):</strong> Nếu cảm biến đang chạy ổn định (FDC ở mức âm, ví dụ <code class="text-teal-300">-128</code>) mà gặp sự cố và SWC báo <code class="text-rose-300">PREFAILED</code>: Thay vì phải cộng từ từ qua toàn bộ dải âm, FDC <strong>nhảy vọt ngay lập tức</strong> lên mốc <code class="text-cyan-300">JumpUpValue (0) + StepUp</code>! Giúp phát hiện nhanh các lỗi an toàn nguy hiểm.</li>
+              <li>• <strong>Jump-Down (<code class="text-teal-300">DemDebounceCounterJumpDown = TRUE</code>):</strong> Nếu hệ thống đang có nguy cơ lỗi (FDC ở mức dương, ví dụ <code class="text-amber-300">+100</code>) mà tín hiệu bình thường trở lại và SWC báo <code class="text-emerald-300">PREPASSED</code>: FDC <strong>nhảy vọt xuống</strong> mốc <code class="text-teal-300">JumpDownValue (0) - StepDown</code>, ngăn chặn hiện tượng lỗi chập chờn tái phát giả.</li>
+            </ul>
+          </div>
+
+          <div class="bg-slate-950 p-3.5 rounded-xl border border-purple-500/30 shadow-lg">
+            <div class="flex items-center justify-between mb-2">
+              <span class="font-bold text-purple-300 text-sm">3. So Sánh 3 Thuật Toán Debounce</span>
+              <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-purple-950 text-purple-300 border border-purple-500/40">AUTOSAR SWS</span>
+            </div>
+            <ul class="space-y-1.5 text-slate-300">
+              <li>• <strong>Counter-Based (<code class="text-cyan-300">DemDebounceCounterBased</code>):</strong> DEM tự quản lý FDC bằng StepUp/StepDown. Thích hợp cho phần cứng ADC, ngõ vào số, giao tiếp truyền thông lặp chu kỳ cố định (ví dụ 10ms/bước).</li>
+              <li>• <strong>Time-Based (<code class="text-amber-300">DemDebounceTimeBase</code>):</strong> DEM quản lý bộ đếm thời gian thực (ví dụ cần liên tục lỗi <code class="text-amber-300">500ms</code> mới FAILED). Thích hợp khi tần suất gọi hàm của SWC không đồng đều.</li>
+              <li>• <strong>Monitor Internal (<code class="text-emerald-300">DemDebounceMonitorInternal</code>):</strong> SWC tự lọc bên trong theo thuật toán chuyên dụng (bộ lọc Kalman, FFT, trượt) và chỉ gọi API DEM với trạng thái chốt <code class="text-rose-300">FAILED</code> hoặc <code class="text-emerald-300">PASSED</code>.</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- SVG FDC GRAPH CONTAINER -->
+        <div class="bg-slate-950 p-4 rounded-xl border border-cyan-500/40 shadow-2xl">
+          <div class="flex flex-wrap items-center justify-between gap-2 mb-3 pb-2.5 border-b border-slate-800">
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-pulse"></span>
+              <h4 class="font-bold text-white text-sm">Đồ Thị Hoạt Động Của Fault Detection Counter (FDC) — Minh Họa Bước Nhảy Jump-Up &amp; Jump-Down</h4>
+            </div>
+            <div class="flex flex-wrap items-center gap-3 text-[11px] font-mono">
+              <span class="flex items-center gap-1.5 text-rose-300"><span class="w-3 h-0.5 bg-rose-500 inline-block"></span> Ngưỡng FAILED (+127)</span>
+              <span class="flex items-center gap-1.5 text-cyan-300"><span class="w-3 h-0.5 bg-cyan-400 inline-block border-b border-dashed border-cyan-400"></span> Vạch 0 (Jump Value)</span>
+              <span class="flex items-center gap-1.5 text-emerald-300"><span class="w-3 h-0.5 bg-emerald-500 inline-block"></span> Ngưỡng PASSED (-128)</span>
+            </div>
+          </div>
+
+          <!-- Responsive SVG Graph -->
+          <div class="w-full overflow-x-auto">
+            <svg class="w-full min-w-[880px] h-[360px]" viewBox="0 0 920 360" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <!-- Background Gradients -->
+                <linearGradient id="gradFaultZone" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#f43f5e" stop-opacity="0.18"/>
+                  <stop offset="100%" stop-color="#f59e0b" stop-opacity="0.02"/>
+                </linearGradient>
+                <linearGradient id="gradPassZone" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#10b981" stop-opacity="0.02"/>
+                  <stop offset="100%" stop-color="#06b6d4" stop-opacity="0.18"/>
+                </linearGradient>
+
+                <!-- Jump Up Curve Gradient -->
+                <linearGradient id="gradJumpUp" x1="0" y1="1" x2="0" y2="0">
+                  <stop offset="0%" stop-color="#06b6d4"/>
+                  <stop offset="50%" stop-color="#38bdf8"/>
+                  <stop offset="100%" stop-color="#f59e0b"/>
+                </linearGradient>
+
+                <!-- Jump Down Curve Gradient -->
+                <linearGradient id="gradJumpDown" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#f59e0b"/>
+                  <stop offset="50%" stop-color="#14b8a6"/>
+                  <stop offset="100%" stop-color="#10b981"/>
+                </linearGradient>
+
+                <!-- Arrow Markers -->
+                <marker id="arrowJumpUp" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+                  <path d="M1,1 L7,4 L1,7 Z" fill="#f59e0b"/>
+                </marker>
+                <marker id="arrowJumpDown" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+                  <path d="M1,1 L7,4 L1,7 Z" fill="#10b981"/>
+                </marker>
+              </defs>
+
+              <!-- Zone Backgrounds -->
+              <!-- Danger Zone (+127 down to 0) -->
+              <rect x="70" y="45" width="820" height="135" fill="url(#gradFaultZone)"/>
+              <!-- Healthy Zone (0 down to -128) -->
+              <rect x="70" y="180" width="820" height="135" fill="url(#gradPassZone)"/>
+
+              <!-- Grid Horizontal Lines -->
+              <!-- +127 Failed Threshold -->
+              <line x1="70" y1="45" x2="890" y2="45" stroke="#f43f5e" stroke-width="1.8" stroke-dasharray="6,4"/>
+              <!-- 0 Baseline (Jump Reference) -->
+              <line x1="70" y1="180" x2="890" y2="180" stroke="#06b6d4" stroke-width="1.5" stroke-dasharray="4,4"/>
+              <!-- -128 Passed Threshold -->
+              <line x1="70" y1="315" x2="890" y2="315" stroke="#10b981" stroke-width="1.8" stroke-dasharray="6,4"/>
+
+              <!-- Y-Axis Labels -->
+              <text x="62" y="49" fill="#f43f5e" font-size="11" font-family="monospace" font-weight="bold" text-anchor="end">+127</text>
+              <text x="62" y="184" fill="#38bdf8" font-size="11" font-family="monospace" font-weight="bold" text-anchor="end">0</text>
+              <text x="62" y="319" fill="#10b981" font-size="11" font-family="monospace" font-weight="bold" text-anchor="end">-128</text>
+
+              <text x="75" y="38" fill="#f43f5e" font-size="10" font-family="monospace">DemDebounceCounterFailedThreshold (+127) ➔ Qualified FAILED (Bit 0 = 1)</text>
+              <text x="75" y="174" fill="#06b6d4" font-size="10" font-family="monospace">Mốc Jump Up/Down (DemDebounceCounterJumpUpValue = 0)</text>
+              <text x="75" y="332" fill="#10b981" font-size="10" font-family="monospace">DemDebounceCounterPassedThreshold (-128) ➔ Qualified PASSED (Bit 0 = 0)</text>
+
+              <!-- Vertical Step Lines & Time Labels -->
+              <!-- t0 -->
+              <line x1="110" y1="45" x2="110" y2="315" stroke="#334155" stroke-width="0.8" stroke-dasharray="2,2"/>
+              <text x="110" y="348" fill="#94a3b8" font-size="10" font-family="monospace" text-anchor="middle">t0 (Init)</text>
+
+              <!-- t1 -->
+              <line x1="180" y1="45" x2="180" y2="315" stroke="#334155" stroke-width="0.8" stroke-dasharray="2,2"/>
+              <text x="180" y="348" fill="#94a3b8" font-size="10" font-family="monospace" text-anchor="middle">t1</text>
+
+              <!-- t2 -->
+              <line x1="260" y1="45" x2="260" y2="315" stroke="#334155" stroke-width="0.8" stroke-dasharray="2,2"/>
+              <text x="260" y="348" fill="#94a3b8" font-size="10" font-family="monospace" text-anchor="middle">t2</text>
+
+              <!-- t3: Jump Up Event -->
+              <line x1="390" y1="45" x2="390" y2="315" stroke="#38bdf8" stroke-width="1" stroke-dasharray="2,2"/>
+              <text x="390" y="348" fill="#38bdf8" font-size="10" font-family="monospace" font-weight="bold" text-anchor="middle">t3 (PREFAILED)</text>
+
+              <!-- t4: FAILED Threshold Reached -->
+              <line x1="490" y1="45" x2="490" y2="315" stroke="#f43f5e" stroke-width="1" stroke-dasharray="2,2"/>
+              <text x="490" y="348" fill="#f43f5e" font-size="10" font-family="monospace" font-weight="bold" text-anchor="middle">t4 (FAILED)</text>
+
+              <!-- t5: Jump Down Event -->
+              <line x1="620" y1="45" x2="620" y2="315" stroke="#10b981" stroke-width="1" stroke-dasharray="2,2"/>
+              <text x="620" y="348" fill="#10b981" font-size="10" font-family="monospace" font-weight="bold" text-anchor="middle">t5 (PREPASSED)</text>
+
+              <!-- t6: PASSED Threshold Reached -->
+              <line x1="730" y1="45" x2="730" y2="315" stroke="#10b981" stroke-width="1" stroke-dasharray="2,2"/>
+              <text x="730" y="348" fill="#10b981" font-size="10" font-family="monospace" font-weight="bold" text-anchor="middle">t6 (PASSED)</text>
+
+              <!-- t7: Steady state -->
+              <line x1="830" y1="45" x2="830" y2="315" stroke="#334155" stroke-width="0.8" stroke-dasharray="2,2"/>
+              <text x="830" y="348" fill="#94a3b8" font-size="10" font-family="monospace" text-anchor="middle">t7</text>
+
+              <!-- Dotted path: Without JumpUp Comparison (slow climb) -->
+              <path d="M 260,315 L 325,247 L 390,180 L 455,112 L 520,45" fill="none" stroke="#64748b" stroke-width="1.8" stroke-dasharray="4,4"/>
+              <text x="355" y="270" fill="#94a3b8" font-size="9" font-family="sans-serif">Khi KHÔNG có JumpUp: Mất 4 bước chậm chạp leo qua vùng âm (-128➔-64➔0➔+64➔+127)</text>
+
+              <!-- MAIN FDC TRAJECTORY PATH -->
+              <!-- Step 0 to Step 1: PREPASSED (-StepDown = 64) -->
+              <line x1="110" y1="180" x2="180" y2="247" stroke="#14b8a6" stroke-width="2.8"/>
+              <!-- Step 1 to Step 2: PREPASSED (-StepDown = 64) to -128 -->
+              <line x1="180" y1="247" x2="260" y2="315" stroke="#10b981" stroke-width="2.8"/>
+
+              <!-- JUMP-UP ARC: from (260, 315) to (390, 112) -->
+              <path d="M 260,315 C 290,140 330,80 390,112" fill="none" stroke="url(#gradJumpUp)" stroke-width="3.5" marker-end="url(#arrowJumpUp)"/>
+
+              <!-- Step 3 to Step 4: PREFAILED (+StepUp = 64) to +127 -->
+              <line x1="390" y1="112" x2="490" y2="45" stroke="#f43f5e" stroke-width="3"/>
+
+              <!-- Steady FAILED hold -->
+              <line x1="490" y1="45" x2="520" y2="45" stroke="#f43f5e" stroke-width="3"/>
+
+              <!-- JUMP-DOWN ARC: from (520, 45) to (620, 247) -->
+              <path d="M 520,45 C 550,220 580,270 620,247" fill="none" stroke="url(#gradJumpDown)" stroke-width="3.5" marker-end="url(#arrowJumpDown)"/>
+
+              <!-- Step 5 to Step 6: PREPASSED to -128 -->
+              <line x1="620" y1="247" x2="730" y2="315" stroke="#10b981" stroke-width="2.8"/>
+              <!-- Step 6 to Step 7: steady PASSED -->
+              <line x1="730" y1="315" x2="830" y2="315" stroke="#10b981" stroke-width="2.8"/>
+
+              <!-- Key Data Nodes & Badges -->
+              <!-- P0: t0 -->
+              <circle cx="110" cy="180" r="4.5" fill="#38bdf8" stroke="#0f172a" stroke-width="2"/>
+
+              <!-- P1: t1 (-64) -->
+              <circle cx="180" cy="247" r="4" fill="#14b8a6" stroke="#0f172a" stroke-width="2"/>
+              <text x="180" y="235" fill="#14b8a6" font-size="10" font-family="monospace" font-weight="bold" text-anchor="middle">-64</text>
+
+              <!-- P2: t2 (-128 PASSED) -->
+              <circle cx="260" cy="315" r="5.5" fill="#10b981" stroke="#0f172a" stroke-width="2"/>
+              <text x="260" y="303" fill="#10b981" font-size="10" font-family="monospace" font-weight="bold" text-anchor="middle">-128 (PASS)</text>
+
+              <!-- JUMP-UP CALLOUT BADGE -->
+              <g transform="translate(265, 145)">
+                <rect x="0" y="0" width="165" height="42" rx="6" fill="#0f172a" stroke="#38bdf8" stroke-width="1.2" opacity="0.95"/>
+                <text x="8" y="16" fill="#38bdf8" font-size="10" font-family="sans-serif" font-weight="bold">⚡ JUMP UP LEAP! [SWS_00421]</text>
+                <text x="8" y="32" fill="#fde047" font-size="9.5" font-family="monospace">FDC = JumpVal(0) + StepUp(64) = +64</text>
+              </g>
+
+              <!-- P3: t3 (+64) -->
+              <circle cx="390" cy="112" r="5" fill="#f59e0b" stroke="#0f172a" stroke-width="2"/>
+              <text x="390" y="102" fill="#f59e0b" font-size="10" font-family="monospace" font-weight="bold" text-anchor="middle">+64</text>
+
+              <!-- P4: t4 (+127 FAILED) -->
+              <circle cx="490" cy="45" r="6" fill="#f43f5e" stroke="#0f172a" stroke-width="2"/>
+              <text x="490" y="28" fill="#f43f5e" font-size="10" font-family="monospace" font-weight="bold" text-anchor="middle">+127 (FAIL! Bit 0=1)</text>
+
+              <!-- JUMP-DOWN CALLOUT BADGE -->
+              <g transform="translate(535, 110)">
+                <rect x="0" y="0" width="170" height="42" rx="6" fill="#0f172a" stroke="#10b981" stroke-width="1.2" opacity="0.95"/>
+                <text x="8" y="16" fill="#34d399" font-size="10" font-family="sans-serif" font-weight="bold">⚡ JUMP DOWN LEAP! [SWS_00423]</text>
+                <text x="8" y="32" fill="#38bdf8" font-size="9.5" font-family="monospace">FDC = JumpVal(0) - StepDown(64) = -64</text>
+              </g>
+
+              <!-- P5: t5 (-64) -->
+              <circle cx="620" cy="247" r="5" fill="#14b8a6" stroke="#0f172a" stroke-width="2"/>
+              <text x="620" y="235" fill="#14b8a6" font-size="10" font-family="monospace" font-weight="bold" text-anchor="middle">-64</text>
+
+              <!-- P6: t6 (-128 PASSED) -->
+              <circle cx="730" cy="315" r="5.5" fill="#10b981" stroke="#0f172a" stroke-width="2"/>
+              <text x="730" y="303" fill="#10b981" font-size="10" font-family="monospace" font-weight="bold" text-anchor="middle">-128 (PASS)</text>
+            </svg>
+          </div>
+
+          <!-- Formula & Behavioral Summary Under Graph -->
+          <div class="mt-3 pt-3 border-t border-slate-800 grid grid-cols-1 md:grid-cols-2 gap-3 text-[11px]">
+            <div class="bg-slate-900/90 p-2.5 rounded-lg border border-cyan-500/30">
+              <span class="font-bold text-cyan-300">Công Thức Jump-Up ([SWS_Dem_00421]):</span>
+              <p class="text-slate-300 mt-1">
+                Khi nhận lệnh <code class="text-rose-300">PREFAILED</code> mà <code class="text-slate-400">FDC &lt; DemDebounceCounterJumpUpValue</code>:
+                <br><code class="text-cyan-300 font-bold">FDC = DemDebounceCounterJumpUpValue + DemDebounceCounterIncrementStepSize</code>
+                <br><span class="text-slate-400 text-[10px]">Nếu không bật JumpUp, FDC chỉ tăng từ từ: <code class="text-slate-300">FDC = FDC + StepSize</code>.</span>
+              </p>
+            </div>
+
+            <div class="bg-slate-900/90 p-2.5 rounded-lg border border-teal-500/30">
+              <span class="font-bold text-teal-300">Công Thức Jump-Down ([SWS_Dem_00423]):</span>
+              <p class="text-slate-300 mt-1">
+                Khi nhận lệnh <code class="text-emerald-300">PREPASSED</code> mà <code class="text-slate-400">FDC &gt; DemDebounceCounterJumpDownValue</code>:
+                <br><code class="text-teal-300 font-bold">FDC = DemDebounceCounterJumpDownValue - DemDebounceCounterDecrementStepSize</code>
+                <br><span class="text-slate-400 text-[10px]">Nếu không bật JumpDown, FDC chỉ giảm từ từ: <code class="text-slate-300">FDC = FDC - StepSize</code>.</span>
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- ECUC Parameters for DemDebounceCounterBasedClass -->
+        <div class="space-y-2">
+          <div class="flex items-center justify-between">
+            <h4 class="font-bold text-white text-xs uppercase tracking-wider">Bảng Tham Số ECUC Của Bộ Lọc Counter-Based (DemDebounceCounterBasedClass)</h4>
+            <span class="text-[10px] font-mono text-cyan-400">AUTOSAR SWS Diagnostic Event Manager R22+</span>
+          </div>
+
+          <div class="overflow-x-auto border border-slate-800 rounded-xl">
+            <table class="w-full text-left border-collapse border border-slate-800 text-[11px]">
+              <thead>
+                <tr class="bg-slate-950 text-slate-200 font-bold">
+                  <th class="p-2 border border-slate-800">Tên Tham Số ECUC</th>
+                  <th class="p-2 border border-slate-800">Container Path</th>
+                  <th class="p-2 border border-slate-800">Kiểu Dữ Liệu &amp; Dải Giá Trị</th>
+                  <th class="p-2 border border-slate-800">Chuẩn SWS</th>
+                  <th class="p-2 border border-slate-800">Ý Nghĩa &amp; Hành Vi Kỹ Thuật</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-800 text-slate-300">
+                <tr>
+                  <td class="p-2 border border-slate-800 font-mono font-bold text-rose-300">DemDebounceCounterIncrementStepSize</td>
+                  <td class="p-2 border border-slate-800 font-mono text-slate-400">DemDebounceCounterBasedClass</td>
+                  <td class="p-2 border border-slate-800 font-mono text-cyan-300">EcucIntegerParamDef<br>[1 .. 32767] (Mặc định: 1..64)</td>
+                  <td class="p-2 border border-slate-800 font-mono text-amber-300">[SWS_Dem_00420]</td>
+                  <td class="p-2 border border-slate-800">Giá trị cộng thêm vào FDC mỗi lần SWC Monitor gọi <code class="text-rose-300">SetEventStatus(PREFAILED)</code>. Bước càng lớn, phát hiện lỗi càng nhanh.</td>
+                </tr>
+                <tr>
+                  <td class="p-2 border border-slate-800 font-mono font-bold text-emerald-300">DemDebounceCounterDecrementStepSize</td>
+                  <td class="p-2 border border-slate-800 font-mono text-slate-400">DemDebounceCounterBasedClass</td>
+                  <td class="p-2 border border-slate-800 font-mono text-cyan-300">EcucIntegerParamDef<br>[1 .. 32768] (Mặc định: 1..64)</td>
+                  <td class="p-2 border border-slate-800 font-mono text-amber-300">[SWS_Dem_00420]</td>
+                  <td class="p-2 border border-slate-800">Giá trị trừ bớt khỏi FDC mỗi lần SWC Monitor gọi <code class="text-emerald-300">SetEventStatus(PREPASSED)</code>. Bước càng lớn, hệ thống càng nhanh hồi phục sạch lỗi.</td>
+                </tr>
+                <tr>
+                  <td class="p-2 border border-slate-800 font-mono font-bold text-rose-400">DemDebounceCounterFailedThreshold</td>
+                  <td class="p-2 border border-slate-800 font-mono text-slate-400">DemDebounceCounterBasedClass</td>
+                  <td class="p-2 border border-slate-800 font-mono text-cyan-300">EcucIntegerParamDef<br>[1 .. 32767] (Chuẩn hóa: +127)</td>
+                  <td class="p-2 border border-slate-800 font-mono text-amber-300">[SWS_Dem_00422]</td>
+                  <td class="p-2 border border-slate-800">Ngưỡng đạt lỗi Qualified FAILED. Ngay khi FDC &gt;= FailedThreshold, DEM chốt <code class="text-rose-300">Bit 0 (TF) = 1</code>, <code class="text-rose-300">Bit 1 (TFTOC) = 1</code>, <code class="text-rose-300">Bit 2 (PDTC) = 1</code>.</td>
+                </tr>
+                <tr>
+                  <td class="p-2 border border-slate-800 font-mono font-bold text-emerald-400">DemDebounceCounterPassedThreshold</td>
+                  <td class="p-2 border border-slate-800 font-mono text-slate-400">DemDebounceCounterBasedClass</td>
+                  <td class="p-2 border border-slate-800 font-mono text-cyan-300">EcucIntegerParamDef<br>[-32768 .. -1] (Chuẩn hóa: -128)</td>
+                  <td class="p-2 border border-slate-800 font-mono text-amber-300">[SWS_Dem_00422]</td>
+                  <td class="p-2 border border-slate-800">Ngưỡng đạt sạch lỗi Qualified PASSED. Ngay khi FDC &lt;= PassedThreshold, DEM hạ <code class="text-emerald-300">Bit 0 (TF) = 0</code>, hạ <code class="text-emerald-300">Bit 6 (TNCTOC) = 0</code>.</td>
+                </tr>
+                <tr>
+                  <td class="p-2 border border-slate-800 font-mono font-bold text-cyan-300">DemDebounceCounterJumpUp</td>
+                  <td class="p-2 border border-slate-800 font-mono text-slate-400">DemDebounceCounterBasedClass</td>
+                  <td class="p-2 border border-slate-800 font-mono text-cyan-300">EcucBooleanParamDef<br>(TRUE / FALSE)</td>
+                  <td class="p-2 border border-slate-800 font-mono text-amber-300">[SWS_Dem_00421]</td>
+                  <td class="p-2 border border-slate-800">Bật/tắt cơ chế Jump-Up. Nếu TRUE, mỗi khi nhận PREFAILED mà FDC nhỏ hơn JumpUpValue thì FDC lập tức nhảy lên <code class="text-cyan-300">JumpUpValue + StepUp</code>.</td>
+                </tr>
+                <tr>
+                  <td class="p-2 border border-slate-800 font-mono font-bold text-cyan-300">DemDebounceCounterJumpUpValue</td>
+                  <td class="p-2 border border-slate-800 font-mono text-slate-400">DemDebounceCounterBasedClass</td>
+                  <td class="p-2 border border-slate-800 font-mono text-cyan-300">EcucIntegerParamDef<br>[-32768 .. 32767] (Chuẩn hóa: 0)</td>
+                  <td class="p-2 border border-slate-800 font-mono text-amber-300">[SWS_Dem_00421]</td>
+                  <td class="p-2 border border-slate-800">Giá trị mốc khởi động Jump-Up. Thông thường đặt bằng <code class="text-cyan-300">0</code> để xóa sạch toàn bộ dải FDC âm khi lỗi xuất hiện.</td>
+                </tr>
+                <tr>
+                  <td class="p-2 border border-slate-800 font-mono font-bold text-teal-300">DemDebounceCounterJumpDown</td>
+                  <td class="p-2 border border-slate-800 font-mono text-slate-400">DemDebounceCounterBasedClass</td>
+                  <td class="p-2 border border-slate-800 font-mono text-cyan-300">EcucBooleanParamDef<br>(TRUE / FALSE)</td>
+                  <td class="p-2 border border-slate-800 font-mono text-amber-300">[SWS_Dem_00423]</td>
+                  <td class="p-2 border border-slate-800">Bật/tắt cơ chế Jump-Down. Nếu TRUE, mỗi khi nhận PREPASSED mà FDC lớn hơn JumpDownValue thì FDC lập tức nhảy xuống <code class="text-teal-300">JumpDownValue - StepDown</code>.</td>
+                </tr>
+                <tr>
+                  <td class="p-2 border border-slate-800 font-mono font-bold text-teal-300">DemDebounceCounterJumpDownValue</td>
+                  <td class="p-2 border border-slate-800 font-mono text-slate-400">DemDebounceCounterBasedClass</td>
+                  <td class="p-2 border border-slate-800 font-mono text-cyan-300">EcucIntegerParamDef<br>[-32768 .. 32767] (Chuẩn hóa: 0)</td>
+                  <td class="p-2 border border-slate-800 font-mono text-amber-300">[SWS_Dem_00423]</td>
+                  <td class="p-2 border border-slate-800">Giá trị mốc khởi động Jump-Down. Thông thường đặt bằng <code class="text-teal-300">0</code> để kéo FDC thoát khỏi vùng cận lỗi ngay khi tín hiệu tốt.</td>
+                </tr>
+                <tr>
+                  <td class="p-2 border border-slate-800 font-mono font-bold text-purple-300">DemDebounceCounterStorage</td>
+                  <td class="p-2 border border-slate-800 font-mono text-slate-400">DemDebounceCounterBasedClass</td>
+                  <td class="p-2 border border-slate-800 font-mono text-cyan-300">EcucBooleanParamDef<br>(TRUE / FALSE)</td>
+                  <td class="p-2 border border-slate-800 font-mono text-amber-300">[SWS_Dem_00424]</td>
+                  <td class="p-2 border border-slate-800">Quy định FDC có được lưu lại vào NvM qua các lần tắt/bật nguồn hay không. Mặc định là FALSE (FDC khởi tạo lại = 0 mỗi chu kỳ).</td>
+                </tr>
+                <tr>
+                  <td class="p-2 border border-slate-800 font-mono font-bold text-amber-300">DemDebounceBehavior</td>
+                  <td class="p-2 border border-slate-800 font-mono text-slate-400">DemDebounceAlgorithmClass</td>
+                  <td class="p-2 border border-slate-800 font-mono text-cyan-300">EcucEnumerationParamDef<br>(DEM_DEBOUNCE_FREEZE / RESET)</td>
+                  <td class="p-2 border border-slate-800 font-mono text-amber-300">[SWS_Dem_00683]</td>
+                  <td class="p-2 border border-slate-800">Hành vi của FDC khi EnableCondition = FALSE hoặc DTCSetting bị tắt qua UDS 0x85: <code class="text-cyan-300">DEM_DEBOUNCE_FREEZE</code> (đóng băng giữ nguyên FDC) hoặc <code class="text-rose-300">DEM_DEBOUNCE_RESET</code> (đưa FDC về 0).</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- HANDBOOK TAB 4: TRIP COUNTER, HEALING & AGING -->
+      <div id="hbPanel4" class="hidden space-y-4 text-xs leading-relaxed">
+        <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+          <div class="flex items-center gap-2">
+            <span class="w-3 h-3 rounded-full bg-amber-400"></span>
+            <h3 class="text-sm font-bold text-amber-300 uppercase tracking-wider">4. Chu Trình Vận Hành (Operation Cycle), Trip Counter, Healing Bit 7 &amp; Aging Bit 3</h3>
+          </div>
+          <span class="text-[11px] font-mono text-amber-400 bg-amber-950/60 px-2.5 py-0.5 rounded border border-amber-500/30">DemEventClass / DemIndicatorAttribute</span>
+        </div>
+
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div class="bg-slate-950 p-4 rounded-xl border border-slate-800">
-            <h4 class="font-bold text-cyan-300 text-sm mb-2">1. Ba Thuật Toán Debounce (Lọc Nhiễu)</h4>
+          <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 shadow-lg">
+            <h4 class="font-bold text-cyan-300 text-sm mb-2">1. Trip Counter &amp; Sườn Lên Bit 1 (TFTOC)</h4>
             <ul class="space-y-2 text-slate-300">
-              <li>• <strong>Counter-Based (<code class="text-cyan-300">DemDebounceCounterBased</code>):</strong> Dùng biến <code class="text-cyan-300">FDC (-128..+127)</code>. Mỗi lần báo <code class="text-rose-300">PREFAILED</code> cộng <code class="text-rose-300">+StepUp</code>; báo <code class="text-emerald-300">PREPASSED</code> trừ <code class="text-emerald-300">-StepDown</code>. Hỗ trợ <code class="text-amber-300">JumpUp</code> (nhảy về 0 khi đang âm mà bị Fail) và <code class="text-amber-300">JumpDown</code>.</li>
-              <li>• <strong>Time-Based (<code class="text-amber-300">DemDebounceTimeBase</code>):</strong> Đếm thời gian lỗi liên tục (<code class="text-rose-300">DemDebounceTimeFailedThreshold</code>, ví dụ 500ms) mới chốt <code class="text-rose-300">Bit 0 = 1</code>.</li>
-              <li>• <strong>Monitor Internal (<code class="text-emerald-300">DemDebounceMonitorInternal</code>):</strong> SWC tự lọc và chỉ báo thẳng <code class="text-rose-300">FAILED</code> hoặc <code class="text-emerald-300">PASSED</code>.</li>
+              <li>• <strong>Quy tắc tăng Trip Counter (<code class="text-cyan-300">[SWS_Dem_00528]</code>):</strong> Bộ đếm <code class="text-cyan-300">FailureCycleCounter</code> chỉ tăng <code class="text-cyan-300">+1</code> duy nhất tại thời điểm sườn lên <code class="text-rose-300">0 ➔ 1</code> của <code class="text-rose-300">Bit 1 (TFTOC)</code>!</li>
+              <li>• <strong>Ý nghĩa thực tế:</strong> Nếu trong cùng 1 chu kỳ xe chạy, cảm biến chập chờn báo lỗi FAILED 100 lần, thì Bit 1 chỉ nhảy từ 0 lên 1 ở lần đầu tiên. Do đó <code class="text-cyan-300">TripCounter</code> vẫn chỉ tăng đúng <code class="text-cyan-300">+1</code>! Điều này bảo vệ xe khỏi báo lỗi ảo do cùng 1 đợt chập điện.</li>
+              <li>• <strong>Ngưỡng Confirmed (<code class="text-purple-300">Bit 3</code>):</strong> Khi <code class="text-cyan-300">TripCounter &gt;= DemEventFailureCycleCounterThreshold</code> (ví dụ = 2), DTC chính thức trở thành <strong class="text-purple-300">Confirmed (Bit 3 = 1)</strong> và lưu lâu dài vào Flash NvM.</li>
             </ul>
           </div>
 
-          <div class="bg-slate-950 p-4 rounded-xl border border-slate-800">
-            <h4 class="font-bold text-amber-300 text-sm mb-2">2. Trip Counter &amp; Cơ Chế Healing Bit 7</h4>
+          <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 shadow-lg">
+            <h4 class="font-bold text-amber-300 text-sm mb-2">2. Cơ Chế Healing Tắt Đèn Báo Bit 7 (WIR / MIL)</h4>
             <ul class="space-y-2 text-slate-300">
-              <li>• <strong>Trip Counter (<code class="text-cyan-300">FailureCycleCounter</code>):</strong> Chỉ tăng <code class="text-cyan-300">+1</code> tại sườn lên <code class="text-rose-300">0 ➔ 1</code> của <code class="text-rose-300">Bit 1 (TFTOC)</code>. Do đó Fail 2 lần trong cùng 1 chu kỳ vẫn chỉ tính là 1 Trip!</li>
-              <li>• <strong>Quy tắc Healing tắt Bit 7 (<code class="text-amber-300">[SWS_Dem_00506]</code>):</strong> Cuối mỗi chu kỳ, nếu <code class="text-emerald-300">Bit 6 (TNCTOC) == 0</code> <strong>VÀ</strong> <code class="text-emerald-300">Bit 1 (TFTOC) == 0</code> thì <code class="text-amber-300">HealingCounter</code> tăng <code class="text-emerald-300">+1</code>. Nếu <code class="text-amber-300">Bit 6 == 1</code> (chưa chạy test), bộ đếm đứng yên (không tăng, không reset). Nếu <code class="text-rose-300">Bit 1 == 1</code> (lỗi tái phát), bộ đếm reset về <code class="text-rose-300">0</code>.</li>
+              <li>• <strong>Điều kiện tăng Healing Counter (<code class="text-amber-300">[SWS_Dem_00506]</code>):</strong> Cuối mỗi chu kỳ vận hành, nếu bài test đã chạy xong và ĐẠT (<code class="text-emerald-300">Bit 6 TNCTOC == 0</code> <strong>VÀ</strong> <code class="text-emerald-300">Bit 1 TFTOC == 0</code>), thì <code class="text-amber-300">HealingCounter</code> tăng <code class="text-emerald-300">+1</code>.</li>
+              <li>• <strong>Trường hợp xe không chạy bài test:</strong> Nếu chu kỳ đó xe chỉ bật khóa điện rồi tắt mà chưa đủ điều kiện chạy bài test (<code class="text-slate-400">Bit 6 TNCTOC == 1</code>), bộ đếm Healing <strong>đứng yên</strong> (không tăng, không reset).</li>
+              <li>• <strong>Khi lỗi tái phát:</strong> Nếu bất kỳ chu kỳ nào phát hiện lỗi (<code class="text-rose-300">Bit 1 TFTOC == 1</code>), bộ đếm Healing lập tức <strong>reset về 0</strong>!</li>
+              <li>• <strong>Tắt đèn:</strong> Khi hoàn thành đủ <code class="text-amber-300">DemIndicatorHealingCycleCounterThreshold</code> chu kỳ sạch lỗi (thường là 3 chu kỳ), <code class="text-amber-300">Bit 7 (WIR)</code> tắt về <code class="text-emerald-300">0</code>.</li>
             </ul>
           </div>
 
-          <div class="bg-slate-950 p-4 rounded-xl border border-slate-800">
-            <h4 class="font-bold text-emerald-300 text-sm mb-2">3. Cơ Chế Aging Xóa Bit 3 (Confirmed)</h4>
+          <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 shadow-lg">
+            <h4 class="font-bold text-emerald-300 text-sm mb-2">3. Cơ Chế Aging Tự Xóa Bit 3 (Confirmed)</h4>
             <ul class="space-y-2 text-slate-300">
-              <li>• <strong>Điều kiện tiên quyết (<code class="text-emerald-300">[SWS_Dem_00489]</code>):</strong> Quá trình Aging chỉ được phép diễn ra sau khi <code class="text-amber-300">Bit 7 (WIR) đã về 0</code> và hiện tại không có lỗi (<code class="text-emerald-300">Bit 0 == 0, Bit 1 == 0</code>).</li>
-              <li>• <strong>Vai trò của <code class="text-cyan-300">DemAgingRequieresTestedCycle</code>:</strong> Nếu đặt <code class="text-emerald-300">TRUE</code>, bắt buộc chu kỳ đó phải chạy xong bài test (<code class="text-emerald-300">Bit 6 == 0</code>) mới tăng <code class="text-emerald-300">AgingCounter</code>. Nếu đặt <code class="text-amber-300">FALSE</code>, chỉ cần đóng chu kỳ không lỗi là tăng bộ đếm.</li>
+              <li>• <strong>Điều kiện tiên quyết (<code class="text-emerald-300">[SWS_Dem_00489]</code>):</strong> Quá trình Aging chỉ được phép bắt đầu tính sau khi <code class="text-amber-300">Bit 7 (WIR) đã tắt hẳn về 0</code> và xe không có lỗi (<code class="text-emerald-300">Bit 0 == 0, Bit 1 == 0</code>).</li>
+              <li>• <strong>Vai trò của <code class="text-cyan-300">DemAgingRequiresTestedCycle</code> (<code class="text-emerald-300">[SWS_Dem_00895]</code>):</strong>
+                <br>+ Nếu đặt <code class="text-emerald-300">TRUE</code> (chuẩn AUTOSAR): Bắt buộc chu kỳ đó phải hoàn tất bài test (<code class="text-emerald-300">Bit 6 == 0</code>) mới được tính là 1 chu kỳ Aging.
+                <br>+ Nếu đặt <code class="text-amber-300">FALSE</code>: Chỉ cần đóng chu kỳ mà không bị lỗi thì chu kỳ đó vẫn được tính vào Aging, ngay cả khi bài test chưa từng chạy!
+              </li>
+              <li>• <strong>Hoàn tất Aging:</strong> Khi <code class="text-emerald-300">AgingCounter &gt;= DemAgingCycleCounterThreshold</code> (ví dụ 40 chu kỳ chuẩn OBD Warm-up), DEM tự động hạ <code class="text-purple-300">Bit 3 Confirmed = 0</code> và giải phóng Slot bộ nhớ Primary Memory!</li>
             </ul>
           </div>
         </div>
       </div>
 
-      <!-- HANDBOOK TAB 4: NVM, POWER LOSS, DISPLACEMENT & CLEAR DTC -->
-      <div id="hbPanel4" class="hidden space-y-4 text-xs leading-relaxed">
+      <!-- HANDBOOK TAB 5: NVM, POWER LOSS, DISPLACEMENT & CLEAR DTC -->
+      <div id="hbPanel5" class="hidden space-y-4 text-xs leading-relaxed">
+        <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+          <div class="flex items-center gap-2">
+            <span class="w-3 h-3 rounded-full bg-purple-400"></span>
+            <h3 class="text-sm font-bold text-purple-300 uppercase tracking-wider">5. Lưu Trữ NvM, Chống Mất Nguồn, Thuật Toán Displacement &amp; Lệnh Xóa 0x14</h3>
+          </div>
+          <span class="text-[11px] font-mono text-purple-400 bg-purple-950/60 px-2.5 py-0.5 rounded border border-purple-500/30">DemGeneral / NvM</span>
+        </div>
+
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div class="bg-slate-950 p-4 rounded-xl border border-slate-800">
+          <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 shadow-lg">
             <h4 class="font-bold text-amber-300 text-sm mb-2">1. Lưu Trữ NvM &amp; Ngắt Nguồn Đột Ngột</h4>
             <p class="text-slate-300 mb-2">
-              Mọi thay đổi của DTC ban đầu đều diễn ra trên <strong>RAM Mirror</strong> của DEM.
+              Mọi biến đổi trạng thái của DTC ban đầu đều diễn ra trên vùng <strong>RAM Mirror</strong> của DEM để đảm bảo tốc độ phản hồi real-time.
             </p>
             <ul class="space-y-1.5 text-slate-300">
-              <li>• <strong>Shutdown Sync (<code class="text-cyan-300">DemImmediateNvStorage = FALSE</code>):</strong> DEM chỉ gọi <code class="text-cyan-300">NvM_SetRamBlockStatus(TRUE)</code>. Dữ liệu chỉ thực sự ghi xuống Flash khi ECU tắt máy hợp lệ qua <code class="text-emerald-300">NvM_WriteAll()</code>. Nếu <strong>rút ắc-quy đột ngột</strong> trước khi Shutdown, toàn bộ lỗi mới trên RAM sẽ bị mất!</li>
+              <li>• <strong>Shutdown Sync (<code class="text-cyan-300">DemImmediateNvStorage = FALSE</code>):</strong> DEM chỉ đánh dấu <code class="text-cyan-300">NvM_SetRamBlockStatus(TRUE)</code>. Dữ liệu chỉ thực sự ghi xuống Flash khi ECU tắt máy hợp lệ qua <code class="text-emerald-300">NvM_WriteAll()</code>. Nếu <strong>rút ắc-quy đột ngột</strong> trước khi Shutdown, toàn bộ lỗi mới trên RAM sẽ bị mất!</li>
               <li>• <strong>Immediate Write (<code class="text-amber-300">DemImmediateNvStorage = TRUE</code>):</strong> Ngay khoảnh khắc DTC lên <code class="text-rose-300">Confirmed (Bit 3 = 1)</code>, DEM gọi thẳng <code class="text-emerald-300">NvM_WriteBlock()</code>. Bảo toàn dữ liệu 100% ngay cả khi mất nguồn đột ngột.</li>
             </ul>
           </div>
 
-          <div class="bg-slate-950 p-4 rounded-xl border border-slate-800">
+          <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 shadow-lg">
             <h4 class="font-bold text-purple-300 text-sm mb-2">2. Thuật Toán Event Displacement (<code class="text-purple-300">[SWS_Dem_00401]</code>)</h4>
             <p class="text-slate-300 mb-2">
               Khi bộ nhớ <code class="text-amber-300">Primary Event Memory</code> đã đầy toàn bộ các Slot và một lỗi mới cần lưu vào:
@@ -2047,83 +2519,238 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
             <ol class="list-decimal list-inside space-y-1.5 text-slate-300">
               <li>Tìm các DTC trong bộ nhớ có <strong>độ ưu tiên thấp hơn</strong> (giá trị số <code class="text-purple-300">DemEventPriority</code> lớn hơn, vì Priority 1 là cao nhất).</li>
               <li>Nếu bật <code class="text-purple-300">DEM_DISPLACEMENT_FULL</code>: Ưu tiên đẩy các DTC đang ở trạng thái <strong>Passive (<code class="text-emerald-300">Bit 0 == 0</code>)</strong> trước.</li>
-              <li>Nếu vẫn hòa, chọn DTC có <code class="text-cyan-300">OccurrenceCounter</code> thấp nhất hoặc lâu nhất để xóa nhường chỗ.</li>
+              <li>Nếu vẫn hòa, chọn DTC có <code class="text-cyan-300">OccurrenceCounter</code> thấp nhất hoặc lưu lâu nhất để xóa nhường chỗ cho DTC quan trọng hơn.</li>
             </ol>
           </div>
 
-          <div class="bg-slate-950 p-4 rounded-xl border border-slate-800">
+          <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 shadow-lg">
             <h4 class="font-bold text-rose-300 text-sm mb-2">3. Luồng Xử Lý Lệnh Xóa Lỗi <code class="text-amber-300">ClearDTC (0x14)</code></h4>
             <ol class="list-decimal list-inside space-y-1.5 text-slate-300">
               <li><code class="text-amber-300">DCM</code> nhận <code class="text-amber-300">14 FF FF FF</code> và gọi <code class="text-cyan-300">Dem_ClearDTC()</code>.</li>
               <li><code class="text-cyan-300">DEM</code> đưa Status Byte của các DTC về <code class="text-emerald-300">0x50 (0101 0000b)</code>, reset <code class="text-cyan-300">FDC = 0</code>, xóa FreezeFrame/ExtendedData.</li>
               <li>Gọi <code class="text-emerald-300">Rte_Call_CallbackInitMonitorForEvent_InitMonitorForEvent(DEM_INIT_MONITOR_CLEAR)</code> để báo SWC khởi tạo lại bộ lọc.</li>
-              <li>Nếu <code class="text-rose-300">DemClearDTCBehavior == DEM_CLRRESP_NONVOLATILE_FINISH</code>, DEM trả về <code class="text-amber-300">DEM_PENDING</code> (làm DCM bắn <code class="text-rose-300">NRC 0x78</code>) cho tới khi <code class="text-emerald-300">NvM_WriteBlock</code> xóa sạch Flash mới trả về <code class="text-emerald-300">E_OK</code>.</li>
+              <li>Nếu <code class="text-rose-300">DemClearDTCBehavior == DEM_CLRRESP_NONVOLATILE_FINISH</code>, DEM trả về <code class="text-amber-300">DEM_PENDING</code>, kích hoạt DCM trả về NRC <code class="text-rose-300">0x78 (ResponsePending)</code> cho Tester cho đến khi NvM xóa Flash xong.</li>
             </ol>
           </div>
         </div>
       </div>
 
-      <!-- HANDBOOK TAB 5: ECUC PARAMETER DICTIONARY -->
-      <div id="hbPanel5" class="hidden space-y-4 text-xs leading-relaxed">
-        <h3 class="text-sm font-bold text-emerald-300 uppercase tracking-wider">5. Từ Điển Tham Số Cấu Hình ECUC Trong AUTOSAR DEM (ISOLAR-A / DaVinci Configurator)</h3>
-        <div class="overflow-x-auto">
-          <table class="w-full text-left border-collapse border border-slate-800 font-mono text-[11px]">
+      <!-- HANDBOOK TAB 6: COMPLETE ECUC PARAMETER DICTIONARY (AUTOSAR DEM R22+) -->
+      <div id="hbPanel6" class="hidden space-y-4 text-xs leading-relaxed">
+        <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+          <div>
+            <h3 class="text-sm font-bold text-emerald-300 uppercase tracking-wider">6. Toàn Bộ Từ Điển Tham Số Cấu Hình ECUC Chuẩn AUTOSAR DEM (Release 22-11 / R23-11)</h3>
+            <p class="text-[11px] text-slate-400">Kiểm tra &amp; đối chiếu toàn diện 27 tham số cấu hình DEM cốt lõi theo tài liệu Specification of Diagnostic Event Manager AUTOSAR CP R22-11</p>
+          </div>
+          <span class="text-[11px] font-mono text-emerald-400 bg-emerald-950/60 px-2.5 py-0.5 rounded border border-emerald-500/30">AUTOSAR R22-11 Compliant</span>
+        </div>
+
+        <div class="overflow-x-auto border border-slate-800 rounded-xl">
+          <table class="w-full text-left border-collapse border border-slate-800 text-[11px]">
             <thead>
-              <tr class="bg-slate-950 text-slate-200 font-sans font-bold">
-                <th class="p-2.5 border border-slate-800">Tên Tham Số ECUC (Parameter Name)</th>
-                <th class="p-2.5 border border-slate-800">Container Chứa</th>
-                <th class="p-2.5 border border-slate-800">Mã SWS_Dem</th>
-                <th class="p-2.5 border border-slate-800">Ý Nghĩa &amp; Ảnh Hưởng Thực Tế</th>
+              <tr class="bg-slate-950 text-slate-200 font-bold">
+                <th class="p-2.5 border border-slate-800">Tên Tham Số ECUC</th>
+                <th class="p-2.5 border border-slate-800">Container Path</th>
+                <th class="p-2.5 border border-slate-800">Kiểu Dữ Liệu &amp; Giá Trị Chuẩn</th>
+                <th class="p-2.5 border border-slate-800">Yêu Cầu SWS</th>
+                <th class="p-2.5 border border-slate-800">Ý Nghĩa Kỹ Thuật &amp; Đánh Giá Chuẩn Spec R22+</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-slate-800 text-slate-300">
-              <tr>
-                <td class="p-2.5 border border-slate-800 text-cyan-300">DemEventFailureCycleCounterThreshold</td>
-                <td class="p-2.5 border border-slate-800">DemEventClass</td>
-                <td class="p-2.5 border border-slate-800">[SWS_Dem_00528]</td>
-                <td class="p-2.5 border border-slate-800 font-sans">Số chu kỳ vận hành có lỗi (<code class="text-rose-300">TFTOC = 0➔1</code>) cần thiết để bật <code class="text-purple-300">Bit 3 (confirmedDTC)</code> lên 1 (1 = 1-Trip, 2 = 2-Trip).</td>
+              <!-- Group 1: Debounce Parameters -->
+              <tr class="bg-slate-900/50">
+                <td colspan="5" class="p-2 border border-slate-800 font-bold text-cyan-300 uppercase tracking-wider bg-slate-950/80">
+                  A. Nhóm Tham Số Lọc Nhiễu Debounce Counter-Based (DemDebounceCounterBasedClass)
+                </td>
               </tr>
               <tr>
-                <td class="p-2.5 border border-slate-800 text-amber-300">DemIndicatorFailureCycleCounterThreshold</td>
-                <td class="p-2.5 border border-slate-800">DemIndicatorAttribute</td>
-                <td class="p-2.5 border border-slate-800">[SWS_Dem_00501]</td>
-                <td class="p-2.5 border border-slate-800 font-sans">Ngưỡng số chu kỳ lỗi để bật <code class="text-amber-300">Bit 7 (WIR)</code>. Khi đặt bằng <code class="text-cyan-300">DemEventFailureCycleCounterThreshold</code>, Bit 7 luôn bật cùng lúc với Bit 3.</td>
+                <td class="p-2 border border-slate-800 font-mono font-bold text-cyan-300">DemDebounceCounterIncrementStepSize</td>
+                <td class="p-2 border border-slate-800 font-mono text-slate-400">DemDebounceCounterBasedClass</td>
+                <td class="p-2 border border-slate-800 font-mono text-cyan-300">EcucIntegerParamDef<br>[1 .. 32767] (Mặc định: 1..64)</td>
+                <td class="p-2 border border-slate-800 font-mono text-amber-300">[SWS_Dem_00420]</td>
+                <td class="p-2 border border-slate-800 font-sans">Bước tăng FDC mỗi khi nhận <code class="text-rose-300">PREFAILED</code>. Đúng chuẩn R22. Bước càng lớn, phát hiện lỗi càng nhạy.</td>
               </tr>
               <tr>
-                <td class="p-2.5 border border-slate-800 text-amber-300">DemIndicatorHealingCycleCounterThreshold</td>
-                <td class="p-2.5 border border-slate-800">DemIndicatorAttribute</td>
-                <td class="p-2.5 border border-slate-800">[SWS_Dem_00506]</td>
-                <td class="p-2.5 border border-slate-800 font-sans">Số chu kỳ vận hành hoàn tất không lỗi (<code class="text-emerald-300">TNCTOC=0 &amp; TFTOC=0</code>) để tự tắt đèn <code class="text-amber-300">Bit 7 (WIR)</code> về 0. Đặt = 0 để tắt ngay khi Pass.</td>
+                <td class="p-2 border border-slate-800 font-mono font-bold text-cyan-300">DemDebounceCounterDecrementStepSize</td>
+                <td class="p-2 border border-slate-800 font-mono text-slate-400">DemDebounceCounterBasedClass</td>
+                <td class="p-2 border border-slate-800 font-mono text-cyan-300">EcucIntegerParamDef<br>[1 .. 32768] (Mặc định: 1..64)</td>
+                <td class="p-2 border border-slate-800 font-mono text-amber-300">[SWS_Dem_00420]</td>
+                <td class="p-2 border border-slate-800 font-sans">Bước giảm FDC mỗi khi nhận <code class="text-emerald-300">PREPASSED</code>. Đúng chuẩn R22. Giúp hệ thống giải phóng cờ lỗi khi tín hiệu bình thường.</td>
               </tr>
               <tr>
-                <td class="p-2.5 border border-slate-800 text-emerald-300">DemAgingCycleCounterThreshold</td>
-                <td class="p-2.5 border border-slate-800">DemEventClass</td>
-                <td class="p-2.5 border border-slate-800">[SWS_Dem_00493]</td>
-                <td class="p-2.5 border border-slate-800 font-sans">Số chu kỳ sạch lỗi liên tiếp sau khi Bit 7 đã tắt để xóa <code class="text-purple-300">Bit 3 (confirmedDTC)</code> về 0 và giải phóng Slot bộ nhớ.</td>
+                <td class="p-2 border border-slate-800 font-mono font-bold text-cyan-300">DemDebounceCounterFailedThreshold</td>
+                <td class="p-2 border border-slate-800 font-mono text-slate-400">DemDebounceCounterBasedClass</td>
+                <td class="p-2 border border-slate-800 font-mono text-cyan-300">EcucIntegerParamDef<br>[1 .. 32767] (Chuẩn hóa: +127)</td>
+                <td class="p-2 border border-slate-800 font-mono text-amber-300">[SWS_Dem_00422]</td>
+                <td class="p-2 border border-slate-800 font-sans">Ngưỡng đạt lỗi Qualified FAILED. Ngay khi FDC chạm ngưỡng này, DEM chốt <code class="text-rose-300">Bit 0 (TF) = 1</code>.</td>
               </tr>
               <tr>
-                <td class="p-2.5 border border-slate-800 text-emerald-300">DemAgingRequieresTestedCycle</td>
-                <td class="p-2.5 border border-slate-800">DemGeneral</td>
-                <td class="p-2.5 border border-slate-800">[SWS_Dem_00895]</td>
-                <td class="p-2.5 border border-slate-800 font-sans">Quy định chu kỳ Aging có bắt buộc <code class="text-cyan-300">Bit 6 (TNCTOC) == 0</code> hay không.</td>
+                <td class="p-2 border border-slate-800 font-mono font-bold text-cyan-300">DemDebounceCounterPassedThreshold</td>
+                <td class="p-2 border border-slate-800 font-mono text-slate-400">DemDebounceCounterBasedClass</td>
+                <td class="p-2 border border-slate-800 font-mono text-cyan-300">EcucIntegerParamDef<br>[-32768 .. -1] (Chuẩn hóa: -128)</td>
+                <td class="p-2 border border-slate-800 font-mono text-amber-300">[SWS_Dem_00422]</td>
+                <td class="p-2 border border-slate-800 font-sans">Ngưỡng đạt sạch lỗi Qualified PASSED. Ngay khi FDC chạm ngưỡng này, DEM hạ <code class="text-emerald-300">Bit 0 (TF) = 0</code>.</td>
               </tr>
               <tr>
-                <td class="p-2.5 border border-slate-800 text-amber-300">DemImmediateNvStorage</td>
-                <td class="p-2.5 border border-slate-800">DemDTCAttributes</td>
-                <td class="p-2.5 border border-slate-800">[SWS_Dem_00551]</td>
-                <td class="p-2.5 border border-slate-800 font-sans">Nếu <code class="text-emerald-300">TRUE</code>: Gọi <code class="text-emerald-300">NvM_WriteBlock()</code> ghi Flash ngay khi Confirmed. Nếu <code class="text-rose-300">FALSE</code>: Chờ <code class="text-cyan-300">NvM_WriteAll()</code> lúc ECU Shutdown.</td>
+                <td class="p-2 border border-slate-800 font-mono font-bold text-cyan-300">DemDebounceCounterJumpUp</td>
+                <td class="p-2 border border-slate-800 font-mono text-slate-400">DemDebounceCounterBasedClass</td>
+                <td class="p-2 border border-slate-800 font-mono text-cyan-300">EcucBooleanParamDef<br>(TRUE / FALSE)</td>
+                <td class="p-2 border border-slate-800 font-mono text-amber-300">[SWS_Dem_00421]</td>
+                <td class="p-2 border border-slate-800 font-sans">Bật cơ chế nhảy vọt khi lỗi xuất hiện đột ngột trong khi FDC đang ở dải âm. Đúng chuẩn R22.</td>
               </tr>
               <tr>
-                <td class="p-2.5 border border-slate-800 text-purple-300">DemEventDisplacementStrategy</td>
-                <td class="p-2.5 border border-slate-800">DemGeneral</td>
-                <td class="p-2.5 border border-slate-800">[SWS_Dem_00401]</td>
-                <td class="p-2.5 border border-slate-800 font-sans">Chiến lược đẩy lỗi cũ khi đầy bộ nhớ: <code class="text-purple-300">DISPLACEMENT_NONE</code>, <code class="text-purple-300">DISPLACEMENT_PRIO_OCC</code>, hoặc <code class="text-purple-300">DISPLACEMENT_FULL</code> (xét cả Passive Bit 0=0).</td>
+                <td class="p-2 border border-slate-800 font-mono font-bold text-cyan-300">DemDebounceCounterJumpUpValue</td>
+                <td class="p-2 border border-slate-800 font-mono text-slate-400">DemDebounceCounterBasedClass</td>
+                <td class="p-2 border border-slate-800 font-mono text-cyan-300">EcucIntegerParamDef<br>[-32768 .. 32767] (Chuẩn hóa: 0)</td>
+                <td class="p-2 border border-slate-800 font-mono text-amber-300">[SWS_Dem_00421]</td>
+                <td class="p-2 border border-slate-800 font-sans">Giá trị mốc mà FDC nhảy tới trước khi cộng thêm StepSize khi nhận PREFAILED (<code class="text-cyan-300">FDC = JumpUpValue + StepUp</code>).</td>
               </tr>
               <tr>
-                <td class="p-2.5 border border-slate-800 text-rose-300">DemClearDTCBehavior</td>
-                <td class="p-2.5 border border-slate-800">DemGeneral</td>
-                <td class="p-2.5 border border-slate-800">[SWS_Dem_00572]</td>
-                <td class="p-2.5 border border-slate-800 font-sans"><code class="text-cyan-300">DEM_CLRRESP_VOLATILE</code> (trả E_OK ngay khi xóa RAM) vs <code class="text-rose-300">DEM_CLRRESP_NONVOLATILE_FINISH</code> (đợi xóa xong Flash NvM).</td>
+                <td class="p-2 border border-slate-800 font-mono font-bold text-cyan-300">DemDebounceCounterJumpDown</td>
+                <td class="p-2 border border-slate-800 font-mono text-slate-400">DemDebounceCounterBasedClass</td>
+                <td class="p-2 border border-slate-800 font-mono text-cyan-300">EcucBooleanParamDef<br>(TRUE / FALSE)</td>
+                <td class="p-2 border border-slate-800 font-mono text-amber-300">[SWS_Dem_00423]</td>
+                <td class="p-2 border border-slate-800 font-sans">Bật cơ chế nhảy vọt khi tín hiệu bình thường trở lại trong khi FDC đang ở dải dương. Đúng chuẩn R22.</td>
+              </tr>
+              <tr>
+                <td class="p-2 border border-slate-800 font-mono font-bold text-cyan-300">DemDebounceCounterJumpDownValue</td>
+                <td class="p-2 border border-slate-800 font-mono text-slate-400">DemDebounceCounterBasedClass</td>
+                <td class="p-2 border border-slate-800 font-mono text-cyan-300">EcucIntegerParamDef<br>[-32768 .. 32767] (Chuẩn hóa: 0)</td>
+                <td class="p-2 border border-slate-800 font-mono text-amber-300">[SWS_Dem_00423]</td>
+                <td class="p-2 border border-slate-800 font-sans">Giá trị mốc mà FDC nhảy tới trước khi trừ bớt StepSize khi nhận PREPASSED (<code class="text-teal-300">FDC = JumpDownValue - StepDown</code>).</td>
+              </tr>
+              <tr>
+                <td class="p-2 border border-slate-800 font-mono font-bold text-cyan-300">DemDebounceBehavior</td>
+                <td class="p-2 border border-slate-800 font-mono text-slate-400">DemDebounceAlgorithmClass</td>
+                <td class="p-2 border border-slate-800 font-mono text-cyan-300">EcucEnumerationParamDef<br>(DEM_DEBOUNCE_FREEZE / RESET)</td>
+                <td class="p-2 border border-slate-800 font-mono text-amber-300">[SWS_Dem_00683]</td>
+                <td class="p-2 border border-slate-800 font-sans">Hành vi FDC khi EnableCondition = FALSE hoặc ControlDTCSetting bị tắt: Đóng băng (Freeze) hay reset về 0.</td>
+              </tr>
+
+              <!-- Group 2: Trip / Healing / Aging Parameters -->
+              <tr class="bg-slate-900/50">
+                <td colspan="5" class="p-2 border border-slate-800 font-bold text-amber-300 uppercase tracking-wider bg-slate-950/80">
+                  B. Nhóm Tham Số Chu Trình (Trip, Healing &amp; Aging)
+                </td>
+              </tr>
+              <tr>
+                <td class="p-2.5 border border-slate-800 font-mono text-cyan-300">DemEventFailureCycleCounterThreshold</td>
+                <td class="p-2.5 border border-slate-800 font-mono text-slate-400">DemEventClass</td>
+                <td class="p-2.5 border border-slate-800 font-mono text-cyan-300">EcucIntegerParamDef<br>[1 .. 255] (1=1-Trip, 2=2-Trip)</td>
+                <td class="p-2.5 border border-slate-800 font-mono text-amber-300">[SWS_Dem_00528]</td>
+                <td class="p-2.5 border border-slate-800 font-sans">Số chu kỳ vận hành có lỗi (<code class="text-rose-300">TFTOC = 0➔1</code>) để bật <code class="text-purple-300">Bit 3 (confirmedDTC)</code>. Khớp 100% chuẩn AUTOSAR R22.</td>
+              </tr>
+              <tr>
+                <td class="p-2.5 border border-slate-800 font-mono text-amber-300">DemIndicatorFailureCycleCounterThreshold</td>
+                <td class="p-2.5 border border-slate-800 font-mono text-slate-400">DemIndicatorAttribute</td>
+                <td class="p-2.5 border border-slate-800 font-mono text-cyan-300">EcucIntegerParamDef<br>[1 .. 255]</td>
+                <td class="p-2.5 border border-slate-800 font-mono text-amber-300">[SWS_Dem_00501]</td>
+                <td class="p-2.5 border border-slate-800 font-sans">Ngưỡng chu kỳ lỗi để bật <code class="text-amber-300">Bit 7 (WIR)</code>. Khi đặt bằng threshold của Bit 3, đèn luôn sáng cùng lúc với Bit 3.</td>
+              </tr>
+              <tr>
+                <td class="p-2.5 border border-slate-800 font-mono text-amber-300">DemIndicatorHealingCycleCounterThreshold</td>
+                <td class="p-2.5 border border-slate-800 font-mono text-slate-400">DemIndicatorAttribute</td>
+                <td class="p-2.5 border border-slate-800 font-mono text-cyan-300">EcucIntegerParamDef<br>[0 .. 255] (OBD: 3, Immediate: 0)</td>
+                <td class="p-2.5 border border-slate-800 font-mono text-amber-300">[SWS_Dem_00506]</td>
+                <td class="p-2.5 border border-slate-800 font-sans">Số chu kỳ hoàn tất không lỗi (<code class="text-emerald-300">TNCTOC=0 &amp; TFTOC=0</code>) để tự tắt đèn <code class="text-amber-300">Bit 7 (WIR)</code>. Đặt = 0 để tắt ngay khi Pass.</td>
+              </tr>
+              <tr>
+                <td class="p-2.5 border border-slate-800 font-mono text-emerald-300">DemAgingCycleCounterThreshold</td>
+                <td class="p-2.5 border border-slate-800 font-mono text-slate-400">DemEventClass</td>
+                <td class="p-2.5 border border-slate-800 font-mono text-cyan-300">EcucIntegerParamDef<br>[1 .. 255] (OBD: 40)</td>
+                <td class="p-2.5 border border-slate-800 font-mono text-amber-300">[SWS_Dem_00493]</td>
+                <td class="p-2.5 border border-slate-800 font-sans">Số chu kỳ sạch lỗi liên tiếp sau khi Bit 7 đã tắt để xóa <code class="text-purple-300">Bit 3 (confirmedDTC)</code> và thu hồi ô nhớ Primary Memory.</td>
+              </tr>
+              <tr>
+                <td class="p-2.5 border border-slate-800 font-mono text-emerald-300">DemAgingAllowed</td>
+                <td class="p-2.5 border border-slate-800 font-mono text-slate-400">DemEventClass</td>
+                <td class="p-2.5 border border-slate-800 font-mono text-cyan-300">EcucBooleanParamDef<br>(TRUE / FALSE)</td>
+                <td class="p-2.5 border border-slate-800 font-mono text-amber-300">[SWS_Dem_00489]</td>
+                <td class="p-2.5 border border-slate-800 font-sans">Cho phép DTC tự động Aging hay không. Nếu FALSE, lỗi Confirmed sẽ tồn tại vĩnh viễn cho đến khi có lệnh ClearDTC 0x14 từ xưởng dịch vụ.</td>
+              </tr>
+              <tr>
+                <td class="p-2.5 border border-slate-800 font-mono text-emerald-300">DemAgingRequiresTestedCycle</td>
+                <td class="p-2.5 border border-slate-800 font-mono text-slate-400">DemGeneral</td>
+                <td class="p-2.5 border border-slate-800 font-mono text-cyan-300">EcucBooleanParamDef<br>(TRUE / FALSE)</td>
+                <td class="p-2.5 border border-slate-800 font-mono text-amber-300">[SWS_Dem_00895]</td>
+                <td class="p-2.5 border border-slate-800 font-sans"><strong>Đã sửa lỗi chính tả:</strong> Tên chuẩn AUTOSAR là <code class="text-emerald-300">DemAgingRequiresTestedCycle</code> (không có chữ 'e' thừa). Nếu TRUE, bắt buộc chu kỳ đó phải hoàn tất test (<code class="text-cyan-300">Bit 6 TNCTOC == 0</code>) mới được tính Aging.</td>
+              </tr>
+              <tr>
+                <td class="p-2.5 border border-slate-800 font-mono text-purple-300">DemStatusBitHandlingTestFailedSinceLastClear</td>
+                <td class="p-2.5 border border-slate-800 font-mono text-slate-400">DemGeneral</td>
+                <td class="p-2.5 border border-slate-800 font-mono text-cyan-300">EcucEnumerationParamDef<br>(DEM_STATUS_BIT_NORMAL / AGING_AND_DISPLACEMENT)</td>
+                <td class="p-2.5 border border-slate-800 font-mono text-amber-300">[SWS_Dem_00896]</td>
+                <td class="p-2.5 border border-slate-800 font-sans">Nếu chọn <code class="text-purple-300">DEM_STATUS_BIT_AGING_AND_DISPLACEMENT</code>, Bit 5 (TFSLC) cũng sẽ bị xóa về 0 khi sự kiện hoàn tất Aging hoặc bị Displacement.</td>
+              </tr>
+
+              <!-- Group 3: Storage, NvM, Displacement & UDS -->
+              <tr class="bg-slate-900/50">
+                <td colspan="5" class="p-2 border border-slate-800 font-bold text-purple-300 uppercase tracking-wider bg-slate-950/80">
+                  C. Nhóm Tham Số Lưu Trữ NvM, Displacement, Memory &amp; UDS Services
+                </td>
+              </tr>
+              <tr>
+                <td class="p-2.5 border border-slate-800 font-mono text-amber-300">DemImmediateNvStorage</td>
+                <td class="p-2.5 border border-slate-800 font-mono text-slate-400">DemDTCAttributes</td>
+                <td class="p-2.5 border border-slate-800 font-mono text-cyan-300">EcucBooleanParamDef<br>(TRUE / FALSE)</td>
+                <td class="p-2.5 border border-slate-800 font-mono text-amber-300">[SWS_Dem_00551]</td>
+                <td class="p-2.5 border border-slate-800 font-sans">Nếu TRUE: Gọi <code class="text-emerald-300">NvM_WriteBlock()</code> ghi Flash ngay khi Confirmed. Nếu FALSE: Chờ <code class="text-cyan-300">NvM_WriteAll()</code> lúc ECU Shutdown. Khớp 100% chuẩn R22.</td>
+              </tr>
+              <tr>
+                <td class="p-2.5 border border-slate-800 font-mono text-amber-300">DemStatusBitStorageTestFailed</td>
+                <td class="p-2.5 border border-slate-800 font-mono text-slate-400">DemGeneral</td>
+                <td class="p-2.5 border border-slate-800 font-mono text-cyan-300">EcucBooleanParamDef<br>(TRUE / FALSE)</td>
+                <td class="p-2.5 border border-slate-800 font-mono text-amber-300">[SWS_Dem_00525]</td>
+                <td class="p-2.5 border border-slate-800 font-sans">Quy định Bit 0 (testFailed) có được lưu vào NvM qua các lần khởi động lại ECU hay không. Bắt buộc = TRUE với hệ thống chuẩn WWH-OBD.</td>
+              </tr>
+              <tr>
+                <td class="p-2.5 border border-slate-800 font-mono text-amber-300">DemEventMemoryEntryStorageTrigger</td>
+                <td class="p-2.5 border border-slate-800 font-mono text-slate-400">DemDTCAttributes</td>
+                <td class="p-2.5 border border-slate-800 font-mono text-cyan-300">EcucEnumerationParamDef<br>(DEM_TRIGGER_PENDING / CONFIRMED / TESTFAILED / FDC)</td>
+                <td class="p-2.5 border border-slate-800 font-mono text-amber-300">[SWS_Dem_00389]</td>
+                <td class="p-2.5 border border-slate-800 font-sans"><strong>Lưu ý đối chiếu Spec:</strong> Chuẩn AUTOSAR R22 không có tham số tên là <code class="text-slate-400">DemStatusBitStoragePendingDtc</code>. Việc lưu Bit 2 (pendingDTC) qua NvM được quy định bởi Trigger cấp phát ô nhớ: khi đặt <code class="text-cyan-300">DEM_TRIGGER_PENDING</code>, ô nhớ và Bit 2 được lưu xuống NvM ngay từ 1st Trip.</td>
+              </tr>
+              <tr>
+                <td class="p-2.5 border border-slate-800 font-mono text-purple-300">DemEventDisplacementStrategy</td>
+                <td class="p-2.5 border border-slate-800 font-mono text-slate-400">DemGeneral</td>
+                <td class="p-2.5 border border-slate-800 font-mono text-cyan-300">EcucEnumerationParamDef<br>(DISPLACEMENT_NONE / PRIO_OCC / FULL)</td>
+                <td class="p-2.5 border border-slate-800 font-mono text-amber-300">[SWS_Dem_00401]</td>
+                <td class="p-2.5 border border-slate-800 font-sans">Chiến lược đẩy lỗi cũ khi bộ nhớ Primary Memory đầy 3/3 slot: <code class="text-purple-300">DISPLACEMENT_FULL</code> xét thêm trạng thái Passive (Bit 0=0) để ưu tiên đẩy trước.</td>
+              </tr>
+              <tr>
+                <td class="p-2.5 border border-slate-800 font-mono text-purple-300">DemEventPriority</td>
+                <td class="p-2.5 border border-slate-800 font-mono text-slate-400">DemEventClass</td>
+                <td class="p-2.5 border border-slate-800 font-mono text-cyan-300">EcucIntegerParamDef<br>[1 .. 255] (1 = Cao nhất)</td>
+                <td class="p-2.5 border border-slate-800 font-mono text-amber-300">[SWS_Dem_00402]</td>
+                <td class="p-2.5 border border-slate-800 font-sans">Độ ưu tiên của sự kiện trong thuật toán Displacement. Số nhỏ hơn biểu thị độ ưu tiên cao hơn (Priority 1 không bao giờ bị Priority 4 đẩy ra).</td>
+              </tr>
+              <tr>
+                <td class="p-2.5 border border-slate-800 font-mono text-rose-300">DemClearDTCBehavior</td>
+                <td class="p-2.5 border border-slate-800 font-mono text-slate-400">DemGeneral</td>
+                <td class="p-2.5 border border-slate-800 font-mono text-cyan-300">EcucEnumerationParamDef<br>(DEM_CLRRESP_VOLATILE / NONVOLATILE_FINISH)</td>
+                <td class="p-2.5 border border-slate-800 font-mono text-amber-300">[SWS_Dem_00572]</td>
+                <td class="p-2.5 border border-slate-800 font-sans"><code class="text-cyan-300">DEM_CLRRESP_VOLATILE</code> trả E_OK ngay khi xóa RAM Mirror. <code class="text-rose-300">DEM_CLRRESP_NONVOLATILE_FINISH</code> chờ xóa xong Flash NvM và báo DCM trả NRC 0x78.</td>
+              </tr>
+              <tr>
+                <td class="p-2.5 border border-slate-800 font-mono text-rose-300">DemClearDTCLimitation</td>
+                <td class="p-2.5 border border-slate-800 font-mono text-slate-400">DemGeneral</td>
+                <td class="p-2.5 border border-slate-800 font-mono text-cyan-300">EcucEnumerationParamDef<br>(DEM_ALL_SUPPORTED_DTCS / ONLY_CLEAR_ALL_DTCS)</td>
+                <td class="p-2.5 border border-slate-800 font-mono text-amber-300">[SWS_Dem_00573]</td>
+                <td class="p-2.5 border border-slate-800 font-sans"><strong>Lưu ý đối chiếu Spec:</strong> Chuẩn AUTOSAR R22 chỉ có 2 giá trị là <code class="text-cyan-300">DEM_ALL_SUPPORTED_DTCS</code> và <code class="text-rose-300">DEM_ONLY_CLEAR_ALL_DTCS</code> (chỉ cho xóa toàn bộ group 0xFFFFFF). Việc giới hạn "chỉ xóa khi Confirmed" là cơ chế lọc riêng của một số OEM.</td>
+              </tr>
+              <tr>
+                <td class="p-2.5 border border-slate-800 font-mono text-purple-300">DemMaxNumberEventEntryPrimary</td>
+                <td class="p-2.5 border border-slate-800 font-mono text-slate-400">DemPrimaryMemory</td>
+                <td class="p-2.5 border border-slate-800 font-mono text-cyan-300">EcucIntegerParamDef<br>[1 .. 65535] (Mô phỏng: 3 Slots)</td>
+                <td class="p-2.5 border border-slate-800 font-mono text-amber-300">[SWS_Dem_00161]</td>
+                <td class="p-2.5 border border-slate-800 font-sans">Số lượng slot tối đa có thể lưu đồng thời trong bộ nhớ sự kiện chính (Primary Memory). Khi đầy, thuật toán Event Displacement sẽ kích hoạt.</td>
+              </tr>
+              <tr>
+                <td class="p-2.5 border border-slate-800 font-mono text-cyan-300">DemTypeOfFreezeFrameRecordNumeration</td>
+                <td class="p-2.5 border border-slate-800 font-mono text-slate-400">DemGeneral</td>
+                <td class="p-2.5 border border-slate-800 font-mono text-cyan-300">EcucEnumerationParamDef<br>(DEM_FF_RECNUM_CALCULATED / CONFIGURED)</td>
+                <td class="p-2.5 border border-slate-800 font-mono text-amber-300">[SWS_Dem_00582]</td>
+                <td class="p-2.5 border border-slate-800 font-sans">Quy tắc đánh số bản ghi FreezeFrame khi chụp snapshot dữ liệu: Tự động đánh số theo thứ tự phát sinh hay theo cấu hình cố định.</td>
               </tr>
             </tbody>
           </table>
@@ -2143,9 +2770,13 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
         code: '0x110200',
         name: 'Engine Coolant Temp High',
         category: 'OBD Sensor / 2-Trip',
-        debounceType: 'COUNTER', // +32 / -16, JumpUp = true
+        debounceType: 'COUNTER', // Counter-based with JumpUp/Down
         stepUp: 64,              // 2 steps to reach +127 for crisp interactive testing
         stepDown: 64,
+        jumpUpEnabled: true,
+        jumpUpValue: 0,
+        jumpDownEnabled: true,
+        jumpDownValue: 0,
         priority: 3,             // 1 = Highest, 4 = Lowest
         fimFid: 'FID_EngineFullPower',
         fimMask: 'CONFIRMED',
@@ -2171,6 +2802,10 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
         debounceType: 'TIME',    // Time-based (500ms fail / 200ms pass)
         stepUp: 64,
         stepDown: 64,
+        jumpUpEnabled: true,
+        jumpUpValue: 0,
+        jumpDownEnabled: false,
+        jumpDownValue: 0,
         priority: 2,
         fimFid: 'FID_SolenoidActuatorDrive',
         fimMask: 'TEST_FAILED_OR_CONFIRMED',
@@ -2196,6 +2831,10 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
         debounceType: 'INTERNAL', // Direct FAILED / PASSED
         stepUp: 127,
         stepDown: 128,
+        jumpUpEnabled: false,
+        jumpUpValue: 0,
+        jumpDownEnabled: false,
+        jumpDownValue: 0,
         priority: 4,              // Low priority (Candidate for displacement)
         fimFid: 'FID_ComfortHeating',
         fimMask: 'TEST_FAILED',
@@ -2221,6 +2860,10 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
         debounceType: 'COUNTER',
         stepUp: 32,
         stepDown: 16,
+        jumpUpEnabled: true,
+        jumpUpValue: 0,
+        jumpDownEnabled: true,
+        jumpDownValue: 0,
         priority: 1,              // Highest priority -> Displaces lower priority DTCs when memory full
         fimFid: 'FID_CruiseControl',
         fimMask: 'CONFIRMED',
@@ -2258,6 +2901,37 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
     let currentScenarioSteps = [];
     let currentScenarioStepIdx = 0;
     let scenarioTimer = null;
+    let scenarioSnapshots = [];
+
+    function takeScenarioSnapshot() {
+      return {
+        runtimeDtcs: JSON.parse(JSON.stringify(runtimeDtcs)),
+        currentOpCycle: currentOpCycle,
+        selectedDtcKey: selectedDtcKey,
+        primaryMemoryRam: JSON.parse(JSON.stringify(primaryMemoryRam)),
+        nvmFlashMemory: JSON.parse(JSON.stringify(nvmFlashMemory)),
+        liveCycleLog: JSON.parse(JSON.stringify(liveCycleLog)),
+        stepSeqCounter: stepSeqCounter,
+        hintText: document.getElementById('lblActiveScenarioHint') ? document.getElementById('lblActiveScenarioHint').textContent : ''
+      };
+    }
+
+    function restoreScenarioSnapshot(snap) {
+      if (!snap) return;
+      runtimeDtcs = JSON.parse(JSON.stringify(snap.runtimeDtcs));
+      currentOpCycle = snap.currentOpCycle;
+      selectedDtcKey = snap.selectedDtcKey;
+      primaryMemoryRam = JSON.parse(JSON.stringify(snap.primaryMemoryRam));
+      nvmFlashMemory = JSON.parse(JSON.stringify(snap.nvmFlashMemory));
+      liveCycleLog = JSON.parse(JSON.stringify(snap.liveCycleLog));
+      stepSeqCounter = snap.stepSeqCounter;
+      if (document.getElementById('lblActiveScenarioHint')) {
+        document.getElementById('lblActiveScenarioHint').textContent = snap.hintText;
+      }
+      syncUiControlsFromSelectedDtc();
+      renderAllUI();
+      renderLiveCycleTable();
+    }
 
     function createInitialDtcRuntime(key) {
       const p = dtcProfiles[key];
@@ -2270,7 +2944,15 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
         healingCounter: 0,
         agingCounter: 0,
         occCounter: 0,
-        cfg: { ...p.defaultCfg }
+        cfg: {
+          ...p.defaultCfg,
+          stepUp: p.stepUp,
+          stepDown: p.stepDown,
+          jumpUpEnabled: p.jumpUpEnabled !== undefined ? p.jumpUpEnabled : true,
+          jumpUpValue: p.jumpUpValue !== undefined ? p.jumpUpValue : 0,
+          jumpDownEnabled: p.jumpDownEnabled !== undefined ? p.jumpDownEnabled : true,
+          jumpDownValue: p.jumpDownValue !== undefined ? p.jumpDownValue : 0
+        }
       };
     }
 
@@ -2324,6 +3006,19 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
       document.getElementById('numHealingThreshold').value = d.cfg.healingThreshold;
       document.getElementById('numAgingThreshold').value = d.cfg.agingThreshold;
 
+      const numStepUp = document.getElementById('numStepUp');
+      if (numStepUp) numStepUp.value = d.cfg.stepUp;
+      const numStepDown = document.getElementById('numStepDown');
+      if (numStepDown) numStepDown.value = d.cfg.stepDown;
+      const chkJumpUp = document.getElementById('chkJumpUp');
+      if (chkJumpUp) chkJumpUp.checked = d.cfg.jumpUpEnabled;
+      const numJumpUpVal = document.getElementById('numJumpUpVal');
+      if (numJumpUpVal) numJumpUpVal.value = d.cfg.jumpUpValue;
+      const chkJumpDown = document.getElementById('chkJumpDown');
+      if (chkJumpDown) chkJumpDown.checked = d.cfg.jumpDownEnabled;
+      const numJumpDownVal = document.getElementById('numJumpDownVal');
+      if (numJumpDownVal) numJumpDownVal.value = d.cfg.jumpDownValue;
+
       document.getElementById('chkWirEnabled').checked = d.cfg.wirEnabled;
       document.getElementById('chkLinkWirToConfirmed').checked = d.cfg.linkWirToConfirmed;
       document.getElementById('chkHealingAllowed').checked = d.cfg.healingAllowed;
@@ -2341,6 +3036,19 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
       d.cfg.tripThreshold = Math.max(1, parseInt(document.getElementById('numTripThreshold').value, 10) || 1);
       d.cfg.healingThreshold = Math.max(0, parseInt(document.getElementById('numHealingThreshold').value, 10) || 0);
       d.cfg.agingThreshold = Math.max(1, parseInt(document.getElementById('numAgingThreshold').value, 10) || 1);
+
+      const numStepUp = document.getElementById('numStepUp');
+      if (numStepUp) d.cfg.stepUp = Math.max(1, Math.min(127, parseInt(numStepUp.value, 10) || 64));
+      const numStepDown = document.getElementById('numStepDown');
+      if (numStepDown) d.cfg.stepDown = Math.max(1, Math.min(128, parseInt(numStepDown.value, 10) || 64));
+      const chkJumpUp = document.getElementById('chkJumpUp');
+      if (chkJumpUp) d.cfg.jumpUpEnabled = chkJumpUp.checked;
+      const numJumpUpVal = document.getElementById('numJumpUpVal');
+      if (numJumpUpVal) d.cfg.jumpUpValue = Math.max(-128, Math.min(127, parseInt(numJumpUpVal.value, 10) || 0));
+      const chkJumpDown = document.getElementById('chkJumpDown');
+      if (chkJumpDown) d.cfg.jumpDownEnabled = chkJumpDown.checked;
+      const numJumpDownVal = document.getElementById('numJumpDownVal');
+      if (numJumpDownVal) d.cfg.jumpDownValue = Math.max(-128, Math.min(127, parseInt(numJumpDownVal.value, 10) || 0));
 
       d.cfg.wirEnabled = document.getElementById('chkWirEnabled').checked;
       d.cfg.linkWirToConfirmed = document.getElementById('chkLinkWirToConfirmed').checked;
@@ -2388,36 +3096,58 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
         return;
       }
 
-      // 2. Debounce Engine Processing
+      // 2. Debounce Engine Processing (Counter-Based SWS_Dem_00420..00423)
       let qualifiedResult = null; // 'FAILED' | 'PASSED' | null
       let explanation = '';
 
       if (statusType === 'PREFAILED') {
-        if (d.fdc < 0) {
-          d.fdc = p.stepUp; // JumpUp to 0 + stepUp
+        const stepUp = d.cfg.stepUp || p.stepUp || 64;
+        const jumpUp = d.cfg.jumpUpEnabled;
+        const jumpUpVal = (d.cfg.jumpUpValue !== undefined) ? d.cfg.jumpUpValue : 0;
+        let jumpTriggered = false;
+        const oldFdc = d.fdc;
+
+        if (jumpUp && d.fdc < jumpUpVal) {
+          // [SWS_Dem_00421]: If counter < JumpUpValue, set counter to JumpUpValue before performing step
+          d.fdc = jumpUpVal + stepUp;
+          jumpTriggered = true;
         } else {
-          d.fdc = Math.min(127, d.fdc + p.stepUp);
+          d.fdc = Math.min(127, d.fdc + stepUp);
         }
+
         if (d.fdc >= 127) {
           d.fdc = 127;
           qualifiedResult = 'FAILED';
         } else {
-          explanation = `Debounce PREFAILED: FDC tăng lên +${d.fdc} (chưa chạm ngưỡng +127 nên Bit 0 vẫn = ${d.bits[0]}).`;
+          explanation = jumpTriggered
+            ? `⚡ Debounce Jump-Up kích hoạt [SWS_Dem_00421]! FDC đang âm (${oldFdc}) nhảy vọt lên JumpUpValue (${jumpUpVal}) + StepUp (${stepUp}) = +${d.fdc} (chưa chạm +127 nên Bit 0 vẫn = ${d.bits[0]}).`
+            : `Debounce PREFAILED [SWS_Dem_00420]: FDC tăng từ ${oldFdc} lên +${d.fdc} (+StepUp = ${stepUp}) (chưa chạm ngưỡng +127 nên Bit 0 vẫn = ${d.bits[0]}).`;
         }
       } else if (statusType === 'FAILED') {
         d.fdc = 127;
         qualifiedResult = 'FAILED';
       } else if (statusType === 'PREPASSED') {
-        if (d.fdc > 0) {
-          d.fdc = -p.stepDown; // JumpDown to 0 - stepDown
+        const stepDown = d.cfg.stepDown || p.stepDown || 64;
+        const jumpDown = d.cfg.jumpDownEnabled;
+        const jumpDownVal = (d.cfg.jumpDownValue !== undefined) ? d.cfg.jumpDownValue : 0;
+        let jumpTriggered = false;
+        const oldFdc = d.fdc;
+
+        if (jumpDown && d.fdc > jumpDownVal) {
+          // [SWS_Dem_00423]: If counter > JumpDownValue, set counter to JumpDownValue before performing step
+          d.fdc = jumpDownVal - stepDown;
+          jumpTriggered = true;
         } else {
-          d.fdc = Math.max(-128, d.fdc - p.stepDown);
+          d.fdc = Math.max(-128, d.fdc - stepDown);
         }
+
         if (d.fdc <= -128) {
           d.fdc = -128;
           qualifiedResult = 'PASSED';
         } else {
-          explanation = `Debounce PREPASSED: FDC giảm xuống ${d.fdc} (chưa chạm -128 nên Bit 0 vẫn = ${d.bits[0]}).`;
+          explanation = jumpTriggered
+            ? `⚡ Debounce Jump-Down kích hoạt [SWS_Dem_00423]! FDC đang dương (${oldFdc}) nhảy vọt xuống JumpDownValue (${jumpDownVal}) - StepDown (${stepDown}) = ${d.fdc} (chưa chạm -128 nên Bit 0 vẫn = ${d.bits[0]}).`
+            : `Debounce PREPASSED [SWS_Dem_00420]: FDC giảm từ ${oldFdc} xuống ${d.fdc} (-StepDown = ${stepDown}) (chưa chạm -128 nên Bit 0 vẫn = ${d.bits[0]}).`;
         }
       } else if (statusType === 'PASSED') {
         d.fdc = -128;
@@ -2612,7 +3342,7 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
               notes.push(`Tăng AgingCounter = ${item.agingCounter}/${item.cfg.agingThreshold}.`);
             }
           } else if (k === selectedDtcKey) {
-            notes.push(`Không tăng AgingCounter (${item.agingCounter}/${item.cfg.agingThreshold}) vì DemAgingRequieresTestedCycle=TRUE nhưng Cycle #${closedCycle} chưa chạy test (Bit 6=1).`);
+            notes.push(`Không tăng AgingCounter (${item.agingCounter}/${item.cfg.agingThreshold}) vì DemAgingRequiresTestedCycle=TRUE nhưng Cycle #${closedCycle} chưa chạy test (Bit 6=1).`);
           }
         }
 
@@ -2847,34 +3577,74 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
     }
 
     // Quick ClearDTC (UDS 0x14 / Dem_ClearDTC)
-    function triggerClearDtc() {
+    function triggerClearDtc(scope = 'ALL') {
       const d = runtimeDtcs[selectedDtcKey];
       const beforeBits = [...d.bits];
       const waitNvm = document.getElementById('chkClearWaitNvm').checked;
       const notifySwc = document.getElementById('chkClearNotifySwc').checked;
-      const onlyConfirmed = document.getElementById('chkClearOnlyConfirmed').checked;
+      const chkLimitationOnlyAll = document.getElementById('chkClearLimitationOnlyAll');
+      const onlyAllDtc = chkLimitationOnlyAll ? chkLimitationOnlyAll.checked : false;
+      const chkOnlyConfirmed = document.getElementById('chkClearOnlyConfirmed');
+      const onlyConfirmed = chkOnlyConfirmed ? chkOnlyConfirmed.checked : false;
 
-      if (onlyConfirmed && d.bits[3] === 0) {
-        const msg = `Bị từ chối bởi cấu hình DemClearDTCLimitation = ONLY_CONFIRMED (chỉ cho phép xóa khi Bit 3 Confirmed == 1, hiện tại Bit 3 == 0)!`;
-        highlightArchitecture(['DCM_FIM', 'STATUS'], 'err', 'Dem_ClearDTC() Rejected (DemClearDTCLimitation)');
-        appendLiveCycleRow(currentOpCycle, beforeBits, 'ClearDTC 0x14 [REJECTED]', d.bits, msg);
+      // 1. Check AUTOSAR DemClearDTCLimitation [SWS_Dem_00570]
+      if (scope === 'SINGLE' && onlyAllDtc) {
+        const msg = `Lệnh Clear Single DTC (${d.code}) bị TỪ CHỐI bởi cấu hình DemClearDTCLimitation = DEM_ONLY_CLEAR_ALL_DTCS ([SWS_Dem_00570])! DEM trả DEM_WRONG_DTC ➔ DCM gửi UDS NRC 0x31 (RequestOutOfRange).`;
+        highlightArchitecture(['DCM_FIM', 'STATUS'], 'err', 'Dem_ClearDTC() Rejected [NRC 0x31]');
+        updateModuleInspector(
+          'DCM ➔ DEM ClearDTC Limitation Check',
+          `Dem_ClearDTC(${d.code}) ➔ DEM_WRONG_DTC`,
+          'Tester gửi UDS 0x14 yêu cầu xóa một mã DTC đơn lẻ',
+          msg,
+          'DCM trả Negative Response NRC 0x31 (RequestOutOfRange) cho Tester.'
+        );
+        appendLiveCycleRow(currentOpCycle, beforeBits, `ClearDTC (${d.code}) [REJECTED 0x31]`, d.bits, msg);
         renderAllUI();
         return;
       }
 
-      // Reset all DTCs to 0x50 (Bit 6 TNCTOC = 1, Bit 4 TNCSLC = 1, all other bits = 0)
-      Object.keys(runtimeDtcs).forEach(k => {
-        const item = runtimeDtcs[k];
-        item.bits = [0, 0, 0, 0, 1, 0, 1, 0]; // 0x50
-        item.fdc = 0;
-        item.tripCounter = 0;
-        item.healingCounter = 0;
-        item.agingCounter = 0;
-        item.occCounter = 0;
-      });
-      primaryMemoryRam = [];
+      // 2. Check OEM Custom rule (if enabled)
+      if (onlyConfirmed && d.bits[3] === 0) {
+        const msg = `Lệnh ClearDTC bị TỪ CHỐI bởi quy tắc tùy biến OEM: Chỉ cho phép xóa khi DTC đã Confirmed (Bit 3 == 1, hiện tại Bit 3 == 0)!`;
+        highlightArchitecture(['DCM_FIM', 'STATUS'], 'err', 'Dem_ClearDTC() Rejected [OEM Rule]');
+        updateModuleInspector(
+          'DEM Clear Condition (OEM Extension)',
+          `Dem_ClearDTC() ➔ DEM_CLEAR_FAILED`,
+          'Kiểm tra điều kiện xóa riêng của OEM',
+          msg,
+          'DCM trả Negative Response NRC 0x22 (ConditionsNotCorrect).'
+        );
+        appendLiveCycleRow(currentOpCycle, beforeBits, 'ClearDTC [REJECTED OEM]', d.bits, msg);
+        renderAllUI();
+        return;
+      }
+
+      // 3. Perform Clear Action
+      if (scope === 'SINGLE') {
+        // Clear only selected DTC
+        d.bits = [0, 0, 0, 0, 1, 0, 1, 0]; // 0x50
+        d.fdc = 0;
+        d.tripCounter = 0;
+        d.healingCounter = 0;
+        d.agingCounter = 0;
+        d.occCounter = 0;
+        primaryMemoryRam = primaryMemoryRam.filter(slot => slot.code !== d.code);
+      } else {
+        // Clear ALL DTCs
+        Object.keys(runtimeDtcs).forEach(k => {
+          const item = runtimeDtcs[k];
+          item.bits = [0, 0, 0, 0, 1, 0, 1, 0]; // 0x50
+          item.fdc = 0;
+          item.tripCounter = 0;
+          item.healingCounter = 0;
+          item.agingCounter = 0;
+          item.occCounter = 0;
+        });
+        primaryMemoryRam = [];
+      }
       saveToNvmFlash('CLEAR_DTC_0x14');
 
+      const scopeName = scope === 'SINGLE' ? `Single DTC (${d.code})` : 'All DTCs (0xFFFFFF)';
       const nvmBehaviorMsg = waitNvm
         ? 'DEM trả DEM_PENDING chờ NvM_WriteBlock xóa xong Flash (kích hoạt DCM gửi NRC 0x78) rồi mới trả E_OK.'
         : 'DEM xóa trên RAM và trả E_OK ngay lập tức (DEM_CLRRESP_VOLATILE).';
@@ -2882,17 +3652,17 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
         ? ' Gọi Rte_Call_CallbackInitMonitorForEvent_InitMonitorForEvent(DEM_INIT_MONITOR_CLEAR) báo SWC khởi tạo lại.'
         : '';
 
-      const exp = `Xóa lỗi UDS 0x14 (Dem_ClearDTC): Đưa thanh ghi 8-Bit về trạng thái gốc 0x50 (0101 0000b — Bit 6=1, Bit 4=1, bit3210 = 0000), FDC = 0. ${nvmBehaviorMsg}${swcNotifyMsg}`;
+      const exp = `Xóa lỗi UDS 0x14 (Dem_ClearDTC - ${scopeName}): Đưa thanh ghi 8-Bit về 0x50 (0101 0000b — Bit 6=1, Bit 4=1, bit3210 = 0000), FDC = 0. ${nvmBehaviorMsg}${swcNotifyMsg}`;
 
-      highlightArchitecture(['DCM_FIM', 'STATUS', 'MEM', 'NVM', 'SWC'], 'ok', 'UDS 0x14 ➔ Dem_ClearDTC() ➔ Status = 0x50 (bit3210 = 0000)');
+      highlightArchitecture(['DCM_FIM', 'STATUS', 'MEM', 'NVM', 'SWC'], 'ok', `UDS 0x14 ➔ Dem_ClearDTC(${scopeName}) ➔ Status = 0x50`);
       updateModuleInspector(
         'Luồng Xóa Lỗi Chẩn Đoán — UDS 0x14 ClearDiagnosticInformation',
-        'Dem_SelectDTC(0xFFFFFF) ➔ Dem_ClearDTC() ➔ InitMonitorForEvent(CLEAR)',
-        'Tester gửi 14 FF FF FF qua DCM xuống DEM',
+        `Dem_SelectDTC(${scope === 'SINGLE' ? d.code : '0xFFFFFF'}) ➔ Dem_ClearDTC() ➔ InitMonitorForEvent(CLEAR)`,
+        `Tester gửi 14 ${scope === 'SINGLE' ? d.code : 'FF FF FF'} qua DCM xuống DEM`,
         exp,
-        'Xóa sạch Primary Memory, đồng bộ NvM, khôi phục quyền FiM (ALLOWED) và thông báo SWC.'
+        'Cập nhật RAM Mirror = 0x50, giải phóng ô nhớ, đồng bộ NvM, khôi phục quyền FiM (ALLOWED) và thông báo SWC.'
       );
-      appendLiveCycleRow(currentOpCycle, beforeBits, 'ClearDTC (UDS 0x14)', d.bits, exp);
+      appendLiveCycleRow(currentOpCycle, beforeBits, `ClearDTC (${scopeName})`, d.bits, exp);
       renderAllUI();
     }
 
@@ -3014,6 +3784,30 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
           { label: 'B1: Tắt EnableCondition = FALSE rồi bấm SET FAIL ➔ DEM chặn hoàn toàn, Status giữ nguyên 0x50!', fn: () => { document.getElementById('chkEnableCond').checked = false; reportMonitorEvent('FAILED'); } },
           { label: 'B2: Bật lại EnableCondition = TRUE rồi bấm SET FAIL ➔ DEM nhận lỗi ngay lập tức (0x27)!', fn: () => { document.getElementById('chkEnableCond').checked = true; reportMonitorEvent('FAILED'); } }
         ]
+      },
+      '9': {
+        name: 'Luồng 9 [Nêu bật Debounce Counter-Based]: Lọc Nhiễu FDC & Bước Nhảy JumpUp / JumpDown (PREFAILED / PREPASSED)',
+        dtc: '0x110200',
+        setup: () => {
+          selectDtcProfile('0x110200');
+          triggerClearDtc();
+          const d = runtimeDtcs['0x110200'];
+          d.cfg.stepUp = 64;
+          d.cfg.stepDown = 64;
+          d.cfg.jumpUpEnabled = true;
+          d.cfg.jumpUpValue = 0;
+          d.cfg.jumpDownEnabled = true;
+          d.cfg.jumpDownValue = 0;
+          syncUiControlsFromSelectedDtc();
+        },
+        steps: [
+          { label: 'B1: Báo PREPASSED lần 1 ➔ FDC hạ từ 0 xuống -64', fn: () => reportMonitorEvent('PREPASSED') },
+          { label: 'B2: Báo PREPASSED lần 2 ➔ FDC chạm -128 (Qualified PASSED, Bit 0 TF = 0)', fn: () => reportMonitorEvent('PREPASSED') },
+          { label: 'B3: [SWS_Dem_00421 Jump-Up]: Nhận PREFAILED khi FDC < 0 ➔ FDC nhảy vọt từ -128 lên 0 + 64 = +64!', fn: () => reportMonitorEvent('PREFAILED') },
+          { label: 'B4: Nhận tiếp PREFAILED lần 2 (+64) ➔ FDC chạm +127 (Qualified FAILED, Bit 0 TF = 1)!', fn: () => reportMonitorEvent('PREFAILED') },
+          { label: 'B5: [SWS_Dem_00423 Jump-Down]: Lỗi hết, nhận PREPASSED khi FDC > 0 ➔ FDC nhảy vọt từ +127 xuống 0 - 64 = -64!', fn: () => reportMonitorEvent('PREPASSED') },
+          { label: 'B6: Báo PREPASSED tiếp ➔ FDC chạm -128 (Qualified PASSED, Bit 0 TF = 0)', fn: () => reportMonitorEvent('PREPASSED') }
+        ]
       }
     };
 
@@ -3025,8 +3819,10 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
       sc.setup();
       currentScenarioSteps = sc.steps;
       currentScenarioStepIdx = 0;
-      updateScenarioProgressUI();
       document.getElementById('lblActiveScenarioHint').textContent = sc.name;
+      // Take snapshot 0 representing the setup state
+      scenarioSnapshots = [takeScenarioSnapshot()];
+      updateScenarioProgressUI();
       if (autoRunFirst) runNextScenarioStep();
     }
 
@@ -3043,6 +3839,7 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
         document.getElementById('lblActiveScenarioHint').textContent = `Bước ${currentScenarioStepIdx + 1}/${currentScenarioSteps.length}: ${stepObj.label}`;
         stepObj.fn();
         currentScenarioStepIdx += 1;
+        scenarioSnapshots[currentScenarioStepIdx] = takeScenarioSnapshot();
         updateScenarioProgressUI();
       } else {
         stopScenarioAutoPlay();
@@ -3050,9 +3847,31 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
       }
     }
 
+    function runPrevScenarioStep() {
+      stopScenarioAutoPlay();
+      if (currentScenarioStepIdx > 0) {
+        currentScenarioStepIdx -= 1;
+        const snap = scenarioSnapshots[currentScenarioStepIdx];
+        if (snap) {
+          restoreScenarioSnapshot(snap);
+        }
+        updateScenarioProgressUI();
+      }
+    }
+
     function updateScenarioProgressUI() {
       const total = currentScenarioSteps.length || 0;
-      document.getElementById('lblScenarioProgress').textContent = `${currentScenarioStepIdx}/${total}`;
+      const lblProgress = document.getElementById('lblScenarioProgress');
+      if (lblProgress) {
+        lblProgress.textContent = `${currentScenarioStepIdx}/${total}`;
+      }
+      const btnPrev = document.getElementById('btnScenarioPrev');
+      if (btnPrev) {
+        btnPrev.disabled = (currentScenarioStepIdx <= 0);
+        btnPrev.className = currentScenarioStepIdx <= 0
+          ? 'px-2.5 py-1 rounded bg-slate-900 text-slate-600 text-xs font-bold cursor-not-allowed border border-slate-800'
+          : 'px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition border border-slate-700';
+      }
     }
 
     function toggleScenarioAutoPlay() {
@@ -3333,6 +4152,18 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
       document.getElementById('barFdcNeg').style.width = d.fdc < 0 ? `${(Math.abs(d.fdc) / 128) * 100}%` : '0%';
       document.getElementById('barFdcPos').style.width = d.fdc > 0 ? `${(d.fdc / 127) * 100}%` : '0%';
       document.getElementById('lblDebounceAlgo').textContent = `Algo: ${p.debounceType}`;
+      const fdcParamsEl = document.getElementById('lblDebounceParams');
+      if (fdcParamsEl) {
+        fdcParamsEl.textContent = `Step: +${d.cfg.stepUp}/-${d.cfg.stepDown} | JumpUp: ${d.cfg.jumpUpEnabled ? 'ON (' + d.cfg.jumpUpValue + ')' : 'OFF'} | JumpDown: ${d.cfg.jumpDownEnabled ? 'ON (' + d.cfg.jumpDownValue + ')' : 'OFF'}`;
+      }
+      const btnPrefailedSub = document.getElementById('lblBtnPrefailedStep');
+      if (btnPrefailedSub) {
+        btnPrefailedSub.textContent = `FDC +${d.cfg.stepUp}`;
+      }
+      const btnPrepassedSub = document.getElementById('lblBtnPrepassedStep');
+      if (btnPrepassedSub) {
+        btnPrepassedSub.textContent = `FDC -${d.cfg.stepDown}`;
+      }
 
       document.getElementById('lblTripCounter').textContent = `${d.tripCounter} / ${d.cfg.tripThreshold} Trips`;
       document.getElementById('lblHealingCounter').textContent = d.cfg.healingAllowed
@@ -3467,15 +4298,17 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
     }
 
     function switchHandbookTab(idx) {
-      for (let i = 1; i <= 5; i++) {
+      for (let i = 1; i <= 6; i++) {
         const panel = document.getElementById('hbPanel' + i);
         const btn = document.getElementById('hbBtn' + i);
-        if (i === idx) {
-          panel.classList.remove('hidden');
-          btn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold bg-cyan-500 text-slate-950 transition';
-        } else {
-          panel.classList.add('hidden');
-          btn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 hover:text-white transition';
+        if (panel && btn) {
+          if (i === idx) {
+            panel.classList.remove('hidden');
+            btn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold bg-cyan-500 text-slate-950 transition';
+          } else {
+            panel.classList.add('hidden');
+            btn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 hover:text-white transition';
+          }
         }
       }
     }
