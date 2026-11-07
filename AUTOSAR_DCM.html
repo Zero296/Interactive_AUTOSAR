@@ -857,6 +857,11 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
       <div class="lg:col-span-5 flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
         <label class="text-[11px] font-semibold uppercase tracking-wider text-slate-400 whitespace-nowrap">Kịch bản UDS:</label>
         <select id="presetSelect" onchange="onPresetChange()" class="w-full bg-slate-900 text-slate-100 text-xs font-mono rounded-lg px-3 py-2 border border-slate-700 focus:border-cyan-500 focus:outline-none">
+          <optgroup label="⏱ Kịch Bản Quản Lý Timer DSL (P2, P2*, S3 Timeout)">
+            <option value="SCENARIO_P2_TIMEOUT">[Kịch Bản Timer] Hết hạn P2ServerMax ➔ DSL bắn NRC 0x78 (ResponsePending) &amp; Nạp P2*</option>
+            <option value="SCENARIO_P2STAR_TIMEOUT">[Kịch Bản Timer] Hết hạn P2*ServerMax ➔ Quá số lần RCR-RP, Hủy tác vụ (DCM_CANCEL) &amp; NRC 0x10</option>
+            <option value="SCENARIO_S3_TIMEOUT">[Kịch Bản Timer] Hết hạn S3Server (5000ms) ➔ Mất Tester, Tự động hạ về Default (0x01) &amp; Khóa Security</option>
+          </optgroup>
           <optgroup label="0x10 - DiagnosticSessionControl (DSL State &amp; Timer)">
             <option value="10 03" selected="">[10 03] Chuyển sang Extended Session (0x03) - Bật S3Server</option>
             <option value="10 02">[10 02] Chuyển sang Programming Session (0x02)</option>
@@ -1067,14 +1072,35 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
             <div class="w-full h-2 bg-slate-900 rounded-full overflow-hidden border border-slate-800 mb-2">
               <div id="barS3Timer" class="h-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-150" style="width: 0%;"></div>
             </div>
-            <div class="flex items-center justify-between gap-2">
-              <label class="flex items-center gap-1.5 text-[11px] text-slate-400 cursor-pointer">
+            <div class="flex items-center justify-between gap-2 mb-2">
+              <label class="flex items-center gap-1.5 text-[11px] text-slate-400 cursor-pointer select-none">
                 <input id="chkS3Realtime" type="checkbox" checked="" class="rounded bg-slate-800 border-slate-700 text-cyan-500 focus:ring-0">
                 <span>Đếm ngược S3 thực tế</span>
               </label>
-              <button onclick="sendQuickTesterPresent()" class="px-2.5 py-1 rounded text-[11px] font-mono font-semibold bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 transition">
-                ⚡ Gửi 3E 80 (Reset S3)
-              </button>
+              <span id="s3StatusHint" class="text-[10px] text-slate-500 font-mono">ISO 14229-1</span>
+            </div>
+
+            <!-- Auto Tester Present Toggle & Action Controls -->
+            <div class="pt-2 border-t border-slate-800/80 flex flex-col gap-1.5">
+              <div class="flex items-center justify-between">
+                <label class="flex items-center gap-1.5 text-[11px] text-emerald-300 font-semibold cursor-pointer select-none">
+                  <input id="chkAutoTesterPresent" type="checkbox" onchange="onAutoTesterPresentChange()" class="rounded bg-slate-800 border-slate-700 text-emerald-500 focus:ring-0">
+                  <span>Tự động gửi TesterPresent</span>
+                </label>
+                <span id="badgeAutoTester" class="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">TẮT</span>
+              </div>
+              <div class="text-[10px] text-slate-400 flex items-center justify-between">
+                <span>Chu kỳ: S3Client = 2500ms</span>
+                <span class="text-slate-500">&lt; S3Server (5000ms)</span>
+              </div>
+              <div class="flex items-center justify-between gap-1.5 mt-1">
+                <button onclick="sendQuickTesterPresent()" title="Gửi thủ công 3E 80 để nạp lại S3 về 5000ms ngay" class="flex-1 py-1 px-2 rounded text-[11px] font-mono font-semibold bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 transition text-center flex items-center justify-center gap-1">
+                  <span>⚡ Gửi 3E 80</span>
+                </button>
+                <button onclick="forceS3Timeout()" title="Kích hoạt hết hạn S3 ngay lập tức để kiểm tra hạ về Default Session &amp; Khóa Security" class="flex-1 py-1 px-2 rounded text-[11px] font-mono font-semibold bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 transition text-center flex items-center justify-center gap-1">
+                  <span>⚠️ Ép Hết Hạn S3</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -1670,85 +1696,685 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
     </section>
   </main>
 
-  <!-- ================= MODAL: SỔ TAY KIẾN TRÚC DSL / DSD / DSP ================= -->
-  <div id="archModal" class="fixed inset-0 z-50 hidden bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-5xl w-full max-h-[88vh] flex flex-col shadow-2xl overflow-hidden">
-      <div class="px-5 py-3.5 bg-slate-950 border-b border-slate-800 flex items-center justify-between">
+  <!-- ================= MODAL: SỔ TAY KIẾN TRÚC DSL / DSD / DSP & QUẢN LÝ TIMER ================= -->
+  <div id="archModal" class="fixed inset-0 z-50 hidden bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-3 md:p-5">
+    <div class="bg-slate-900 border border-slate-700/80 rounded-2xl max-w-6xl w-full max-h-[92vh] flex flex-col shadow-2xl overflow-hidden">
+      
+      <!-- Modal Header with Tab Navigation -->
+      <div class="px-5 py-3.5 bg-slate-950 border-b border-slate-800 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 class="text-base font-bold text-white">Sổ tay Kiến trúc AUTOSAR DCM (DSL / DSD / DSP) &amp; Luồng Dữ liệu</h2>
-          <p class="text-xs text-slate-400">Tổng hợp Input, Output, Quản lý Timing (P2, P2*, S3), OpStatus và các hàm chuẩn theo AUTOSAR SWS_Dcm</p>
+          <h2 class="text-base font-bold text-white flex items-center gap-2">
+            <span>📖 Sổ Tay Kỹ Thuật AUTOSAR DCM (DSL / DSD / DSP) &amp; Quản Lý Timer</span>
+            <span class="text-[10px] font-mono font-semibold px-2 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-800">AUTOSAR R22+ / ISO 14229-1</span>
+          </h2>
+          <p class="text-xs text-slate-400">Tổng hợp kiến trúc 3 phân lớp, cơ chế đếm &amp; kích hoạt Timer (P2, P2*, S3), sơ đồ khối tương tác kiến trúc</p>
         </div>
-        <button onclick="toggleArchModal(false)" class="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300">✕</button>
+
+        <div class="flex items-center gap-2">
+          <!-- Tab Navigation Buttons -->
+          <div class="flex items-center bg-slate-900 p-1 rounded-xl border border-slate-800 gap-1">
+            <button id="archTabBtn1" onclick="switchArchTab(1)" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-cyan-500 text-slate-950 transition">
+              1. Tổng Quan &amp; Bảng So Sánh 3 Layer
+            </button>
+            <button id="archTabBtn2" onclick="switchArchTab(2)" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 hover:text-white transition">
+              2. Quản Lý Timer Trong DSL (Start / Reload / Stop)
+            </button>
+            <button id="archTabBtn3" onclick="switchArchTab(3)" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 hover:text-white transition">
+              3. Sơ Đồ Khối Tương Tác 3 Layer DCM
+            </button>
+          </div>
+
+          <button onclick="toggleArchModal(false)" class="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition" title="Đóng sổ tay">✕</button>
+        </div>
       </div>
 
-      <div class="p-5 overflow-y-auto space-y-5 text-xs leading-relaxed">
-        <!-- Summary Comparison Table -->
-        <div class="overflow-x-auto">
-          <table class="w-full text-left border-collapse border border-slate-800">
-            <thead>
-              <tr class="bg-slate-950 text-slate-300 font-semibold">
-                <th class="p-2.5 border border-slate-800">Phân lớp</th>
-                <th class="p-2.5 border border-slate-800">Input lấy từ đâu?</th>
-                <th class="p-2.5 border border-slate-800">Trách nhiệm xử lý &amp; Quản lý Status/Timing</th>
-                <th class="p-2.5 border border-slate-800">Output route đi đâu?</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-slate-800 text-slate-300">
-              <tr>
-                <td class="p-2.5 border border-slate-800 font-bold text-cyan-300">1. DSL<br><span class="text-[10px] font-normal text-slate-400">(Diagnostic Session Layer)</span></td>
-                <td class="p-2.5 border border-slate-800 font-mono text-[11px]">
-                  • PduR: Dcm_StartOfReception(), Dcm_CopyRxData(), Dcm_TpRxIndication()<br>
-                  • DSD/DSP: Dcm_ProcessingDone()<br>
-                  • SWS Timer Tick: Dcm_MainFunction()
-                </td>
-                <td class="p-2.5 border border-slate-800">
-                  • <strong>Quản lý Buffer:</strong> Cấp phát &amp; khóa <code class="text-cyan-300">DcmDslBuffer</code> (Rx/Tx).<br>
-                  • <strong>Quản lý State:</strong> Lưu <code class="text-cyan-300">ActiveSession</code> (0x01, 0x02, 0x03...) và <code class="text-cyan-300">SecurityLevel</code>.<br>
-                  • <strong>Quản lý Timing:</strong> Đếm ngược <code class="text-cyan-300">P2ServerMax</code> (50ms). Nếu DSP đang <code class="text-amber-300">DCM_PENDING</code> khi P2 sắp hết ➔ Tự phát <code class="text-rose-300">7F [SID] 78</code> và nạp <code class="text-amber-300">P2*ServerMax</code> (5000ms). Đếm <code class="text-emerald-300">S3Server</code> (5000ms) để tự hạ về Default Session nếu mất kết nối.
-                </td>
-                <td class="p-2.5 border border-slate-800 font-mono text-[11px]">
-                  • Chuyển Rx Request hợp lệ sang <strong>DSD</strong>.<br>
-                  • Gọi <strong>PduR_DcmTransmit()</strong> để gửi Tx Response xuống CanTp/DoIP.<br>
-                  • Báo đổi Session/Reset sang <strong>BswM / SchM</strong>.
-                </td>
-              </tr>
-              <tr>
-                <td class="p-2.5 border border-slate-800 font-bold text-amber-300">2. DSD<br><span class="text-[10px] font-normal text-slate-400">(Diagnostic Service Dispatcher)</span></td>
-                <td class="p-2.5 border border-slate-800 font-mono text-[11px]">
-                  • DSL: DsdInternal_RxIndication() kèm con trỏ Dcm_MsgContextType<br>
-                  • DSP: Hoàn tất xử lý dịch vụ hoặc báo mã NRC
-                </td>
-                <td class="p-2.5 border border-slate-800">
-                  • Tra cứu Byte #0 (<code class="text-amber-300">SID</code>) trong bảng <code class="text-amber-300">DcmDsdServiceTable</code> (Sai ➔ <code class="text-rose-300">NRC 0x11</code>).<br>
-                  • Kiểm tra tuần tự: <strong>Session</strong> (<code class="text-rose-300">NRC 0x7F</code>) ➔ <strong>Security</strong> (<code class="text-rose-300">NRC 0x33</code>) ➔ <strong>Sub-function</strong> (<code class="text-rose-300">NRC 0x12</code>) ➔ <strong>Độ dài tối thiểu</strong> (<code class="text-rose-300">NRC 0x13</code>) ➔ <strong>ModeRule / Env</strong> (<code class="text-rose-300">NRC 0x22</code>).<br>
-                  • Tách bit thứ 7 (<code class="text-amber-300">suppressPosRspMsgIndicationBit - SPRMIB</code>): Nếu = 1 và kết quả là Positive Response thì chặn không gửi Tx; nhưng nếu là Negative Response (<code class="text-rose-300">0x7F</code>) thì vẫn bắt buộc gửi!
-                </td>
-                <td class="p-2.5 border border-slate-800 font-mono text-[11px]">
-                  • Nếu Pass: Gọi hàm <code class="text-emerald-300">DspInternal_Uds_*</code> tương ứng trong <strong>DSP</strong>.<br>
-                  • Nếu Fail: Tự tạo gói <code class="text-rose-300">7F [SID] [NRC]</code> và trả thẳng về <strong>DSL</strong> (không qua DSP).
-                </td>
-              </tr>
-              <tr>
-                <td class="p-2.5 border border-slate-800 font-bold text-emerald-300">3. DSP<br><span class="text-[10px] font-normal text-slate-400">(Diagnostic Service Processor)</span></td>
-                <td class="p-2.5 border border-slate-800 font-mono text-[11px]">
-                  • DSD: Lệnh gọi hàm xử lý dịch vụ kèm <code class="text-emerald-300">Dcm_OpStatusType</code><br>
-                  • Kết quả trả về từ RTE (SWC), DEM, NvM, Flash Driver
-                </td>
-                <td class="p-2.5 border border-slate-800">
-                  • Giải mã tham số chi tiết (DID, RID, MemoryAddress, BlockSequenceCounter, DTCStatusMask).<br>
-                  • Quản lý máy trạng thái <code class="text-emerald-300">OpStatus</code>: <code class="text-cyan-300">DCM_INITIAL</code> ➔ <code class="text-amber-300">DCM_PENDING</code> ➔ <code class="text-purple-300">DCM_FORCE_RCRRP_OK</code> ➔ <code class="text-rose-300">DCM_CANCEL</code>.<br>
-                  • Đóng gói dữ liệu vào Tx Buffer (<code class="text-emerald-300">SID + 0x40</code>) hoặc trả về mã NRC chuyên biệt (<code class="text-rose-300">0x31, 0x35, 0x36, 0x24, 0x73...</code>).
-                </td>
-                <td class="p-2.5 border border-slate-800 font-mono text-[11px]">
-                  • <strong>RTE / SWC:</strong> 0x22, 0x2E, 0x27, 0x31.<br>
-                  • <strong>DEM:</strong> 0x19, 0x14, 0x85.<br>
-                  • <strong>NvM / Fls:</strong> 0x2E, 0x34, 0x36, 0x37.<br>
-                  • <strong>DSL:</strong> Cập nhật Session (0x10) &amp; Security (0x27).
-                </td>
-              </tr>
-            </tbody>
-          </table>
+      <!-- Modal Body (Scrollable Container) -->
+      <div class="p-5 overflow-y-auto space-y-6 text-xs leading-relaxed">
+
+        <!-- ================= TAB 1: TỔNG QUAN & BẢNG SO SÁNH 3 LAYER ================= -->
+        <div id="archTabPanel1" class="space-y-5">
+          <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+            <div>
+              <h3 class="text-sm font-bold text-cyan-300 uppercase tracking-wider">1. Phân Tích Nhiệm Vụ 3 Phân Lớp DCM (DSL ➔ DSD ➔ DSP)</h3>
+              <p class="text-slate-400 text-xs">Mỗi phân lớp có giới hạn trách nhiệm rõ ràng, chuẩn hóa theo AUTOSAR Classic Platform SWS DCM</p>
+            </div>
+            <span class="text-[11px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">ISO 14229-1 | ISO 15765-2</span>
+          </div>
+
+          <!-- Comparison Table -->
+          <div class="overflow-x-auto rounded-xl border border-slate-800">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="bg-slate-950 text-slate-300 font-semibold border-b border-slate-800">
+                  <th class="p-3 border-r border-slate-800 w-44">Phân lớp</th>
+                  <th class="p-3 border-r border-slate-800 w-56">Input lấy từ đâu?</th>
+                  <th class="p-3 border-r border-slate-800">Trách nhiệm xử lý &amp; Quản lý Status / Timing</th>
+                  <th class="p-3 w-56">Output route đi đâu?</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-800 text-slate-300">
+                <tr class="hover:bg-slate-800/30 transition">
+                  <td class="p-3 border-r border-slate-800 font-bold text-cyan-300 align-top">
+                    1. DSL<br>
+                    <span class="text-[10px] font-normal text-slate-400 font-sans">(Diagnostic Session Layer)</span>
+                  </td>
+                  <td class="p-3 border-r border-slate-800 font-mono text-[11px] text-slate-300 align-top">
+                    • <strong>PduR:</strong> Dcm_StartOfReception(), Dcm_CopyRxData(), Dcm_TpRxIndication()<br>
+                    • <strong>DSD / DSP:</strong> Dcm_ProcessingDone()<br>
+                    • <strong>OS Cyclic:</strong> Dcm_MainFunction()
+                  </td>
+                  <td class="p-3 border-r border-slate-800 align-top">
+                    • <strong>Quản lý Buffer:</strong> Cấp phát, khóa và giải phóng <code class="text-cyan-300">DcmDslBuffer</code> (BUF_FREE ➔ LOCKED_RX ➔ IN_USE_DCM ➔ LOCKED_TX).<br>
+                    • <strong>Quản lý Trạng Thái Toàn Cục:</strong> Lưu trữ <code class="text-cyan-300">ActiveSession</code> (0x01, 0x02, 0x03...) và <code class="text-cyan-300">SecurityLevel</code>.<br>
+                    • <strong>Quản lý Timing:</strong> Sở hữu và đếm ngược <code class="text-cyan-300">P2ServerMax</code> (50ms). Nếu DSP đang <code class="text-amber-300">DCM_PENDING</code> khi P2 chạm ngưỡng ➔ Tự phát <code class="text-rose-300">7F [SID] 78</code> và nạp <code class="text-amber-300">P2*ServerMax</code> (5000ms). Đếm <code class="text-emerald-300">S3Server</code> (5000ms) để tự động hạ về Default Session nếu mất kết nối Tester.
+                  </td>
+                  <td class="p-3 font-mono text-[11px] text-slate-300 align-top">
+                    • Chuyển Request hợp lệ sang <strong>DSD</strong>.<br>
+                    • Gọi <strong>PduR_DcmTransmit()</strong> để gửi Tx Response xuống CanTp/DoIP.<br>
+                    • Báo đổi Session/Reset sang <strong>BswM / SchM</strong>.
+                  </td>
+                </tr>
+
+                <tr class="hover:bg-slate-800/30 transition">
+                  <td class="p-3 border-r border-slate-800 font-bold text-amber-300 align-top">
+                    2. DSD<br>
+                    <span class="text-[10px] font-normal text-slate-400 font-sans">(Diagnostic Service Dispatcher)</span>
+                  </td>
+                  <td class="p-3 border-r border-slate-800 font-mono text-[11px] text-slate-300 align-top">
+                    • <strong>DSL:</strong> DsdInternal_RxIndication() kèm con trỏ Dcm_MsgContextType<br>
+                    • <strong>DSP:</strong> Hoàn tất xử lý dịch vụ hoặc báo mã lỗi NRC
+                  </td>
+                  <td class="p-3 border-r border-slate-800 align-top">
+                    • <strong>Pipeline Thẩm Định 5 Bước:</strong><br>
+                    &nbsp;&nbsp;1. Tra cứu Byte #0 (<code class="text-amber-300">SID</code>) trong bảng <code class="text-amber-300">DcmDsdServiceTable</code> (Sai ➔ <code class="text-rose-300">NRC 0x11</code>).<br>
+                    &nbsp;&nbsp;2. Kiểm tra phiên <code class="text-amber-300">ActiveSession</code> có cho phép gọi SID này không (Sai ➔ <code class="text-rose-300">NRC 0x7F</code>).<br>
+                    &nbsp;&nbsp;3. Kiểm tra cấp độ bảo mật <code class="text-amber-300">SecurityLevel</code> có thỏa mãn không (Sai ➔ <code class="text-rose-300">NRC 0x33</code>).<br>
+                    &nbsp;&nbsp;4. Kiểm tra Sub-function &amp; Độ dài tối thiểu của payload (Sai ➔ <code class="text-rose-300">NRC 0x12 / 0x13</code>).<br>
+                    &nbsp;&nbsp;5. Kiểm tra điều kiện tiền đề <code class="text-amber-300">DcmModeRule</code> (Tốc độ xe == 0, điện áp &ge; 11V...) (Sai ➔ <code class="text-rose-300">NRC 0x22</code>).<br>
+                    • <strong>SPRMIB Handler:</strong> Tách bit 7 của SubFunction (<code class="text-amber-300">suppressPosRspMsgIndicationBit</code>). Nếu = 1 và là Positive Response thì chặn không phát Tx; nếu Negative Response (<code class="text-rose-300">0x7F</code>) thì bắt buộc vẫn gửi.<br>
+                    • <strong>Fast Negative Response:</strong> Nếu vi phạm 1 trong 5 trạm trên, tự động phát sinh bản tin <code class="text-rose-300">7F [SID] [NRC]</code> gửi thẳng về DSL Tx mà không qua DSP.
+                  </td>
+                  <td class="p-3 font-mono text-[11px] text-slate-300 align-top">
+                    • Nếu Hợp lệ: Gọi hàm <code class="text-emerald-300">DspInternal_Uds_*</code> trong <strong>DSP</strong>.<br>
+                    • Nếu Vi phạm: Chuyển bản tin NRC <code class="text-rose-300">7F [SID] [NRC]</code> thẳng về <strong>DSL Tx</strong>.
+                  </td>
+                </tr>
+
+                <tr class="hover:bg-slate-800/30 transition">
+                  <td class="p-3 border-r border-slate-800 font-bold text-emerald-300 align-top">
+                    3. DSP<br>
+                    <span class="text-[10px] font-normal text-slate-400 font-sans">(Diagnostic Service Processing)</span>
+                  </td>
+                  <td class="p-3 border-r border-slate-800 font-mono text-[11px] text-slate-300 align-top">
+                    • <strong>DSD:</strong> Lệnh gọi hàm xử lý dịch vụ kèm <code class="text-emerald-300">Dcm_OpStatusType</code><br>
+                    • <strong>BSW / RTE:</strong> Dữ liệu từ SWC, DEM (0x19), NvM (0x22/0x2E), Fls (0x31/34/36)
+                  </td>
+                  <td class="p-3 border-r border-slate-800 align-top">
+                    • <strong>Thực Thi Nghiệp Vụ Chẩn Đoán:</strong> Giải mã chi tiết DID, RID, MemoryAddress, BlockSequenceCounter, DTCStatusMask.<br>
+                    • <strong>Máy Trạng Thái Xử Lý Bất Đồng Bộ:</strong> Điều khiển <code class="text-emerald-300">OpStatus</code>: <code class="text-cyan-300">DCM_INITIAL</code> ➔ <code class="text-amber-300">DCM_PENDING</code> ➔ <code class="text-purple-300">DCM_FORCE_RCRRP_OK</code> ➔ <code class="text-rose-300">DCM_CANCEL</code>.<br>
+                    • <strong>Đóng Gói Dữ Liệu:</strong> Điền dữ liệu phản hồi tích cực (<code class="text-emerald-300">SID + 0x40</code>) hoặc trả về mã lỗi nghiệp vụ chuyên sâu (<code class="text-rose-300">NRC 0x31, 0x35, 0x36, 0x24, 0x73...</code>).
+                  </td>
+                  <td class="p-3 font-mono text-[11px] text-slate-300 align-top">
+                    • <strong>RTE / SWC:</strong> 0x22, 0x2E, 0x27, 0x31.<br>
+                    • <strong>DEM:</strong> 0x19, 0x14, 0x85.<br>
+                    • <strong>NvM / Fls:</strong> 0x2E, 0x34, 0x36, 0x37.<br>
+                    • <strong>DSL:</strong> Cập nhật Session (0x10) &amp; Security (0x27).
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- OpStatus State Machine Card -->
+          <div class="bg-slate-950/80 border border-slate-800 rounded-xl p-4">
+            <h4 class="text-xs font-bold text-amber-300 uppercase tracking-wider mb-2 flex items-center gap-2">
+              <span>⚙️ Máy Trạng Thái Dcm_OpStatusType Trong Phân Lớp DSP</span>
+              <span class="text-[10px] font-mono text-slate-400 font-normal">[SWS_Dcm_00529]</span>
+            </h4>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+              <div class="bg-slate-900/90 border border-cyan-500/30 p-2.5 rounded-lg">
+                <div class="font-mono font-bold text-cyan-300 text-xs mb-1">DCM_INITIAL</div>
+                <p class="text-[11px] text-slate-300 leading-normal">Lần gọi đầu tiên của DSP tới dịch vụ. Dịch vụ bắt đầu khởi chạy tác vụ và kiểm tra tham số.</p>
+              </div>
+              <div class="bg-slate-900/90 border border-amber-500/30 p-2.5 rounded-lg">
+                <div class="font-mono font-bold text-amber-300 text-xs mb-1">DCM_PENDING</div>
+                <p class="text-[11px] text-slate-300 leading-normal">Tác vụ nền (NvM ghi Flash, xóa khối DEM) chưa xong. DSP sẽ được gọi lại tuần hoàn trong chu kỳ tiếp theo.</p>
+              </div>
+              <div class="bg-slate-900/90 border border-purple-500/30 p-2.5 rounded-lg">
+                <div class="font-mono font-bold text-purple-300 text-xs mb-1">DCM_FORCE_RCRRP_OK</div>
+                <p class="text-[11px] text-slate-300 leading-normal">Bản tin NRC 0x78 (ResponsePending) đã được DSL phát thành công trên bus. DSP tiếp tục giữ quyền điều khiển.</p>
+              </div>
+              <div class="bg-slate-900/90 border border-rose-500/30 p-2.5 rounded-lg">
+                <div class="font-mono font-bold text-rose-300 text-xs mb-1">DCM_CANCEL</div>
+                <p class="text-[11px] text-slate-300 leading-normal">DSL yêu cầu hủy khẩn cấp do quá hạn P2* / chuyển Session / Timeout. DSP phải giải phóng tài nguyên phần cứng ngay.</p>
+              </div>
+            </div>
+          </div>
         </div>
+
+        <!-- ================= TAB 2: QUẢN LÝ TIMER TRONG DSL ================= -->
+        <div id="archTabPanel2" class="hidden space-y-6">
+          <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+            <div>
+              <h3 class="text-sm font-bold text-cyan-300 uppercase tracking-wider">2. Cơ Chế Quản Lý Diagnostic Timers Trong DSL (Start / Reload / Stop &amp; Timeout)</h3>
+              <p class="text-slate-400 text-xs">Phân tích toàn diện hành vi thời gian thực của DSL: P2ServerMax, P2*ServerMax, S3Server &amp; S3Client theo AUTOSAR SWS DCM &amp; ISO 14229-1</p>
+            </div>
+            <span class="text-[11px] font-mono px-2 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-800">[SWS_Dcm_DSL_Timings]</span>
+          </div>
+
+          <!-- Key Concept Note -->
+          <div class="bg-cyan-950/30 border border-cyan-500/30 rounded-xl p-3.5 flex items-start gap-3">
+            <span class="text-cyan-400 text-base mt-0.5">ℹ️</span>
+            <div class="space-y-1">
+              <div class="text-xs font-bold text-cyan-300">Tại sao duy nhất phân lớp DSL chịu trách nhiệm quản lý Diagnostic Timers?</div>
+              <p class="text-slate-300 text-[11px] leading-relaxed">
+                Trong kiến trúc AUTOSAR DCM, <strong>DSL là phân lớp duy nhất kết nối trực tiếp với tầng giao vận (PduR / CanTp / DoIP)</strong> và có cái nhìn toàn cục về trạng thái mạng. DSD và DSP là các tầng logic thuần túy giải mã dịch vụ, không được gắn với vòng lặp thời gian thực của bus. Do đó, DSL sở hữu toàn bộ các đồng hồ đếm thời gian: giám sát tiến độ của DSP, tự động bắn bản tin giữ phiên <code class="text-amber-300">NRC 0x78 (ResponsePending)</code> khi P2 chạm ngưỡng, và tự động thu hồi quyền bảo mật khi S3 đếm về 0.
+              </p>
+            </div>
+          </div>
+
+          <!-- Comprehensive Timing Matrix Table -->
+          <div class="overflow-x-auto rounded-xl border border-slate-800">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="bg-slate-950 text-slate-300 font-semibold border-b border-slate-800">
+                  <th class="p-2.5 border-r border-slate-800 w-36">Loại Timer</th>
+                  <th class="p-2.5 border-r border-slate-800 w-36">Cấu Hình ECUC &amp; Giá Trị Điển Hình</th>
+                  <th class="p-2.5 border-r border-slate-800">Khi Nào DSL KÍCH HOẠT (START)?</th>
+                  <th class="p-2.5 border-r border-slate-800">Khi Nào DSL NẠP LẠI (RELOAD)?</th>
+                  <th class="p-2.5 border-r border-slate-800">Khi Nào DSL DỪNG (STOP)?</th>
+                  <th class="p-2.5">Hành Vi Khi HẾT HẠN (EXPIRY / TIMEOUT)</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-800 text-slate-300">
+                <!-- Row P2ServerMax -->
+                <tr class="hover:bg-slate-800/30 transition">
+                  <td class="p-2.5 border-r border-slate-800 font-mono font-bold text-cyan-300 align-top">
+                    P2ServerMax<br>
+                    <span class="text-[10px] font-sans text-slate-400 font-normal">(Server Response Time)</span>
+                  </td>
+                  <td class="p-2.5 border-r border-slate-800 font-mono text-[11px] align-top">
+                    <span class="text-cyan-300 font-bold">50 ms</span><br>
+                    <span class="text-[10px] text-slate-400">ECUC: DcmTimings/ DcmTimingsP2ServerMax</span>
+                  </td>
+                  <td class="p-2.5 border-r border-slate-800 align-top">
+                    Ngay khi PduR gọi callback <code class="text-cyan-300">Dcm_TpRxIndication()</code> với <code class="text-emerald-300">Result = E_OK</code>, tức là toàn bộ khung dữ liệu Rx đã được CanTp/DoIP tái lắp ghép và chép trọn vẹn vào <code class="text-cyan-300">DcmDslBuffer</code> <span class="text-slate-500">[SWS_Dcm_00111]</span>.
+                  </td>
+                  <td class="p-2.5 border-r border-slate-800 text-slate-400 align-top">
+                    <strong>Không reload</strong> trong một chu kỳ xử lý request đơn lẻ.
+                  </td>
+                  <td class="p-2.5 border-r border-slate-800 align-top">
+                    • Khi DSP xử lý xong và DSL bắt đầu gọi <code class="text-emerald-300">PduR_DcmTransmit()</code> để phát bản tin phản hồi cuối cùng (Final Positive hoặc Negative response thực tế) <span class="text-slate-500">[SWS_Dcm_00114]</span>.<br>
+                    • HOẶC khi DSL phát bản tin <code class="text-amber-300">NRC 0x78 (ResponsePending)</code> để chuyển giao quyền điều khiển sang <code class="text-amber-300">P2*ServerMax</code> <span class="text-slate-500">[SWS_Dcm_00115]</span>.
+                  </td>
+                  <td class="p-2.5 text-rose-300 align-top">
+                    Trước khi P2 đếm về 0 một khoảng <code class="text-cyan-300">DcmDslDiagRespP2ServerAdjust</code>, nếu DSP vẫn báo <code class="text-amber-300">DCM_E_PENDING</code>, DSL tự động phát <code class="text-amber-300">7F [SID] 78</code> để xin Tester gia hạn.<br>
+                    Nếu không phát kịp NRC 0x78 mà P2 về 0: Vi phạm timing giao thức nghiêm trọng, Tester sẽ timeout P2Client!
+                  </td>
+                </tr>
+
+                <!-- Row P2*ServerMax -->
+                <tr class="hover:bg-slate-800/30 transition">
+                  <td class="p-2.5 border-r border-slate-800 font-mono font-bold text-amber-300 align-top">
+                    P2*ServerMax<br>
+                    <span class="text-[10px] font-sans text-slate-400 font-normal">(ResponsePending Time)</span>
+                  </td>
+                  <td class="p-2.5 border-r border-slate-800 font-mono text-[11px] align-top">
+                    <span class="text-amber-300 font-bold">5000 ms</span><br>
+                    <span class="text-[10px] text-slate-400">ECUC: DcmTimings/ DcmTimingsP2StarServerMax</span>
+                  </td>
+                  <td class="p-2.5 border-r border-slate-800 align-top">
+                    Bắt đầu đếm ngay sau khi bản tin <code class="text-amber-300">NRC 0x78</code> đầu tiên được xác nhận truyền đi thành công trên bus thông qua hàm callback <code class="text-cyan-300">Dcm_TpTxConfirmation()</code> <span class="text-slate-500">[SWS_Dcm_00118]</span>.
+                  </td>
+                  <td class="p-2.5 border-r border-slate-800 align-top">
+                    Được nạp lại về <code class="text-amber-300">5000 ms</code> mỗi khi DSL phát thêm một bản tin <code class="text-amber-300">NRC 0x78</code> tiếp theo, miễn là số lần phát chưa vượt quá giới hạn cấu hình <code class="text-purple-300">DcmDslDiagRespMaxNumRespPend</code> (thường từ 1 đến 5 lần) <span class="text-slate-500">[SWS_Dcm_00119]</span>.
+                  </td>
+                  <td class="p-2.5 border-r border-slate-800 align-top">
+                    Dừng đếm ngay khi DSP hoàn tất việc xử lý tác vụ bất đồng bộ và DSL bắt đầu gọi <code class="text-emerald-300">PduR_DcmTransmit()</code> để phát Final Response thật sự <span class="text-slate-500">[SWS_Dcm_00120]</span>.
+                  </td>
+                  <td class="p-2.5 text-rose-300 align-top">
+                    Nếu P2* đếm về 0 ms mà tác vụ vẫn chưa xong (hoặc đã vượt quá số lần cho phép gửi 0x78):<br>
+                    1. DSL gọi DSP với tham số <code class="text-rose-400 font-mono font-bold">OpStatus = DCM_CANCEL</code> để hủy tác vụ ngầm với phần cứng/NvM/Flash <span class="text-slate-500">[SWS_Dcm_00530]</span>.<br>
+                    2. DSL tạo Negative Response <code class="text-rose-400 font-mono font-bold">7F [SID] 10</code> (generalReject) gửi về Tester.<br>
+                    3. Giải phóng bộ đệm về <code class="text-cyan-300">BUF_FREE</code>.
+                  </td>
+                </tr>
+
+                <!-- Row S3Server -->
+                <tr class="hover:bg-slate-800/30 transition">
+                  <td class="p-2.5 border-r border-slate-800 font-mono font-bold text-emerald-300 align-top">
+                    S3Server<br>
+                    <span class="text-[10px] font-sans text-slate-400 font-normal">(Session Keep-Alive)</span>
+                  </td>
+                  <td class="p-2.5 border-r border-slate-800 font-mono text-[11px] align-top">
+                    <span class="text-emerald-300 font-bold">5000 ms</span><br>
+                    <span class="text-[10px] text-slate-400">ECUC: DcmTimings/ DcmTimingsS3Server</span>
+                  </td>
+                  <td class="p-2.5 border-r border-slate-800 align-top">
+                    Bắt đầu đếm ngay tại thời điểm ECU chuyển từ Default Session (<code class="text-slate-300 font-mono">0x01</code>) sang bất kỳ Non-Default Session nào (như Programming <code class="text-cyan-300 font-mono">0x02</code>, Extended <code class="text-cyan-300 font-mono">0x03</code>, Safety <code class="text-cyan-300 font-mono">0x04</code>...) <span class="text-slate-500">[SWS_Dcm_00139]</span>.
+                  </td>
+                  <td class="p-2.5 border-r border-slate-800 align-top">
+                    Được nạp lại về <code class="text-emerald-300">5000 ms</code> mỗi khi ECU nhận được <strong>BẤT KỲ bản tin UDS hợp lệ nào từ Tester</strong> (bao gồm bản tin <code class="text-emerald-300 font-mono">0x3E TesterPresent</code>, <code class="text-cyan-300 font-mono">0x22</code>, <code class="text-cyan-300 font-mono">0x19</code>...), hoặc sau khi hoàn tất việc gửi response cho bản tin đó <span class="text-slate-500">[SWS_Dcm_00140]</span>.
+                  </td>
+                  <td class="p-2.5 border-r border-slate-800 align-top">
+                    Dừng đếm khi ECU chuyển về Default Session (<code class="text-slate-300 font-mono">0x01</code>) do nhận request <code class="text-slate-300 font-mono">10 01</code>, nhận lệnh <code class="text-rose-300 font-mono">11 ECUReset</code>, hoặc do chính S3Server bị timeout <span class="text-slate-500">[SWS_Dcm_00144]</span>.
+                  </td>
+                  <td class="p-2.5 text-rose-300 align-top">
+                    Nếu trong vòng 5000 ms liên tục không có bất kỳ bản tin nào từ Tester tới ECU (<code class="text-rose-400">s3RemainingMs == 0</code>):<br>
+                    1. DSL tự động gọi <code class="text-amber-300 font-mono font-bold">Dcm_ResetToDefaultSession()</code> đưa ActiveSession về <code class="text-emerald-400 font-mono">0x01</code> <span class="text-slate-500">[SWS_Dcm_00141, 00142]</span>.<br>
+                    2. DSL tự động khóa SecurityLevel về <code class="text-rose-400 font-mono font-bold">0x00 (Locked)</code> <span class="text-slate-500">[SWS_Dcm_00143]</span>.<br>
+                    3. Báo BswM chuyển chế độ an toàn; dừng đếm S3Server.
+                  </td>
+                </tr>
+
+                <!-- Row S3Client -->
+                <tr class="hover:bg-slate-800/30 transition">
+                  <td class="p-2.5 border-r border-slate-800 font-mono font-bold text-teal-300 align-top">
+                    S3Client<br>
+                    <span class="text-[10px] font-sans text-slate-400 font-normal">(Tester Cycle)</span>
+                  </td>
+                  <td class="p-2.5 border-r border-slate-800 font-mono text-[11px] align-top">
+                    <span class="text-teal-300 font-bold">2000 - 2500 ms</span><br>
+                    <span class="text-[10px] text-slate-400">Tester Software Config (ISO 14229-1)</span>
+                  </td>
+                  <td class="p-2.5 border-r border-slate-800 align-top">
+                    Phía Diagnostic Tester khởi chạy đồng hồ chu kỳ S3Client ngay khi nhận phản hồi tích cực chuyển sang Non-Default Session (<code class="text-cyan-300">50 03...</code> hoặc <code class="text-cyan-300">50 02...</code>).
+                  </td>
+                  <td class="p-2.5 border-r border-slate-800 align-top">
+                    Tester nạp lại chu kỳ đếm mỗi khi phát một bản tin bất kỳ xuống bus hoặc gửi bản tin TesterPresent định kỳ.
+                  </td>
+                  <td class="p-2.5 border-r border-slate-800 align-top">
+                    Dừng khi Tester chủ động gửi lệnh chuyển về Default (<code class="text-slate-300">10 01</code>) hoặc người dùng ngắt kết nối chẩn đoán.
+                  </td>
+                  <td class="p-2.5 text-teal-300 align-top">
+                    Mỗi khi hết chu kỳ $T_{client} pprox 2500ms$ (luôn cấu hình $T_{client} < S3Server$), Tester tự động phát bản tin <code class="text-emerald-300 font-bold">3E 80</code> (SPRMIB=1) để nạp lại đồng hồ S3Server của ECU mà không cần ECU phản hồi.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Timing Sequence SVG Diagrams -->
+          <div class="bg-slate-950/80 border border-slate-800 rounded-xl p-4 space-y-4">
+            <h4 class="text-xs font-bold text-white uppercase tracking-wider flex items-center justify-between">
+              <span>📈 Biểu Đồ Thời Gian (Timing Sequence Diagrams) Cho Từng Trường Hợp</span>
+              <span class="text-[10px] font-mono text-cyan-400 font-normal">ISO 14229-1 Timing Specifications</span>
+            </h4>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 text-[11px]">
+              <!-- Scenario A Card -->
+              <div class="bg-slate-900 border border-slate-800 p-3 rounded-lg space-y-2">
+                <div class="font-bold text-emerald-400 flex items-center gap-1.5">
+                  <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                  <span>1. Phản Hồi Bình Thường (Trong P2)</span>
+                </div>
+                <p class="text-slate-400 text-[10px] leading-relaxed">Thời gian xử lý của DSP nhanh hơn P2ServerMax ($t_{resp} &lt; 50ms$). ECU phản hồi trực tiếp không cần NRC 0x78.</p>
+                <div class="bg-slate-950 p-2 rounded border border-slate-800/80 font-mono text-[10px] text-slate-300 space-y-1">
+                  <div class="flex justify-between text-cyan-300"><span>t = 0ms:</span> <span>Rx [22 F1 86] ➔ P2 Start</span></div>
+                  <div class="flex justify-between text-slate-400"><span>t = 15ms:</span> <span>DSP đọc Session = 0x01</span></div>
+                  <div class="flex justify-between text-emerald-400"><span>t = 20ms:</span> <span>Tx [62 F1 86 01] ➔ P2 Stop</span></div>
+                </div>
+                <div class="w-full bg-slate-950 h-3 rounded-full overflow-hidden border border-slate-800 relative">
+                  <div class="bg-emerald-500 h-full w-[40%]"></div>
+                  <div class="absolute right-2 top-0 text-[8px] font-mono text-slate-500">P2Max (50ms)</div>
+                </div>
+              </div>
+
+              <!-- Scenario B Card -->
+              <div class="bg-slate-900 border border-slate-800 p-3 rounded-lg space-y-2">
+                <div class="font-bold text-amber-400 flex items-center gap-1.5">
+                  <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+                  <span>2. Bất Đồng Bộ: NRC 0x78 &amp; P2*</span>
+                </div>
+                <p class="text-slate-400 text-[10px] leading-relaxed">Tác vụ NvM/Flash bận ($t_{resp} &gt; 50ms$). DSL bắn NRC 0x78 trước khi P2 hết hạn và kích hoạt P2*ServerMax (5000ms).</p>
+                <div class="bg-slate-950 p-2 rounded border border-slate-800/80 font-mono text-[10px] text-slate-300 space-y-1">
+                  <div class="flex justify-between text-cyan-300"><span>t = 0ms:</span> <span>Rx [22 F1 90] ➔ P2 Start</span></div>
+                  <div class="flex justify-between text-amber-300"><span>t = 48ms:</span> <span>Tx [7F 22 78] ➔ P2* Start</span></div>
+                  <div class="flex justify-between text-emerald-400"><span>t = 250ms:</span> <span>Tx [62 F1 90 ...] ➔ P2* Stop</span></div>
+                </div>
+                <div class="w-full bg-slate-950 h-3 rounded-full overflow-hidden border border-slate-800 relative">
+                  <div class="bg-amber-500 h-full w-[20%]"></div>
+                  <div class="absolute right-2 top-0 text-[8px] font-mono text-slate-500">P2*Max (5000ms)</div>
+                </div>
+              </div>
+
+              <!-- Scenario C Card -->
+              <div class="bg-slate-900 border border-slate-800 p-3 rounded-lg space-y-2">
+                <div class="font-bold text-rose-400 flex items-center gap-1.5">
+                  <span class="w-2 h-2 rounded-full bg-rose-400"></span>
+                  <span>3. Mất Kết Nối ➔ Hết Hạn S3Server</span>
+                </div>
+                <p class="text-slate-400 text-[10px] leading-relaxed">Tester không gửi TesterPresent trong 5000ms. S3 đếm về 0, DSL tự hạ về Default Session 0x01 và khóa Security 0x00.</p>
+                <div class="bg-slate-950 p-2 rounded border border-slate-800/80 font-mono text-[10px] text-slate-300 space-y-1">
+                  <div class="flex justify-between text-cyan-300"><span>t = 0s:</span> <span>Chuyển Session 0x03 (S3=5s)</span></div>
+                  <div class="flex justify-between text-slate-400"><span>t = 1..4s:</span> <span>Không nhận được UDS / 3E</span></div>
+                  <div class="flex justify-between text-rose-400"><span>t = 5.0s:</span> <span>S3=0 ➔ Fallback Session 0x01</span></div>
+                </div>
+                <div class="w-full bg-slate-950 h-3 rounded-full overflow-hidden border border-slate-800 relative">
+                  <div class="bg-rose-500 h-full w-[100%]"></div>
+                  <div class="absolute right-2 top-0 text-[8px] font-mono text-white">TIMEOUT!</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ECUC Timings Configuration Parameters Table -->
+          <div class="overflow-x-auto rounded-xl border border-slate-800">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="bg-slate-950 text-slate-300 font-semibold border-b border-slate-800 text-[11px]">
+                  <th class="p-2.5 border-r border-slate-800">Tên Cấu Hình ECUC Chuẩn</th>
+                  <th class="p-2.5 border-r border-slate-800">Container Cha</th>
+                  <th class="p-2.5 border-r border-slate-800">Kiểu Dữ Liệu &amp; Đơn Vị</th>
+                  <th class="p-2.5">Ý Nghĩa Thực Tế Trong AUTOSAR BSW</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-800 text-slate-300 text-[11px] font-mono">
+                <tr>
+                  <td class="p-2.5 border-r border-slate-800 text-cyan-300 font-bold">DcmTimingsP2ServerMax</td>
+                  <td class="p-2.5 border-r border-slate-800 text-slate-400">DcmTimings</td>
+                  <td class="p-2.5 border-r border-slate-800">EcucFloatParamDef (giây)</td>
+                  <td class="p-2.5 text-slate-300 font-sans">Thời gian tối đa ECU phải bắt đầu phát phản hồi cho một Request (Mặc định 0.05s = 50ms).</td>
+                </tr>
+                <tr>
+                  <td class="p-2.5 border-r border-slate-800 text-amber-300 font-bold">DcmTimingsP2StarServerMax</td>
+                  <td class="p-2.5 border-r border-slate-800 text-slate-400">DcmTimings</td>
+                  <td class="p-2.5 border-r border-slate-800">EcucFloatParamDef (giây)</td>
+                  <td class="p-2.5 text-slate-300 font-sans">Thời gian tối đa được phép phản hồi sau khi đã gửi NRC 0x78 ResponsePending (Mặc định 5.0s = 5000ms).</td>
+                </tr>
+                <tr>
+                  <td class="p-2.5 border-r border-slate-800 text-emerald-300 font-bold">DcmTimingsS3Server</td>
+                  <td class="p-2.5 border-r border-slate-800 text-slate-400">DcmTimings</td>
+                  <td class="p-2.5 border-r border-slate-800">EcucFloatParamDef (giây)</td>
+                  <td class="p-2.5 text-slate-300 font-sans">Thời gian chờ tối đa giữa các request để duy trì Non-Default Session trước khi tự động reset về Default (Mặc định 5.0s).</td>
+                </tr>
+                <tr>
+                  <td class="p-2.5 border-r border-slate-800 text-purple-300 font-bold">DcmDslDiagRespMaxNumRespPend</td>
+                  <td class="p-2.5 border-r border-slate-800 text-slate-400">DcmDslDiagResp</td>
+                  <td class="p-2.5 border-r border-slate-800">EcucIntegerParamDef</td>
+                  <td class="p-2.5 text-slate-300 font-sans">Số lần tối đa liên tiếp DSL được phép phát NRC 0x78 trước khi ép hủy bằng OpStatus = DCM_CANCEL và bắn NRC 0x10.</td>
+                </tr>
+                <tr>
+                  <td class="p-2.5 border-r border-slate-800 text-cyan-300 font-bold">DcmDslDiagRespP2ServerAdjust</td>
+                  <td class="p-2.5 border-r border-slate-800 text-slate-400">DcmDslDiagResp</td>
+                  <td class="p-2.5 border-r border-slate-800">EcucFloatParamDef (giây)</td>
+                  <td class="p-2.5 text-slate-300 font-sans">Khoảng dung sai an toàn trừ bớt khỏi P2ServerMax để đảm bảo bản tin NRC 0x78 tới được bus trước khi Tester timeout.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- ================= TAB 3: SƠ ĐỒ KHỐI TƯƠNG TÁC 3 LAYER DCM ================= -->
+        <div id="archTabPanel3" class="hidden space-y-6">
+          <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+            <div>
+              <h3 class="text-sm font-bold text-cyan-300 uppercase tracking-wider">3. Sơ Đồ Khối Tương Tác Giữa 3 Layer DCM (DSL ➔ DSD ➔ DSP) &amp; Ngoại Vi</h3>
+              <p class="text-slate-400 text-xs">Mô hình luồng dữ liệu 10 chặng hoàn chỉnh từ Diagnostic Tester qua PduR, DSL, DSD, DSP tới BSW / RTE</p>
+            </div>
+            <span class="text-[11px] font-mono px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800">AUTOSAR Architecture Standard</span>
+          </div>
+
+          <!-- Responsive Interactive SVG Block Diagram -->
+          <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 overflow-x-auto shadow-inner">
+            <svg viewBox="0 0 1020 620" class="w-full min-w-[900px] h-auto select-none" style="font-family: ui-sans-serif, system-ui, sans-serif;">
+              <defs>
+                <marker id="arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                  <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#38bdf8"></path>
+                </marker>
+                <marker id="arrowAmber" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                  <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#fbbf24"></path>
+                </marker>
+                <marker id="arrowEmerald" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                  <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#34d399"></path>
+                </marker>
+                <marker id="arrowRose" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                  <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#f43f5e"></path>
+                </marker>
+              </defs>
+
+              <!-- TOP BAR: EXTERNAL TESTER & LOWER LAYERS -->
+              <g id="svgTesterGroup">
+                <rect x="30" y="20" width="240" height="65" rx="8" fill="#0f172a" stroke="#38bdf8" stroke-width="1.5"></rect>
+                <text x="150" y="44" fill="#38bdf8" font-size="12" font-weight="bold" text-anchor="middle">Diagnostic Tester (ISO 14229-1)</text>
+                <text x="150" y="62" fill="#94a3b8" font-size="10" text-anchor="middle">Phát UDS Request | Giám sát P2Client, S3Client</text>
+              </g>
+
+              <g id="svgCanTpGroup">
+                <rect x="370" y="20" width="260" height="65" rx="8" fill="#0f172a" stroke="#64748b" stroke-width="1.2"></rect>
+                <text x="500" y="44" fill="#e2e8f0" font-size="12" font-weight="bold" text-anchor="middle">CanTp / DoIP Transport Protocol</text>
+                <text x="500" y="62" fill="#94a3b8" font-size="10" text-anchor="middle">Phân mảnh SF/FF/CF &amp; Reassembly [ISO 15765-2]</text>
+              </g>
+
+              <g id="svgPdurGroup">
+                <rect x="730" y="20" width="250" height="65" rx="8" fill="#0f172a" stroke="#64748b" stroke-width="1.2"></rect>
+                <text x="855" y="44" fill="#e2e8f0" font-size="12" font-weight="bold" text-anchor="middle">PduR (PDU Router)</text>
+                <text x="855" y="62" fill="#94a3b8" font-size="10" text-anchor="middle">Định tuyến PDU 1-1 tới DCM Callbacks</text>
+              </g>
+
+              <!-- Connectors: Tester -> CanTp -> PduR -->
+              <line x1="270" y1="52" x2="368" y2="52" stroke="#38bdf8" stroke-width="2" marker-end="url(#arrow)"></line>
+              <text x="320" y="45" fill="#38bdf8" font-size="9" font-family="monospace" text-anchor="middle">[1] CAN/ETH</text>
+
+              <line x1="630" y1="52" x2="728" y2="52" stroke="#38bdf8" stroke-width="2" marker-end="url(#arrow)"></line>
+              <text x="680" y="45" fill="#38bdf8" font-size="9" font-family="monospace" text-anchor="middle">[1] I-PDU</text>
+
+              <!-- ================= LAYER 1: DSL CONTAINER ================= -->
+              <rect x="30" y="115" width="950" height="135" rx="12" fill="#091322" stroke="#0284c7" stroke-width="1.5" stroke-dasharray="6,3"></rect>
+              <text x="50" y="137" fill="#38bdf8" font-size="12" font-weight="bold">1. DCM — DSL (Diagnostic Session Layer)</text>
+              <text x="330" y="137" fill="#64748b" font-size="10">Buffer Manager, Diagnostic Timers (P2/P2*/S3), State Machine &amp; Tx Routing [SWS_Dcm_DSL]</text>
+
+              <!-- DSL Inner Components -->
+              <!-- Buffer Manager -->
+              <rect x="50" y="152" width="200" height="82" rx="8" fill="#0f172a" stroke="#0ea5e9" stroke-width="1"></rect>
+              <text x="150" y="172" fill="#38bdf8" font-size="11" font-weight="bold" text-anchor="middle">DcmDslBuffer Manager</text>
+              <text x="150" y="190" fill="#94a3b8" font-size="9" text-anchor="middle">Alloc 256B, Khóa Rx/Tx</text>
+              <text x="150" y="206" fill="#38bdf8" font-size="9" font-family="monospace" text-anchor="middle">BUF_FREE ➔ LOCKED_RX</text>
+              <text x="150" y="222" fill="#64748b" font-size="8" text-anchor="middle">Dcm_StartOfReception / CopyRxData</text>
+
+              <!-- Timer Engine -->
+              <rect x="270" y="152" width="240" height="82" rx="8" fill="#0f172a" stroke="#0ea5e9" stroke-width="1"></rect>
+              <text x="390" y="172" fill="#38bdf8" font-size="11" font-weight="bold" text-anchor="middle">DSL Timing Engine</text>
+              <text x="390" y="190" fill="#facc15" font-size="9" font-family="monospace" text-anchor="middle">P2ServerMax (50ms)</text>
+              <text x="390" y="206" fill="#fb923c" font-size="9" font-family="monospace" text-anchor="middle">P2*ServerMax (5000ms)</text>
+              <text x="390" y="222" fill="#34d399" font-size="9" font-family="monospace" text-anchor="middle">S3Server Keep-Alive (5000ms)</text>
+
+              <!-- State Machine -->
+              <rect x="530" y="152" width="210" height="82" rx="8" fill="#0f172a" stroke="#0ea5e9" stroke-width="1"></rect>
+              <text x="635" y="172" fill="#38bdf8" font-size="11" font-weight="bold" text-anchor="middle">Session &amp; Security State</text>
+              <text x="635" y="190" fill="#94a3b8" font-size="9" text-anchor="middle">ActiveSession: 0x01 / 0x02 / 0x03</text>
+              <text x="635" y="206" fill="#94a3b8" font-size="9" text-anchor="middle">SecurityLevel: 0x00 / 0x01 / 0x02</text>
+              <text x="635" y="222" fill="#f43f5e" font-size="9" text-anchor="middle">S3 Timeout ➔ Reset 0x01 &amp; Lock</text>
+
+              <!-- DSL Tx Handler -->
+              <rect x="760" y="152" width="200" height="82" rx="8" fill="#0f172a" stroke="#0ea5e9" stroke-width="1"></rect>
+              <text x="860" y="172" fill="#38bdf8" font-size="11" font-weight="bold" text-anchor="middle">DSL Tx &amp; RCR-RP Controller</text>
+              <text x="860" y="190" fill="#f43f5e" font-size="9" font-family="monospace" text-anchor="middle">Phát NRC 0x78 (ResponsePending)</text>
+              <text x="860" y="206" fill="#34d399" font-size="9" font-family="monospace" text-anchor="middle">PduR_DcmTransmit() Final</text>
+              <text x="860" y="222" fill="#94a3b8" font-size="8" text-anchor="middle">Dcm_TpTxConfirmation() ➔ BUF_FREE</text>
+
+              <!-- Arrow PduR -> DSL Buffer -->
+              <path d="M 855 85 L 855 105 L 150 105 L 150 150" fill="none" stroke="#38bdf8" stroke-width="1.8" marker-end="url(#arrow)"></path>
+              <text x="490" y="100" fill="#38bdf8" font-size="9" font-family="monospace" text-anchor="middle">[2] Dcm_StartOfReception() + Dcm_CopyRxData()</text>
+
+              <!-- Arrow Buffer -> Timer -->
+              <line x1="250" y1="193" x2="268" y2="193" stroke="#38bdf8" stroke-width="1.5" marker-end="url(#arrow)"></line>
+              <text x="260" y="186" fill="#38bdf8" font-size="8" font-family="monospace" text-anchor="middle">[3]</text>
+
+              <!-- Arrow Timer -> DSL Tx (NRC 0x78) -->
+              <path d="M 390 152 L 390 140 L 860 140 L 860 150" fill="none" stroke="#fbbf24" stroke-width="1.5" stroke-dasharray="4,2" marker-end="url(#arrowAmber)"></path>
+              <text x="620" y="136" fill="#fbbf24" font-size="8" font-family="monospace" text-anchor="middle">[9] P2 Threshold ➔ Bắn NRC 0x78 &amp; Nạp P2*</text>
+
+              <!-- ================= LAYER 2: DSD CONTAINER ================= -->
+              <rect x="30" y="275" width="950" height="130" rx="12" fill="#181308" stroke="#d97706" stroke-width="1.5" stroke-dasharray="6,3"></rect>
+              <text x="50" y="297" fill="#fbbf24" font-size="12" font-weight="bold">2. DCM — DSD (Diagnostic Service Dispatcher)</text>
+              <text x="350" y="297" fill="#78716c" font-size="10">Tra bảng DcmDsdServiceTable, Thẩm định Session/Security/ModeRule, Định tuyến DSP [SWS_Dcm_DSD]</text>
+
+              <!-- DSD Inner Components -->
+              <!-- Service Table -->
+              <rect x="50" y="310" width="220" height="78" rx="8" fill="#0f172a" stroke="#f59e0b" stroke-width="1"></rect>
+              <text x="160" y="330" fill="#fbbf24" font-size="11" font-weight="bold" text-anchor="middle">DcmDsdServiceTable</text>
+              <text x="160" y="347" fill="#94a3b8" font-size="9" text-anchor="middle">Tra cứu SID Byte #0 (0x10, 0x22...)</text>
+              <text x="160" y="363" fill="#f43f5e" font-size="9" font-family="monospace" text-anchor="middle">Không tìm thấy ➔ NRC 0x11</text>
+              <text x="160" y="378" fill="#64748b" font-size="8" text-anchor="middle">[SWS_Dcm_00192]</text>
+
+              <!-- 5-Stage Verification -->
+              <rect x="290" y="310" width="370" height="78" rx="8" fill="#0f172a" stroke="#f59e0b" stroke-width="1"></rect>
+              <text x="475" y="330" fill="#fbbf24" font-size="11" font-weight="bold" text-anchor="middle">Pipeline Thẩm Định 5 Bước (Security &amp; ModeRule)</text>
+              <text x="475" y="347" fill="#94a3b8" font-size="9" text-anchor="middle">1. Session (0x7F) • 2. Security Level (0x33) • 3. SubFunc (0x12)</text>
+              <text x="475" y="363" fill="#94a3b8" font-size="9" text-anchor="middle">4. Min Length (0x13) • 5. ModeRule Preconditions (0x22)</text>
+              <text x="475" y="378" fill="#34d399" font-size="8" font-family="monospace" text-anchor="middle">Tất cả PASS ➔ Định tuyến tới DSP</text>
+
+              <!-- SPRMIB & Fast Negative Response -->
+              <rect x="680" y="310" width="280" height="78" rx="8" fill="#0f172a" stroke="#f59e0b" stroke-width="1"></rect>
+              <text x="820" y="330" fill="#fbbf24" font-size="11" font-weight="bold" text-anchor="middle">SPRMIB &amp; Fast-Path NRC</text>
+              <text x="820" y="347" fill="#38bdf8" font-size="9" text-anchor="middle">SPRMIB=1 ➔ Chặn PosRsp; Vẫn gửi NegRsp</text>
+              <text x="820" y="363" fill="#f43f5e" font-size="9" font-family="monospace" text-anchor="middle">Vi phạm ➔ Trả 7F [SID] [NRC] thẳng về DSL</text>
+              <text x="820" y="378" fill="#64748b" font-size="8" text-anchor="middle">Không cần gọi sang DSP</text>
+
+              <!-- Arrow DSL -> DSD -->
+              <line x1="160" y1="234" x2="160" y2="308" stroke="#38bdf8" stroke-width="1.8" marker-end="url(#arrow)"></line>
+              <text x="165" y="270" fill="#38bdf8" font-size="9" font-family="monospace">[4] Dcm_TpRxIndication() ➔ DsdInternal_RxIndication(&amp;MsgContext)</text>
+
+              <!-- Arrow DSD Fast NRC -> DSL Tx -->
+              <path d="M 820 310 L 820 280 L 890 280 L 890 236" fill="none" stroke="#f43f5e" stroke-width="1.5" stroke-dasharray="4,2" marker-end="url(#arrowRose)"></path>
+              <text x="895" y="270" fill="#f43f5e" font-size="8" font-family="monospace">[5] Fast NRC 7F</text>
+
+              <!-- ================= LAYER 3: DSP CONTAINER ================= -->
+              <rect x="30" y="425" width="950" height="95" rx="12" fill="#061c16" stroke="#059669" stroke-width="1.5" stroke-dasharray="6,3"></rect>
+              <text x="50" y="445" fill="#34d399" font-size="12" font-weight="bold">3. DCM — DSP (Diagnostic Service Processing)</text>
+              <text x="350" y="445" fill="#6ee7b7" font-size="10">Thực thi handler chuyên biệt, quản lý OpStatus (INITIAL ➔ PENDING ➔ CANCEL), gọi RTE/DEM/NvM [SWS_Dcm_DSP]</text>
+
+              <!-- DSP Handlers -->
+              <rect x="50" y="455" width="460" height="52" rx="8" fill="#0f172a" stroke="#10b981" stroke-width="1"></rect>
+              <text x="280" y="474" fill="#34d399" font-size="11" font-weight="bold" text-anchor="middle">UDS Service Processing Routines (DspInternal_Uds_*)</text>
+              <text x="280" y="492" fill="#94a3b8" font-size="9" text-anchor="middle">0x10 SesCtrl | 0x22 ReadDID | 0x27 SecAccess | 0x2E WriteDID | 0x31 Routine | 0x34/36 Flashing | 0x3E TesterPresent</text>
+
+              <!-- DSP OpStatus & Packing -->
+              <rect x="530" y="455" width="430" height="52" rx="8" fill="#0f172a" stroke="#10b981" stroke-width="1"></rect>
+              <text x="745" y="474" fill="#34d399" font-size="11" font-weight="bold" text-anchor="middle">OpStatus Machine &amp; Response Packing</text>
+              <text x="745" y="492" fill="#94a3b8" font-size="9" text-anchor="middle">DCM_INITIAL ➔ DCM_PENDING ➔ DCM_FORCE_RCRRP_OK ➔ DCM_CANCEL | Đóng gói SID+0x40</text>
+
+              <!-- Arrow DSD -> DSP -->
+              <line x1="475" y1="388" x2="475" y2="453" stroke="#34d399" stroke-width="1.8" marker-end="url(#arrowEmerald)"></line>
+              <text x="480" y="420" fill="#34d399" font-size="9" font-family="monospace">[6] DspInternal_Uds_*(OpStatus, &amp;MsgContext)</text>
+
+              <!-- ================= BOTTOM ROW: ADJACENT BSW & RTE ================= -->
+              <g id="svgNvm">
+                <rect x="50" y="540" width="180" height="60" rx="8" fill="#0f172a" stroke="#64748b" stroke-width="1.2"></rect>
+                <text x="140" y="563" fill="#e2e8f0" font-size="11" font-weight="bold" text-anchor="middle">NvM / Flash Driver</text>
+                <text x="140" y="582" fill="#94a3b8" font-size="9" text-anchor="middle">Đọc/Ghi DID, Xóa/Nạp Flash</text>
+              </g>
+
+              <g id="svgDem">
+                <rect x="250" y="540" width="180" height="60" rx="8" fill="#0f172a" stroke="#64748b" stroke-width="1.2"></rect>
+                <text x="340" y="563" fill="#e2e8f0" font-size="11" font-weight="bold" text-anchor="middle">DEM Module</text>
+                <text x="340" y="582" fill="#94a3b8" font-size="9" text-anchor="middle">0x19 Đọc DTC, 0x14 Xóa lỗi</text>
+              </g>
+
+              <g id="svgBswm">
+                <rect x="450" y="540" width="180" height="60" rx="8" fill="#0f172a" stroke="#64748b" stroke-width="1.2"></rect>
+                <text x="540" y="563" fill="#e2e8f0" font-size="11" font-weight="bold" text-anchor="middle">BswM / EcuM</text>
+                <text x="540" y="582" fill="#94a3b8" font-size="9" text-anchor="middle">Chuyển Session Mode, Reset ECU</text>
+              </g>
+
+              <g id="svgRteSwc">
+                <rect x="650" y="540" width="310" height="60" rx="8" fill="#0f172a" stroke="#64748b" stroke-width="1.2"></rect>
+                <text x="805" y="563" fill="#e2e8f0" font-size="11" font-weight="bold" text-anchor="middle">RTE / Application SW-Cs</text>
+                <text x="805" y="582" fill="#94a3b8" font-size="9" text-anchor="middle">Tín hiệu cảm biến (VIN, RPM, Temp), Routine Control</text>
+              </g>
+
+              <!-- Arrow DSP -> BSW/RTE -->
+              <line x1="280" y1="507" x2="280" y2="538" stroke="#10b981" stroke-width="1.5" marker-end="url(#arrowEmerald)"></line>
+              <text x="290" y="525" fill="#34d399" font-size="8" font-family="monospace">[7] Rte_Call / Dem_* / NvM_*</text>
+
+              <!-- Arrow DSP Done -> DSL Tx -->
+              <path d="M 860 455 L 860 236" fill="none" stroke="#38bdf8" stroke-width="1.8" marker-end="url(#arrow)"></path>
+              <text x="865" y="420" fill="#38bdf8" font-size="8" font-family="monospace">[8] Dcm_ProcessingDone()</text>
+
+              <!-- Arrow DSL Tx -> PduR -> CanTp -> Tester -->
+              <path d="M 940 152 L 940 87" fill="none" stroke="#38bdf8" stroke-width="1.8" marker-end="url(#arrow)"></path>
+              <text x="945" y="100" fill="#38bdf8" font-size="8" font-family="monospace">[10] PduR_DcmTransmit()</text>
+            </svg>
+          </div>
+
+          <!-- Step-by-step Inter-layer Flow Table -->
+          <div class="overflow-x-auto rounded-xl border border-slate-800">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="bg-slate-950 text-slate-300 font-semibold border-b border-slate-800 text-[11px]">
+                  <th class="p-2.5 border-r border-slate-800 w-16 text-center">Chặng</th>
+                  <th class="p-2.5 border-r border-slate-800 w-48">Phân Lớp Nguồn ➔ Đích</th>
+                  <th class="p-2.5 border-r border-slate-800 w-64">Hàm API / Cơ Chế AUTOSAR</th>
+                  <th class="p-2.5">Ý Nghĩa Thực Thi &amp; Quản Lý Trạng Thái</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-800 text-slate-300 text-[11px]">
+                <tr class="hover:bg-slate-800/30 transition">
+                  <td class="p-2.5 border-r border-slate-800 text-center font-bold font-mono text-cyan-300">[1]</td>
+                  <td class="p-2.5 border-r border-slate-800 font-medium text-slate-200">Tester ➔ CanTp ➔ PduR</td>
+                  <td class="p-2.5 border-r border-slate-800 font-mono text-cyan-300">PduR_CanTpRxIndication()</td>
+                  <td class="p-2.5">Tester phát bản tin UDS. CanTp nhận frame CAN/ETH, tái lắp ghép SF/FF/CF và thông báo lên PduR.</td>
+                </tr>
+                <tr class="hover:bg-slate-800/30 transition">
+                  <td class="p-2.5 border-r border-slate-800 text-center font-bold font-mono text-cyan-300">[2]</td>
+                  <td class="p-2.5 border-r border-slate-800 font-medium text-slate-200">PduR ➔ DSL Buffer</td>
+                  <td class="p-2.5 border-r border-slate-800 font-mono text-cyan-300">Dcm_StartOfReception() + Dcm_CopyRxData()</td>
+                  <td class="p-2.5">PduR xin cấp phát buffer. DSL kiểm tra và chuyển DcmDslBuffer từ BUF_FREE ➔ BUF_LOCKED_RX, chép từng đoạn payload vào RAM.</td>
+                </tr>
+                <tr class="hover:bg-slate-800/30 transition">
+                  <td class="p-2.5 border-r border-slate-800 text-center font-bold font-mono text-cyan-300">[3]</td>
+                  <td class="p-2.5 border-r border-slate-800 font-medium text-slate-200">PduR ➔ DSL Timing</td>
+                  <td class="p-2.5 border-r border-slate-800 font-mono text-cyan-300">Dcm_TpRxIndication(E_OK)</td>
+                  <td class="p-2.5">Toàn bộ request đã vào RAM. DSL khởi động đồng hồ P2ServerMax (50ms) và nạp lại S3Server = 5000ms.</td>
+                </tr>
+                <tr class="hover:bg-slate-800/30 transition">
+                  <td class="p-2.5 border-r border-slate-800 text-center font-bold font-mono text-cyan-300">[4]</td>
+                  <td class="p-2.5 border-r border-slate-800 font-medium text-slate-200">DSL ➔ DSD Dispatcher</td>
+                  <td class="p-2.5 border-r border-slate-800 font-mono text-amber-300">DsdInternal_RxIndication(&amp;pMsgContext)</td>
+                  <td class="p-2.5">DSL chuyển giao quyền xử lý sang DSD kèm context chứa con trỏ buffer, độ dài gói tin, Session và Security hiện hành.</td>
+                </tr>
+                <tr class="hover:bg-slate-800/30 transition">
+                  <td class="p-2.5 border-r border-slate-800 text-center font-bold font-mono text-rose-300">[5]</td>
+                  <td class="p-2.5 border-r border-slate-800 font-medium text-slate-200">DSD ➔ DSL Tx (Fast Path)</td>
+                  <td class="p-2.5 border-r border-slate-800 font-mono text-rose-300">Negative Response 7F [SID] [NRC]</td>
+                  <td class="p-2.5">Nếu vi phạm 1 trong 5 trạm kiểm tra (SID, Session, Security, SubFunc/Len, ModeRule), DSD tự đóng gói NRC và gửi thẳng về DSL Tx mà không qua DSP.</td>
+                </tr>
+                <tr class="hover:bg-slate-800/30 transition">
+                  <td class="p-2.5 border-r border-slate-800 text-center font-bold font-mono text-emerald-300">[6]</td>
+                  <td class="p-2.5 border-r border-slate-800 font-medium text-slate-200">DSD ➔ DSP Core</td>
+                  <td class="p-2.5 border-r border-slate-800 font-mono text-emerald-300">DspInternal_Uds_*(OpStatus, &amp;MsgContext)</td>
+                  <td class="p-2.5">DSD định tuyến tới hàm xử lý dịch vụ trong DSP với OpStatus = DCM_INITIAL.</td>
+                </tr>
+                <tr class="hover:bg-slate-800/30 transition">
+                  <td class="p-2.5 border-r border-slate-800 text-center font-bold font-mono text-emerald-300">[7]</td>
+                  <td class="p-2.5 border-r border-slate-800 font-medium text-slate-200">DSP ➔ RTE / DEM / NvM</td>
+                  <td class="p-2.5 border-r border-slate-800 font-mono text-emerald-300">Rte_Call_*() / Dem_*() / NvM_*()</td>
+                  <td class="p-2.5">DSP tương tác với các module BSW khác để lấy dữ liệu cảm biến, đọc/xóa lỗi DTC, đọc/ghi NvM hoặc xóa flash.</td>
+                </tr>
+                <tr class="hover:bg-slate-800/30 transition">
+                  <td class="p-2.5 border-r border-slate-800 text-center font-bold font-mono text-cyan-300">[8]</td>
+                  <td class="p-2.5 border-r border-slate-800 font-medium text-slate-200">DSP ➔ DSD / DSL</td>
+                  <td class="p-2.5 border-r border-slate-800 font-mono text-cyan-300">Dcm_ProcessingDone(&amp;pMsgContext)</td>
+                  <td class="p-2.5">DSP hoàn tất đóng gói dữ liệu phản hồi tích cực (SID+0x40) vào buffer và thông báo cho DSD/DSL sẵn sàng truyền.</td>
+                </tr>
+                <tr class="hover:bg-slate-800/30 transition">
+                  <td class="p-2.5 border-r border-slate-800 text-center font-bold font-mono text-amber-300">[9]</td>
+                  <td class="p-2.5 border-r border-slate-800 font-medium text-slate-200">DSL Timers ➔ DSL Tx</td>
+                  <td class="p-2.5 border-r border-slate-800 font-mono text-amber-300">PduR_DcmTransmit(7F [SID] 78)</td>
+                  <td class="p-2.5">Nếu DSP bận (DCM_E_PENDING) và P2 chạm ngưỡng, DSL Timer tự kích hoạt DSL Tx phát bản tin NRC 0x78 (ResponsePending) và nạp P2*ServerMax = 5000ms.</td>
+                </tr>
+                <tr class="hover:bg-slate-800/30 transition">
+                  <td class="p-2.5 border-r border-slate-800 text-center font-bold font-mono text-cyan-300">[10]</td>
+                  <td class="p-2.5 border-r border-slate-800 font-medium text-slate-200">DSL Tx ➔ PduR ➔ CanTp</td>
+                  <td class="p-2.5 border-r border-slate-800 font-mono text-cyan-300">PduR_DcmTransmit() ➔ Dcm_TpTxConfirmation()</td>
+                  <td class="p-2.5">DSL gửi bản tin qua PduR xuống CanTp/DoIP tới Tester. Nhận TxConfirmation ➔ Dừng P2/P2*, giải phóng buffer về BUF_FREE.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
       </div>
     </div>
   </div>
@@ -1785,7 +2411,7 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
     let currentSteps = [];
     let currentStepIndex = 0;
     let playInterval = null;
-    let isPlaying = true;
+    let isPlaying = false;
     let stepDurationMs = 1100;
     let busLogHistory = [];
 
@@ -3365,7 +3991,7 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
       document.getElementById('barP2StarTimer').style.width = step.p2StarState.pct + '%';
     }
 
-    function sendUdsRequest() {
+    function sendUdsRequest(autoPlay = true) {
       const hexStr = document.getElementById('hexInput').value;
       const reqBytes = parseHexInput(hexStr);
       if (!reqBytes.length) return;
@@ -3383,7 +4009,11 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
       });
 
       renderCurrentStep();
-      startAutoPlay();
+      if (autoPlay) {
+        startAutoPlay();
+      } else {
+        stopAutoPlay();
+      }
     }
 
     function appendBusLog(ev) {
@@ -3456,7 +4086,7 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
 
     function updatePlayPauseUI() {
       document.getElementById('playPauseIcon').textContent = isPlaying ? '⏸' : '▶';
-      document.getElementById('playPauseText').textContent = isPlaying ? 'Tạm dừng' : 'Chạy tiếp';
+      document.getElementById('playPauseText').textContent = isPlaying ? 'Tạm dừng' : (currentStepIndex === 0 ? 'Tự động chạy' : 'Chạy tiếp');
     }
 
     function stepNext() {
@@ -3492,10 +4122,670 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
       if (isPlaying) startAutoPlay();
     }
 
+    // Preset selection change: handles standard UDS hex as well as dedicated Timer Scenarios
     function onPresetChange() {
       const val = document.getElementById('presetSelect').value;
+      if (val.startsWith('SCENARIO_')) {
+        loadTimerScenario(val);
+        return;
+      }
       document.getElementById('hexInput').value = val;
-      sendUdsRequest();
+      sendUdsRequest(false);
+    }
+
+    // =========================================================================
+    // DEDICATED SCENARIOS: P2, P2*, S3 TIMER EXPIRY SIMULATION
+    // =========================================================================
+    function loadTimerScenario(scenarioKey) {
+      stopAutoPlay();
+      currentSteps = [];
+      currentStepIndex = 0;
+
+      if (scenarioKey === 'SCENARIO_P2_TIMEOUT') {
+        // SCENARIO 1: P2ServerMax timeout -> Transmit NRC 0x78 & Reload P2*ServerMax
+        document.getElementById('hexInput').value = '22 F1 90';
+        document.getElementById('nodeBusRxPreview').textContent = 'Rx: 22 F1 90';
+
+        const steps = [
+          {
+            title: '1. Tester gửi UDS Request [22 F1 90] (Đọc VIN DID) qua Bus',
+            shortLabel: '1. Bus Rx 22 F1 90',
+            activeNode: 'CANTP',
+            highlightType: 'ext',
+            packetText: 'Rx: 22 F1 90',
+            layer: 'Transport Layer — CanTp / DoIP ➔ PduR',
+            apiCall: 'CanTp_RxIndication(RxPduId=0, Payload=[22 F1 90])',
+            swsRef: '[SWS_CanTp_00057]',
+            inputFrom: 'Diagnostic Tester (CAN Bus)',
+            inputParams: 'Payload = [0x22, 0xF1, 0x90] (3 bytes)',
+            logic: 'CanTp nhận gói tin chẩn đoán đọc VIN, kiểm tra Single Frame và chuyển tiếp lên PduR.',
+            outputTo: 'PduR ➔ DCM DSL',
+            outputDetail: 'PduR_CanTpStartOfReception() xin cấp phát bộ đệm DcmDslBuffer.',
+            p2State: { text: 'IDLE (Đang nhận TP)', pct: 0 },
+            p2StarState: { text: 'IDLE (5000 ms)', pct: 0 },
+            bufferState: 'BUF_FREE',
+            opStatus: 'DCM_INITIAL',
+            stateSnapshot: { session: 1, security: 0, attempts: 0, seedLevel: 0, download: false, bsc: 1, erase: false, dtcCount: 3 },
+            busEvents: [{ dir: 'RX (Tester ➔ ECU)', canId: '0x7E0 (Phys)', hex: '22 F1 90', desc: 'ReadDataByIdentifier: DID 0xF190 (VIN)' }]
+          },
+          {
+            title: '2. DSL cấp phát & khóa bộ đệm DcmDslBuffer',
+            shortLabel: '2. DSL Buffer Lock',
+            activeNode: 'DSL_BUFFER',
+            highlightType: 'dsl',
+            packetText: 'Lock DcmDslBuffer (3B)',
+            layer: 'DCM — DSL (Diagnostic Session Layer)',
+            apiCall: 'Dcm_StartOfReception() + Dcm_CopyRxData()',
+            swsRef: '[SWS_Dcm_00094]',
+            inputFrom: 'PduR (Transport Protocol)',
+            inputParams: 'TpSduLength = 3 bytes',
+            logic: 'DSL khóa bộ đệm sang trạng thái BUF_LOCKED_RX và chép toàn bộ [22 F1 90] vào RAM.',
+            outputTo: 'DSL Timer Manager & DSD',
+            outputDetail: 'Trả BUFREQ_OK; chuẩn bị khởi động P2ServerMax.',
+            p2State: { text: 'IDLE (50 ms)', pct: 0 },
+            p2StarState: { text: 'IDLE (5000 ms)', pct: 0 },
+            bufferState: 'BUF_LOCKED_RX',
+            opStatus: 'DCM_INITIAL',
+            stateSnapshot: { session: 1, security: 0, attempts: 0, seedLevel: 0, download: false, bsc: 1, erase: false, dtcCount: 3 }
+          },
+          {
+            title: '3. DSL Dcm_TpRxIndication(): Khởi động đồng hồ P2ServerMax = 50ms',
+            shortLabel: '3. Start P2 (50ms)',
+            activeNode: 'DSL_STATE_TIMER',
+            highlightType: 'dsl',
+            packetText: 'Start P2ServerMax = 50ms',
+            layer: 'DCM — DSL (Timer & State Manager)',
+            apiCall: 'Dcm_TpRxIndication(RxPduId=0, Result=E_OK)',
+            swsRef: '[SWS_Dcm_00111]',
+            inputFrom: 'PduR Callbacks',
+            inputParams: 'Result = E_OK',
+            logic: 'PduR báo nhận hoàn tất. DSL kích hoạt bộ đếm thời gian thực P2ServerMax (50ms). ECU bắt buộc phải gửi phản hồi trước khi P2 đếm về 0!',
+            outputTo: 'DCM — DSD (DsdInternal_RxIndication)',
+            outputDetail: 'Chuyển quyền sang DSD thẩm định dịch vụ.',
+            p2State: { text: 'RUNNING (50 / 50 ms)', pct: 100 },
+            p2StarState: { text: 'IDLE (5000 ms)', pct: 0 },
+            bufferState: 'BUF_IN_USE_DCM',
+            opStatus: 'DCM_INITIAL',
+            stateSnapshot: { session: 1, security: 0, attempts: 0, seedLevel: 0, download: false, bsc: 1, erase: false, dtcCount: 3 }
+          },
+          {
+            title: '4. DSD thẩm định dịch vụ: Khớp SID 0x22, kiểm tra Session & Security ➔ Đạt',
+            shortLabel: '4. DSD Validation OK',
+            activeNode: 'DSD_VALIDATOR',
+            highlightType: 'dsd',
+            packetText: 'SID 0x22 Valid ➔ Dispatch DSP',
+            layer: 'DCM — DSD (Service Dispatcher)',
+            apiCall: 'DsdInternal_ValidateRequest() == E_OK',
+            swsRef: '[SWS_Dcm_00213]',
+            inputFrom: 'DSL Buffer (SID 0x22, DID 0xF190)',
+            inputParams: 'SID = 0x22, DID = 0xF190, Session = 0x01, Security = 0x00',
+            logic: 'DSD kiểm tra 5 trạm: SID 0x22 có trong bảng DcmDsdServiceTable; cho phép ở Default Session; không yêu cầu SecurityAccess. Thẩm định hoàn tất.',
+            outputTo: 'DCM — DSP (DspInternal_Uds_ReadDataByIdentifier)',
+            outputDetail: 'Gọi hàm DSP với OpStatus = DCM_INITIAL.',
+            p2State: { text: 'RUNNING (42 / 50 ms)', pct: 84 },
+            p2StarState: { text: 'IDLE (5000 ms)', pct: 0 },
+            bufferState: 'BUF_IN_USE_DCM',
+            opStatus: 'DCM_INITIAL',
+            stateSnapshot: { session: 1, security: 0, attempts: 0, seedLevel: 0, download: false, bsc: 1, erase: false, dtcCount: 3 }
+          },
+          {
+            title: '5. DSP gọi NvM / Application SWC: Đọc dữ liệu VIN từ bộ nhớ',
+            shortLabel: '5. DSP ➔ NvM Read',
+            activeNode: 'NVM_FLASH',
+            highlightType: 'ext',
+            packetText: 'NvM_ReadBlock(Block_VIN)',
+            layer: 'DCM DSP ➔ NvM Module',
+            apiCall: 'NvM_ReadBlock(BlockId=VIN_BLOCK, DstPtr=&vinBuffer)',
+            swsRef: '[SWS_NvM_00010]',
+            inputFrom: 'DSP ReadDataByIdentifier Handler',
+            inputParams: 'BlockId = 0x02 (VIN Block), OpStatus = DCM_INITIAL',
+            logic: 'DSP gửi yêu cầu đọc dữ liệu số VIN sang phân lớp NvM (Non-Volatile Memory) để truy xuất chip nhớ EEPROM ngoại vi.',
+            outputTo: 'EEPROM Driver (Asynchronous Memory Access)',
+            outputDetail: 'Tác vụ đọc NvM cần thời gian truy cập phần cứng.',
+            p2State: { text: 'RUNNING (25 / 50 ms)', pct: 50 },
+            p2StarState: { text: 'IDLE (5000 ms)', pct: 0 },
+            bufferState: 'BUF_IN_USE_DCM',
+            opStatus: 'DCM_INITIAL',
+            stateSnapshot: { session: 1, security: 0, attempts: 0, seedLevel: 0, download: false, bsc: 1, erase: false, dtcCount: 3 }
+          },
+          {
+            title: '6. NvM phản hồi DCM_E_PENDING: Bộ nhớ EEPROM đang bận',
+            shortLabel: '6. NvM Bận (DCM_E_PENDING)',
+            activeNode: 'NVM_FLASH',
+            highlightType: 'ext',
+            packetText: 'Return: DCM_E_PENDING',
+            layer: 'NvM ➔ DCM DSP',
+            apiCall: 'NvM_GetErrorStatus() ➔ NVM_REQ_PENDING ➔ DCM_E_PENDING',
+            swsRef: '[SWS_Dcm_00529]',
+            inputFrom: 'NvM Asynchronous Job Queue',
+            inputParams: 'OpStatus = DCM_INITIAL',
+            logic: 'Do bus SPI/I2C tới EEPROM đang bận, NvM chưa thể hoàn tất việc đọc ngay. DSP đặt OpStatus = DCM_PENDING để tiếp tục chờ ở chu kỳ kế tiếp.',
+            outputTo: 'DSL Timer Manager',
+            outputDetail: 'P2ServerMax tiếp tục đếm ngược về 0 trong khi chưa có kết quả.',
+            p2State: { text: 'EXPIRING (8 / 50 ms)!', pct: 16 },
+            p2StarState: { text: 'IDLE (5000 ms)', pct: 0 },
+            bufferState: 'BUF_IN_USE_DCM',
+            opStatus: 'DCM_PENDING',
+            stateSnapshot: { session: 1, security: 0, attempts: 0, seedLevel: 0, download: false, bsc: 1, erase: false, dtcCount: 3 }
+          },
+          {
+            title: '7. HẾT HẠN P2ServerMax! DSL phát hiện chạm ngưỡng (t = 50ms - Adjust)',
+            shortLabel: '7. P2ServerMax Expired!',
+            activeNode: 'DSL_STATE_TIMER',
+            highlightType: 'error',
+            packetText: 'P2 Expired ➔ Threshold Trigger',
+            layer: 'DCM — DSL (Timer Engine)',
+            apiCall: 'Dcm_MainFunction(): Check P2ServerMax Threshold',
+            swsRef: '[SWS_Dcm_00115]',
+            inputFrom: 'DSL Timer Tick',
+            inputParams: 'P2ServerMax = 0ms, OpStatus = DCM_PENDING',
+            logic: 'Đồng hồ P2ServerMax (50ms) đã cạn kiệt mà DSP vẫn chưa có dữ liệu! Để ngăn phía Tester timeout (báo lỗi P2Client), DSL lập tức kích hoạt cơ chế gia hạn thời gian khẩn cấp (RCR-RP).',
+            outputTo: 'DSL Tx Controller',
+            outputDetail: 'Lệnh phát bản tin NRC 0x78 (ResponsePending).',
+            p2State: { text: 'EXPIRED (0 / 50 ms)', pct: 0 },
+            p2StarState: { text: 'IDLE (5000 ms)', pct: 0 },
+            bufferState: 'BUF_IN_USE_DCM',
+            opStatus: 'DCM_PENDING',
+            stateSnapshot: { session: 1, security: 0, attempts: 0, seedLevel: 0, download: false, bsc: 1, erase: false, dtcCount: 3 }
+          },
+          {
+            title: '8. DSL tự động phát NRC 0x78 (ResponsePending) để xin Tester gia hạn',
+            shortLabel: '8. TX NRC 0x78 (7F 22 78)',
+            activeNode: 'DSL_TX',
+            highlightType: 'dsl',
+            packetText: 'Tx: 7F 22 78 (NRC 0x78)',
+            layer: 'DCM — DSL ➔ PduR ➔ Tester',
+            apiCall: 'PduR_DcmTransmit(TxPdu: [0x7F, 0x22, 0x78])',
+            swsRef: '[SWS_Dcm_00119]',
+            inputFrom: 'DSL Timer Expiry Event',
+            inputParams: 'NRC = 0x78 (requestCorrectlyReceived-ResponsePending)',
+            logic: 'DSL tự đóng gói [7F 22 78] gửi xuống bus. Bản tin này thông báo: "ECU đã nhận yêu cầu hợp lệ và đang bận xử lý, xin Tester gia hạn thời gian chờ thêm P2*ServerMax (5000ms)".',
+            outputTo: 'Diagnostic Tester (CAN Bus)',
+            outputDetail: 'Tester nhận 7F 22 78, khởi động đồng hồ P2*Client = 5000ms.',
+            p2State: { text: 'EXPIRED (Replaced by P2*)', pct: 0 },
+            p2StarState: { text: 'RELOADED (5000 / 5000 ms)', pct: 100 },
+            bufferState: 'BUF_IN_USE_DCM',
+            opStatus: 'DCM_FORCE_RCRRP_OK',
+            stateSnapshot: { session: 1, security: 0, attempts: 0, seedLevel: 0, download: false, bsc: 1, erase: false, dtcCount: 3 },
+            busEvents: [{ dir: 'TX (ECU ➔ Tester)', canId: '0x7E8 (Resp)', hex: '7F 22 78', desc: 'NRC 0x78 ResponsePending: DSL phát hiện hết P2 ➔ Xin gia hạn P2* (5000ms)' }]
+          },
+          {
+            title: '9. DSL chuyển sang giám sát P2*ServerMax (5000ms); NvM đọc xong EEPROM',
+            shortLabel: '9. P2* Active & NvM OK',
+            activeNode: 'NVM_FLASH',
+            highlightType: 'ext',
+            packetText: 'NvM Return: E_OK + VIN',
+            layer: 'NvM Module ➔ DCM DSP',
+            apiCall: 'DspInternal_Uds_ReadDataByIdentifier(OpStatus=DCM_FORCE_RCRRP_OK)',
+            swsRef: '[SWS_Dcm_00120]',
+            inputFrom: 'EEPROM Chip',
+            inputParams: 'Payload = "VNHYUNDAI2026" (13 bytes)',
+            logic: 'NvM đọc xong toàn bộ 13 byte dữ liệu số VIN từ EEPROM và trả về E_OK. DSP nhận dữ liệu trong thời hạn của P2*ServerMax.',
+            outputTo: 'DCM DSP Response Builder',
+            outputDetail: 'DSP chuẩn bị đóng gói bản tin phản hồi tích cực.',
+            p2State: { text: 'STOPPED (Using P2*)', pct: 0 },
+            p2StarState: { text: 'RUNNING (4850 / 5000 ms)', pct: 97 },
+            bufferState: 'BUF_IN_USE_DCM',
+            opStatus: 'DCM_FORCE_RCRRP_OK',
+            stateSnapshot: { session: 1, security: 0, attempts: 0, seedLevel: 0, download: false, bsc: 1, erase: false, dtcCount: 3 }
+          },
+          {
+            title: '10. DSP đóng gói Final Positive Response: 62 F1 90 [VIN Data]',
+            shortLabel: '10. DSP Pack 62 F1 90',
+            activeNode: 'DSP_CORE',
+            highlightType: 'dsp',
+            packetText: '62 F1 90 56 4E 48 59 55 4E 44 41 49 32 30 32 36',
+            layer: 'DCM — DSP ➔ DSD / DSL',
+            apiCall: 'Dcm_ProcessingDone(pMsgContext: [0x62, 0xF1, 0x90, ...])',
+            swsRef: '[SWS_Dcm_00114]',
+            inputFrom: 'NvM VIN Buffer',
+            inputParams: 'DID = 0xF190, Length = 16 bytes (SID 0x62 + DID 2B + VIN 13B)',
+            logic: 'DSP điền Byte #0 = 0x62 (0x22 + 0x40), Byte #1..2 = 0xF190, và chuỗi mã ASCII của VIN. Sau đó gọi Dcm_ProcessingDone() báo hoàn tất.',
+            outputTo: 'DSL Transmission Manager',
+            outputDetail: 'Chuyển bộ đệm sang BUF_LOCKED_TX.',
+            p2State: { text: 'STOPPED', pct: 0 },
+            p2StarState: { text: 'RUNNING (4700 / 5000 ms)', pct: 94 },
+            bufferState: 'BUF_LOCKED_TX',
+            opStatus: 'DCM_INITIAL',
+            stateSnapshot: { session: 1, security: 0, attempts: 0, seedLevel: 0, download: false, bsc: 1, erase: false, dtcCount: 3 }
+          },
+          {
+            title: '11. DSL phát Final Response qua PduR & Dừng hoàn toàn P2*ServerMax',
+            shortLabel: '11. TX Final Response',
+            activeNode: 'DSL_TX',
+            highlightType: 'dsl',
+            packetText: 'Tx: 62 F1 90 56 4E 48 59 55 4E...',
+            layer: 'DCM — DSL ➔ PduR ➔ CanTp ➔ Tester',
+            apiCall: 'PduR_DcmTransmit(TxPdu) + Stop P2*ServerMax',
+            swsRef: '[SWS_Dcm_00118]',
+            inputFrom: 'DcmDslBuffer (Final Data)',
+            inputParams: 'Length = 16 bytes',
+            logic: 'DSL gọi PduR_DcmTransmit() truyền bản tin trả lời thật sự xuống CanTp. Đồng hồ P2*ServerMax lập tức được DỪNG (STOP) vì đã gửi xong phản hồi!',
+            outputTo: 'Diagnostic Tester (Hoàn tất chu kỳ UDS)',
+            outputDetail: 'Chờ callback Dcm_TpTxConfirmation().',
+            p2State: { text: 'STOPPED', pct: 0 },
+            p2StarState: { text: 'STOPPED (Success)', pct: 0 },
+            bufferState: 'BUF_LOCKED_TX',
+            opStatus: 'DCM_INITIAL',
+            stateSnapshot: { session: 1, security: 0, attempts: 0, seedLevel: 0, download: false, bsc: 1, erase: false, dtcCount: 3 },
+            busEvents: [{ dir: 'TX (ECU ➔ Tester)', canId: '0x7E8 (Resp)', hex: '62 F1 90 56 4E 48 59 55 4E 44 41 49 32 30 32 36', desc: 'Positive Response: DID 0xF190 = "VNHYUNDAI2026" (Hoàn tất sau P2*)' }]
+          },
+          {
+            title: '12. Dcm_TpTxConfirmation(): Giải phóng bộ đệm về BUF_FREE',
+            shortLabel: '12. Release BUF_FREE',
+            activeNode: 'DSL_BUFFER',
+            highlightType: 'dsl',
+            packetText: 'DcmDslBuffer = BUF_FREE',
+            layer: 'DCM — DSL (Buffer Manager)',
+            apiCall: 'Dcm_TpTxConfirmation(DcmTxPduId=0, Result=E_OK)',
+            swsRef: '[SWS_Dcm_00122]',
+            inputFrom: 'PduR Tx Confirmation',
+            inputParams: 'Result = E_OK',
+            logic: 'PduR xác nhận bản tin đã truyền xong lên mạng vật lý. DSL mở khóa DcmDslBuffer về BUF_FREE, sẵn sàng đón nhận Request tiếp theo từ Tester.',
+            outputTo: 'DCM DSL Ready State',
+            outputDetail: 'Chu kỳ xử lý kết thúc hoàn hảo.',
+            p2State: { text: 'IDLE (50 ms)', pct: 0 },
+            p2StarState: { text: 'IDLE (5000 ms)', pct: 0 },
+            bufferState: 'BUF_FREE',
+            opStatus: 'DCM_INITIAL',
+            stateSnapshot: { session: 1, security: 0, attempts: 0, seedLevel: 0, download: false, bsc: 1, erase: false, dtcCount: 3 }
+          }
+        ];
+        currentSteps = steps;
+      }
+      else if (scenarioKey === 'SCENARIO_P2STAR_TIMEOUT') {
+        // SCENARIO 2: P2*ServerMax timeout -> Cancel task (DCM_CANCEL) & NRC 0x10
+        document.getElementById('hexInput').value = '31 01 FF 00';
+        document.getElementById('nodeBusRxPreview').textContent = 'Rx: 31 01 FF 00';
+
+        const steps = [
+          {
+            title: '1. Tester gửi UDS Request [31 01 FF 00] (Start Erase Flash) qua Bus',
+            shortLabel: '1. Bus Rx 31 01 FF 00',
+            activeNode: 'CANTP',
+            highlightType: 'ext',
+            packetText: 'Rx: 31 01 FF 00',
+            layer: 'Transport Layer — CanTp / DoIP ➔ PduR',
+            apiCall: 'CanTp_RxIndication(RxPduId=0, Payload=[31 01 FF 00])',
+            swsRef: '[SWS_CanTp_00057]',
+            inputFrom: 'Diagnostic Tester (CAN Bus)',
+            inputParams: 'RoutineControl: Start (0x01) RID 0xFF00 (EraseMemory)',
+            logic: 'Tester yêu cầu xóa phân vùng bộ nhớ Flash ECU để chuẩn bị nạp firmware mới.',
+            outputTo: 'PduR ➔ DCM DSL',
+            outputDetail: 'PduR chuyển tiếp yêu cầu tới DCM.',
+            p2State: { text: 'IDLE (50 ms)', pct: 0 },
+            p2StarState: { text: 'IDLE (5000 ms)', pct: 0 },
+            bufferState: 'BUF_FREE',
+            opStatus: 'DCM_INITIAL',
+            stateSnapshot: { session: 2, security: 2, attempts: 0, seedLevel: 0, download: false, bsc: 1, erase: false, dtcCount: 3 },
+            busEvents: [{ dir: 'RX (Tester ➔ ECU)', canId: '0x7E0 (Phys)', hex: '31 01 FF 00', desc: 'RoutineControl (0x31): Start RID 0xFF00 (EraseMemory)' }]
+          },
+          {
+            title: '2. DSL cấp phát Buffer & Dcm_TpRxIndication(): Khởi động P2ServerMax',
+            shortLabel: '2. DSL P2 Start',
+            activeNode: 'DSL_STATE_TIMER',
+            highlightType: 'dsl',
+            packetText: 'Start P2 = 50ms',
+            layer: 'DCM — DSL (Timer & State Manager)',
+            apiCall: 'Dcm_TpRxIndication(Result=E_OK) + Start P2ServerMax(50ms)',
+            swsRef: '[SWS_Dcm_00111]',
+            inputFrom: 'PduR Callbacks',
+            inputParams: 'Result = E_OK',
+            logic: 'DSL khóa buffer BUF_LOCKED_RX, bắt đầu đếm ngược P2ServerMax (50ms) và chuyển quyền sang DSD.',
+            outputTo: 'DCM DSD',
+            outputDetail: 'Thẩm định quyền thực thi lệnh nguy hiểm (Xóa Flash).',
+            p2State: { text: 'RUNNING (50 / 50 ms)', pct: 100 },
+            p2StarState: { text: 'IDLE (5000 ms)', pct: 0 },
+            bufferState: 'BUF_IN_USE_DCM',
+            opStatus: 'DCM_INITIAL',
+            stateSnapshot: { session: 2, security: 2, attempts: 0, seedLevel: 0, download: false, bsc: 1, erase: false, dtcCount: 3 }
+          },
+          {
+            title: '3. DSD kiểm tra điều kiện tiên quyết: Yêu cầu Programming Session & Security L2 ➔ Đạt',
+            shortLabel: '3. DSD Validation OK',
+            activeNode: 'DSD_VALIDATOR',
+            highlightType: 'dsd',
+            packetText: 'Prog Session (0x02) & Sec L2 (0x02) Valid',
+            layer: 'DCM — DSD (Service Validator)',
+            apiCall: 'DsdInternal_ValidateRequest() == E_OK',
+            swsRef: '[SWS_Dcm_00213]',
+            inputFrom: 'DSL State & Buffer',
+            inputParams: 'Session = Programming (0x02), Security = Level 2 (0x02)',
+            logic: 'DSD xác nhận ECU đang ở phiên lập trình và đã mở khóa bảo mật cấp cao nhất. Cho phép dispatch tới DSP.',
+            outputTo: 'DCM DSP RoutineControl Handler',
+            outputDetail: 'Gọi hàm xóa Flash với OpStatus = DCM_INITIAL.',
+            p2State: { text: 'RUNNING (40 / 50 ms)', pct: 80 },
+            p2StarState: { text: 'IDLE (5000 ms)', pct: 0 },
+            bufferState: 'BUF_IN_USE_DCM',
+            opStatus: 'DCM_INITIAL',
+            stateSnapshot: { session: 2, security: 2, attempts: 0, seedLevel: 0, download: false, bsc: 1, erase: false, dtcCount: 3 }
+          },
+          {
+            title: '4. DSP gọi Flash Driver (Fls_Erase): Phần cứng bắt đầu xóa cung bộ nhớ',
+            shortLabel: '4. Fls_Erase Start',
+            activeNode: 'NVM_FLASH',
+            highlightType: 'ext',
+            packetText: 'Fls_Erase(Addr=0x08000000, Len=64KB)',
+            layer: 'DCM DSP ➔ Flash Driver (Fls)',
+            apiCall: 'Fls_Erase(TargetAddress=0x08000000, Length=65536)',
+            swsRef: '[SWS_Fls_00020]',
+            inputFrom: 'DSP RoutineControl Service',
+            inputParams: 'OpStatus = DCM_INITIAL',
+            logic: 'Flash Driver gửi lệnh xóa phần cứng tới vi điều khiển. Do việc xóa sector Flash mất nhiều thời gian, driver trả về DCM_E_PENDING.',
+            outputTo: 'Flash Memory Hardware Controller',
+            outputDetail: 'Phần cứng thực hiện chu trình xóa điện áp cao.',
+            p2State: { text: 'EXPIRING (10 / 50 ms)', pct: 20 },
+            p2StarState: { text: 'IDLE (5000 ms)', pct: 0 },
+            bufferState: 'BUF_IN_USE_DCM',
+            opStatus: 'DCM_PENDING',
+            stateSnapshot: { session: 2, security: 2, attempts: 0, seedLevel: 0, download: false, bsc: 1, erase: false, dtcCount: 3 }
+          },
+          {
+            title: '5. Hết P2 ➔ DSL phát NRC 0x78 Lần 1 & Khởi động P2*ServerMax = 5000ms',
+            shortLabel: '5. TX 7F 31 78 (#1)',
+            activeNode: 'DSL_TX',
+            highlightType: 'dsl',
+            packetText: 'Tx: 7F 31 78 (RCR-RP #1)',
+            layer: 'DCM — DSL ➔ PduR ➔ Tester',
+            apiCall: 'PduR_DcmTransmit(7F 31 78) + Reload P2*(5000ms)',
+            swsRef: '[SWS_Dcm_00119]',
+            inputFrom: 'DSL Timer Expiry (P2 Threshold)',
+            inputParams: 'NRC = 0x78, OpStatus = DCM_PENDING',
+            logic: 'P2 cạn, DSL phát bản tin NRC 0x78 đầu tiên để xin Tester gia hạn 5000ms. P2* bắt đầu đếm.',
+            outputTo: 'Diagnostic Tester',
+            outputDetail: 'Phát thành công 7F 31 78.',
+            p2State: { text: 'EXPIRED (Using P2*)', pct: 0 },
+            p2StarState: { text: 'RELOADED (5000 / 5000 ms)', pct: 100 },
+            bufferState: 'BUF_IN_USE_DCM',
+            opStatus: 'DCM_FORCE_RCRRP_OK',
+            stateSnapshot: { session: 2, security: 2, attempts: 0, seedLevel: 0, download: false, bsc: 1, erase: false, dtcCount: 3 },
+            busEvents: [{ dir: 'TX (ECU ➔ Tester)', canId: '0x7E8 (Resp)', hex: '7F 31 78', desc: 'NRC 0x78 ResponsePending (#1): Bắn lần 1 để nạp P2*ServerMax (5000ms)' }]
+          },
+          {
+            title: '6. Flash vẫn bận ➔ DSL phát NRC 0x78 Lần 2 (Chạm giới hạn DcmDslDiagRespMaxNumRespPend = 2)',
+            shortLabel: '6. TX 7F 31 78 (#2 - Max)',
+            activeNode: 'DSL_TX',
+            highlightType: 'dsl',
+            packetText: 'Tx: 7F 31 78 (RCR-RP #2 - Max Limit)',
+            layer: 'DCM — DSL (RCR-RP Counter)',
+            apiCall: 'PduR_DcmTransmit(7F 31 78) — Max Count = 2',
+            swsRef: '[SWS_Dcm_00119]',
+            inputFrom: 'DSL P2* Timer Reload Event',
+            inputParams: 'PendingCount = 2, MaxAllowed = 2',
+            logic: 'Flash Driver vẫn tiếp tục trả DCM_E_PENDING. DSL gửi NRC 0x78 lần thứ 2. Đây là số lần tối đa cấu hình cho phép!',
+            outputTo: 'Diagnostic Tester',
+            outputDetail: 'ECU không được phép gửi thêm NRC 0x78 nào nữa.',
+            p2State: { text: 'EXPIRED', pct: 0 },
+            p2StarState: { text: 'RELOADED (5000 / 5000 ms)', pct: 100 },
+            bufferState: 'BUF_IN_USE_DCM',
+            opStatus: 'DCM_FORCE_RCRRP_OK',
+            stateSnapshot: { session: 2, security: 2, attempts: 0, seedLevel: 0, download: false, bsc: 1, erase: false, dtcCount: 3 },
+            busEvents: [{ dir: 'TX (ECU ➔ Tester)', canId: '0x7E8 (Resp)', hex: '7F 31 78', desc: 'NRC 0x78 ResponsePending (#2): Đạt giới hạn cấu hình DcmDslDiagRespMaxNumRespPend (2)' }]
+          },
+          {
+            title: '7. HẾT HẠN P2*ServerMax (TIMEOUT)! Phần cứng Flash bị treo không phản hồi',
+            shortLabel: '7. P2* TIMEOUT Expiry!',
+            activeNode: 'DSL_STATE_TIMER',
+            highlightType: 'error',
+            packetText: 'P2* Expired (0ms) ➔ Force Abort',
+            layer: 'DCM — DSL (Timer Engine)',
+            apiCall: 'Dcm_MainFunction(): Detect P2*ServerMax Expiry',
+            swsRef: '[SWS_Dcm_00530]',
+            inputFrom: 'DSL Timer Tick',
+            inputParams: 'P2* = 0ms, Fls = Stuck / Hardware Lock',
+            logic: 'Đồng hồ P2*ServerMax đã đếm về 0 mà chip Flash vẫn chưa xong và đã hết hạn mức gửi 0x78. DSL ra lệnh cưỡng chế hủy tác vụ!',
+            outputTo: 'DCM DSP OpStatus Controller',
+            outputDetail: 'Yêu cầu chuyển OpStatus = DCM_CANCEL.',
+            p2State: { text: 'EXPIRED', pct: 0 },
+            p2StarState: { text: 'TIMEOUT (0 / 5000 ms)', pct: 0 },
+            bufferState: 'BUF_IN_USE_DCM',
+            opStatus: 'DCM_CANCEL',
+            stateSnapshot: { session: 2, security: 2, attempts: 0, seedLevel: 0, download: false, bsc: 1, erase: false, dtcCount: 3 }
+          },
+          {
+            title: '8. DSP gọi OpStatus = DCM_CANCEL: Ra lệnh cho Flash Driver hủy khẩn cấp',
+            shortLabel: '8. DSP ➔ DCM_CANCEL',
+            activeNode: 'DSP_OPSTATUS',
+            highlightType: 'error',
+            packetText: 'OpStatus = DCM_CANCEL ➔ Fls_Cancel()',
+            layer: 'DCM DSP ➔ Flash Driver',
+            apiCall: 'Fls_Cancel() + DSP cleanup',
+            swsRef: '[SWS_Dcm_00530]',
+            inputFrom: 'DSL Timer Timeout Command',
+            inputParams: 'OpStatus = DCM_CANCEL',
+            logic: 'DSP lập tức gọi Fls_Cancel() để ép phần cứng ngắt lệnh xóa, giải phóng thanh ghi bị khóa và bảo vệ vi điều khiển khỏi trạng thái deadlock.',
+            outputTo: 'DSD Response Router',
+            outputDetail: 'Tạo bản tin Negative Response báo lỗi chung.',
+            p2State: { text: 'EXPIRED', pct: 0 },
+            p2StarState: { text: 'TIMEOUT (0 ms)', pct: 0 },
+            bufferState: 'BUF_IN_USE_DCM',
+            opStatus: 'DCM_CANCEL',
+            stateSnapshot: { session: 2, security: 2, attempts: 0, seedLevel: 0, download: false, bsc: 1, erase: false, dtcCount: 3 }
+          },
+          {
+            title: '9. DSD / DSL tạo bản tin NRC 0x10 (General Reject) gửi cho Tester',
+            shortLabel: '9. TX NRC 0x10 (7F 31 10)',
+            activeNode: 'DSL_TX',
+            highlightType: 'error',
+            packetText: 'Tx: 7F 31 10 (NRC 0x10)',
+            layer: 'DCM — DSL ➔ PduR ➔ Tester',
+            apiCall: 'PduR_DcmTransmit(TxPdu: [0x7F, 0x31, 0x10])',
+            swsRef: '[SWS_Dcm_00584]',
+            inputFrom: 'DSD Error Generator',
+            inputParams: 'NRC = 0x10 (generalReject)',
+            logic: 'ECU thông báo cho Tester rằng tác vụ xóa Flash đã bị hủy do lỗi thời gian xử lý phần cứng vượt quá giới hạn an toàn.',
+            outputTo: 'Diagnostic Tester (Nhận thông báo lỗi)',
+            outputDetail: 'Phát bản tin 7F 31 10.',
+            p2State: { text: 'STOPPED', pct: 0 },
+            p2StarState: { text: 'STOPPED (Failed)', pct: 0 },
+            bufferState: 'BUF_LOCKED_TX',
+            opStatus: 'DCM_INITIAL',
+            stateSnapshot: { session: 2, security: 2, attempts: 0, seedLevel: 0, download: false, bsc: 1, erase: false, dtcCount: 3 },
+            busEvents: [{ dir: 'TX (ECU ➔ Tester)', canId: '0x7E8 (Resp)', hex: '7F 31 10', desc: 'NRC 0x10 generalReject: Quá hạn P2*ServerMax (Timeout) ➔ Hủy tác vụ Fls_Cancel()' }]
+          },
+          {
+            title: '10. Dừng toàn bộ Timer & Giải phóng bộ đệm về BUF_FREE',
+            shortLabel: '10. Finish & Cleanup',
+            activeNode: 'DSL_BUFFER',
+            highlightType: 'dsl',
+            packetText: 'Cleanup ➔ BUF_FREE',
+            layer: 'DCM — DSL (Buffer Manager)',
+            apiCall: 'Dcm_TpTxConfirmation(Result=E_OK) ➔ FreeBuffer()',
+            swsRef: '[SWS_Dcm_00122]',
+            inputFrom: 'PduR Confirmation',
+            inputParams: 'Buffer = BUF_FREE, OpStatus = DCM_INITIAL',
+            logic: 'DSL dọn dẹp sạch tài nguyên RAM, dừng mọi bộ đếm P2/P2*, đưa ECU về trạng thái ổn định.',
+            outputTo: 'ECU Idle State',
+            outputDetail: 'Sẵn sàng nhận lệnh UDS mới.',
+            p2State: { text: 'IDLE (50 ms)', pct: 0 },
+            p2StarState: { text: 'IDLE (5000 ms)', pct: 0 },
+            bufferState: 'BUF_FREE',
+            opStatus: 'DCM_INITIAL',
+            stateSnapshot: { session: 2, security: 2, attempts: 0, seedLevel: 0, download: false, bsc: 1, erase: false, dtcCount: 3 }
+          }
+        ];
+        currentSteps = steps;
+      }
+      else if (scenarioKey === 'SCENARIO_S3_TIMEOUT') {
+        // SCENARIO 3: S3Server timeout -> Fallback to Default Session 0x01 & Lock Security 0x00
+        document.getElementById('hexInput').value = '[TIMEOUT S3]';
+        document.getElementById('nodeBusRxPreview').textContent = 'S3Server Expiry (5000ms)';
+
+        const steps = [
+          {
+            title: '1. Trạng thái ban đầu: ECU đang ở Extended Session (0x03) & Security Level 1 (0x01)',
+            shortLabel: '1. Active Non-Default',
+            activeNode: 'DSL_STATE_TIMER',
+            highlightType: 'dsl',
+            packetText: 'Session 0x03 | Sec Level 1',
+            layer: 'DCM — DSL (State Manager)',
+            apiCall: 'Dcm_GetSesCtrlType() == 0x03 && Dcm_GetSecurityLevel() == 0x01',
+            swsRef: '[SWS_Dcm_00139]',
+            inputFrom: 'DCM Internal State',
+            inputParams: 'Session = Extended (0x03), Security = Level 1 (0x01)',
+            logic: 'ECU đang mở phiên chẩn đoán mở rộng cho phép hiệu chỉnh tham số và đọc dữ liệu đặc biệt. Đồng hồ S3Server (5000ms) đang hoạt động.',
+            outputTo: 'DSL S3 Timer Watcher',
+            outputDetail: 'S3Server đang đếm ngược từ 5000ms.',
+            p2State: { text: 'IDLE (50 ms)', pct: 0 },
+            p2StarState: { text: 'IDLE (5000 ms)', pct: 0 },
+            bufferState: 'BUF_FREE',
+            opStatus: 'DCM_INITIAL',
+            stateSnapshot: { session: 3, security: 1, attempts: 0, seedLevel: 1, download: false, bsc: 1, erase: false, dtcCount: 3 }
+          },
+          {
+            title: '2. Mất kết nối Tester: Cáp bị ngắt hoặc Tester ngừng phát TesterPresent (3E 80)',
+            shortLabel: '2. Mất Kết Nối Tester',
+            activeNode: 'TESTER',
+            highlightType: 'ext',
+            packetText: 'No UDS Traffic on Bus',
+            layer: 'Diagnostic Bus ➔ DCM DSL',
+            apiCall: 'No Rx Frames (Silent Bus)',
+            swsRef: '[ISO_14229_1]',
+            inputFrom: 'Bus Monitor',
+            inputParams: 'Traffic = 0 frames, Checkbox Auto TesterPresent = OFF',
+            logic: 'Người dùng ngắt kết nối hoặc phần mềm Tester gặp sự cố không gửi bản tin keep-alive 3E 80. Đồng hồ S3Server không được nạp lại!',
+            outputTo: 'DSL Timer Engine',
+            outputDetail: 'S3Server tiếp tục giảm dần qua từng chu kỳ Dcm_MainFunction().',
+            p2State: { text: 'IDLE', pct: 0 },
+            p2StarState: { text: 'IDLE', pct: 0 },
+            bufferState: 'BUF_FREE',
+            opStatus: 'DCM_INITIAL',
+            stateSnapshot: { session: 3, security: 1, attempts: 0, seedLevel: 1, download: false, bsc: 1, erase: false, dtcCount: 3 }
+          },
+          {
+            title: '3. Đồng hồ S3Server đếm ngược: 4000ms ➔ 2500ms ➔ Cảnh báo đỏ (< 1500ms)',
+            shortLabel: '3. S3 Đếm Ngược',
+            activeNode: 'DSL_STATE_TIMER',
+            highlightType: 'error',
+            packetText: 'S3 Remaining: 1200ms (< 1500ms)',
+            layer: 'DCM — DSL (Timer Engine)',
+            apiCall: 'Dcm_MainFunction(): Decrement S3Server',
+            swsRef: '[SWS_Dcm_00140]',
+            inputFrom: 'OS Cyclic 10ms/100ms Task',
+            inputParams: 's3RemainingMs = 1200 ms',
+            logic: 'Không nhận được bất kỳ request UDS nào để nạp lại. Bộ đếm thời gian S3Server tụt xuống dưới ngưỡng nguy hiểm 1500ms (hiển thị màu đỏ trên thanh tiến trình).',
+            outputTo: 'DSL Session Fallback Monitor',
+            outputDetail: 'Chuẩn bị kích hoạt Timeout khi S3 chạm 0.',
+            p2State: { text: 'IDLE', pct: 0 },
+            p2StarState: { text: 'IDLE', pct: 0 },
+            bufferState: 'BUF_FREE',
+            opStatus: 'DCM_INITIAL',
+            stateSnapshot: { session: 3, security: 1, attempts: 0, seedLevel: 1, download: false, bsc: 1, erase: false, dtcCount: 3 }
+          },
+          {
+            title: '4. HẾT HẠN S3Server (s3RemainingMs == 0)! DSL phát hiện Timeout kết nối',
+            shortLabel: '4. S3Server Expired!',
+            activeNode: 'DSL_STATE_TIMER',
+            highlightType: 'error',
+            packetText: 'S3 Timeout (5000ms reached)',
+            layer: 'DCM — DSL (Timer Engine)',
+            apiCall: 'Dcm_MainFunction(): S3Server == 0 ➔ Trigger Fallback',
+            swsRef: '[SWS_Dcm_00141]',
+            inputFrom: 'S3 Timer Zero Event',
+            inputParams: 's3RemainingMs = 0',
+            logic: 'Tròn 5000ms không có tín hiệu từ Tester! Theo tiêu chuẩn ISO 14229-1 và AUTOSAR DCM, ECU bắt buộc phải tự động hủy bỏ phiên làm việc đặc biệt để bảo vệ xe.',
+            outputTo: 'DSL Session Manager',
+            outputDetail: 'Gọi Dcm_ResetToDefaultSession().',
+            p2State: { text: 'IDLE', pct: 0 },
+            p2StarState: { text: 'IDLE', pct: 0 },
+            bufferState: 'BUF_FREE',
+            opStatus: 'DCM_INITIAL',
+            stateSnapshot: { session: 3, security: 1, attempts: 0, seedLevel: 1, download: false, bsc: 1, erase: false, dtcCount: 3 }
+          },
+          {
+            title: '5. DSL Dcm_ResetToDefaultSession(): Chuyển ActiveSession từ 0x03 về 0x01 (Default)',
+            shortLabel: '5. Reset ➔ Default (0x01)',
+            activeNode: 'DSL_STATE_TIMER',
+            highlightType: 'dsl',
+            packetText: 'ActiveSession: 0x03 ➔ 0x01 (Default)',
+            layer: 'DCM — DSL (Session Manager)',
+            apiCall: 'Dcm_ResetToDefaultSession()',
+            swsRef: '[SWS_Dcm_00142]',
+            inputFrom: 'S3Server Expiry Handler',
+            inputParams: 'TargetSession = DCM_DEFAULT_SESSION (0x01)',
+            logic: 'DSL thay đổi biến ActiveSession về 0x01. Toàn bộ các dịch vụ yêu cầu phiên mở rộng (như 0x2E WriteDID, 0x31 Routine, 0x34 Flashing) lập tức bị vô hiệu hóa!',
+            outputTo: 'DSL Security Manager',
+            outputDetail: 'Tiến hành khóa quyền bảo mật.',
+            p2State: { text: 'IDLE', pct: 0 },
+            p2StarState: { text: 'IDLE', pct: 0 },
+            bufferState: 'BUF_FREE',
+            opStatus: 'DCM_INITIAL',
+            stateSnapshot: { session: 1, security: 1, attempts: 0, seedLevel: 0, download: false, bsc: 1, erase: false, dtcCount: 3 }
+          },
+          {
+            title: '6. DSL tự động khóa SecurityLevel: Đưa SecurityLevel về 0x00 (Locked)',
+            shortLabel: '6. Lock Security (0x00)',
+            activeNode: 'DSL_STATE_TIMER',
+            highlightType: 'error',
+            packetText: 'SecurityLevel: 0x01 ➔ 0x00 (Locked)',
+            layer: 'DCM — DSL (Security Manager)',
+            apiCall: 'Dcm_SetSecurityLevel(DCM_SEC_LEV_LOCKED)',
+            swsRef: '[SWS_Dcm_00143]',
+            inputFrom: 'Session Reset Cascade',
+            inputParams: 'SecurityLevel = 0x00 (Locked)',
+            logic: 'Ngay khi rời khỏi Non-Default Session, mọi quyền truy cập Seed/Key trước đó bị hủy bỏ hoàn toàn. Muốn can thiệp lại, Tester bắt buộc phải thực hiện lại Seed & Key từ đầu.',
+            outputTo: 'BswM / Mode Management',
+            outputDetail: 'Thông báo chuyển chế độ hệ thống an toàn.',
+            p2State: { text: 'IDLE', pct: 0 },
+            p2StarState: { text: 'IDLE', pct: 0 },
+            bufferState: 'BUF_FREE',
+            opStatus: 'DCM_INITIAL',
+            stateSnapshot: { session: 1, security: 0, attempts: 0, seedLevel: 0, download: false, bsc: 1, erase: false, dtcCount: 3 }
+          },
+          {
+            title: '7. Thông báo BswM & SchM: Đưa ECU về chế độ vận hành xe bình thường',
+            shortLabel: '7. BswM Normal Mode',
+            activeNode: 'BSWM_ECUM',
+            highlightType: 'ext',
+            packetText: 'BswM_Dcm_RequestResetMode()',
+            layer: 'DCM DSL ➔ BswM (Basic Software Mode Manager)',
+            apiCall: 'BswM_Dcm_RequestResetMode() / SchM Mode Notification',
+            swsRef: '[SWS_BswM_00072]',
+            inputFrom: 'DCM DSL State Machine',
+            inputParams: 'Mode = DCM_DEFAULT_SESSION',
+            logic: 'BswM nhận thông báo phiên chẩn đoán đã đóng, khôi phục lại các chu kỳ truyền tin định kỳ (Cyclic Communication) trên bus CAN/ETH của các hộp điều khiển.',
+            outputTo: 'Bus Monitor Logging',
+            outputDetail: 'Ghi log sự kiện timeout vào màn hình Bus Monitor.',
+            p2State: { text: 'IDLE', pct: 0 },
+            p2StarState: { text: 'IDLE', pct: 0 },
+            bufferState: 'BUF_FREE',
+            opStatus: 'DCM_INITIAL',
+            stateSnapshot: { session: 1, security: 0, attempts: 0, seedLevel: 0, download: false, bsc: 1, erase: false, dtcCount: 3 },
+            busEvents: [{ dir: 'TIMEOUT (S3Server)', canId: 'DSL Internal', hex: 'S3 Expired (5000ms)', desc: 'Dcm_ResetToDefaultSession(): Hết hạn S3 ➔ Tự động hạ về Default Session (0x01) & Khóa Security (0x00)' }]
+          },
+          {
+            title: '8. Dừng đếm S3Server: ECU trở về trạng thái an toàn tuyệt đối',
+            shortLabel: '8. S3 Stopped & Safe',
+            activeNode: 'DSL_STATE_TIMER',
+            highlightType: 'dsl',
+            packetText: 'S3Server STOPPED (Default Session)',
+            layer: 'DCM — DSL (Timer Engine)',
+            apiCall: 'S3Server Timer = STOPPED',
+            swsRef: '[SWS_Dcm_00144]',
+            inputFrom: 'DSL State Controller',
+            inputParams: 's3Active = false, s3RemainingMs = 5000',
+            logic: 'Trong Default Session, đồng hồ S3Server không cần đếm nữa. ECU đã an toàn, sẵn sàng tiếp tục vận hành trên xe.',
+            outputTo: 'User Interface',
+            outputDetail: 'Kịch bản hoàn tất thành công.',
+            p2State: { text: 'IDLE (50 ms)', pct: 0 },
+            p2StarState: { text: 'IDLE (5000 ms)', pct: 0 },
+            bufferState: 'BUF_FREE',
+            opStatus: 'DCM_INITIAL',
+            stateSnapshot: { session: 1, security: 0, attempts: 0, seedLevel: 0, download: false, bsc: 1, erase: false, dtcCount: 3 }
+          }
+        ];
+        currentSteps = steps;
+      }
+
+      // Record bus frames from all steps into Bus Monitor
+      currentSteps.forEach(s => {
+        if (s.busEvents && s.busEvents.length) {
+          s.busEvents.forEach(ev => appendBusLog(ev));
+        }
+      });
+
+      renderCurrentStep();
+      stopAutoPlay();
     }
 
     // Quick state overrides & environment sliders
@@ -3542,7 +4832,7 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
       document.getElementById('sliderSpeed').value = 0;
       document.getElementById('sliderVoltage').value = 12.6;
       updateEnvSliders();
-      sendUdsRequest();
+      sendUdsRequest(false);
     }
 
     function updateEnvSliders() {
@@ -3562,7 +4852,48 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
 
     function sendQuickTesterPresent() {
       document.getElementById('hexInput').value = '3E 80';
-      sendUdsRequest();
+      ecuState.s3RemainingMs = 5000;
+      sendUdsRequest(false);
+    }
+
+    // Auto Tester Present Toggle Handlers
+    function onAutoTesterPresentChange() {
+      const chk = document.getElementById('chkAutoTesterPresent');
+      const badge = document.getElementById('badgeAutoTester');
+      if (!chk || !badge) return;
+
+      if (chk.checked) {
+        badge.textContent = 'BẬT (2.5s)';
+        badge.className = 'text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40';
+      } else {
+        badge.textContent = 'TẮT';
+        badge.className = 'text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700';
+      }
+    }
+
+    function flashBadgeAutoTester() {
+      const badge = document.getElementById('badgeAutoTester');
+      if (!badge) return;
+      badge.classList.add('bg-emerald-400', 'text-slate-950');
+      setTimeout(() => {
+        badge.classList.remove('bg-emerald-400', 'text-slate-950');
+      }, 300);
+    }
+
+    function forceS3Timeout() {
+      if (ecuState.session === 1) {
+        // If currently in Default Session, elevate to Extended first so user can observe timeout
+        ecuState.session = 3;
+        ecuState.securityLevel = 1;
+        ecuState.s3Active = true;
+      }
+      // Turn off auto tester present so keep-alive doesn't immediately rescue S3
+      const chkAuto = document.getElementById('chkAutoTesterPresent');
+      if (chkAuto) {
+        chkAuto.checked = false;
+        onAutoTesterPresentChange();
+      }
+      ecuState.s3RemainingMs = 0;
     }
 
     // Real-time S3Server countdown loop (ticks every 100ms when in Non-Default Session)
@@ -3575,9 +4906,27 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
         lblS3.textContent = 'STOPPED (Default Ses)';
         lblS3.className = 'font-mono font-bold text-slate-500';
         barS3.style.width = '0%';
+        ecuState.s3RemainingMs = 5000;
+        ecuState.s3Active = false;
         return;
       }
 
+      // Check Auto Tester Present: If enabled, send 3E 80 keep-alive when S3 drops to <= 2500ms
+      const chkAuto = document.getElementById('chkAutoTesterPresent');
+      if (chkAuto && chkAuto.checked) {
+        if (ecuState.s3RemainingMs <= 2500) {
+          ecuState.s3RemainingMs = 5000;
+          flashBadgeAutoTester();
+          appendBusLog({
+            dir: 'TX (Auto 3E 80)',
+            canId: '0x7DF (Func)',
+            hex: '3E 80',
+            desc: 'Auto TesterPresent (SPRMIB=1): Nạp lại S3Server = 5000ms [Keep-Alive chu kỳ 2.5s]'
+          });
+        }
+      }
+
+      // Real-time countdown
       if (chk && chk.checked && !isPlaying) {
         ecuState.s3RemainingMs = Math.max(0, ecuState.s3RemainingMs - 100);
       }
@@ -3653,6 +5002,23 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
       else modal.classList.add('hidden');
     }
 
+    // Switch tabs inside archModal Handbook
+    function switchArchTab(idx) {
+      for (let i = 1; i <= 3; i++) {
+        const panel = document.getElementById('archTabPanel' + i);
+        const btn = document.getElementById('archTabBtn' + i);
+        if (panel && btn) {
+          if (i === idx) {
+            panel.classList.remove('hidden');
+            btn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold bg-cyan-500 text-slate-950 transition';
+          } else {
+            panel.classList.add('hidden');
+            btn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 hover:text-white transition';
+          }
+        }
+      }
+    }
+
     // Standalone HTML file exporter so the user can download and share offline
     function downloadStandaloneHTML() {
       const htmlContent = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
@@ -3667,9 +5033,9 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
       URL.revokeObjectURL(url);
     }
 
-    // Initialize default scenario on page load
+    // Initialize default scenario on page load WITHOUT autoplay
     window.onload = function() {
-      sendUdsRequest();
+      sendUdsRequest(false);
     };
   </script>
 
