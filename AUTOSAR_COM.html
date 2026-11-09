@@ -73,6 +73,14 @@
       transform: scale(1.08);
       z-index: 10;
     }
+
+    /* Floating Config Tooltip */
+    #cfgTooltipPopup {
+      pointer-events: none;
+      z-index: 99999;
+      transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1), transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      max-width: 480px;
+    }
   </style>
 </head>
 <body class="bg-slate-950 text-slate-100 dark:bg-slate-950 dark:text-slate-100 light:bg-slate-100 light:text-slate-900 font-sans antialiased selection:bg-sky-500 selection:text-white min-h-screen flex flex-col">
@@ -190,8 +198,8 @@
             </h2>
             <p class="text-[11px] text-slate-400">3 Standalone Signals ghép chung 1 I-PDU (8 Bytes)</p>
           </div>
-          <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-slate-800 text-slate-300 border border-slate-700">
-            PduId: 0x101
+          <span data-cfg-key="ComIPdu" class="px-2 py-0.5 rounded text-[10px] font-mono bg-slate-800 text-slate-300 border border-slate-700 hover:border-sky-400 cursor-help transition flex items-center gap-1" title="AUTOSAR I-PDU Container">
+            PduId: 0x101 <span class="text-[9px] text-sky-400 opacity-80">ⓘ</span>
           </span>
         </div>
 
@@ -201,28 +209,37 @@
             Chọn Standalone Signal đang cấu hình / thao tác:
           </label>
           <div class="grid grid-cols-3 gap-1.5 bg-slate-950 p-1 rounded-lg border border-slate-800">
-            <button id="sigTab0" onclick="selectSignal(0)" class="px-2 py-1.5 rounded-md text-left transition border border-sky-500/50 bg-sky-500/15">
+            <button id="sigTab0" onclick="selectSignal(0)" data-cfg-key="ComSignal" class="cursor-help px-2 py-1.5 rounded-md text-left transition border border-sky-500/50 bg-sky-500/15">
               <div class="flex items-center justify-between">
                 <span class="text-[10px] font-mono font-bold text-sky-300">ID: 0</span>
                 <span class="w-2 h-2 rounded-full bg-sky-400"></span>
               </div>
-              <div class="text-[11px] font-semibold text-white truncate">Sig_EngineSpeed</div>
+              <div class="text-[11px] font-semibold text-white truncate flex items-center gap-1">
+                <span>Sig_EngineSpeed</span>
+                <span class="text-[9px] text-sky-400 opacity-70">ⓘ</span>
+              </div>
               <div class="text-[10px] font-mono text-slate-400">16-bit | U-Bit 23</div>
             </button>
-            <button id="sigTab1" onclick="selectSignal(1)" class="px-2 py-1.5 rounded-md text-left transition border border-transparent hover:bg-slate-800/70">
+            <button id="sigTab1" onclick="selectSignal(1)" data-cfg-key="ComSignal" class="cursor-help px-2 py-1.5 rounded-md text-left transition border border-transparent hover:bg-slate-800/70">
               <div class="flex items-center justify-between">
                 <span class="text-[10px] font-mono font-bold text-emerald-300">ID: 1</span>
                 <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
               </div>
-              <div class="text-[11px] font-semibold text-slate-200 truncate">Sig_CoolantTemp</div>
+              <div class="text-[11px] font-semibold text-slate-200 truncate flex items-center gap-1">
+                <span>Sig_CoolantTemp</span>
+                <span class="text-[9px] text-emerald-400 opacity-70">ⓘ</span>
+              </div>
               <div class="text-[10px] font-mono text-slate-400">7-bit | U-Bit 31</div>
             </button>
-            <button id="sigTab2" onclick="selectSignal(2)" class="px-2 py-1.5 rounded-md text-left transition border border-transparent hover:bg-slate-800/70">
+            <button id="sigTab2" onclick="selectSignal(2)" data-cfg-key="ComSignal" class="cursor-help px-2 py-1.5 rounded-md text-left transition border border-transparent hover:bg-slate-800/70">
               <div class="flex items-center justify-between">
                 <span class="text-[10px] font-mono font-bold text-violet-300">ID: 2</span>
                 <span class="w-2 h-2 rounded-full bg-violet-400"></span>
               </div>
-              <div class="text-[11px] font-semibold text-slate-200 truncate">Sig_ThrottlePos</div>
+              <div class="text-[11px] font-semibold text-slate-200 truncate flex items-center gap-1">
+                <span>Sig_ThrottlePos</span>
+                <span class="text-[9px] text-violet-400 opacity-70">ⓘ</span>
+              </div>
               <div class="text-[10px] font-mono text-slate-400">8-bit | U-Bit 40</div>
             </button>
           </div>
@@ -230,29 +247,41 @@
 
         <!-- Signal Input Value & Quick Action -->
         <div class="bg-slate-950/90 border border-slate-800 rounded-lg p-2.5">
-          <div class="flex items-center justify-between mb-1">
-            <label for="inpSignalValue" class="text-[11px] font-semibold text-sky-300">
-              Giá trị <span id="lblActiveSigName" class="font-mono underline">Sig_EngineSpeed</span> (Hex / Dec):
-            </label>
-            <span id="lblActiveSigHex" class="text-[11px] font-mono text-amber-300">0x07D0 (2000)</span>
-          </div>
-          <div class="flex gap-1.5">
-            <input id="inpSignalValue" type="text" value="0x07D0" oninput="onConfigChange()" class="w-full px-2.5 py-1.5 rounded bg-slate-900 border border-slate-700 text-xs font-mono text-white focus:outline-none focus:border-sky-500" placeholder="VD: 2000 hoặc 0x07D0" />
-            <button onclick="triggerPrimaryAction()" class="px-3 py-1.5 rounded bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold whitespace-nowrap transition shadow">
-              ⚡ Áp dụng &amp; Chạy
-            </button>
+          <div data-cfg-key="ComSignalValue" class="cursor-help p-1 rounded hover:bg-slate-900/60 border border-transparent hover:border-sky-500/40 transition">
+            <div class="flex items-center justify-between mb-1">
+              <label for="inpSignalValue" class="text-[11px] font-semibold text-sky-300 flex items-center gap-1">
+                <span>Giá trị <span id="lblActiveSigName" class="font-mono underline">Sig_EngineSpeed</span> (Hex / Dec):</span>
+                <span class="text-[10px] text-sky-400 opacity-70">ⓘ</span>
+              </label>
+              <span id="lblActiveSigHex" class="text-[11px] font-mono text-amber-300">0x07D0 (2000)</span>
+            </div>
+            <div class="flex gap-1.5">
+              <input id="inpSignalValue" type="text" value="0x07D0" oninput="onConfigChange()" class="w-full px-2.5 py-1.5 rounded bg-slate-900 border border-slate-700 text-xs font-mono text-white focus:outline-none focus:border-sky-500" placeholder="VD: 2000 hoặc 0x07D0" />
+              <button onclick="triggerPrimaryAction()" class="px-3 py-1.5 rounded bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold whitespace-nowrap transition shadow">
+                ⚡ Áp dụng &amp; Chạy
+              </button>
+            </div>
           </div>
           <div class="grid grid-cols-3 gap-1.5 mt-2">
-            <div>
-              <label class="block text-[10px] text-slate-400 font-mono">ComSignalInitValue</label>
+            <div data-cfg-key="ComSignalInitValue" class="p-1 rounded border border-transparent hover:border-slate-700 hover:bg-slate-900/60 transition cursor-help">
+              <label class="flex items-center justify-between text-[10px] text-slate-400 font-mono">
+                <span>ComSignalInitValue</span>
+                <span class="text-[9px] text-sky-400 opacity-70">ⓘ</span>
+              </label>
               <input id="inpInitValue" type="text" value="0x0320" onchange="onConfigChange()" class="w-full mt-0.5 px-2 py-1 rounded bg-slate-900 border border-slate-700 text-[11px] font-mono text-slate-200" />
             </div>
-            <div>
-              <label class="block text-[10px] text-slate-400 font-mono">DataInvalidValue</label>
+            <div data-cfg-key="ComSignalDataInvalidValue" class="p-1 rounded border border-transparent hover:border-rose-500/40 hover:bg-slate-900/60 transition cursor-help">
+              <label class="flex items-center justify-between text-[10px] text-slate-400 font-mono">
+                <span>DataInvalidValue</span>
+                <span class="text-[9px] text-rose-400 opacity-70">ⓘ</span>
+              </label>
               <input id="inpInvalidValue" type="text" value="0xFFFF" onchange="onConfigChange()" class="w-full mt-0.5 px-2 py-1 rounded bg-slate-900 border border-slate-700 text-[11px] font-mono text-rose-300" />
             </div>
-            <div>
-              <label class="block text-[10px] text-slate-400 font-mono">TimeoutSubstVal</label>
+            <div data-cfg-key="ComTimeoutSubstitutionValue" class="p-1 rounded border border-transparent hover:border-amber-500/40 hover:bg-slate-900/60 transition cursor-help">
+              <label class="flex items-center justify-between text-[10px] text-slate-400 font-mono">
+                <span>TimeoutSubstVal</span>
+                <span class="text-[9px] text-amber-400 opacity-70">ⓘ</span>
+              </label>
               <input id="inpSubstValue" type="text" value="0x01F4" onchange="onConfigChange()" class="w-full mt-0.5 px-2 py-1 rounded bg-slate-900 border border-slate-700 text-[11px] font-mono text-amber-300" />
             </div>
           </div>
@@ -265,42 +294,57 @@
             <span class="text-[10px] font-mono text-slate-400">Real-time Flags</span>
           </div>
 
-          <label class="flex items-start gap-2 cursor-pointer group">
+          <label data-cfg-key="ComUpdateBit" class="flex items-start gap-2 cursor-help group p-1 rounded hover:bg-slate-900/60 hover:border-sky-500/30 border border-transparent transition">
             <input id="chkEnableUpdateBit" type="checkbox" checked onchange="onConfigChange()" class="mt-0.5 rounded border-slate-600 text-sky-500 focus:ring-sky-500 bg-slate-900" />
-            <div class="text-xs">
-              <span class="font-semibold text-slate-200 group-hover:text-sky-300 transition">Enable Update-Bit</span>
+            <div class="text-xs flex-1">
+              <span class="font-semibold text-slate-200 group-hover:text-sky-300 transition flex items-center gap-1">
+                <span>Enable Update-Bit</span>
+                <span class="text-[10px] text-sky-400 opacity-70">ⓘ</span>
+              </span>
               <span class="block text-[10px] font-mono text-slate-400">ComUpdateBitPosition: Gắn 1 bit báo dữ liệu mới</span>
             </div>
           </label>
 
-          <label class="flex items-start gap-2 cursor-pointer group">
+          <label data-cfg-key="ComIPduSignalProcessing" class="flex items-start gap-2 cursor-help group p-1 rounded hover:bg-slate-900/60 hover:border-sky-500/30 border border-transparent transition">
             <input id="chkDeferredProcessing" type="checkbox" onchange="onConfigChange()" class="mt-0.5 rounded border-slate-600 text-sky-500 focus:ring-sky-500 bg-slate-900" />
-            <div class="text-xs">
-              <span class="font-semibold text-slate-200 group-hover:text-sky-300 transition">Deferred I-PDU Signal Processing</span>
+            <div class="text-xs flex-1">
+              <span class="font-semibold text-slate-200 group-hover:text-sky-300 transition flex items-center gap-1">
+                <span>Deferred I-PDU Signal Processing</span>
+                <span class="text-[10px] text-sky-400 opacity-70">ⓘ</span>
+              </span>
               <span class="block text-[10px] font-mono text-slate-400">Bật = DEFERRED (MainFunctionRx) | Tắt = IMMEDIATE (ISR)</span>
             </div>
           </label>
 
-          <label class="flex items-start gap-2 cursor-pointer group">
+          <label data-cfg-key="ComDeadlineMonitoring" class="flex items-start gap-2 cursor-help group p-1 rounded hover:bg-slate-900/60 hover:border-sky-500/30 border border-transparent transition">
             <input id="chkDeadlineMonitoring" type="checkbox" checked onchange="onConfigChange()" class="mt-0.5 rounded border-slate-600 text-sky-500 focus:ring-sky-500 bg-slate-900" />
-            <div class="text-xs">
-              <span class="font-semibold text-slate-200 group-hover:text-sky-300 transition">Enable Deadline Monitoring (Timeout)</span>
+            <div class="text-xs flex-1">
+              <span class="font-semibold text-slate-200 group-hover:text-sky-300 transition flex items-center gap-1">
+                <span>Enable Deadline Monitoring (Timeout)</span>
+                <span class="text-[10px] text-sky-400 opacity-70">ⓘ</span>
+              </span>
               <span class="block text-[10px] font-mono text-slate-400">Giám sát ComTimeout cho Signal / I-PDU</span>
             </div>
           </label>
 
-          <label class="flex items-start gap-2 cursor-pointer group">
+          <label data-cfg-key="ComNotification" class="flex items-start gap-2 cursor-help group p-1 rounded hover:bg-slate-900/60 hover:border-sky-500/30 border border-transparent transition">
             <input id="chkEnableNotification" type="checkbox" checked onchange="onConfigChange()" class="mt-0.5 rounded border-slate-600 text-sky-500 focus:ring-sky-500 bg-slate-900" />
-            <div class="text-xs">
-              <span class="font-semibold text-slate-200 group-hover:text-sky-300 transition">Enable ComNotification / Callout</span>
+            <div class="text-xs flex-1">
+              <span class="font-semibold text-slate-200 group-hover:text-sky-300 transition flex items-center gap-1">
+                <span>Enable ComNotification / Callout</span>
+                <span class="text-[10px] text-sky-400 opacity-70">ⓘ</span>
+              </span>
               <span class="block text-[10px] font-mono text-slate-400">Gọi Rte_COMCbk_*, Com_CbkRxTOut, ComIPduCallout</span>
             </div>
           </label>
 
-          <label class="flex items-start gap-2 cursor-pointer group pt-1 border-t border-slate-800/80">
+          <label data-cfg-key="ComRxIncomingUpdateBit" class="flex items-start gap-2 cursor-help group pt-1 border-t border-slate-800/80 p-1 rounded hover:bg-slate-900/60 hover:border-amber-500/30 border border-transparent transition">
             <input id="chkRxIncomingUpdateBit" type="checkbox" checked onchange="onConfigChange()" class="mt-0.5 rounded border-slate-600 text-amber-500 focus:ring-amber-500 bg-slate-900" />
-            <div class="text-xs">
-              <span class="font-semibold text-amber-300 group-hover:text-amber-200 transition">[Chiều RX] Gói CAN đến có Update-Bit = 1</span>
+            <div class="text-xs flex-1">
+              <span class="font-semibold text-amber-300 group-hover:text-amber-200 transition flex items-center gap-1">
+                <span>[Chiều RX] Gói CAN đến có Update-Bit = 1</span>
+                <span class="text-[10px] text-amber-400 opacity-70">ⓘ</span>
+              </span>
               <span class="block text-[10px] font-mono text-slate-400">Bỏ tích để test COM bỏ qua Signal khi Update-Bit = 0</span>
             </div>
           </label>
@@ -314,30 +358,45 @@
 
           <!-- Bit Layout Parameters -->
           <div class="grid grid-cols-3 gap-1.5">
-            <div>
-              <label class="block text-[10px] font-mono text-slate-400">ComBitPosition</label>
+            <div data-cfg-key="ComBitPosition" class="p-1 rounded border border-transparent hover:border-slate-700 hover:bg-slate-900/60 transition cursor-help">
+              <label class="flex items-center justify-between text-[10px] font-mono text-slate-400">
+                <span>ComBitPosition</span>
+                <span class="text-[9px] text-sky-400 opacity-70">ⓘ</span>
+              </label>
               <input id="inpBitPos" type="number" min="0" max="63" value="0" onchange="onConfigChange()" class="w-full mt-0.5 px-2 py-1 rounded bg-slate-900 border border-slate-700 text-xs font-mono text-white" />
             </div>
-            <div>
-              <label class="block text-[10px] font-mono text-slate-400">ComBitSize</label>
+            <div data-cfg-key="ComBitSize" class="p-1 rounded border border-transparent hover:border-slate-700 hover:bg-slate-900/60 transition cursor-help">
+              <label class="flex items-center justify-between text-[10px] font-mono text-slate-400">
+                <span>ComBitSize</span>
+                <span class="text-[9px] text-sky-400 opacity-70">ⓘ</span>
+              </label>
               <input id="inpBitSize" type="number" min="1" max="32" value="16" onchange="onConfigChange()" class="w-full mt-0.5 px-2 py-1 rounded bg-slate-900 border border-slate-700 text-xs font-mono text-white" />
             </div>
-            <div>
-              <label class="block text-[10px] font-mono text-amber-400">UpdateBitPos</label>
+            <div data-cfg-key="ComUpdateBitPosition" class="p-1 rounded border border-transparent hover:border-amber-500/40 hover:bg-slate-900/60 transition cursor-help">
+              <label class="flex items-center justify-between text-[10px] font-mono text-amber-400">
+                <span>UpdateBitPos</span>
+                <span class="text-[9px] text-amber-400 opacity-70">ⓘ</span>
+              </label>
               <input id="inpUpdateBitPos" type="number" min="0" max="63" value="23" onchange="onConfigChange()" class="w-full mt-0.5 px-2 py-1 rounded bg-slate-900 border border-amber-500/50 text-xs font-mono text-amber-300" />
             </div>
           </div>
 
           <div class="grid grid-cols-2 gap-1.5">
-            <div>
-              <label class="block text-[10px] font-mono text-slate-400">ComSignalEndianness</label>
+            <div data-cfg-key="ComSignalEndianness" class="p-1 rounded border border-transparent hover:border-slate-700 hover:bg-slate-900/60 transition cursor-help">
+              <label class="flex items-center justify-between text-[10px] font-mono text-slate-400">
+                <span>ComSignalEndianness</span>
+                <span class="text-[9px] text-sky-400 opacity-70">ⓘ</span>
+              </label>
               <select id="selEndianness" onchange="onConfigChange()" class="w-full mt-0.5 px-2 py-1 rounded bg-slate-900 border border-slate-700 text-[11px] font-mono text-white">
                 <option value="LITTLE_ENDIAN">LITTLE_ENDIAN (Intel)</option>
                 <option value="BIG_ENDIAN">BIG_ENDIAN (Motorola)</option>
               </select>
             </div>
-            <div>
-              <label class="block text-[10px] font-mono text-slate-400">ClearUpdateBit</label>
+            <div data-cfg-key="ComTxIPduClearUpdateBit" class="p-1 rounded border border-transparent hover:border-slate-700 hover:bg-slate-900/60 transition cursor-help">
+              <label class="flex items-center justify-between text-[10px] font-mono text-slate-400">
+                <span>ClearUpdateBit</span>
+                <span class="text-[9px] text-sky-400 opacity-70">ⓘ</span>
+              </label>
               <select id="selClearUpdateBit" onchange="onConfigChange()" class="w-full mt-0.5 px-2 py-1 rounded bg-slate-900 border border-slate-700 text-[11px] font-mono text-white">
                 <option value="CONFIRMATION">CONFIRMATION</option>
                 <option value="TRANSMIT">TRANSMIT</option>
@@ -347,8 +406,11 @@
           </div>
 
           <!-- Transfer Property & Tx Mode -->
-          <div class="pt-1.5 border-t border-slate-800">
-            <label class="block text-[10px] font-mono text-slate-400">ComTransferProperty (Thuộc tính kích phát của Signal)</label>
+          <div data-cfg-key="ComTransferProperty" class="pt-1.5 border-t border-slate-800 p-1 rounded hover:bg-slate-900/60 hover:border-sky-500/30 border border-transparent transition cursor-help">
+            <label class="flex items-center justify-between text-[10px] font-mono text-slate-400">
+              <span>ComTransferProperty (Thuộc tính kích phát)</span>
+              <span class="text-[9px] text-sky-400 opacity-70">ⓘ</span>
+            </label>
             <select id="selTransferProperty" onchange="onConfigChange()" class="w-full mt-0.5 px-2 py-1 rounded bg-slate-900 border border-slate-700 text-[11px] font-mono text-sky-300">
               <option value="TRIGGERED_ON_CHANGE">TRIGGERED_ON_CHANGE</option>
               <option value="TRIGGERED">TRIGGERED</option>
@@ -359,8 +421,11 @@
           </div>
 
           <div class="grid grid-cols-2 gap-1.5">
-            <div>
-              <label class="block text-[10px] font-mono text-emerald-400">TxMode (TMS = TRUE)</label>
+            <div data-cfg-key="ComTxModeTrue" class="p-1 rounded border border-transparent hover:border-slate-700 hover:bg-slate-900/60 transition cursor-help">
+              <label class="flex items-center justify-between text-[10px] font-mono text-emerald-400">
+                <span>TxMode (TMS = TRUE)</span>
+                <span class="text-[9px] text-emerald-400 opacity-70">ⓘ</span>
+              </label>
               <select id="selTxModeTrue" onchange="onConfigChange()" class="w-full mt-0.5 px-2 py-1 rounded bg-slate-900 border border-slate-700 text-[11px] font-mono text-white">
                 <option value="DIRECT">DIRECT</option>
                 <option value="MIXED">MIXED</option>
@@ -368,8 +433,11 @@
                 <option value="NONE">NONE</option>
               </select>
             </div>
-            <div>
-              <label class="block text-[10px] font-mono text-slate-400">TxMode (TMS = FALSE)</label>
+            <div data-cfg-key="ComTxModeFalse" class="p-1 rounded border border-transparent hover:border-slate-700 hover:bg-slate-900/60 transition cursor-help">
+              <label class="flex items-center justify-between text-[10px] font-mono text-slate-400">
+                <span>TxMode (TMS = FALSE)</span>
+                <span class="text-[9px] text-sky-400 opacity-70">ⓘ</span>
+              </label>
               <select id="selTxModeFalse" onchange="onConfigChange()" class="w-full mt-0.5 px-2 py-1 rounded bg-slate-900 border border-slate-700 text-[11px] font-mono text-white">
                 <option value="PERIODIC">PERIODIC</option>
                 <option value="DIRECT">DIRECT</option>
@@ -380,42 +448,65 @@
           </div>
 
           <div class="grid grid-cols-3 gap-1.5">
-            <div>
-              <label class="block text-[10px] font-mono text-slate-400">TimePeriod (ms)</label>
+            <div data-cfg-key="ComTxModeTimePeriod" class="p-1 rounded border border-transparent hover:border-slate-700 hover:bg-slate-900/60 transition cursor-help">
+              <label class="flex items-center justify-between text-[10px] font-mono text-slate-400">
+                <span>TimePeriod (ms)</span>
+                <span class="text-[9px] text-sky-400 opacity-70">ⓘ</span>
+              </label>
               <input id="inpTimePeriod" type="number" min="10" step="10" value="100" onchange="onConfigChange()" class="w-full mt-0.5 px-2 py-1 rounded bg-slate-900 border border-slate-700 text-xs font-mono text-white" />
             </div>
-            <div>
-              <label class="block text-[10px] font-mono text-slate-400">Repetitions (N)</label>
+            <div data-cfg-key="ComTxModeNumberOfRepetitions" class="p-1 rounded border border-transparent hover:border-slate-700 hover:bg-slate-900/60 transition cursor-help">
+              <label class="flex items-center justify-between text-[10px] font-mono text-slate-400">
+                <span>Repetitions (N)</span>
+                <span class="text-[9px] text-sky-400 opacity-70">ⓘ</span>
+              </label>
               <input id="inpRepetitions" type="number" min="0" max="10" value="2" onchange="onConfigChange()" class="w-full mt-0.5 px-2 py-1 rounded bg-slate-900 border border-slate-700 text-xs font-mono text-white" />
             </div>
-            <div>
-              <label class="block text-[10px] font-mono text-slate-400">MDT (ms)</label>
+            <div data-cfg-key="ComMinimumDelayTime" class="p-1 rounded border border-transparent hover:border-slate-700 hover:bg-slate-900/60 transition cursor-help">
+              <label class="flex items-center justify-between text-[10px] font-mono text-slate-400">
+                <span>MDT (ms)</span>
+                <span class="text-[9px] text-sky-400 opacity-70">ⓘ</span>
+              </label>
               <input id="inpMDT" type="number" min="0" step="5" value="20" onchange="onConfigChange()" class="w-full mt-0.5 px-2 py-1 rounded bg-slate-900 border border-slate-700 text-xs font-mono text-white" />
             </div>
           </div>
 
           <!-- Filter Algorithm (TMC & Rx Filter) -->
-          <div class="pt-1.5 border-t border-slate-800">
-            <label class="block text-[10px] font-mono text-slate-400">ComFilterAlgorithm (Tính TMC ở Tx / Lọc ở Rx)</label>
-            <select id="selFilterAlgo" onchange="onConfigChange()" class="w-full mt-0.5 px-2 py-1 rounded bg-slate-900 border border-slate-700 text-[11px] font-mono text-amber-300">
-              <option value="ALWAYS">ALWAYS (Luôn TRUE)</option>
-              <option value="NEVER">NEVER (Luôn FALSE)</option>
-              <option value="MASKED_NEW_DIFFERS_MASKED_OLD">MASKED_NEW_DIFFERS_MASKED_OLD</option>
-              <option value="MASKED_NEW_DIFFERS_X">MASKED_NEW_DIFFERS_X</option>
-              <option value="NEW_IS_WITHIN">NEW_IS_WITHIN [Min..Max]</option>
-              <option value="ONE_EVERY_N">ONE_EVERY_N (Mỗi N lần)</option>
-            </select>
-            <div class="grid grid-cols-3 gap-1.5 mt-1.5">
-              <div>
-                <label class="block text-[10px] font-mono text-slate-400">Mask / N</label>
+          <div class="pt-1.5 border-t border-slate-800 space-y-1.5">
+            <div data-cfg-key="ComFilterAlgorithm" class="p-1 rounded hover:bg-slate-900/60 hover:border-amber-500/30 border border-transparent transition cursor-help">
+              <label class="flex items-center justify-between text-[10px] font-mono text-slate-400">
+                <span>ComFilterAlgorithm (Tính TMC / Lọc Rx)</span>
+                <span class="text-[9px] text-amber-400 opacity-70">ⓘ</span>
+              </label>
+              <select id="selFilterAlgo" onchange="onConfigChange()" class="w-full mt-0.5 px-2 py-1 rounded bg-slate-900 border border-slate-700 text-[11px] font-mono text-amber-300">
+                <option value="ALWAYS">ALWAYS (Luôn TRUE)</option>
+                <option value="NEVER">NEVER (Luôn FALSE)</option>
+                <option value="MASKED_NEW_DIFFERS_MASKED_OLD">MASKED_NEW_DIFFERS_MASKED_OLD</option>
+                <option value="MASKED_NEW_DIFFERS_X">MASKED_NEW_DIFFERS_X</option>
+                <option value="NEW_IS_WITHIN">NEW_IS_WITHIN [Min..Max]</option>
+                <option value="ONE_EVERY_N">ONE_EVERY_N (Mỗi N lần)</option>
+              </select>
+            </div>
+            <div class="grid grid-cols-3 gap-1.5">
+              <div data-cfg-key="ComFilterMask" class="p-1 rounded border border-transparent hover:border-slate-700 hover:bg-slate-900/60 transition cursor-help">
+                <label class="flex items-center justify-between text-[10px] font-mono text-slate-400">
+                  <span>Mask / N</span>
+                  <span class="text-[9px] text-sky-400 opacity-70">ⓘ</span>
+                </label>
                 <input id="inpFilterMask" type="text" value="0xFFFF" onchange="onConfigChange()" class="w-full mt-0.5 px-2 py-1 rounded bg-slate-900 border border-slate-700 text-[11px] font-mono text-white" />
               </div>
-              <div>
-                <label class="block text-[10px] font-mono text-slate-400">Filter Min / X</label>
+              <div data-cfg-key="ComFilterMin" class="p-1 rounded border border-transparent hover:border-slate-700 hover:bg-slate-900/60 transition cursor-help">
+                <label class="flex items-center justify-between text-[10px] font-mono text-slate-400">
+                  <span>Filter Min / X</span>
+                  <span class="text-[9px] text-sky-400 opacity-70">ⓘ</span>
+                </label>
                 <input id="inpFilterMin" type="text" value="1000" onchange="onConfigChange()" class="w-full mt-0.5 px-2 py-1 rounded bg-slate-900 border border-slate-700 text-[11px] font-mono text-white" />
               </div>
-              <div>
-                <label class="block text-[10px] font-mono text-slate-400">Filter Max</label>
+              <div data-cfg-key="ComFilterMax" class="p-1 rounded border border-transparent hover:border-slate-700 hover:bg-slate-900/60 transition cursor-help">
+                <label class="flex items-center justify-between text-[10px] font-mono text-slate-400">
+                  <span>Filter Max</span>
+                  <span class="text-[9px] text-sky-400 opacity-70">ⓘ</span>
+                </label>
                 <input id="inpFilterMax" type="text" value="3000" onchange="onConfigChange()" class="w-full mt-0.5 px-2 py-1 rounded bg-slate-900 border border-slate-700 text-[11px] font-mono text-white" />
               </div>
             </div>
@@ -423,20 +514,29 @@
 
           <!-- Timeout & Invalid Action -->
           <div class="pt-1.5 border-t border-slate-800 grid grid-cols-3 gap-1.5">
-            <div>
-              <label class="block text-[10px] font-mono text-slate-400">ComTimeout(ms)</label>
+            <div data-cfg-key="ComTimeout" class="p-1 rounded border border-transparent hover:border-slate-700 hover:bg-slate-900/60 transition cursor-help">
+              <label class="flex items-center justify-between text-[10px] font-mono text-slate-400">
+                <span>ComTimeout(ms)</span>
+                <span class="text-[9px] text-sky-400 opacity-70">ⓘ</span>
+              </label>
               <input id="inpTimeout" type="number" min="50" step="50" value="500" onchange="onConfigChange()" class="w-full mt-0.5 px-2 py-1 rounded bg-slate-900 border border-slate-700 text-xs font-mono text-white" />
             </div>
-            <div>
-              <label class="block text-[10px] font-mono text-slate-400">TimeoutAction</label>
+            <div data-cfg-key="ComRxDataTimeoutAction" class="p-1 rounded border border-transparent hover:border-slate-700 hover:bg-slate-900/60 transition cursor-help">
+              <label class="flex items-center justify-between text-[10px] font-mono text-slate-400">
+                <span>TimeoutAction</span>
+                <span class="text-[9px] text-sky-400 opacity-70">ⓘ</span>
+              </label>
               <select id="selTimeoutAction" onchange="onConfigChange()" class="w-full mt-0.5 px-2 py-1 rounded bg-slate-900 border border-slate-700 text-[11px] font-mono text-white">
                 <option value="REPLACE">REPLACE (InitVal)</option>
                 <option value="SUBSTITUTE">SUBSTITUTE</option>
                 <option value="NONE">NONE</option>
               </select>
             </div>
-            <div>
-              <label class="block text-[10px] font-mono text-slate-400">InvalidAction</label>
+            <div data-cfg-key="ComDataInvalidAction" class="p-1 rounded border border-transparent hover:border-slate-700 hover:bg-slate-900/60 transition cursor-help">
+              <label class="flex items-center justify-between text-[10px] font-mono text-slate-400">
+                <span>InvalidAction</span>
+                <span class="text-[9px] text-sky-400 opacity-70">ⓘ</span>
+              </label>
               <select id="selInvalidAction" onchange="onConfigChange()" class="w-full mt-0.5 px-2 py-1 rounded bg-slate-900 border border-slate-700 text-[11px] font-mono text-white">
                 <option value="NOTIFY">NOTIFY</option>
                 <option value="REPLACE">REPLACE (InitVal)</option>
@@ -454,34 +554,49 @@
       <!-- Live State Bar (TMC, TMS, TxMode, Timers) -->
       <div class="bg-slate-900 border border-slate-800 rounded-xl p-2.5 shadow-lg">
         <div class="grid grid-cols-2 sm:grid-cols-5 gap-2 text-center">
-          <div class="bg-slate-950 border border-slate-800 rounded-lg p-1.5">
-            <div class="text-[10px] font-mono text-slate-400">TMC (Sig 0 / 1 / 2)</div>
+          <div data-cfg-key="ComTMC" class="bg-slate-950 border border-slate-800 hover:border-emerald-500/40 rounded-lg p-1.5 cursor-help transition">
+            <div class="text-[10px] font-mono text-slate-400 flex items-center justify-center gap-1">
+              <span>TMC (0/1/2)</span>
+              <span class="text-[9px] text-emerald-400 opacity-70">ⓘ</span>
+            </div>
             <div id="statusTMC" class="text-xs font-mono font-bold mt-0.5 flex items-center justify-center gap-1">
               <span class="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300">T</span>
               <span class="px-1.5 py-0.5 rounded bg-slate-800 text-slate-400">F</span>
               <span class="px-1.5 py-0.5 rounded bg-slate-800 text-slate-400">F</span>
             </div>
           </div>
-          <div class="bg-slate-950 border border-slate-800 rounded-lg p-1.5">
-            <div class="text-[10px] font-mono text-slate-400">I-PDU TMS</div>
+          <div data-cfg-key="ComTMS" class="bg-slate-950 border border-slate-800 hover:border-emerald-500/40 rounded-lg p-1.5 cursor-help transition">
+            <div class="text-[10px] font-mono text-slate-400 flex items-center justify-center gap-1">
+              <span>I-PDU TMS</span>
+              <span class="text-[9px] text-emerald-400 opacity-70">ⓘ</span>
+            </div>
             <div id="statusTMS" class="text-xs font-mono font-bold text-emerald-400 mt-0.5">
               TRUE (Or-Logic)
             </div>
           </div>
-          <div class="bg-slate-950 border border-slate-800 rounded-lg p-1.5">
-            <div class="text-[10px] font-mono text-slate-400">Active ComTxMode</div>
+          <div data-cfg-key="ComActiveTxMode" class="bg-slate-950 border border-slate-800 hover:border-sky-500/40 rounded-lg p-1.5 cursor-help transition">
+            <div class="text-[10px] font-mono text-slate-400 flex items-center justify-center gap-1">
+              <span>Active ComTxMode</span>
+              <span class="text-[9px] text-sky-400 opacity-70">ⓘ</span>
+            </div>
             <div id="statusTxMode" class="text-xs font-mono font-bold text-sky-400 mt-0.5">
               DIRECT (N=2)
             </div>
           </div>
-          <div class="bg-slate-950 border border-slate-800 rounded-lg p-1.5">
-            <div class="text-[10px] font-mono text-slate-400">Tx Rep / MDT Timer</div>
+          <div data-cfg-key="ComRepMdtTimer" class="bg-slate-950 border border-slate-800 hover:border-amber-500/40 rounded-lg p-1.5 cursor-help transition">
+            <div class="text-[10px] font-mono text-slate-400 flex items-center justify-center gap-1">
+              <span>Tx Rep / MDT</span>
+              <span class="text-[9px] text-amber-400 opacity-70">ⓘ</span>
+            </div>
             <div id="statusRepTimer" class="text-xs font-mono font-bold text-amber-300 mt-0.5">
               Rep: 2 | MDT: 20ms
             </div>
           </div>
-          <div class="bg-slate-950 border border-slate-800 rounded-lg p-1.5 col-span-2 sm:col-span-1">
-            <div class="text-[10px] font-mono text-slate-400">Deadline Timer</div>
+          <div data-cfg-key="ComDeadlineTimer" class="bg-slate-950 border border-slate-800 hover:border-emerald-500/40 rounded-lg p-1.5 col-span-2 sm:col-span-1 cursor-help transition">
+            <div class="text-[10px] font-mono text-slate-400 flex items-center justify-center gap-1">
+              <span>Deadline Timer</span>
+              <span class="text-[9px] text-emerald-400 opacity-70">ⓘ</span>
+            </div>
             <div id="statusDeadlineTimer" class="text-xs font-mono font-bold text-emerald-300 mt-0.5">
               0 / 500 ms
             </div>
@@ -1474,7 +1589,7 @@
           emerald: 'border-emerald-500 bg-emerald-500/15',
           violet: 'border-violet-500 bg-violet-500/15'
         };
-        btn.className = `px-2 py-1.5 rounded-md text-left transition border ${
+        btn.className = `px-2 py-1.5 rounded-md text-left transition border cursor-help ${
           isSelected ? borderColors[s.colorName] : 'border-transparent hover:bg-slate-800/70'
         }`;
       });
@@ -2304,9 +2419,445 @@
       }
     });
 
+    /***************************************************************************
+     * 8. CONFIG HOVER TOOLTIPS (>500ms DELAY) DICTIONARY & ENGINE
+     ***************************************************************************/
+    const configTooltipData = {
+      ComIPdu: {
+        title: 'Cấu hình AUTOSAR I-PDU (ComIPdu)',
+        ecuc: 'ComConfig / ComIPdu / ComIPduHandleId',
+        sws: '[SWS_Com_00128], [SWS_Com_00761] (AUTOSAR R22-11+)',
+        desc: 'Đơn vị dữ liệu giao thức tầng tương tác (Interaction Layer Protocol Data Unit - I-PDU) đóng vai trò là khung đóng gói (Container) ghép nối nhiều Signals và Update-Bits thành một khối dữ liệu (tối đa 8 bytes CAN chuẩn, 64 bytes CAN FD) trao đổi với tầng PduR.',
+        range: '0 .. 65535 (PduIdType)',
+        typical: '0x101 (257) - I-PDU ghép 3 Standalone Signals',
+        notes: 'Mỗi I-PDU độc lập về chế độ truyền TxMode (DIRECT, PERIODIC, MIXED), chu kỳ TimePeriod, thời gian chống nghẽn MDT và cờ kiểm soát Update-Bit.'
+      },
+      ComSignal: {
+        title: 'Tín hiệu độc lập AUTOSAR (ComSignal / Standalone Signal)',
+        ecuc: 'ComConfig / ComSignal / ComSignalHandleId',
+        sws: '[SWS_Com_00125], [SWS_Com_00257] (AUTOSAR R22-11+)',
+        desc: 'Đại diện cho một tín hiệu giao tiếp độc lập (Standalone Signal) được trao đổi giữa SW-C và module COM qua RTE. Mỗi Signal có vị trí bit (BitPosition), độ dài (BitSize), thuộc tính truyền phát (TransferProperty) và bộ lọc riêng biệt.',
+        range: '0 .. ComMaxSignals - 1',
+        typical: 'ID 0 (Sig_EngineSpeed), ID 1 (Sig_CoolantTemp), ID 2 (Sig_ThrottlePos)',
+        notes: 'Standalone Signals được truyền nhận độc lập nhưng đóng gói chung vào một khung I-PDU duy nhất để tối ưu hiệu suất băng thông bus.'
+      },
+      ComSignalValue: {
+        title: 'Giá trị thời gian thực của Signal (Com_SendSignal Input)',
+        ecuc: 'Application SW-C Data Element -> Com_SendSignal(SignalId, &SignalDataPtr)',
+        sws: '[SWS_Com_00334], [SWS_Com_00638] (AUTOSAR R22-11+)',
+        desc: 'Giá trị thời gian thực do ứng dụng SW-C ghi xuống module COM. COM thực hiện đánh giá bộ lọc (TMC), đánh cờ Update-Bit = 1 (nếu có), thực hiện bit-packing vào I-PDU buffer theo đúng thứ tự endianness, và quyết định phát I-PDU dựa trên TransferProperty.',
+        range: '0 .. 2^BitSize - 1 (Hỗ trợ định dạng Hex 0x... hoặc Dec)',
+        typical: '0x07D0 (2000 rpm) cho Sig_EngineSpeed; 0x5A (90°C) cho Sig_CoolantTemp',
+        notes: 'Khi nhập giá trị mới, nhấn "Áp dụng & Chạy" để quan sát toàn bộ luồng truyền tín hiệu qua 4 tầng kiến trúc AUTOSAR và cập nhật trên bản đồ 64-Bit I-PDU.'
+      },
+      ComSignalInitValue: {
+        title: 'Giá trị khởi tạo ban đầu của Signal (ComSignalInitValue)',
+        ecuc: 'ComConfig / ComSignal / ComSignalInitValue',
+        sws: '[SWS_Com_00178], [SWS_Com_00117] (AUTOSAR R22-11+)',
+        desc: 'Giá trị ban đầu được nạp vào Signal Buffer khi module COM gọi Com_Init(&ComConfig) hoặc khi xảy ra sự kiện mất kết nối (Deadline Monitoring Timeout) mà thuộc tính ComRxDataTimeoutAction được đặt là REPLACE.',
+        range: '0 .. 2^BitSize - 1 (EcucIntegerParamDef / EcucFloatParamDef)',
+        typical: '0x0320 (800 rpm đối với Sig_EngineSpeed - tốc độ không tải cầm chừng)',
+        notes: 'Ở chiều TX, nếu ứng dụng chưa từng gọi Com_SendSignal(), I-PDU đầu tiên phát ra sẽ mang InitValue này. Ở chiều RX, giá trị này giúp hệ thống về trạng thái an toàn mặc định khi mới khởi động hoặc khi xảy ra sự cố.'
+      },
+      ComSignalDataInvalidValue: {
+        title: 'Giá trị dữ liệu không hợp lệ (ComSignalDataInvalidValue)',
+        ecuc: 'ComConfig / ComSignal / ComSignalDataInvalidValue',
+        sws: '[SWS_Com_00391], [SWS_Com_00677] (AUTOSAR R22-11+)',
+        desc: 'Giá trị đặc biệt quy định trong cấu hình dùng để báo hiệu tín hiệu cảm biến bị lỗi hoặc mất giá trị hợp lệ. Khi SW-C phát hiện cảm biến đứt dây/hỏng mạch, nó gọi API Com_InvalidateSignal() để phát giá trị này ra bus.',
+        range: '0 .. 2^BitSize - 1',
+        typical: '0xFFFF (Giá trị cực đại toàn bit 1 cho tín hiệu 16-bit)',
+        notes: 'Ở phía RX, khi COM giải mã thấy giá trị trong I-PDU trùng với DataInvalidValue, nó sẽ không ghi giá trị hỏng này vào ứng dụng mà thực thi hành động định trước trong ComDataInvalidAction (NOTIFY hoặc REPLACE).'
+      },
+      ComTimeoutSubstitutionValue: {
+        title: 'Giá trị thay thế khi mất tín hiệu / Timeout (ComTimeoutSubstitutionValue)',
+        ecuc: 'ComConfig / ComSignal / ComTimeoutSubstitutionValue',
+        sws: '[SWS_Com_00393], [SWS_Com_00701] (AUTOSAR R22-11+)',
+        desc: 'Giá trị dự phòng khẩn cấp (Fail-safe substitute value) được COM tự động ghi đè vào Signal Buffer khi xảy ra sự kiện mất liên lạc (Rx Deadline Monitoring Timeout) và cấu hình ComRxDataTimeoutAction = SUBSTITUTE.',
+        range: '0 .. 2^BitSize - 1',
+        typical: '0x01F4 (500 rpm - chế độ Limp-Home khẩn cấp)',
+        notes: 'Khác với InitValue (thường là 0 hoặc trạng thái xe dừng), SubstValue được thiết kế chuyên biệt để xe vẫn có thể bò về gara an toàn khi đứt mạng CAN điều khiển.'
+      },
+      ComUpdateBit: {
+        title: 'Cơ chế cờ báo dữ liệu mới Update-Bit (ComUpdateBitPosition)',
+        ecuc: 'ComConfig / ComSignal / ComUpdateBitPosition',
+        sws: '[SWS_Com_00055], [SWS_Com_00059], [SWS_Com_00060] (AUTOSAR R22-11+)',
+        desc: 'Cho phép gán một bit chuyên dụng trong cùng I-PDU để báo hiệu cho bên nhận biết Signal tương ứng có vừa được ứng dụng cập nhật dữ liệu mới hay không. Ở chiều TX, khi SW-C gọi Com_SendSignal(), COM tự động dựng Update-Bit = 1.',
+        range: 'Boolean (Checked: Kích hoạt / Unchecked: Không dùng Update-Bit)',
+        typical: 'Bật cho các tín hiệu sự kiện (Event-driven) hoặc tín hiệu không chu kỳ (Aperiodic)',
+        notes: 'Update-Bit giúp ECU nhận biết chính xác tín hiệu nào có dữ liệu mới mà không cần so sánh giá trị cũ. Bit này sẽ được xóa về 0 theo cấu hình ComTxIPduClearUpdateBit.'
+      },
+      ComIPduSignalProcessing: {
+        title: 'Chế độ xử lý tín hiệu I-PDU (ComIPduSignalProcessing)',
+        ecuc: 'ComConfig / ComIPdu / ComIPduSignalProcessing',
+        sws: '[SWS_Com_00300], [SWS_Com_00301], [SWS_Com_00129] (AUTOSAR R22-11+)',
+        desc: 'Quy định thời điểm COM giải nén I-PDU và gọi các hàm Callback/Notification lên RTE/SW-C. Gồm: IMMEDIATE (xử lý trực tiếp trong ngữ cảnh ngắt của PduR_ComRxIndication) và DEFERRED (chỉ lưu tạm vào buffer ngắt, việc giải nén và gọi callback được hoãn lại cho tới khi Com_MainFunctionRx() chạy trong OS Task).',
+        range: 'IMMEDIATE (Tắt checkbox) | DEFERRED (Bật checkbox)',
+        typical: 'DEFERRED cho hầu hết các I-PDU thông thường để giảm tải ISR; IMMEDIATE cho các gói chẩn đoán khẩn cấp hoặc tín hiệu an toàn thời gian thực.',
+        notes: 'IMMEDIATE có độ trễ cực thấp nhưng làm tăng thời gian chiếm dụng ngắt của vi điều khiển, có nguy cơ gây trễ các ngắt khác.'
+      },
+      ComDeadlineMonitoring: {
+        title: 'Giám sát thời hạn nhận tín hiệu (ComDeadlineMonitoring / Rx Timeout)',
+        ecuc: 'ComConfig / ComSignal / ComTimeout & ComFirstTimeout',
+        sws: '[SWS_Com_00292], [SWS_Com_00293], [SWS_Com_00698] (AUTOSAR R22-11+)',
+        desc: 'Kích hoạt bộ đếm thời gian giám sát liên lạc cho Signal hoặc I-PDU ở phía nhận. Nếu quá thời gian ComTimeout mà không nhận được bất kỳ bản tin nào hợp lệ (hoặc bản tin có Update-Bit = 1), COM sẽ phát sự kiện Timeout.',
+        range: 'Boolean (Checked: Bật giám sát / Unchecked: Tắt giám sát)',
+        typical: 'Luôn bật cho các tín hiệu an toàn và điều khiển xe (Phanh ABS, Cảm biến góc lái, Vận tốc động cơ)',
+        notes: 'Khi xảy ra Timeout, COM sẽ gọi callback Com_CbkRxTOut() hoặc ComIPduCallout() và áp dụng hành vi ComRxDataTimeoutAction (REPLACE, SUBSTITUTE hoặc NONE).'
+      },
+      ComNotification: {
+        title: 'Cấu hình hàm Callback thông báo (ComNotification / ComIPduCallout)',
+        ecuc: 'ComConfig / ComSignal / ComNotification & ComIPduCallout',
+        sws: '[SWS_Com_00302], [SWS_Com_00494], [SWS_Com_00705] (AUTOSAR R22-11+)',
+        desc: 'Cho phép COM gọi các hàm Callback sang RTE hoặc SW-C khi có sự kiện truyền nhận thành công hoặc mất tín hiệu: Rte_COMCbk_<sig>() (chiều TX/RX), Com_CbkRxTOut() (khi Timeout), và ComIPduCallout() (lọc/xác thực gói PDU trước khi gửi hoặc sau khi nhận).',
+        range: 'Boolean (Checked: Cho phép gọi Callback / Unchecked: Tắt Callback)',
+        typical: 'Bật cho các tín hiệu cần đồng bộ tức thì với logic ứng dụng',
+        notes: 'Nếu tắt, dữ liệu vẫn được ghi vào bộ đệm Signal Buffer, nhưng SW-C phải chủ động đọc (Polling qua Rte_Read()) thay vì được thông báo tự động bằng sự kiện.'
+      },
+      ComRxIncomingUpdateBit: {
+        title: 'Kiểm tra trạng thái cờ Update-Bit nhận từ mạng CAN',
+        ecuc: 'ComConfig / ComSignal / ComUpdateBitPosition (Rx Evaluation)',
+        sws: '[SWS_Com_00324], [SWS_Com_00574] (AUTOSAR R22-11+)',
+        desc: 'Mô phỏng bit Update-Bit đi kèm trong gói tin CAN nhận được. Nếu Signal có cấu hình Update-Bit, COM chỉ chấp nhận giải nén và cập nhật dữ liệu vào Signal Buffer khi bit này bằng 1. Nếu bit này bằng 0, COM hiểu rằng bên gửi không hề cập nhật giá trị mới cho Signal này trong chu kỳ hiện tại và sẽ bỏ qua.',
+        range: 'Boolean (1 = Dữ liệu mới / 0 = Dữ liệu chưa cập nhật)',
+        typical: '1 (Trừ khi kiểm tra test case bên phát gửi I-PDU mà không update Signal)',
+        notes: 'Bỏ tích checkbox này để quan sát COM từ chối nhận dữ liệu và giữ nguyên giá trị cũ trong Signal Buffer.'
+      },
+      ComBitPosition: {
+        title: 'Vị trí Bit bắt đầu của Signal trong I-PDU (ComBitPosition)',
+        ecuc: 'ComConfig / ComSignal / ComBitPosition',
+        sws: '[SWS_Com_00125], [SWS_Com_00257] (AUTOSAR R22-11+)',
+        desc: 'Xác định vị trí bit khởi đầu (0 .. 63 trong I-PDU 8 bytes) để COM tiến hành bit-packing (chiều gửi) hoặc bit-unpacking (chiều nhận). Quy ước bit đánh số từ 0 (LSB của Byte 0) đến 63 (MSB của Byte 7).',
+        range: '0 .. (ComIPduLength * 8) - 1',
+        typical: '0 cho Sig_EngineSpeed, 16 cho Sig_CoolantTemp, 32 cho Sig_ThrottlePos',
+        notes: 'Với LITTLE_ENDIAN (Intel), BitPosition trỏ vào bit có trọng số nhỏ nhất (LSB). Với BIG_ENDIAN (Motorola), BitPosition thường trỏ vào bit có trọng số lớn nhất (MSB) hoặc theo quy ước Autosar/Osek.'
+      },
+      ComBitSize: {
+        title: 'Độ dài bit của Signal (ComBitSize)',
+        ecuc: 'ComConfig / ComSignal / ComBitSize',
+        sws: '[SWS_Com_00126], [SWS_Com_00258] (AUTOSAR R22-11+)',
+        desc: 'Số lượng bit thực tế mà Signal chiếm giữ trong I-PDU. COM sử dụng BitSize kết hợp với BitPosition để tạo mặt nạ bit (Bitmask) trích xuất dữ liệu chính xác mà không đè lên các Signal lân cận.',
+        range: '1 .. 64 bits (Thường từ 1 đến 32 bits cho các tín hiệu chuẩn)',
+        typical: '16 bits (cho Engine Speed), 8 bits (cho Throttle), 1 bit (cho cờ bật/tắt)',
+        notes: 'Tổng số bit của các Signal cùng Update-Bit không được vượt quá độ dài tối đa của I-PDU (thường là 64 bits đối với CAN cổ điển hoặc 512 bits đối với CAN-FD).'
+      },
+      ComUpdateBitPosition: {
+        title: 'Vị trí của cờ Update-Bit trong I-PDU (ComUpdateBitPosition)',
+        ecuc: 'ComConfig / ComSignal / ComUpdateBitPosition',
+        sws: '[SWS_Com_00256], [SWS_Com_00057] (AUTOSAR R22-11+)',
+        desc: 'Xác định tọa độ bit duy nhất (0 .. 63) trong I-PDU đóng vai trò là cờ Update-Bit cho Signal này. Vị trí này không được trùng lặp với bất kỳ bit payload của Signal nào khác.',
+        range: '0 .. (ComIPduLength * 8) - 1',
+        typical: 'Bit 23 cho Sig_EngineSpeed, Bit 31 cho Sig_CoolantTemp, Bit 40 cho Sig_ThrottlePos',
+        notes: 'Gom các Update-Bit vào cuối mỗi byte hoặc một byte riêng biệt giúp việc quan sát và debug trên bus CAN trở nên rõ ràng và quy củ hơn.'
+      },
+      ComSignalEndianness: {
+        title: 'Thứ tự byte lưu trữ dữ liệu (ComSignalEndianness)',
+        ecuc: 'ComConfig / ComSignal / ComSignalEndianness',
+        sws: '[SWS_Com_00157], [SWS_Com_00675] (AUTOSAR R22-11+)',
+        desc: 'Xác định định dạng sắp xếp byte của tín hiệu khi đóng gói vào I-PDU. Gồm: LITTLE_ENDIAN (Intel Standard - Byte có trọng số thấp nằm ở địa chỉ byte nhỏ hơn) và BIG_ENDIAN (Motorola Standard - Byte có trọng số cao nằm ở địa chỉ byte nhỏ hơn).',
+        range: 'LITTLE_ENDIAN | BIG_ENDIAN | OPAQUE',
+        typical: 'LITTLE_ENDIAN (Rất phổ biến trên các vi điều khiển họ ARM, Infineon Aurix TriCore)',
+        notes: 'Chọn sai Endianness giữa ECU gửi và ECU nhận sẽ khiến giá trị dữ liệu bị hoán đổi byte, dẫn tới sai lệch hoàn toàn về mặt vật lý!'
+      },
+      ComTxIPduClearUpdateBit: {
+        title: 'Thời điểm xóa cờ Update-Bit về 0 (ComTxIPduClearUpdateBit)',
+        ecuc: 'ComConfig / ComIPdu / ComTxIPduClearUpdateBit',
+        sws: '[SWS_Com_00062], [SWS_Com_00688] (AUTOSAR R22-11+)',
+        desc: 'Quy định thời điểm module COM tự động xóa cờ Update-Bit từ 1 về lại 0. Gồm: TRANSMIT (xóa ngay khi PduR_ComTransmit được gọi), TRIGGER_TRANSMIT (xóa sau khi trả dữ liệu cho bus như LIN/FlexRay), hoặc CONFIRMATION (chỉ xóa khi tầng dưới gửi thành công và gọi Com_TxConfirmation).',
+        range: 'TRANSMIT | TRIGGER_TRANSMIT | CONFIRMATION',
+        typical: 'CONFIRMATION (Đảm bảo chắc chắn gói tin đã bay ra ngoài bus vật lý trước khi tắt cờ Update-Bit)',
+        notes: 'Nếu chọn CONFIRMATION, trong suốt thời gian chờ gói tin được CAN Controller gửi đi, bit Update-Bit trên bản đồ I-PDU vẫn giữ nguyên giá trị 1.'
+      },
+      ComTransferProperty: {
+        title: 'Thuộc tính kích phát gửi gói của Signal (ComTransferProperty)',
+        ecuc: 'ComConfig / ComSignal / ComTransferProperty',
+        sws: '[SWS_Com_00330], [SWS_Com_00762] (AUTOSAR R22-11+)',
+        desc: 'Xác định xem việc SW-C gọi Com_SendSignal() có làm bùng nổ lệnh gửi I-PDU tức thì hay không: PENDING (chỉ ghi dữ liệu vào buffer, chờ chu kỳ định kỳ gửi), TRIGGERED (kích phát gửi ngay bất kể giá trị mới hay cũ), TRIGGERED_ON_CHANGE (chỉ kích phát gửi khi giá trị mới khác giá trị cũ), và kèm theo cơ chế WITHOUT_REPETITION.',
+        range: 'PENDING | TRIGGERED | TRIGGERED_ON_CHANGE | TRIGGERED_WITHOUT_REPETITION | TRIGGERED_ON_CHANGE_WITHOUT_REPETITION',
+        typical: 'TRIGGERED_ON_CHANGE (Tối ưu băng thông mạng CAN bằng cách chỉ gửi ngay khi có biến động dữ liệu)',
+        notes: 'Các Signal thuộc tính PENDING không bao giờ tự kích hoạt việc gửi I-PDU; chúng phải "đi nhờ" chu kỳ định kỳ của I-PDU hoặc nhờ một Signal dạng TRIGGERED khác trong cùng I-PDU.'
+      },
+      ComTxModeTrue: {
+        title: 'Chế độ truyền phát khi TMS = TRUE (ComTxModeMode TRUE)',
+        ecuc: 'ComConfig / ComIPdu / ComTxModeTrue / ComTxModeMode',
+        sws: '[SWS_Com_00176], [SWS_Com_00677] (AUTOSAR R22-11+)',
+        desc: 'Chế độ truyền phát áp dụng cho I-PDU khi kết quả tính toán Transmission Mode Selector (TMS) là TRUE (tức có ít nhất một Signal có TMC = TRUE theo quan hệ OR logic). Gồm: DIRECT (gửi sự kiện N lần), PERIODIC (gửi chu kỳ), MIXED (kết hợp chu kỳ và sự kiện), hoặc NONE.',
+        range: 'DIRECT | PERIODIC | MIXED | NONE',
+        typical: 'DIRECT hoặc MIXED (Khi cảm biến phát hiện sự kiện bất thường, I-PDU chuyển sang bắn dồn dập nhiều gói liên tiếp)',
+        notes: 'Cơ chế chuyển đổi chế độ động (Dynamic TMS Switching) là một trong những tính năng mạnh mẽ nhất của AUTOSAR COM để thích ứng tải mạng linh hoạt.'
+      },
+      ComTxModeFalse: {
+        title: 'Chế độ truyền phát khi TMS = FALSE (ComTxModeMode FALSE)',
+        ecuc: 'ComConfig / ComIPdu / ComTxModeFalse / ComTxModeMode',
+        sws: '[SWS_Com_00176], [SWS_Com_00678] (AUTOSAR R22-11+)',
+        desc: 'Chế độ truyền phát áp dụng cho I-PDU khi toàn bộ các Signal trong I-PDU đều có kết quả bộ lọc TMC = FALSE (TMS = FALSE). Thường là chế độ vận hành bình thường, tĩnh lặng của xe.',
+        range: 'PERIODIC | DIRECT | MIXED | NONE',
+        typical: 'PERIODIC (Gửi đều đặn theo chu kỳ TimePeriod để duy trì nhịp tim của ECU trên mạng)',
+        notes: 'Khi xe vận hành ổn định không có thao tác ga hay phanh gấp, I-PDU sẽ chạy theo ComTxModeFalse để tiết kiệm tài nguyên bus CAN.'
+      },
+      ComTxModeTimePeriod: {
+        title: 'Chu kỳ gửi định kỳ của I-PDU (ComTxModeTimePeriod)',
+        ecuc: 'ComConfig / ComIPdu / ComTxMode(True/False) / ComTxModeTimePeriod',
+        sws: '[SWS_Com_00298], [SWS_Com_00782] (AUTOSAR R22-11+)',
+        desc: 'Khoảng thời gian (tính bằng mili-giây hoặc giây) giữa hai lần liên tiếp module COM tự động đóng gói và yêu cầu PduR phát I-PDU ra bus khi hoạt động ở chế độ PERIODIC hoặc MIXED.',
+        range: '1 .. 65535 ms (bội số của chu kỳ Com_MainFunctionTx)',
+        typical: '100 ms (hoặc 10 ms cho các tín hiệu điều khiển động cơ tốc độ cao)',
+        notes: 'Chu kỳ này được quản lý độc lập với các lần phát sự kiện đột xuất do thuộc tính TRIGGERED sinh ra.'
+      },
+      ComTxModeNumberOfRepetitions: {
+        title: 'Số lần gửi lặp lại của sự kiện Direct (ComTxModeNumberOfRepetitions)',
+        ecuc: 'ComConfig / ComIPdu / ComTxMode(True/False) / ComTxModeNumberOfRepetitions',
+        sws: '[SWS_Com_00279], [SWS_Com_00280] (AUTOSAR R22-11+)',
+        desc: 'Số lượng bản tin bổ sung (N lần) được gửi đi liên tiếp cách nhau một khoảng ComTxModeRepetitionPeriod mỗi khi có một Signal thuộc tính TRIGGERED kích phát sự kiện truyền ở chế độ DIRECT hoặc MIXED.',
+        range: '0 .. 255 lần',
+        typical: '2 hoặc 3 lần (Đảm bảo gói tin sự kiện quan trọng vượt qua nguy cơ va chạm arbitration trên bus CAN)',
+        notes: 'Nếu đặt = 0: COM chỉ gửi đúng 1 lần duy nhất khi sự kiện xảy ra; nếu đặt = 2: COM gửi 1 lần đầu + 2 lần lặp lại = tổng cộng 3 lần phát.'
+      },
+      ComMinimumDelayTime: {
+        title: 'Thời gian trễ tối thiểu chống nghẽn mạng (ComMinimumDelayTime - MDT)',
+        ecuc: 'ComConfig / ComIPdu / ComMinimumDelayTime',
+        sws: '[SWS_Com_00388], [SWS_Com_00470] (AUTOSAR R22-11+)',
+        desc: 'Khoảng thời gian tối thiểu bắt buộc phải trôi qua giữa hai lần truyền liên tiếp của cùng một I-PDU. Dù SW-C có gọi Com_SendSignal liên tục hàng trăm lần mỗi giây thì COM vẫn chặn lại và giữ nhịp tối thiểu MDT để không làm nghẽn đường truyền CAN.',
+        range: '0 .. 65535 ms (0 = Không áp dụng MDT)',
+        typical: '20 ms (giới hạn tần số phát tối đa 50 Hz cho một I-PDU)',
+        notes: 'MDT là rào chắn an toàn tối quan trọng trên ô tô để ngăn chặn hiện tượng "Babbling Idiot" (ECU bị treo vòng lặp vô tận bắn tràn ngập bus CAN).'
+      },
+      ComFilterAlgorithm: {
+        title: 'Thuật toán bộ lọc tín hiệu (ComFilterAlgorithm)',
+        ecuc: 'ComConfig / ComSignal / ComFilter / ComFilterAlgorithm',
+        sws: '[SWS_Com_00325], [SWS_Com_00326] (AUTOSAR R22-11+)',
+        desc: 'Xác định thuật toán toán học dùng để đánh giá điều kiện lọc: ở chiều TX dùng để tính giá trị cờ TMC (Transmission Mode Condition), ở chiều RX dùng để quyết định nhận hay loại bỏ gói tin. Hỗ trợ: ALWAYS, NEVER, MASKED_NEW_DIFFERS_MASKED_OLD, MASKED_NEW_DIFFERS_X, NEW_IS_WITHIN [Min..Max], ONE_EVERY_N.',
+        range: 'Enum 8 thuật toán chuẩn AUTOSAR',
+        typical: 'ALWAYS (mặc định), MASKED_NEW_DIFFERS_MASKED_OLD (chỉ lọc khi có thay đổi sau khi áp mặt nạ), NEW_IS_WITHIN (kiểm tra nằm trong khoảng an toàn)',
+        notes: 'Kết quả của thuật toán này ở từng Signal sẽ quyết định bit TMC = TRUE hay FALSE, trực tiếp điều khiển bộ chọn chế độ truyền phát TMS của toàn I-PDU.'
+      },
+      ComFilterMask: {
+        title: 'Mặt nạ bit lọc tín hiệu (ComFilterMask / ComFilterPeriod N)',
+        ecuc: 'ComConfig / ComSignal / ComFilter / ComFilterMask',
+        sws: '[SWS_Com_00602], [SWS_Com_00604] (AUTOSAR R22-11+)',
+        desc: 'Giá trị mặt nạ nhị phân (Bitmask) dùng để thực hiện phép toán (NewValue & Mask) khi đánh giá các thuật toán bộ lọc MASKED. Đối với thuật toán ONE_EVERY_N, ô này đóng vai trò là chu kỳ đếm bước N (ComFilterPeriod).',
+        range: '0 .. 2^BitSize - 1',
+        typical: '0xFFFF (Mặt nạ giữ nguyên toàn bộ 16 bit dữ liệu)',
+        notes: 'Cho phép bỏ qua các bit không quan trọng (Don\'t care bits) khi kiểm tra điều kiện phát sinh sự kiện.'
+      },
+      ComFilterMin: {
+        title: 'Ngưỡng lọc tối thiểu / Giá trị X (ComFilterMin / ComFilterX)',
+        ecuc: 'ComConfig / ComSignal / ComFilter / ComFilterMin',
+        sws: '[SWS_Com_00605], [SWS_Com_00607] (AUTOSAR R22-11+)',
+        desc: 'Ngưỡng giá trị dưới (Min) khi dùng thuật toán NEW_IS_WITHIN hoặc NEW_IS_OUTSIDE; hoặc đóng vai trò là giá trị mục tiêu X (ComFilterX) khi dùng thuật toán MASKED_NEW_EQUALS_X hoặc MASKED_NEW_DIFFERS_X.',
+        range: 'Tùy thuộc kiểu dữ liệu của Signal (Số nguyên có dấu/không dấu)',
+        typical: '1000 (Ví dụ: vòng tua máy > 1000 rpm mới bắt đầu kích hoạt chế độ phát đặc biệt)',
+        notes: 'Khi giá trị tín hiệu vượt qua ngưỡng này, điều kiện TMC chuyển sang TRUE.'
+      },
+      ComFilterMax: {
+        title: 'Ngưỡng lọc tối đa (ComFilterMax)',
+        ecuc: 'ComConfig / ComSignal / ComFilter / ComFilterMax',
+        sws: '[SWS_Com_00606] (AUTOSAR R22-11+)',
+        desc: 'Ngưỡng giá trị trên (Max) quy định cận trên của dải đánh giá đối với thuật toán lọc NEW_IS_WITHIN [Min..Max] hoặc NEW_IS_OUTSIDE.',
+        range: 'ComFilterMin .. Max kiểu dữ liệu',
+        typical: '3000 (Ví dụ: dải vòng tua hoạt động bình thường từ 1000 đến 3000 rpm)',
+        notes: 'Giá trị phải luôn lớn hơn hoặc bằng ComFilterMin để bộ lọc hoạt động chính xác.'
+      },
+      ComTimeout: {
+        title: 'Thời gian giám sát mất tín hiệu (ComTimeout / ComFirstTimeout)',
+        ecuc: 'ComConfig / ComSignal / ComTimeout',
+        sws: '[SWS_Com_00293], [SWS_Com_00294] (AUTOSAR R22-11+)',
+        desc: 'Khoảng thời gian (ms) tối đa mà bên nhận chấp nhận không nhận được tín hiệu trước khi chính thức kết luận là bị mất kết nối (Deadline Monitoring Timeout).',
+        range: '1 .. 65535 ms',
+        typical: '500 ms (thường đặt bằng 2.5 đến 5 lần chu kỳ phát định kỳ TimePeriod của bên gửi)',
+        notes: 'Đặt thời gian Timeout quá ngắn sẽ gây ra báo động giả (False Alarm) do trễ mạng hoặc tắc nghẽn bus tạm thời; đặt quá dài sẽ làm chậm khả năng phản ứng an toàn của xe.'
+      },
+      ComRxDataTimeoutAction: {
+        title: 'Hành động xử lý khi bị Timeout mất tín hiệu (ComRxDataTimeoutAction)',
+        ecuc: 'ComConfig / ComSignal / ComRxDataTimeoutAction',
+        sws: '[SWS_Com_00394], [SWS_Com_00702] (AUTOSAR R22-11+)',
+        desc: 'Quy định hành vi của module COM đối với dữ liệu trong Signal Buffer khi xảy ra sự kiện Timeout. Gồm: REPLACE (ghi đè bằng ComSignalInitValue), SUBSTITUTE (ghi đè bằng ComTimeoutSubstitutionValue), hoặc NONE (giữ nguyên giá trị cũ cuối cùng nhận được).',
+        range: 'REPLACE | SUBSTITUTE | NONE',
+        typical: 'REPLACE (hoặc SUBSTITUTE nếu có quy định chế độ an toàn Limp-Home của OEM)',
+        notes: 'Giúp bảo vệ các thuật toán điều khiển của SW-C không bị tính toán sai lầm dựa trên dữ liệu "đóng băng" quá hạn khi đường truyền bị đứt.'
+      },
+      ComDataInvalidAction: {
+        title: 'Hành động xử lý khi nhận dữ liệu không hợp lệ (ComDataInvalidAction)',
+        ecuc: 'ComConfig / ComSignal / ComDataInvalidAction',
+        sws: '[SWS_Com_00395], [SWS_Com_00679] (AUTOSAR R22-11+)',
+        desc: 'Quy định hành vi của module COM khi nhận được bản tin mà giá trị của Signal trùng với ComSignalDataInvalidValue. Gồm: NOTIFY (chỉ gọi hàm callback thông báo cho SW-C biết mà không ghi đè buffer) hoặc REPLACE (tự động thay thế giá trị trong buffer bằng ComSignalInitValue).',
+        range: 'NOTIFY | REPLACE',
+        typical: 'NOTIFY (cho phép SW-C chủ động chuyển sang thuật toán bù trừ hoặc báo lỗi DTC lên DEM)',
+        notes: 'Kết hợp chặt chẽ với module DEM (Diagnostic Event Manager) để kích hoạt mã lỗi DTC tương ứng khi cảm biến gửi cờ Invalid.'
+      },
+      ComTMC: {
+        title: 'Điều kiện chế độ truyền phát của Signal (Transmission Mode Condition - TMC)',
+        ecuc: 'ComConfig / ComSignal / ComFilter Evaluation',
+        sws: '[SWS_Com_00583], [SWS_Com_00676] (AUTOSAR R22-11+)',
+        desc: 'Trạng thái cờ logic (TRUE hoặc FALSE) được tính toán riêng cho từng Signal mỗi khi có dữ liệu mới, dựa trên kết quả chạy thuật toán ComFilterAlgorithm.',
+        range: 'Boolean (TRUE / FALSE)',
+        typical: 'TRUE khi giá trị vượt ngưỡng lọc kích hoạt; FALSE khi ở trạng thái bình thường',
+        notes: 'Giá trị TMC của toàn bộ các Signal trong một I-PDU sẽ được kết hợp (thường bằng cổng OR logic) để quyết định cờ TMS chung của I-PDU.'
+      },
+      ComTMS: {
+        title: 'Bộ chọn chế độ truyền phát của I-PDU (Transmission Mode Selector - TMS)',
+        ecuc: 'ComConfig / ComIPdu / TMS Logic (Or-Logic of all Signal TMCs)',
+        sws: '[SWS_Com_00677], [SWS_Com_00678] (AUTOSAR R22-11+)',
+        desc: 'Trạng thái tổng hợp của toàn I-PDU: TMS = (TMC_Sig0 || TMC_Sig1 || TMC_Sig2). Nếu TMS = TRUE, I-PDU áp dụng cấu hình ComTxModeTrue; nếu TMS = FALSE, I-PDU áp dụng cấu hình ComTxModeFalse.',
+        range: 'Boolean (TRUE / FALSE)',
+        typical: 'TRUE (Or-Logic: chỉ cần 1 Signal có TMC = TRUE thì toàn I-PDU chuyển sang chế độ True)',
+        notes: 'Cho phép một I-PDU chuyển đổi mượt mà giữa chế độ phát tiết kiệm băng thông (chỉ PERIODIC) sang chế độ khẩn cấp (DIRECT dồn dập) khi có biến động.'
+      },
+      ComActiveTxMode: {
+        title: 'Chế độ truyền phát đang kích hoạt (Active ComTxMode)',
+        ecuc: 'ComConfig / ComIPdu / ComTxMode(True/False) / ComTxModeMode',
+        sws: '[SWS_Com_00176], [SWS_Com_00495] (AUTOSAR R22-11+)',
+        desc: 'Chế độ hiện hành mà COM đang áp dụng để điều khiển việc gửi I-PDU này xuống bus CAN: DIRECT (gửi theo sự kiện N lần), PERIODIC (gửi định kỳ theo timer), MIXED (kết hợp cả hai), hoặc NONE.',
+        range: 'DIRECT | PERIODIC | MIXED | NONE',
+        typical: 'DIRECT (N=2) hoặc MIXED',
+        notes: 'Thay đổi tức thì khi TMS chuyển đổi giữa TRUE và FALSE.'
+      },
+      ComRepMdtTimer: {
+        title: 'Bộ đếm lần lặp N & Timer MDT (Repetitions Counter & MDT Timer)',
+        ecuc: 'ComConfig / ComIPdu / ComTxModeNumberOfRepetitions & ComMinimumDelayTime',
+        sws: '[SWS_Com_00280], [SWS_Com_00388] (AUTOSAR R22-11+)',
+        desc: 'Hiển thị số lần truyền lặp còn lại (Repetitions Counter) và đồng hồ đếm lùi thời gian trễ tối thiểu MDT đang chạy. Khi MDT > 0, mọi lệnh truyền mới của I-PDU này đều bị khóa để bảo vệ bus.',
+        range: 'Rep: 0..N | MDT: 0..MdtValue ms',
+        typical: 'Rep: 2 | MDT: 20 ms',
+        notes: 'Đảm bảo vừa gửi tin cậy qua số lần lặp N, vừa chống nghẽn mạng nhờ rào chắn MDT.'
+      },
+      ComDeadlineTimer: {
+        title: 'Bộ đếm thời gian giám sát mất tín hiệu (Deadline Monitoring Timer)',
+        ecuc: 'ComConfig / ComSignal / ComTimeout Timer',
+        sws: '[SWS_Com_00292], [SWS_Com_00698] (AUTOSAR R22-11+)',
+        desc: 'Đồng hồ đếm thời gian từ lần cuối cùng nhận được bản tin hợp lệ (hoặc bản tin có Update-Bit = 1). Nếu timer đếm chạm ngưỡng ComTimeout mà không nhận được gói mới, COM lập tức phát sự kiện Timeout!',
+        range: '0 .. ComTimeout ms',
+        typical: '0 / 500 ms (reset về 0 mỗi khi nhận được bản tin hợp lệ)',
+        notes: 'Nếu quá 500 ms không có gói tin CAN đến, COM kích hoạt cơ chế TimeoutAction (REPLACE hoặc SUBSTITUTE) và báo callback Com_CbkRxTOut().'
+      }
+    };
+
+    let cfgHoverTimer = null;
+    let activeTooltipElement = null;
+
+    function setupConfigTooltips() {
+      const targets = document.querySelectorAll('[data-cfg-key]');
+      targets.forEach(el => {
+        el.addEventListener('mouseenter', () => {
+          clearTimeout(cfgHoverTimer);
+          activeTooltipElement = el;
+          const key = el.getAttribute('data-cfg-key');
+          cfgHoverTimer = setTimeout(() => {
+            if (activeTooltipElement === el) {
+              showConfigTooltip(el, key);
+            }
+          }, 500); // Exactly > 500ms hover delay
+        });
+
+        el.addEventListener('mouseleave', () => {
+          clearTimeout(cfgHoverTimer);
+          activeTooltipElement = null;
+          hideConfigTooltip();
+        });
+      });
+
+      // Hide tooltip on scroll to avoid detached popups
+      window.addEventListener('scroll', () => {
+        if (activeTooltipElement) {
+          clearTimeout(cfgHoverTimer);
+          activeTooltipElement = null;
+          hideConfigTooltip();
+        }
+      }, { passive: true });
+    }
+
+    function showConfigTooltip(targetEl, key) {
+      const data = configTooltipData[key];
+      if (!data) return;
+
+      const popup = document.getElementById('cfgTooltipPopup');
+      if (!popup) return;
+
+      popup.innerHTML = `
+        <div class="space-y-2.5">
+          <div class="flex items-start justify-between gap-3 border-b border-slate-700/80 pb-2">
+            <div class="min-w-0 flex-1">
+              <div class="font-bold text-white text-xs flex items-center gap-1.5">
+                <span class="text-sky-400">📘</span>
+                <span>${data.title}</span>
+              </div>
+              <div class="text-[10px] font-mono text-sky-300 mt-0.5 break-all">${data.ecuc}</div>
+            </div>
+            <div class="shrink-0 text-right max-w-[210px]">
+              <span class="inline-block text-[9px] font-mono px-2 py-0.5 rounded bg-sky-950 text-sky-300 border border-sky-800 break-words leading-snug">${data.sws}</span>
+            </div>
+          </div>
+
+          <div class="text-[11px] text-slate-200 leading-relaxed">
+            ${data.desc}
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[10px] pt-1 border-t border-slate-800">
+            <div class="bg-slate-950/70 p-2 rounded border border-slate-800">
+              <span class="text-slate-400 font-semibold block">Dải giá trị cho phép:</span>
+              <span class="font-mono text-sky-300 font-bold">${data.range}</span>
+            </div>
+            <div class="bg-slate-950/70 p-2 rounded border border-slate-800">
+              <span class="text-slate-400 font-semibold block">Giá trị thường dùng (Typical):</span>
+              <span class="font-mono text-amber-300 font-bold">${data.typical}</span>
+            </div>
+          </div>
+
+          <div class="text-[10px] text-slate-400 bg-slate-950/50 p-2 rounded border border-slate-800/80">
+            <strong class="text-slate-300">💡 Lưu ý kỹ thuật:</strong> ${data.notes}
+          </div>
+        </div>
+      `;
+
+      // Smart positioning & viewport bounds
+      popup.classList.remove('hidden');
+      popup.style.visibility = 'hidden';
+
+      const rect = targetEl.getBoundingClientRect();
+      const popupWidth = popup.offsetWidth || 460;
+      const popupHeight = popup.offsetHeight || 380;
+
+      let left = rect.right + 12;
+      let top = rect.top;
+
+      // Check horizontal bounds (overflow right -> flip to left)
+      if (left + popupWidth > window.innerWidth - 15) {
+        left = Math.max(10, rect.left - popupWidth - 12);
+      }
+
+      // Check vertical bounds (overflow bottom -> shift up to stay completely inside viewport)
+      if (top + popupHeight > window.innerHeight - 15) {
+        top = Math.max(15, window.innerHeight - popupHeight - 15);
+      }
+      if (top < 15) {
+        top = 15;
+      }
+
+      popup.style.left = `${Math.round(left)}px`;
+      popup.style.top = `${Math.round(top)}px`;
+      popup.style.visibility = 'visible';
+
+      requestAnimationFrame(() => {
+        popup.classList.remove('opacity-0', 'scale-95');
+        popup.classList.add('opacity-100', 'scale-100');
+      });
+    }
+
+    function hideConfigTooltip() {
+      const popup = document.getElementById('cfgTooltipPopup');
+      if (!popup) return;
+      popup.classList.remove('opacity-100', 'scale-100');
+      popup.classList.add('opacity-0', 'scale-95');
+      setTimeout(() => {
+        if (popup.classList.contains('opacity-0')) {
+          popup.classList.add('hidden');
+        }
+      }, 200);
+    }
+
     // Initialize Simulator on Window Load
     window.onload = function () {
       loadPresetScenario(1);
+      setupConfigTooltips();
       appendApiLog(
         'COM_INIT',
         'Com_Init(&ComConfig) -> Khởi tạo I-PDU 0x101 (8 Bytes) với 3 Standalone Signals: Sig_EngineSpeed, Sig_CoolantTemp, Sig_ThrottlePos',
@@ -2314,5 +2865,10 @@
       );
     };
   </script>
+
+  <!-- ================= FLOATING CONFIG HOVER TOOLTIP POPUP (>500ms Hover Delay) ================= -->
+  <div id="cfgTooltipPopup" class="fixed hidden opacity-0 scale-95 pointer-events-none transition-all duration-200 z-[99999] bg-slate-900/95 backdrop-blur-md border border-sky-500/50 rounded-xl p-4 shadow-2xl text-xs max-w-lg max-h-[calc(100vh-30px)] overflow-y-auto">
+    <!-- Populated dynamically via JS showConfigTooltip -->
+  </div>
 </body>
 </html>

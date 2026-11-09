@@ -1520,7 +1520,6 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
         </div>
       </div>
 
-      Card C: Interactive Checkboxes for AUTOSAR DEM Parameters -->
       <div class="bg-slate-900/95 border border-slate-800 rounded-xl p-3.5 shadow-lg space-y-3">
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-2">
@@ -1719,7 +1718,7 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
 
         <div class="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-8 gap-2">
           <!-- Report PREFAILED -->
-          <button onclick="reportMonitorEvent('PREFAILED')" class="p-2 rounded-lg bg-rose-950/50 hover:bg-rose-900/70 border border-rose-500/40 text-rose-200 transition flex flex-col items-center justify-center text-center">
+          <button id="btnActionPrefailed" onclick="reportMonitorEvent('PREFAILED')" class="p-2 rounded-lg bg-rose-950/50 hover:bg-rose-900/70 border border-rose-500/40 text-rose-200 transition flex flex-col items-center justify-center text-center">
             <span class="text-xs font-bold">📈 PREFAILED</span>
             <span id="lblBtnPrefailedStep" class="text-[10px] font-mono text-rose-300 mt-0.5">FDC +64</span>
           </button>
@@ -1731,7 +1730,7 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
           </button>
 
           <!-- Report PREPASSED -->
-          <button onclick="reportMonitorEvent('PREPASSED')" class="p-2 rounded-lg bg-emerald-950/50 hover:bg-emerald-900/70 border border-emerald-500/40 text-emerald-200 transition flex flex-col items-center justify-center text-center">
+          <button id="btnActionPrepassed" onclick="reportMonitorEvent('PREPASSED')" class="p-2 rounded-lg bg-emerald-950/50 hover:bg-emerald-900/70 border border-emerald-500/40 text-emerald-200 transition flex flex-col items-center justify-center text-center">
             <span class="text-xs font-bold">📉 PREPASSED</span>
             <span id="lblBtnPrepassedStep" class="text-[10px] font-mono text-emerald-300 mt-0.5">FDC -64</span>
           </button>
@@ -1963,7 +1962,7 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
               📑 2. Bảng Chuẩn 8-Bit Qua Từng Chu Kỳ (DTC 2-Trip Có Heal &amp; Age)
             </button>
             <button id="btnTabRef1Trip" onclick="switchCycleTableTab('ref1trip')" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 hover:text-white border border-slate-700 transition">
-              📐 3. Bảng Chuẩn 8-Bit &amp; Bit 3210 (DTC 1-Trip Không Tự Heal - Khớp Ảnh Excel)
+              📐 3. Bảng Chuẩn 8-Bit &amp; Bit 3210 (DTC 1-Trip Không Tự Heal)
             </button>
           </div>
           <button onclick="clearLiveCycleLog()" class="text-[11px] text-slate-400 hover:text-rose-400 underline">Xóa bảng nhật ký</button>
@@ -3947,6 +3946,10 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
     // 2B. REAL-TIME CLOCK & TIME-BASED DEBOUNCE ENGINE (CanNM Pattern)
     // =========================================================================
     function setMonitorSignal(sig) {
+      const dCur = runtimeDtcs[selectedDtcKey];
+      if (dCur && (dCur.cfg.debounceType === 'INTERNAL' || dCur.cfg.debounceType === 'NONE') && sig !== 'NEUTRAL') {
+        return;
+      }
       currentMonitorSignal = sig;
       const btnNeutral = document.getElementById('btnSigNeutral');
       const btnPrefailed = document.getElementById('btnSigPrefailed');
@@ -3965,9 +3968,19 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
       }
 
       const d = runtimeDtcs[selectedDtcKey];
-      if (d && d.cfg.debounceType === 'TIME' && sig === 'NEUTRAL' && d.cfg.debounceBehavior === 'RESET') {
-        d.timerMs = 0;
-        d.fdc = 0;
+      if (d && d.cfg.debounceType === 'TIME') {
+        if (sig === 'NEUTRAL' && d.cfg.debounceBehavior === 'RESET') {
+          d.timerMs = 0;
+          d.fdc = 0;
+        } else if (sig === 'PREFAILED' && d.timerMs < 0) {
+          // Khi đảo chiều từ PREPASSED sang PREFAILED: reset timer về 0 để đếm lại trọn vẹn theo ngưỡng FailedThreshold
+          d.timerMs = 0;
+          d.fdc = 0;
+        } else if (sig === 'PREPASSED' && d.timerMs > 0) {
+          // Khi đảo chiều từ PREFAILED sang PREPASSED: reset timer về 0 để đếm lại trọn vẹn theo ngưỡng PassedThreshold
+          d.timerMs = 0;
+          d.fdc = 0;
+        }
       }
       renderAllUI();
     }
@@ -4032,11 +4045,14 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
         const passedTh = d.cfg.timePassedThreshold || 300;
 
         if (currentMonitorSignal === 'PREFAILED') {
-          if (d.timerMs < 0 && d.cfg.debounceBehavior === 'RESET') {
+          // Khi đảo chiều từ PREPASSED (timerMs < 0) sang PREFAILED: reset timer về 0 để đếm lại từ đầu
+          if (d.timerMs < 0) {
             d.timerMs = 0;
           }
           const prevTimer = d.timerMs;
           d.timerMs = Math.min(failedTh, d.timerMs + dtMs);
+
+          // Calculate FDC from timerMs: 0..+failedTh tương ứng 0..+127
           d.fdc = Math.min(127, Math.round((d.timerMs / failedTh) * 127));
 
           if (d.timerMs >= failedTh && prevTimer < failedTh) {
@@ -4045,14 +4061,17 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
             return;
           }
         } else if (currentMonitorSignal === 'PREPASSED') {
-          if (d.timerMs > 0 && d.cfg.debounceBehavior === 'RESET') {
+          // Khi đảo chiều từ PREFAILED (timerMs > 0) sang PREPASSED: reset timer về 0 để đếm lại từ đầu
+          if (d.timerMs > 0) {
             d.timerMs = 0;
           }
-          const prevTimer = Math.abs(d.timerMs);
+          const prevTimer = d.timerMs;
           d.timerMs = Math.max(-passedTh, d.timerMs - dtMs);
-          d.fdc = Math.max(-128, -Math.round((Math.abs(d.timerMs) / passedTh) * 128));
 
-          if (Math.abs(d.timerMs) >= passedTh && prevTimer < passedTh) {
+          // Calculate FDC from timerMs: 0..-passedTh tương ứng 0..-128
+          d.fdc = Math.max(-128, Math.round((d.timerMs / passedTh) * 128));
+
+          if (d.timerMs <= -passedTh && prevTimer > -passedTh) {
             // Reached Passed Threshold -> Qualify PASSED!
             reportMonitorEvent('PASSED');
             return;
@@ -4108,6 +4127,11 @@ url:e,reason:"blocked_domain_not_allowlisted"},b.parentOrigin);throw new DOMExce
 function reportMonitorEvent(statusType) {
       const d = runtimeDtcs[selectedDtcKey];
       const p = dtcProfiles[selectedDtcKey];
+
+      // Block PREFAILED / PREPASSED when debounce algorithm is INTERNAL or NONE
+      if ((d.cfg.debounceType === 'INTERNAL' || d.cfg.debounceType === 'NONE') && (statusType === 'PREFAILED' || statusType === 'PREPASSED')) {
+        return;
+      }
       const beforeBits = [...d.bits];
       const enableCond = document.getElementById('chkEnableCond').checked;
       const dtcSetting = document.getElementById('chkDtcSetting').checked;
@@ -5219,13 +5243,66 @@ function reportMonitorEvent(statusType) {
         }
       }
 
+      const isInternal = (d.cfg.debounceType === 'INTERNAL' || d.cfg.debounceType === 'NONE');
+      const btnActionPrefailed = document.getElementById('btnActionPrefailed');
+      const btnActionPrepassed = document.getElementById('btnActionPrepassed');
       const btnPrefailedSub = document.getElementById('lblBtnPrefailedStep');
-      if (btnPrefailedSub) {
-        btnPrefailedSub.textContent = isTimeDebounce ? `+100ms / ${d.cfg.timeFailedThreshold}ms` : (d.cfg.debounceType === 'INTERNAL' ? 'Direct FAILED' : `FDC +${d.cfg.stepUp}`);
-      }
       const btnPrepassedSub = document.getElementById('lblBtnPrepassedStep');
-      if (btnPrepassedSub) {
-        btnPrepassedSub.textContent = isTimeDebounce ? `-100ms / ${d.cfg.timePassedThreshold}ms` : (d.cfg.debounceType === 'INTERNAL' ? 'Direct PASSED' : `FDC -${d.cfg.stepDown}`);
+
+      if (btnActionPrefailed && btnActionPrepassed) {
+        if (isInternal) {
+          // Disable & Dim buttons (Làm mờ và vô hiệu hóa bấm)
+          btnActionPrefailed.disabled = true;
+          btnActionPrepassed.disabled = true;
+          btnActionPrefailed.classList.add('opacity-30', 'cursor-not-allowed', 'pointer-events-none');
+          btnActionPrepassed.classList.add('opacity-30', 'cursor-not-allowed', 'pointer-events-none');
+          btnActionPrefailed.title = 'Internal Debounce: Monitor tự lọc lỗi nội bộ, chỉ gửi trực tiếp SET FAIL hoặc SET PASS';
+          btnActionPrepassed.title = 'Internal Debounce: Monitor tự lọc lỗi nội bộ, chỉ gửi trực tiếp SET FAIL hoặc SET PASS';
+          if (btnPrefailedSub) btnPrefailedSub.textContent = 'Vô hiệu hóa (N/A)';
+          if (btnPrepassedSub) btnPrepassedSub.textContent = 'Vô hiệu hóa (N/A)';
+        } else {
+          // Re-enable for COUNTER or TIME
+          btnActionPrefailed.disabled = false;
+          btnActionPrepassed.disabled = false;
+          btnActionPrefailed.classList.remove('opacity-30', 'cursor-not-allowed', 'pointer-events-none');
+          btnActionPrepassed.classList.remove('opacity-30', 'cursor-not-allowed', 'pointer-events-none');
+          btnActionPrefailed.title = '';
+          btnActionPrepassed.title = '';
+          if (btnPrefailedSub) {
+            btnPrefailedSub.textContent = isTimeDebounce ? `+100ms / ${d.cfg.timeFailedThreshold}ms` : `FDC +${d.cfg.stepUp}`;
+          }
+          if (btnPrepassedSub) {
+            btnPrepassedSub.textContent = isTimeDebounce ? `-100ms / ${d.cfg.timePassedThreshold}ms` : `FDC -${d.cfg.stepDown}`;
+          }
+        }
+      }
+
+      // Also disable small signal latch buttons in clock bar if INTERNAL
+      const btnSigPrefailed = document.getElementById('btnSigPrefailed');
+      const btnSigPrepassed = document.getElementById('btnSigPrepassed');
+      if (btnSigPrefailed && btnSigPrepassed) {
+        if (isInternal) {
+          btnSigPrefailed.disabled = true;
+          btnSigPrepassed.disabled = true;
+          btnSigPrefailed.classList.add('opacity-30', 'cursor-not-allowed', 'pointer-events-none');
+          btnSigPrepassed.classList.add('opacity-30', 'cursor-not-allowed', 'pointer-events-none');
+          btnSigPrefailed.title = 'Vô hiệu hóa khi dùng Internal Debounce';
+          btnSigPrepassed.title = 'Vô hiệu hóa khi dùng Internal Debounce';
+          if (currentMonitorSignal === 'PREFAILED' || currentMonitorSignal === 'PREPASSED') {
+            currentMonitorSignal = 'NEUTRAL';
+            const btnNeutral = document.getElementById('btnSigNeutral');
+            if (btnNeutral) {
+              btnNeutral.className = 'px-2 py-0.5 rounded text-xs transition bg-slate-800 text-cyan-300 font-bold border border-cyan-500/40 shadow-sm';
+            }
+          }
+        } else {
+          btnSigPrefailed.disabled = false;
+          btnSigPrepassed.disabled = false;
+          btnSigPrefailed.classList.remove('opacity-30', 'cursor-not-allowed', 'pointer-events-none');
+          btnSigPrepassed.classList.remove('opacity-30', 'cursor-not-allowed', 'pointer-events-none');
+          btnSigPrefailed.title = '';
+          btnSigPrepassed.title = '';
+        }
       }
 
       // Update Real-Time Clock & Debounce Timer Display
@@ -5236,7 +5313,14 @@ function reportMonitorEvent(statusType) {
       if (lblTimerState) {
         if (isTimeDebounce) {
           const maxTh = (d.timerMs || 0) >= 0 ? d.cfg.timeFailedThreshold : d.cfg.timePassedThreshold;
-          const statusTxt = (d.timerMs || 0) > 0 ? (d.timerMs >= maxTh ? 'FAILED' : 'COUNTING (+)') : ((d.timerMs || 0) < 0 ? (Math.abs(d.timerMs) >= maxTh ? 'PASSED' : 'COUNTING (-)') : 'IDLE');
+          let statusTxt = 'IDLE';
+          if (currentMonitorSignal === 'PREFAILED') {
+            statusTxt = d.timerMs >= maxTh ? 'QUALIFIED FAILED' : 'COUNTING (+)';
+          } else if (currentMonitorSignal === 'PREPASSED') {
+            statusTxt = Math.abs(d.timerMs) >= maxTh ? 'QUALIFIED PASSED' : 'COUNTING (-)';
+          } else {
+            statusTxt = (d.timerMs !== 0 && d.cfg.debounceBehavior === 'FREEZE') ? 'FROZEN' : 'IDLE';
+          }
           lblTimerState.textContent = `Timer: ${Math.abs(d.timerMs || 0)} ms / ${maxTh} ms (${statusTxt})`;
         } else {
           lblTimerState.textContent = `FDC: ${d.fdc > 0 ? '+' + d.fdc : d.fdc} / Step: +${d.cfg.stepUp}/-${d.cfg.stepDown}`;
@@ -5251,15 +5335,20 @@ function reportMonitorEvent(statusType) {
           const maxTh = (d.timerMs || 0) >= 0 ? d.cfg.timeFailedThreshold : d.cfg.timePassedThreshold;
           const pct = Math.min(100, Math.round((Math.abs(d.timerMs || 0) / maxTh) * 100));
           lblCurTimer.textContent = `${Math.abs(d.timerMs || 0)} ms / ${maxTh} ms (${pct}%)`;
-          if ((d.timerMs || 0) > 0) {
+          if (currentMonitorSignal === 'PREFAILED') {
             lblTimerTag.textContent = d.timerMs >= maxTh ? 'QUALIFIED FAILED' : 'COUNTING FAILED (+)';
             lblTimerTag.className = 'text-[10px] px-1.5 py-0.5 rounded bg-rose-950 text-rose-300 border border-rose-500/40 font-bold';
-          } else if ((d.timerMs || 0) < 0) {
+          } else if (currentMonitorSignal === 'PREPASSED') {
             lblTimerTag.textContent = Math.abs(d.timerMs) >= maxTh ? 'QUALIFIED PASSED' : 'COUNTING PASSED (-)';
             lblTimerTag.className = 'text-[10px] px-1.5 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-500/40 font-bold';
           } else {
-            lblTimerTag.textContent = 'IDLE';
-            lblTimerTag.className = 'text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-300';
+            if (d.timerMs !== 0 && d.cfg.debounceBehavior === 'FREEZE') {
+              lblTimerTag.textContent = 'FROZEN';
+              lblTimerTag.className = 'text-[10px] px-1.5 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-800 font-bold';
+            } else {
+              lblTimerTag.textContent = 'IDLE';
+              lblTimerTag.className = 'text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-300';
+            }
           }
         } else {
           lblCurTimer.textContent = `FDC = ${d.fdc}`;
@@ -5447,7 +5536,7 @@ function reportMonitorEvent(statusType) {
     }
 
     // =========================================================================
-    // 8. CONFIG HOVER TOOLTIPS (>1s DELAY) DICTIONARY & ENGINE
+    // 8. CONFIG HOVER TOOLTIPS (>500ms DELAY) DICTIONARY & ENGINE
     // =========================================================================
     const configTooltipData = {
       DemEventFailureCycleCounterThreshold: {
@@ -5691,7 +5780,7 @@ function reportMonitorEvent(statusType) {
             if (activeTooltipElement === el) {
               showConfigTooltip(el, key);
             }
-          }, 1000); // Exactly > 1s hover delay
+          }, 500); // Exactly > 500ms hover delay
         });
 
         el.addEventListener('mouseleave', () => {
@@ -6706,7 +6795,7 @@ function reportMonitorEvent(statusType) {
     };
   </script>
 
-  <!-- ================= FLOATING CONFIG HOVER TOOLTIP POPUP (>1s Hover Delay) ================= -->
+  <!-- ================= FLOATING CONFIG HOVER TOOLTIP POPUP (>500ms Hover Delay) ================= -->
   <div id="cfgTooltipPopup" class="fixed hidden opacity-0 scale-95 pointer-events-none transition-all duration-200 z-[99999] bg-slate-900/95 backdrop-blur-md border border-cyan-500/50 rounded-xl p-4 shadow-2xl text-xs max-w-lg max-h-[calc(100vh-30px)] overflow-y-auto">
     <!-- Populated dynamically via JS showConfigTooltip -->
   </div>
