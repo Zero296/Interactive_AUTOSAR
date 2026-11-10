@@ -1228,9 +1228,10 @@
               <span class="px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-400 font-mono">Mask: 0x10</span>
             </div>
             <p class="text-slate-600 dark:text-slate-300 leading-relaxed">
-              • <strong>Khi nào bằng 1?</strong> Khi ECU đang ở <em>Bus-Sleep</em> hoặc <em>Prepare Bus-Sleep</em> và được đánh thức <strong>chủ động</strong> bởi lệnh nội bộ <code>CanNm_NetworkRequest()</code> (với <code>CanNmActiveWakeupBitEnabled = true</code>).<br/>
-              • <strong>Khi nào bằng 0?</strong> Khi ECU bị đánh thức <strong>thụ động</strong> từ CAN Bus thông qua <code>CanNm_PassiveStartUp()</code>.<br/>
-              • <strong>Tác dụng thực tế:</strong> Giúp kỹ sư chẩn đoán (Diagnostics / CANoe log) biết chính xác ECU nào là "thủ phạm" đầu tiên đánh thức mạng CAN dậy. Tự động xóa về <code>0</code> khi rời khỏi <em>Network Mode</em>.
+              • <strong>Khi nào bằng 1?</strong> Theo <strong>AUTOSAR R23-11 [SWS_CanNm_00401]</strong>: Khi ECU chuyển từ <em>Bus-Sleep</em> hoặc <em>Prepare Bus-Sleep</em> vào <em>Network Mode</em> do lệnh chủ động <code>CanNm_NetworkRequest()</code> (với <code>CanNmActiveWakeupBitEnabled = true</code>).<br/>
+              • <strong>Khi nào bằng 0?</strong> Khi ECU bị đánh thức thụ động (<em>Passive Wakeup</em> qua <code>CanNm_PassiveStartUp()</code>) hoặc sau khi thoát khỏi <em>Network Mode</em>.<br/>
+              • <strong>Thời điểm xóa về 0:</strong> Theo chuẩn <strong>AUTOSAR R23-11 [SWS_CanNm_00402]</strong>: <em>"If the CanNm module leaves the Network Mode and CanNmActiveWakeupBitEnabled is TRUE, the CanNm module shall clear the ActiveWakeupBit in the CBV."</em> Nghĩa là Bit AWB được giữ nguyên bằng 1 trong suốt thời gian ở <em>Network Mode</em> (Repeat Message, Normal Operation, Ready Sleep) và <strong>chỉ bị xóa khi rời khỏi Network Mode</strong> (bước vào <em>Prepare Bus-Sleep Mode</em>).<br/>
+              • <strong>Tác dụng thực tế:</strong> Giúp các ECU khác và công cụ chẩn đoán (CANoe log) nhận biết chính xác node nào là nguồn đánh thức chủ động trong suốt toàn bộ phiên giao tiếp (Network Session).
             </p>
           </div>
 
@@ -1390,6 +1391,7 @@
       CanNmNodeId: 0x1A,
       CanNmBaseId: 0x500,
       CanNmMsgCycleTime: 500,
+      CanNmMsgCycleOffset: 100,
       CanNmRepeatMessageTime: 1500,
       CanNmTimeoutTime: 2000,
       CanNmWaitBusSleepTime: 1500,
@@ -1468,7 +1470,7 @@
           {
             api: 'CanNm_MainFunction() [Tick +800ms — Hết RepeatMessageTime (1500ms)]',
             io: 'Input: RepeatMessageTimer = 0 → Xử lý: CanNm → Output: Nm_StateChangeNotification()',
-            desc: 'Bộ đếm RepeatMessageTime (1500ms) chạm 0! Vì SWC vẫn đang giữ yêu cầu mạng (Network Requested = TRUE), CanNM chuyển từ Repeat Message State sang Normal Operation State.',
+            desc: 'Bộ đếm RepeatMessageTime (1500ms) chạm 0! Vì SWC vẫn đang giữ yêu cầu mạng (Network Requested = TRUE), CanNM chuyển sang Normal Operation State. Theo chuẩn AUTOSAR R23-11 [SWS_CanNm_00402], Bit AWB (Bit 4) VẪN ĐƯỢC GIỮ NGUYÊN BẰNG 1 (CBV = 0x10) vì ECU vẫn đang ở trong Network Mode!',
             action: () => stepTime(800)
           }
         ]
@@ -1479,7 +1481,7 @@
           {
             api: 'CanNm_RxIndication(RxPduId, Node=0x2B) -> CanNm_PassiveStartUp()',
             io: 'Input: CAN Bus (CanIf) → Xử lý: CanNm & ComM → Output: Repeat Message (AWB=0)',
-            desc: 'ECU đang ngủ ở Bus-Sleep Mode thì nhận được gói NM PDU từ ECU 0x2B trên CAN Bus. CanNM báo Nm_NetworkStartIndication() lên ComM, và ComM gọi lại CanNm_PassiveStartUp(). Chú ý: Bit AWB = 0 vì ECU bị đánh thức thụ động!',
+            desc: 'ECU đang ngủ ở Bus-Sleep Mode thì nhận được gói NM PDU từ ECU 0x2B trên CAN Bus. CanNM gọi Nm_NetworkStartIndication() báo lên ComM (SWS_CanNm_00127), ComM chuyển sang SILENT_COM và gọi CanNm_PassiveStartUp(). Chú ý: Bit AWB = 0 vì bị đánh thức thụ động! Theo SWS_CanNm_00032: Cấm truyền tức thì tại t=0ms.',
             action: () => {
               resetSimulationInternal(false);
               document.getElementById('rx-sim-rmr').checked = false;
@@ -1489,7 +1491,7 @@
           {
             api: 'CanNm_MainFunction() [Tick +500ms — Truyền định kỳ ở Repeat Message]',
             io: 'Input: SchM Clock → Xử lý: CanNm → Output: CanIf_Transmit(0x51A, CBV=0x00)',
-            desc: 'Trong trạng thái Repeat Message State, dù đánh thức thụ động (không có burst nhanh), ECU vẫn phát gói NM PDU theo chu kỳ CanNmMsgCycleTime (500ms) với Byte 1 CBV = 0x00 (AWB=0).',
+            desc: 'Theo đúng AUTOSAR SWS_CanNm_00032, sau khi trôi qua chu kỳ CanNmMsgCycleTime (500ms) đầu tiên, ECU mới phát gói NM PDU định kỳ trên CAN Bus với Byte 1 CBV = 0x00 (AWB=0).',
             action: () => stepTime(500)
           },
           {
@@ -1555,7 +1557,7 @@
           {
             api: 'CanNm_MainFunction() [Tick +2000ms — Đếm ngược hết CanNmTimeoutTime]',
             io: 'Input: TimeoutTimer = 0 → Xử lý: CanNm → Output: Nm_PrepareBusSleepMode()',
-            desc: 'Tại Ready Sleep State, không còn bất kỳ gói NM PDU nào trên bus. Sau 2000ms (CanNmTimeoutTime), bộ đếm chạm 0. CanNM chuyển sang Prepare Bus-Sleep Mode và báo lên ComM để đóng hoàn toàn truyền thông ứng dụng.',
+            desc: 'Tại Ready Sleep State, sau 2000ms không có hoạt động PDU, TimeoutTimer chạm 0. CanNM chính thức rời khỏi Network Mode để chuyển sang Prepare Bus-Sleep Mode. Theo đúng chuẩn AUTOSAR R23-11 [SWS_CanNm_00402], chính tại thời điểm rời Network Mode này, CanNM mới xóa Bit AWB về 0 (AWB = 0)!',
             action: () => stepTime(2000)
           },
           {
@@ -1732,12 +1734,13 @@
       animateStackRouting('DOWN', 'CanIf_Transmit(CanNmTxPduId, &PduInfo)');
     }
 
-    // Enter Repeat Message State helper
+    // Enter Repeat Message State helper (AUTOSAR SWS_CanNm_00006, SWS_CanNm_00032, SWS_CanNm_00122 & SWS_CanNm_00334)
     function enterRepeatMessageState(fromState, isActiveWakeup, isImmediateRestart) {
       const prevMode = simState.mode;
       simState.mode = 'NETWORK_MODE';
       simState.state = 'REPEAT_MESSAGE';
-      simState.commMode = 'COMM_FULL_COM';
+      // Chuẩn ComM: Chỉ FULL_COM khi có networkRequested từ SWC; nếu là Passive Startup thì là COMM_SILENT_COM
+      simState.commMode = simState.networkRequested ? 'COMM_FULL_COM' : 'COMM_SILENT_COM';
 
       // Set Timers
       simState.timers.waitBusSleep = 0;
@@ -1745,20 +1748,37 @@
       simState.timers.timeout = ecucConfig.CanNmTimeoutTime;
 
       if (prevMode !== 'NETWORK_MODE') {
-        addTraceLog('STATE', 'CanNm → Nm → ComM', 'Nm_NetworkMode() / ComM_Nm_NetworkMode()', `Chuyển từ ${fromState} vào NETWORK_MODE (Repeat Message State). Mở cổng truyền thông FULL_COM.`);
+        addTraceLog('STATE', 'CanNm → Nm', 'Nm_NetworkMode()', `Chuyển từ ${fromState} vào NETWORK_MODE (Repeat Message State). Chế độ giao tiếp = ${simState.commMode}.`);
       } else {
         addTraceLog('STATE', 'CanNm → Nm', `Nm_StateChangeNotification(${fromState} -> REPEAT_MESSAGE)`, 'Chuyển trạng thái con về Repeat Message State.');
       }
 
       if (!ecucConfig.CanNmPassiveModeEnabled) {
-        if (isActiveWakeup && ecucConfig.CanNmImmediateNmTransmissions > 0) {
-          simState.immediateBurstRemaining = ecucConfig.CanNmImmediateNmTransmissions - 1;
-          simState.timers.msgCycle = ecucConfig.CanNmImmediateNmCycleTime;
-          triggerCanNmTransmit(isImmediateRestart ? 'Immediate Restart & Burst Tx #1' : 'Active Wakeup Burst Tx #1');
+        if (isActiveWakeup) {
+          const shouldTransmitImmediately = (fromState === 'PREPARE_BUS_SLEEP')
+            ? ecucConfig.CanNmImmediateRestartEnabled
+            : true;
+
+          if (shouldTransmitImmediately) {
+            if (ecucConfig.CanNmImmediateNmTransmissions > 0) {
+              simState.immediateBurstRemaining = ecucConfig.CanNmImmediateNmTransmissions - 1;
+              simState.timers.msgCycle = ecucConfig.CanNmImmediateNmCycleTime;
+            } else {
+              simState.immediateBurstRemaining = 0;
+              simState.timers.msgCycle = ecucConfig.CanNmMsgCycleTime;
+            }
+            triggerCanNmTransmit(isImmediateRestart ? 'Immediate Restart & Burst Tx #1' : 'Active Wakeup Burst Tx #1');
+          } else {
+            // CanNmImmediateRestartEnabled = FALSE tại Prepare Bus-Sleep: Không truyền tức thì, chờ sau CanNmMsgCycleOffset / CanNmMsgCycleTime (AUTOSAR SWS_CanNm_00122)
+            simState.immediateBurstRemaining = 0;
+            simState.timers.msgCycle = ecucConfig.CanNmMsgCycleOffset || ecucConfig.CanNmMsgCycleTime;
+            addTraceLog('API', 'CanNm (Internal)', 'Restart từ Prepare Bus-Sleep: CanNmImmediateRestartEnabled = FALSE', 'SWS_CanNm_00122: Không phát gói NM tức thì tại t=0ms, gói NM đầu tiên sẽ phát sau chu kỳ định kỳ.');
+          }
         } else {
+          // Passive Startup: Theo AUTOSAR SWS_CanNm_00032 cấm truyền tức thì tại t=0ms, gói đầu tiên chờ chu kỳ chuẩn!
           simState.immediateBurstRemaining = 0;
-          simState.timers.msgCycle = ecucConfig.CanNmMsgCycleTime;
-          triggerCanNmTransmit('Gói NM PDU đầu tiên tại Repeat Message State');
+          simState.timers.msgCycle = ecucConfig.CanNmMsgCycleOffset || ecucConfig.CanNmMsgCycleTime;
+          addTraceLog('API', 'CanNm (Internal)', 'Passive Startup: Khởi động MsgCycleTimer', `SWS_CanNm_00032: Không truyền tức thì tại t=0ms. Gói NM PDU đầu tiên sẽ phát sau ${simState.timers.msgCycle}ms.`);
         }
       }
     }
@@ -1783,6 +1803,7 @@
         }
         enterRepeatMessageState('BUS_SLEEP', true, false);
       } else if (simState.state === 'PREPARE_BUS_SLEEP') {
+        // AUTOSAR R23-11 [SWS_CanNm_00401]: Đặt ActiveWakeupBit khi vào Network Mode từ Prepare Bus-Sleep do NetworkRequest
         if (ecucConfig.CanNmActiveWakeupBitEnabled) {
           simState.cbv.awb = 1;
         }
@@ -1820,10 +1841,10 @@
       renderAll();
     }
 
-    // 3. API: CanNm_PassiveStartUp()
+    // 3. API: CanNm_PassiveStartUp() (AUTOSAR SWS_CanNm_00128)
     function apiPassiveStartUp() {
       updateConfigFromUI();
-      addTraceLog('API', 'EcuM/ComM → Nm → CanNm', 'CanNm_PassiveStartUp(nmChannelHandle)', 'Đánh thức thụ động (Passive Wakeup): Không bật bit AWB (AWB = 0).');
+      addTraceLog('API', 'EcuM/ComM → Nm → CanNm', 'CanNm_PassiveStartUp(nmChannelHandle)', 'SWS_CanNm_00128: Đánh thức thụ động (Passive Wakeup): Không bật bit AWB (AWB = 0).');
 
       if (simState.state === 'BUS_SLEEP' || simState.state === 'PREPARE_BUS_SLEEP') {
         const prev = simState.state;
@@ -1865,6 +1886,15 @@
     // 5. API: Simulated CanNm_RxIndication() from Remote Node 0x2B
     function apiSimulatedRxIndication() {
       updateConfigFromUI();
+      const rxNodeId = 0x2B;
+
+      // AUTOSAR SWS_CanNm_00035: Bỏ qua gói tin NM PDU do chính mình gửi (Self-Reception Filter)
+      if (rxNodeId === ecucConfig.CanNmNodeId) {
+        addTraceLog('BUS', 'CanIf → CanNm', `Bỏ qua frame NM (Rx Node ID 0x${rxNodeId.toString(16).toUpperCase()} trùng với NodeId nội bộ)`, 'SWS_CanNm_00035: Bỏ qua gói tin NM PDU do chính mình gửi (Self-Reception Filter).');
+        renderAll();
+        return;
+      }
+
       const rxRmr = document.getElementById('rx-sim-rmr').checked ? 1 : 0;
       const rxAwb = document.getElementById('rx-sim-awb').checked ? 1 : 0;
       const rxPni = document.getElementById('rx-sim-pni').checked ? 1 : 0;
@@ -1875,30 +1905,36 @@
       if (rxPni) rxCbv |= (1 << 6);
 
       const rxCbvHex = rxCbv.toString(16).toUpperCase().padStart(2, '0');
-      const rxCanId = '0x' + (ecucConfig.CanNmBaseId + 0x2B).toString(16).toUpperCase();
+      const rxCanId = '0x' + (ecucConfig.CanNmBaseId + rxNodeId).toString(16).toUpperCase();
 
-      simState.lastBusActivity = `Rx ${rxCanId} [2B ${rxCbvHex} ...]`;
-      addTraceLog('BUS', 'CAN Bus → CanIf → CanNm', `CanNm_RxIndication(ID=${rxCanId}, SNI=0x2B, CBV=0x${rxCbvHex})`, `Nhận gói NM PDU từ ECU 0x2B (Rx RMR=${rxRmr}, AWB=${rxAwb}, PNI=${rxPni}).`);
+      simState.lastBusActivity = `Rx ${rxCanId} [${rxNodeId.toString(16).toUpperCase()} ${rxCbvHex} ...]`;
+      addTraceLog('BUS', 'CAN Bus → CanIf → CanNm', `CanNm_RxIndication(ID=${rxCanId}, SNI=0x${rxNodeId.toString(16).toUpperCase()}, CBV=0x${rxCbvHex})`, `Nhận gói NM PDU từ ECU 0x${rxNodeId.toString(16).toUpperCase()} (Rx RMR=${rxRmr}, AWB=${rxAwb}, PNI=${rxPni}).`);
 
       if (simState.state === 'BUS_SLEEP') {
-        addTraceLog('API', 'CanNm → Nm → ComM', 'Nm_NetworkStartIndication() -> ComM_Nm_NetworkStartIndication()', 'Báo cho ComM có tín hiệu đánh thức mạng từ CAN Bus.');
+        // AUTOSAR SWS_CanNm_00127: Báo Nm_NetworkStartIndication lên generic Nm và ComM
+        addTraceLog('API', 'CanNm → Nm', 'Nm_NetworkStartIndication()', 'SWS_CanNm_00127: Thông báo lên Generic Nm có gói NM PDU xuất hiện trong Bus-Sleep Mode.');
+        addTraceLog('API', 'Nm → ComM', 'ComM_Nm_NetworkStartIndication()', 'ComM nhận thông báo để chuẩn bị khởi động kênh.');
+        addTraceLog('API', 'ComM → Nm → CanNm', 'ComM kích hoạt CanNm_PassiveStartUp()', 'ComM chuyển kênh sang COMM_SILENT_COM và yêu cầu CanNM khởi động thụ động.');
         apiPassiveStartUp();
       } else if (simState.state === 'PREPARE_BUS_SLEEP') {
-        addTraceLog('API', 'CanNm → Nm → ComM', 'Khôi phục mạng từ Prepare Bus-Sleep do nhận Rx NM PDU', 'Chuyển ngược vào Repeat Message State.');
-        apiPassiveStartUp();
+        // AUTOSAR SWS_CanNm_00124 & SWS_CanNm_00125: Chuyển thẳng sang Repeat Message và gọi Nm_NetworkMode()
+        addTraceLog('STATE', 'CanNm → Nm', 'Nm_NetworkMode()', 'SWS_CanNm_00124 & SWS_CanNm_00125: Nhận Rx NM PDU tại Prepare Bus-Sleep -> Chuyển thẳng về Repeat Message State.');
+        enterRepeatMessageState('PREPARE_BUS_SLEEP', false, false);
       } else if (simState.mode === 'NETWORK_MODE') {
         // Reset NM-Timeout Timer
         simState.timers.timeout = ecucConfig.CanNmTimeoutTime;
         addTraceLog('API', 'CanNm (Internal)', `Reset NM-Timeout Timer = ${ecucConfig.CanNmTimeoutTime}ms`, 'Giữ mạng thức do có hoạt động NM PDU trên CAN Bus.');
 
-        // Check received RMR bit
+        // AUTOSAR SWS_CanNm_00014: Kiểm tra received RMR bit
         if (rxRmr === 1 && ecucConfig.CanNmNodeDetectionEnabled) {
           if (simState.state === 'NORMAL_OPERATION' || simState.state === 'READY_SLEEP') {
             const prev = simState.state;
             simState.state = 'REPEAT_MESSAGE';
             simState.timers.repeatMessage = ecucConfig.CanNmRepeatMessageTime;
             simState.timers.msgCycle = ecucConfig.CanNmMsgCycleTime;
-            addTraceLog('STATE', 'CanNm → Nm', `Nm_RepeatMessageIndication() & State -> REPEAT_MESSAGE`, `Gói Rx có Bit RMR = 1! Ép ECU chuyển từ ${prev} về Repeat Message State.`);
+            addTraceLog('STATE', 'CanNm → Nm', `Nm_RepeatMessageIndication() & State -> REPEAT_MESSAGE`, `SWS_CanNm_00014: Gói Rx có Bit RMR = 1 -> Ép ECU chuyển từ ${prev} về Repeat Message State.`);
+          } else if (simState.state === 'REPEAT_MESSAGE') {
+            addTraceLog('STATE', 'CanNm → Nm', 'Nm_RepeatMessageIndication()', 'SWS_CanNm_00014: Nhận Rx PDU có Bit RMR = 1 khi đang ở Repeat Message State.');
           }
         }
       }
@@ -1973,17 +2009,21 @@
             // Clear RMR Bit 0 upon leaving Repeat Message State (AUTOSAR SWS_CanNm_00107)
             if (simState.cbv.rmr === 1) {
               simState.cbv.rmr = 0;
-              addTraceLog('API', 'CanNm (Internal)', 'Tự động xóa CBV Bit 0 (RMR = 0)', 'Chuẩn AUTOSAR: Xóa bit RMR khi rời khỏi Repeat Message State.');
+              addTraceLog('API', 'CanNm (Internal)', 'Tự động xóa CBV Bit 0 (RMR = 0)', 'SWS_CanNm_00107: Xóa bit RMR khi rời khỏi Repeat Message State.');
             }
 
+            // Chú ý: Theo AUTOSAR R23-11 [SWS_CanNm_00402], Bit AWB KHÔNG bị xóa khi rời Repeat Message State!
+            // Bit AWB vẫn được giữ nguyên = 1 trong suốt Network Mode để đánh dấu Active Wakeup Node.
             if (simState.networkRequested) {
               simState.state = 'NORMAL_OPERATION';
-              addTraceLog('STATE', 'CanNm → Nm', 'Nm_StateChangeNotification(REPEAT_MESSAGE -> NORMAL_OPERATION)', 'Hết RepeatMessageTime và mạng đang được giữ (Requested) -> Sang Normal Operation State.');
+              simState.commMode = 'COMM_FULL_COM';
+              addTraceLog('STATE', 'CanNm → Nm', 'Nm_StateChangeNotification(REPEAT_MESSAGE -> NORMAL_OPERATION)', `Hết RepeatMessageTime và mạng đang được giữ (Requested) -> Sang Normal Operation State (AWB=${simState.cbv.awb} theo SWS_CanNm_00402).`);
             } else {
               simState.state = 'READY_SLEEP';
+              simState.commMode = 'COMM_SILENT_COM';
               simState.timers.msgCycle = 0;
               simState.immediateBurstRemaining = 0;
-              addTraceLog('STATE', 'CanNm → Nm', 'Nm_StateChangeNotification(REPEAT_MESSAGE -> READY_SLEEP)', 'Hết RepeatMessageTime và mạng không có yêu cầu giữ (Released) -> Sang Ready Sleep State (Ngừng Tx).');
+              addTraceLog('STATE', 'CanNm → Nm', 'Nm_StateChangeNotification(REPEAT_MESSAGE -> READY_SLEEP)', `Hết RepeatMessageTime và mạng không có yêu cầu giữ (Released) -> Sang Ready Sleep State (Ngừng Tx, AWB=${simState.cbv.awb}).`);
             }
           }
         }
@@ -1994,13 +2034,20 @@
         simState.timers.timeout = Math.max(0, simState.timers.timeout - dt);
         if (simState.timers.timeout === 0) {
           if (simState.state === 'READY_SLEEP') {
-            // Transition from Ready Sleep to Prepare Bus-Sleep Mode
+            // Transition from Ready Sleep to Prepare Bus-Sleep Mode (Leaves Network Mode)
             simState.mode = 'PREPARE_BUS_SLEEP';
             simState.state = 'PREPARE_BUS_SLEEP';
             simState.commMode = 'COMM_SILENT_COM';
             simState.timers.waitBusSleep = ecucConfig.CanNmWaitBusSleepTime;
             simState.lastBusActivity = 'Prepare Sleep (Silent)';
-            addTraceLog('STATE', 'CanNm → Nm → ComM', 'Nm_PrepareBusSleepMode() -> ComM_Nm_PrepareBusSleepMode()', `NM-Timeout Timer hết hạn tại Ready Sleep! Chuyển sang PREPARE BUS-SLEEP MODE và đếm ngược WaitBusSleepTime (${ecucConfig.CanNmWaitBusSleepTime}ms).`);
+
+            // AUTOSAR R23-11 [SWS_CanNm_00402]: Xóa ActiveWakeupBit khi rời khỏi Network Mode
+            if (simState.cbv.awb === 1) {
+              simState.cbv.awb = 0;
+              addTraceLog('API', 'CanNm (Internal)', 'Tự động xóa CBV Bit 4 (AWB = 0)', 'AUTOSAR R23-11 SWS_CanNm_00402: Xóa Bit AWB khi rời khỏi Network Mode (chuyển sang Prepare Bus-Sleep).');
+            }
+
+            addTraceLog('STATE', 'CanNm → Nm → ComM', 'Nm_PrepareBusSleepMode() -> ComM_Nm_PrepareBusSleepMode()', `NM-Timeout Timer hết hạn tại Ready Sleep! Rời khỏi NETWORK MODE sang PREPARE BUS-SLEEP MODE và đếm ngược WaitBusSleepTime (${ecucConfig.CanNmWaitBusSleepTime}ms).`);
             animateStackRouting('UP', 'Nm_PrepareBusSleepMode()');
           } else {
             // Abnormal expiration in Repeat Message or Normal Operation -> Restart Timeout Timer
