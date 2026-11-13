@@ -165,7 +165,7 @@
     .bit-row { display: grid; grid-template-columns: repeat(8, 1fr); gap: 5px; margin-top: 5px; }
     .bit-box {
       border: 1px solid var(--border2); border-radius: 7px; padding: 5px 3px; text-align: center;
-      background: var(--panel2); transition: all .2s; cursor: pointer; user-select: none;
+      background: var(--panel2); transition: all .2s; cursor: help; user-select: none;
     }
     .bit-box:hover { border-color: var(--accent); transform: translateY(-1px); }
     .bit-box.active {
@@ -3592,7 +3592,7 @@ function renderDual8BitRegisters(step, prevStep) {
       if (changed) cls += ' changed';
 
       return `
-        <div class="${cls}" onclick="onBitClick('A', ${b.bit})" onmouseenter="onBitHover(this, 'A', ${b.bit}, ${bitVal})" onmouseleave="hideBitTooltip()">
+        <div class="${cls}" onmouseenter="onBitHover(this, 'A', ${b.bit}, ${bitVal})" onmouseleave="hideBitTooltip()">
           <div class="bit-num">Bit ${b.bit}</div>
           <div class="bit-name" title="${esc(b.name)}">${esc(b.name)}</div>
           <div class="bit-val mono">${bitVal}</div>
@@ -3614,7 +3614,7 @@ function renderDual8BitRegisters(step, prevStep) {
       if (changed) cls += ' changed';
 
       return `
-        <div class="${cls}" onclick="onBitClick('B', ${b.bit})" onmouseenter="onBitHover(this, 'B', ${b.bit}, ${bitVal})" onmouseleave="hideBitTooltip()">
+        <div class="${cls}" onmouseenter="onBitHover(this, 'B', ${b.bit}, ${bitVal})" onmouseleave="hideBitTooltip()">
           <div class="bit-num">Bit ${b.bit}</div>
           <div class="bit-name" title="${esc(b.name)}">${esc(b.name)}</div>
           <div class="bit-val mono">${bitVal}</div>
@@ -3641,19 +3641,31 @@ function onBitHover(el, regType, bitIdx, val) {
     <div style="margin-top: 6px; font-size: 11px;">Trạng thái hiện tại: <b class="mono" style="color: ${val ? '#34d399' : '#94a3b8'}">${val ? '1 (BẬT)' : '0 (TẮT)'}</b></div>
   `;
 
+  popup.style.left = '0px';
+  popup.style.top = '0px';
   popup.classList.remove('hidden');
   const rect = el.getBoundingClientRect();
-  popup.style.left = `${rect.left}px`;
-  popup.style.top = `${rect.bottom + 8}px`;
+  const popRect = popup.getBoundingClientRect();
+  const margin = 8;
+  let left = rect.left;
+  if (left + popRect.width + margin > window.innerWidth) {
+    left = window.innerWidth - popRect.width - margin;
+  }
+  if (left < margin) left = margin;
+
+  let top = rect.bottom + margin;
+  if (top + popRect.height + margin > window.innerHeight) {
+    top = rect.top - popRect.height - margin;
+  }
+  if (top < margin) top = margin;
+
+  popup.style.left = `${left}px`;
+  popup.style.top = `${top}px`;
 }
 
 function hideBitTooltip() {
   const popup = $('#bitTooltipPopup');
   if (popup) popup.classList.add('hidden');
-}
-
-function onBitClick(regType, bitIdx) {
-  alert(`Bạn đã click vào Bit ${bitIdx} của Thanh Ghi ${regType}! Chức năng gỡ lỗi trực tiếp cho phép người dùng kiểm tra phản ứng của hệ thống khi cờ này thay đổi.`);
 }
 
 /* ==================== SVG ARCHITECTURE RENDERER (PANEL 1) ==================== */

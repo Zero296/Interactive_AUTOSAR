@@ -138,45 +138,37 @@
 
       <!-- Second Row: 6 Preset Scenarios & Playback Controls -->
       <div class="flex flex-wrap items-center justify-between gap-2 pt-1.5 border-t border-slate-800/80">
-        <!-- 6 Preset Scenarios -->
-        <div class="flex items-center gap-1.5 flex-wrap">
-          <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400 mr-1">Kịch bản mẫu:</span>
-          <button onclick="loadPresetScenario(1)" id="presetBtn1" class="preset-btn px-2.5 py-1 rounded text-[11px] font-medium bg-sky-500/20 text-sky-300 border border-sky-500/40 hover:bg-sky-500/30 transition">
-            1. Tx Event-Driven (DIRECT)
-          </button>
-          <button onclick="loadPresetScenario(2)" id="presetBtn2" class="preset-btn px-2.5 py-1 rounded text-[11px] font-medium bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition">
-            2. Tx Cyclic (PENDING + PERIODIC)
-          </button>
-          <button onclick="loadPresetScenario(3)" id="presetBtn3" class="preset-btn px-2.5 py-1 rounded text-[11px] font-medium bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition">
-            3. Đổi động TMC / TMS
-          </button>
-          <button onclick="loadPresetScenario(4)" id="presetBtn4" class="preset-btn px-2.5 py-1 rounded text-[11px] font-medium bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition">
-            4. Rx IMMEDIATE vs DEFERRED &amp; U-Bit
-          </button>
-          <button onclick="loadPresetScenario(5)" id="presetBtn5" class="preset-btn px-2.5 py-1 rounded text-[11px] font-medium bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition">
-            5. Rx Timeout (REPLACE/SUBSTITUTE)
-          </button>
-          <button onclick="loadPresetScenario(6)" id="presetBtn6" class="preset-btn px-2.5 py-1 rounded text-[11px] font-medium bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition">
-            6. Signal Invalidation
-          </button>
+        <!-- 6 Preset Scenarios Dropdown -->
+        <div class="flex items-center gap-2 flex-1 min-w-[260px] max-w-xl">
+          <label for="presetScenarioSelect" class="text-[11px] font-semibold uppercase tracking-wider text-slate-400 whitespace-nowrap">
+            🎯 Kịch bản mẫu:
+          </label>
+          <select id="presetScenarioSelect" onchange="loadPresetScenario(parseInt(this.value, 10))" class="w-full sm:w-auto flex-1 px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-700 hover:border-sky-500/50 focus:border-sky-400 focus:outline-none text-xs font-medium text-sky-300 cursor-pointer transition">
+            <option value="1" selected>1. Tx Event-Driven (DIRECT)</option>
+            <option value="2">2. Tx Cyclic (PENDING + PERIODIC)</option>
+            <option value="3">3. Đổi động TMC / TMS (DIRECT ↔ PERIODIC)</option>
+            <option value="4">4. Rx IMMEDIATE vs DEFERRED &amp; U-Bit</option>
+            <option value="5">5. Rx Timeout (REPLACE / SUBSTITUTE)</option>
+            <option value="6">6. Signal Invalidation (Com_InvalidateSignal)</option>
+          </select>
         </div>
 
         <!-- Step & Auto-Play Controls -->
         <div class="flex items-center gap-1.5 bg-slate-950 px-2 py-1 rounded-lg border border-slate-800">
-          <button onclick="resetSimulation()" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium transition" title="Khởi tạo lại luồng hiện tại">
+          <button onclick="resetSimulation()" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium transition" title="Đưa mô phỏng về trạng thái sẵn sàng (Bước 0)">
             ↺ Reset
           </button>
-          <button onclick="stepBackward()" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium transition">
+          <button id="btnStepBack" onclick="stepBackward()" class="px-2.5 py-1 rounded bg-slate-900 text-slate-600 border border-slate-800 text-xs font-medium cursor-not-allowed transition" disabled>
             ◀ Lùi
           </button>
           <button id="btnAutoPlay" onclick="toggleAutoPlay()" class="px-3 py-1 rounded bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold transition flex items-center gap-1">
             <span>▶ Chạy tự động</span>
           </button>
-          <button onclick="stepForward()" class="px-2.5 py-1 rounded bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition">
+          <button id="btnStepNext" onclick="stepForward()" class="px-2.5 py-1 rounded bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition">
             Bước tiếp ▶
           </button>
-          <span id="stepCounterBadge" class="ml-1 px-2 py-0.5 rounded bg-slate-900 border border-slate-700 font-mono text-[11px] text-sky-300">
-            Bước 1/6
+          <span id="stepCounterBadge" class="ml-1 px-2 py-0.5 rounded bg-slate-900 border border-slate-700 font-mono text-[11px] text-emerald-300">
+            Sẵn sàng (0/6)
           </span>
         </div>
       </div>
@@ -1105,7 +1097,7 @@
       direction: 'TX', // 'TX' or 'RX'
       activePreset: 1,
       selectedSignalId: 0,
-      currentStepIndex: 0,
+      currentStepIndex: -1,
       autoPlayTimer: null,
       ipduBytes: new Uint8Array(8), // 64-bit I-PDU buffer
       lastEventMode: 'SEND_SIGNAL', // 'SEND_SIGNAL', 'INVALIDATE_SIGNAL', 'MAIN_FUNCTION', 'TX_CONFIRMATION', 'RX_INDICATION', 'TIMEOUT_EVENT'
@@ -1675,8 +1667,9 @@
     }
 
     function renderCenterArchitecture() {
-      const stepIdx = Math.min(state.currentStepIndex, state.steps.length - 1);
-      const activeStep = state.steps[stepIdx];
+      const stepIdx = state.currentStepIndex;
+      const isReady = (stepIdx < 0 || stepIdx >= state.steps.length);
+      const activeStep = !isReady ? state.steps[stepIdx] : null;
       const sig = state.signals[state.selectedSignalId];
 
       // Update Mode Switcher Buttons
@@ -1694,16 +1687,41 @@
         document.getElementById('directionBadge').className = 'px-2.5 py-0.5 rounded-full text-[11px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40';
       }
 
-      document.getElementById('stepCounterBadge').textContent = `Bước ${stepIdx + 1}/${state.steps.length}`;
+      const stepBadge = document.getElementById('stepCounterBadge');
+      if (isReady) {
+        stepBadge.textContent = `Sẵn sàng (0/${state.steps.length})`;
+        stepBadge.className = 'ml-1 px-2 py-0.5 rounded bg-slate-900 border border-emerald-500/40 font-mono text-[11px] text-emerald-300';
+      } else {
+        stepBadge.textContent = `Bước ${stepIdx + 1}/${state.steps.length}`;
+        stepBadge.className = 'ml-1 px-2 py-0.5 rounded bg-slate-900 border border-slate-700 font-mono text-[11px] text-sky-300';
+      }
+
+      // Update Step Back / Next button states (stop at boundaries, no wrap-around)
+      const btnBack = document.getElementById('btnStepBack');
+      const btnNext = document.getElementById('btnStepNext');
+      if (btnBack) {
+        const atStart = (stepIdx <= -1);
+        btnBack.disabled = atStart;
+        btnBack.className = atStart
+          ? 'px-2.5 py-1 rounded bg-slate-900 text-slate-600 border border-slate-800 text-xs font-medium cursor-not-allowed transition'
+          : 'px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium transition';
+      }
+      if (btnNext) {
+        const atEnd = (stepIdx >= state.steps.length - 1);
+        btnNext.disabled = atEnd;
+        btnNext.className = atEnd
+          ? 'px-2.5 py-1 rounded bg-slate-900 text-slate-600 border border-slate-800 text-xs font-semibold cursor-not-allowed transition'
+          : 'px-2.5 py-1 rounded bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition';
+      }
 
       // Highlight outer layers (ASW, RTE, PduR)
       const aswNode = document.getElementById('nodeLayerASW');
       const rteNode = document.getElementById('nodeLayerRTE');
       const pdurNode = document.getElementById('nodeLayerPduR');
 
-      aswNode.classList.toggle('active-node', activeStep.layer === 'ASW');
-      rteNode.classList.toggle('active-node', activeStep.layer === 'ASW' || activeStep.layer === 'COM_1');
-      pdurNode.classList.toggle('active-node', activeStep.layer === 'PDUR');
+      aswNode.classList.toggle('active-node', activeStep ? activeStep.layer === 'ASW' : false);
+      rteNode.classList.toggle('active-node', activeStep ? (activeStep.layer === 'ASW' || activeStep.layer === 'COM_1') : false);
+      pdurNode.classList.toggle('active-node', activeStep ? activeStep.layer === 'PDUR' : false);
 
       // Update API badges on layers
       if (state.direction === 'TX') {
@@ -1723,7 +1741,7 @@
 
       const comGrid = document.getElementById('comInternalGrid');
       comGrid.innerHTML = comSteps.map(st => {
-        const isCurrent = (st.stepNum === activeStep.stepNum);
+        const isCurrent = activeStep ? (st.stepNum === activeStep.stepNum) : false;
         return `
           <div onclick="setStep(${st.stepNum - 1})" class="cursor-pointer rounded-lg border p-2.5 transition ${
             isCurrent
@@ -1744,11 +1762,26 @@
     }
 
     function renderInspector() {
-      const stepIdx = Math.min(state.currentStepIndex, state.steps.length - 1);
+      const stepIdx = state.currentStepIndex;
+      const badge = document.getElementById('inspectorStepBadge');
+      if (stepIdx < 0 || stepIdx >= state.steps.length) {
+        const sig = state.signals[state.selectedSignalId];
+        badge.textContent = `SẴN SÀNG (0/${state.steps.length})`;
+        badge.className = 'px-2.5 py-1 rounded-md text-xs font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40';
+        document.getElementById('inspectorTitle').textContent = 'Trạng thái sẵn sàng — Sẵn sàng mô phỏng kịch bản';
+        document.getElementById('inspectorApiCall').textContent = `Com_Init(&ComConfig) [READY • ${state.direction}]`;
+        document.getElementById('inspectorInput').innerHTML = `Kịch bản đang nạp: <b>${document.getElementById('diagramSubtitle').textContent}</b>.<br>Signal thao tác: <code>${sig.name}</code> (Giá trị: <code>${toHex(sig.value, sig.bitSize)}</code>, TxMode: <code>${getActiveTxMode()}</code>).`;
+        document.getElementById('inspectorProcessing').innerHTML = `Hệ thống AUTOSAR COM đã nạp cấu hình và khởi tạo xong bộ đệm I-PDU/Signal. Chưa có bước xử lý nào được thực thi.`;
+        document.getElementById('inspectorOutput').innerHTML = `Chờ lệnh từ người dùng (Nhấn <b>Bước tiếp ▶</b>, <b>▶ Chạy tự động</b> hoặc chọn trực tiếp một khối trên sơ đồ).`;
+        document.getElementById('inspectorConfigImpact').innerHTML = `Nhấn <b>Bước tiếp ▶</b> để bắt đầu chạy từ <b>Bước 1/${state.steps.length}</b>. Khi chạy đến <b>Bước ${state.steps.length}/${state.steps.length}</b>, mô phỏng sẽ tự động dừng.`;
+        return;
+      }
+
       const st = state.steps[stepIdx];
       if (!st) return;
 
-      document.getElementById('inspectorStepBadge').textContent = `BƯỚC ${st.stepNum}/${state.steps.length}`;
+      badge.textContent = `BƯỚC ${st.stepNum}/${state.steps.length}`;
+      badge.className = 'px-2.5 py-1 rounded-md text-xs font-mono font-bold bg-sky-500 text-slate-950';
       document.getElementById('inspectorTitle').textContent = st.shortTitle;
       document.getElementById('inspectorApiCall').textContent = st.apiCall;
       document.getElementById('inspectorInput').innerHTML = st.inputDesc;
@@ -1931,13 +1964,14 @@
     }
 
     function switchDirectionMode(dir) {
+      stopAutoPlay();
       state.direction = dir;
-      state.currentStepIndex = 0;
+      state.currentStepIndex = -1;
       appendApiLog(
         'SYSTEM',
         dir === 'TX'
-          ? 'Chuyển sang chế độ mô phỏng Luồng Truyền (TX: ASW -> RTE -> COM -> PduR -> CanIf)'
-          : 'Chuyển sang chế độ mô phỏng Luồng Nhận (RX: CanIf -> PduR -> COM -> RTE -> ASW)',
+          ? 'Chuyển sang chế độ mô phỏng Luồng Truyền (TX: ASW -> RTE -> COM -> PduR -> CanIf) [Sẵn sàng]'
+          : 'Chuyển sang chế độ mô phỏng Luồng Nhận (RX: CanIf -> PduR -> COM -> RTE -> ASW) [Sẵn sàng]',
         'INFO'
       );
       renderAll();
@@ -2113,41 +2147,48 @@
     }
 
     function stepForward() {
-      if (state.currentStepIndex < state.steps.length - 1) {
-        state.currentStepIndex++;
-      } else {
-        state.currentStepIndex = 0;
+      if (state.currentStepIndex >= state.steps.length - 1) {
+        stopAutoPlay();
+        return;
       }
+      state.currentStepIndex++;
       const st = state.steps[state.currentStepIndex];
       const sig = state.signals[state.selectedSignalId];
       // Simulate side effects on specific steps
       if (state.direction === 'TX' && state.currentStepIndex === 5 && state.ipduConfig.clearUpdateBit === 'CONFIRMATION') {
         sig.updateBitValue = 0;
       }
-      if ( state.direction === 'TX' && state.currentStepIndex === 2 && sig.enableUpdateBit ) {
+      if (state.direction === 'TX' && state.currentStepIndex === 2 && sig.enableUpdateBit) {
         sig.updateBitValue = 1;
       }
       appendApiLog(`Bước ${st.stepNum}`, st.apiCall, state.direction);
+      if (state.currentStepIndex >= state.steps.length - 1) {
+        stopAutoPlay();
+      }
       renderAll();
     }
 
     function stepBackward() {
-      if (state.currentStepIndex > 0) {
-        state.currentStepIndex--;
-      } else {
-        state.currentStepIndex = state.steps.length - 1;
+      if (state.currentStepIndex <= -1) {
+        return;
       }
+      stopAutoPlay();
+      if (state.currentStepIndex === 0) {
+        loadPresetScenario(state.activePreset, { fromStepBack: true });
+        return;
+      }
+      state.currentStepIndex--;
       renderAll();
     }
 
     function resetSimulation() {
       stopAutoPlay();
-      state.currentStepIndex = 0;
+      state.currentStepIndex = -1;
       state.ipduConfig.deadlineTimerMs = 0;
       state.signals.forEach((s, i) => {
-        s.updateBitValue = (i === state.selectedSignalId) ? 1 : 0;
+        s.updateBitValue = (i === state.selectedSignalId && s.enableUpdateBit) ? 1 : 0;
       });
-      appendApiLog('SYSTEM', 'Đã Reset trạng thái mô phỏng về Bước 1.', 'INFO');
+      appendApiLog('SYSTEM', 'Đã Reset trạng thái mô phỏng về Sẵn sàng (Bước 0).', 'INFO');
       renderAll();
     }
 
@@ -2155,12 +2196,21 @@
       if (state.autoPlayTimer) {
         stopAutoPlay();
       } else {
+        if (state.currentStepIndex >= state.steps.length - 1) {
+          state.currentStepIndex = -1;
+          renderAll();
+        }
         const btn = document.getElementById('btnAutoPlay');
         btn.innerHTML = '<span>⏸ Tạm dừng</span>';
         btn.className = 'px-3 py-1 rounded bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold transition flex items-center gap-1';
+        stepForward();
+        if (state.currentStepIndex >= state.steps.length - 1) {
+          stopAutoPlay();
+          return;
+        }
         state.autoPlayTimer = setInterval(() => {
           stepForward();
-          if (state.currentStepIndex === state.steps.length - 1) {
+          if (state.currentStepIndex >= state.steps.length - 1) {
             stopAutoPlay();
           }
         }, 1600);
@@ -2183,18 +2233,20 @@
       setStep(stepIdx);
     }
 
-    function loadPresetScenario(presetId) {
+    function loadPresetScenario(presetId, options = {}) {
       stopAutoPlay();
       state.activePreset = presetId;
-
-      // Highlight active preset button
-      for (let i = 1; i <= 6; i++) {
-        const b = document.getElementById(`presetBtn${i}`);
-        if (b) {
-          b.className = (i === presetId)
-            ? 'preset-btn px-2.5 py-1 rounded text-[11px] font-medium bg-sky-500/20 text-sky-300 border border-sky-500/40 transition'
-            : 'preset-btn px-2.5 py-1 rounded text-[11px] font-medium bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition';
+      const isStepBackReset = Boolean(options && options.fromStepBack);
+      const logPreset = (tag, message, level) => {
+        if (!isStepBackReset) {
+          appendApiLog(tag, message, level);
         }
+      };
+
+      // Sync preset scenario dropdown selection
+      const presetSelect = document.getElementById('presetScenarioSelect');
+      if (presetSelect && presetSelect.value !== String(presetId)) {
+        presetSelect.value = String(presetId);
       }
 
       const s0 = state.signals[0];
@@ -2219,7 +2271,7 @@
           cfg.clearUpdateBit = 'CONFIRMATION';
           document.getElementById('diagramSubtitle').textContent =
             'Kịch bản 1: Tx Event-Driven — Sig_EngineSpeed đổi giá trị kích hoạt gửi DIRECT ngay lập tức (Lặp N=2 lần)';
-          appendApiLog('PRESET 1', 'Nạp Kịch bản 1: Tx Event-Driven (TRIGGERED_ON_CHANGE + DIRECT, ClearUpdateBit=CONFIRMATION)', 'INFO');
+          logPreset('PRESET 1', 'Nạp Kịch bản 1: Tx Event-Driven (TRIGGERED_ON_CHANGE + DIRECT, ClearUpdateBit=CONFIRMATION)', 'INFO');
           break;
 
         case 2:
@@ -2237,7 +2289,7 @@
           cfg.timePeriodMs = 100;
           document.getElementById('diagramSubtitle').textContent =
             'Kịch bản 2: Tx Cyclic (PENDING + PERIODIC) — Com_SendSignal chỉ cập nhật I-PDU Buffer, chờ Com_MainFunctionTx() phát đi';
-          appendApiLog('PRESET 2', 'Nạp Kịch bản 2: Tx Cyclic (Sig_CoolantTemp PENDING + PERIODIC 100ms)', 'INFO');
+          logPreset('PRESET 2', 'Nạp Kịch bản 2: Tx Cyclic (Sig_CoolantTemp PENDING + PERIODIC 100ms)', 'INFO');
           break;
 
         case 3:
@@ -2257,7 +2309,7 @@
           cfg.txModeFalse = 'PERIODIC';
           document.getElementById('diagramSubtitle').textContent =
             'Kịch bản 3: Chuyển đổi động TMC/TMS — Giá trị vượt ngưỡng Filter khiến TMC=FALSE, I-PDU tự động chuyển từ DIRECT sang PERIODIC';
-          appendApiLog('PRESET 3', 'Nạp Kịch bản 3: Dynamic Mode Switching (TMC/TMS chuyển giữa DIRECT và PERIODIC)', 'INFO');
+          logPreset('PRESET 3', 'Nạp Kịch bản 3: Dynamic Mode Switching (TMC/TMS chuyển giữa DIRECT và PERIODIC)', 'INFO');
           break;
 
         case 4:
@@ -2272,7 +2324,7 @@
           cfg.rxIncomingUpdateBit = true;
           document.getElementById('diagramSubtitle').textContent =
             'Kịch bản 4: Rx DEFERRED & Kiểm tra Update-Bit — Com_RxIndication lưu tạm vào Buffer và đợi Com_MainFunctionRx() giải nén';
-          appendApiLog('PRESET 4', 'Nạp Kịch bản 4: Rx DEFERRED Processing & Kiểm tra Update-Bit = 1', 'INFO');
+          logPreset('PRESET 4', 'Nạp Kịch bản 4: Rx DEFERRED Processing & Kiểm tra Update-Bit = 1', 'INFO');
           break;
 
         case 5:
@@ -2287,7 +2339,7 @@
           cfg.deadlineTimerMs = 500;
           document.getElementById('diagramSubtitle').textContent =
             'Kịch bản 5: Rx Deadline Monitoring — Quá hạn 500ms không nhận được I-PDU, COM gọi Com_CbkRxTOut và REPLACE bằng InitValue (0x0320)';
-          appendApiLog('PRESET 5', 'Nạp Kịch bản 5: Rx Deadline Monitoring Timeout (REPLACE bằng ComSignalInitValue)', 'ERR');
+          logPreset('PRESET 5', 'Nạp Kịch bản 5: Rx Deadline Monitoring Timeout (REPLACE bằng ComSignalInitValue)', 'ERR');
           break;
 
         case 6:
@@ -2301,11 +2353,14 @@
           s0.updateBitValue = 1;
           document.getElementById('diagramSubtitle').textContent =
             'Kịch bản 6: Signal Invalidation — SWC gọi Com_InvalidateSignal(), COM đóng gói mã 0xFFFF vào I-PDU để báo lỗi cảm biến';
-          appendApiLog('PRESET 6', 'Nạp Kịch bản 6: Com_InvalidateSignal() gửi ComSignalDataInvalidValue = 0xFFFF', 'WARN');
+          logPreset('PRESET 6', 'Nạp Kịch bản 6: Com_InvalidateSignal() gửi ComSignalDataInvalidValue = 0xFFFF', 'WARN');
           break;
       }
 
-      state.currentStepIndex = 0;
+      if (isStepBackReset) {
+        appendApiLog('SYSTEM', `Đã lùi về bước 0 — khôi phục trạng thái khởi tạo Kịch bản ${presetId} (Sẵn sàng).`, 'INFO');
+      }
+      state.currentStepIndex = -1;
       renderAll();
     }
 
