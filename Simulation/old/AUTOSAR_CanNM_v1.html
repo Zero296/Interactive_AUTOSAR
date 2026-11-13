@@ -1,0 +1,2438 @@
+<!DOCTYPE html>
+<html lang="vi" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AUTOSAR CanNM Interactive Simulator & Handbook</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <!-- Google Fonts: Inter & JetBrains Mono -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            ecu: {
+              bg: '#0b1120',
+              panel: '#111827',
+              card: '#1e293b',
+              border: '#334155',
+              accent: '#38bdf8',
+            }
+          }
+        }
+      }
+    };
+  </script>
+
+  <style>
+    /* Custom Scrollbar & Engineering Animations */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(15, 23, 42, 0.4);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(100, 116, 139, 0.6);
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(56, 189, 248, 0.8);
+    }
+
+    @keyframes pulseGlow {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.45), 0 0 15px rgba(56, 189, 248, 0.35); }
+      50% { box-shadow: 0 0 0 6px rgba(56, 189, 248, 0), 0 0 25px rgba(56, 189, 248, 0.65); }
+    }
+    .state-active-glow {
+      animation: pulseGlow 2s infinite;
+    }
+
+    @keyframes signalPulseDown {
+      0% { transform: translateY(-6px); opacity: 0.3; }
+      50% { transform: translateY(2px); opacity: 1; }
+      100% { transform: translateY(-6px); opacity: 0.3; }
+    }
+    @keyframes signalPulseUp {
+      0% { transform: translateY(6px); opacity: 0.3; }
+      50% { transform: translateY(-2px); opacity: 1; }
+      100% { transform: translateY(6px); opacity: 0.3; }
+    }
+    .anim-down { animation: signalPulseDown 1.1s infinite ease-in-out; }
+    .anim-up { animation: signalPulseUp 1.1s infinite ease-in-out; }
+
+    .grid-bg {
+      background-image: radial-gradient(rgba(148, 163, 184, 0.12) 1px, transparent 1px);
+      background-size: 18px 18px;
+    }
+  </style>
+</head>
+<body class="bg-slate-100 dark:bg-[#0b1120] text-slate-800 dark:text-slate-100 font-sans min-h-screen flex flex-col selection:bg-sky-500 selection:text-white transition-colors duration-200">
+
+  <!-- ==================== TOP HEADER BAR ==================== -->
+  <header class="sticky top-0 z-40 bg-white/95 dark:bg-[#0f172a]/95 backdrop-blur border-b border-slate-200 dark:border-slate-800 shadow-sm">
+    <div class="max-w-[1920px] mx-auto px-3 sm:px-6 py-2.5 flex flex-wrap items-center justify-between gap-3">
+      
+      <!-- Brand & Title -->
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-500 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-sky-500/20">
+          <i class="fa-solid fa-microchip text-lg"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="text-[11px] font-mono uppercase tracking-wider px-2 py-0.5 rounded bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20 font-semibold">AUTOSAR Classic R4.x / R22-11</span>
+            <span class="hidden sm:inline-block text-[11px] font-mono text-slate-400">CanNM Workbench v2.5</span>
+          </div>
+          <h1 class="text-base sm:text-lg font-bold tracking-tight text-slate-900 dark:text-white">
+            Trình Mô Phỏng & Sổ Tay AUTOSAR CanNM
+          </h1>
+        </div>
+      </div>
+
+      <!-- Navigation Tabs -->
+      <nav class="flex items-center bg-slate-100 dark:bg-slate-800/90 p-1 rounded-xl border border-slate-200 dark:border-slate-700/80 order-3 xl:order-2 w-full xl:w-auto justify-center">
+        <button onclick="switchMainTab('simulator')" id="tab-btn-simulator" class="flex-1 xl:flex-initial px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all flex items-center justify-center gap-2 bg-sky-500 text-white shadow-sm">
+          <i class="fa-solid fa-sliders"></i>
+          <span>1. Trình Mô Phỏng (Workspace)</span>
+        </button>
+        <button onclick="switchMainTab('architecture')" id="tab-btn-architecture" class="flex-1 xl:flex-initial px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all flex items-center justify-center gap-2 text-slate-600 dark:text-slate-300 hover:text-sky-500">
+          <i class="fa-solid fa-diagram-project"></i>
+          <span>2. Kiến Trúc & Luồng Module</span>
+        </button>
+        <button onclick="switchMainTab('handbook')" id="tab-btn-handbook" class="flex-1 xl:flex-initial px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all flex items-center justify-center gap-2 text-slate-600 dark:text-slate-300 hover:text-sky-500">
+          <i class="fa-solid fa-book-bookmark"></i>
+          <span>3. Sổ Tay Tra Cứu (Handbook)</span>
+        </button>
+      </nav>
+
+      <!-- Live Status Indicators & Actions -->
+      <div class="flex items-center gap-2 sm:gap-3 order-2 xl:order-3">
+        <!-- Current State Badge -->
+        <div class="hidden md:flex items-center gap-2 bg-slate-100 dark:bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700/80">
+          <span class="text-[11px] font-medium text-slate-500 dark:text-slate-400">CanNM State:</span>
+          <span id="header-state-badge" class="px-2.5 py-0.5 rounded-md text-xs font-mono font-bold bg-slate-700 text-slate-200">
+            BUS-SLEEP MODE
+          </span>
+        </div>
+
+        <!-- Download Single File Button -->
+        <button onclick="downloadStandaloneHTML()" title="Tải xuống toàn bộ ứng dụng thành 1 file HTML để chạy offline hoặc chia sẻ" class="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold flex items-center gap-1.5 shadow-sm transition">
+          <i class="fa-solid fa-download"></i>
+          <span class="hidden sm:inline">Tải HTML</span>
+        </button>
+
+        <!-- Theme Toggle -->
+        <button onclick="toggleTheme()" title="Đổi giao diện Sáng / Tối" class="w-9 h-9 rounded-xl bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 flex items-center justify-center text-slate-700 dark:text-amber-400 transition">
+          <i id="theme-icon" class="fa-solid fa-sun"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ==================== MAIN CONTENT CONTAINER ==================== -->
+  <main class="flex-1 max-w-[1920px] w-full mx-auto px-3 sm:px-6 py-4">
+
+    <!-- =================================================================== -->
+    <!-- TAB 1: SIMULATOR WORKSPACE                                          -->
+    <!-- =================================================================== -->
+    <section id="tab-content-simulator" class="space-y-4">
+      
+      <!-- Top Scenario Walkthrough & Manual Trigger Bar -->
+      <div class="bg-white dark:bg-[#111827] rounded-2xl border border-slate-200 dark:border-slate-800 p-4 shadow-sm space-y-3">
+        
+        <!-- Scenario Selector Row -->
+        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-800 pb-3">
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="text-xs font-bold uppercase tracking-wider text-sky-600 dark:text-sky-400 flex items-center gap-1.5 mr-1">
+              <i class="fa-solid fa-play-circle"></i> Luồng Chạy Mẫu (Scenarios):
+            </span>
+            <button onclick="loadScenario(1)" id="scen-btn-1" class="scen-btn px-3 py-1.5 rounded-lg text-xs font-semibold border transition flex items-center gap-1.5 bg-sky-500/15 border-sky-500 text-sky-600 dark:text-sky-300">
+              <span>1. Active Wakeup (SWC)</span>
+            </button>
+            <button onclick="loadScenario(2)" id="scen-btn-2" class="scen-btn px-3 py-1.5 rounded-lg text-xs font-semibold border border-slate-300 dark:border-slate-700 hover:border-sky-500 text-slate-700 dark:text-slate-300 transition">
+              <span>2. Passive Wakeup (Rx Bus)</span>
+            </button>
+            <button onclick="loadScenario(3)" id="scen-btn-3" class="scen-btn px-3 py-1.5 rounded-lg text-xs font-semibold border border-slate-300 dark:border-slate-700 hover:border-sky-500 text-slate-700 dark:text-slate-300 transition">
+              <span>3. Node Detection (Bit RMR=1)</span>
+            </button>
+            <button onclick="loadScenario(4)" id="scen-btn-4" class="scen-btn px-3 py-1.5 rounded-lg text-xs font-semibold border border-slate-300 dark:border-slate-700 hover:border-sky-500 text-slate-700 dark:text-slate-300 transition">
+              <span>4. Chu trình Ngủ Mạng Chuẩn</span>
+            </button>
+            <button onclick="loadScenario(5)" id="scen-btn-5" class="scen-btn px-3 py-1.5 rounded-lg text-xs font-semibold border border-slate-300 dark:border-slate-700 hover:border-sky-500 text-slate-700 dark:text-slate-300 transition">
+              <span>5. Wakeup khẩn ở Prepare Bus-Sleep</span>
+            </button>
+          </div>
+
+          <!-- Scenario Stepper Controls -->
+          <div class="flex items-center gap-2 self-end lg:self-auto">
+            <span id="scenario-step-counter" class="text-xs font-mono font-semibold px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+              Bước 0 / 5
+            </span>
+            <button onclick="prevScenarioStep()" class="px-2.5 py-1.5 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-xs font-semibold transition" title="Quay lại bước trước">
+              <i class="fa-solid fa-backward-step"></i>
+            </button>
+            <button onclick="nextScenarioStep()" id="btn-next-step" class="px-3.5 py-1.5 rounded-lg bg-sky-500 hover:bg-sky-400 text-white text-xs font-bold shadow-sm shadow-sky-500/20 transition flex items-center gap-1.5">
+              <span>Bước Tiếp Theo</span>
+              <i class="fa-solid fa-forward-step"></i>
+            </button>
+            <button onclick="toggleScenarioAutoPlay()" id="btn-auto-scen" class="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition flex items-center gap-1.5">
+              <i class="fa-solid fa-bolt"></i>
+              <span id="auto-scen-label">Tự động chạy</span>
+            </button>
+            <button onclick="resetSimulation()" class="px-3 py-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 border border-rose-500/30 text-xs font-semibold transition flex items-center gap-1">
+              <i class="fa-solid fa-rotate-left"></i>
+              <span>Reset</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Current Scenario Step Explanation Banner -->
+        <div class="grid grid-cols-1 xl:grid-cols-12 gap-3 items-stretch">
+          <div class="xl:col-span-8 bg-slate-50 dark:bg-slate-900/90 rounded-xl p-3.5 border border-slate-200 dark:border-slate-800 flex flex-col justify-between">
+            <div class="flex flex-wrap items-center justify-between gap-2 mb-1.5">
+              <div class="flex items-center gap-2">
+                <span id="step-badge-title" class="px-2.5 py-0.5 rounded-md text-xs font-bold bg-sky-500/20 text-sky-600 dark:text-sky-300 border border-sky-500/30">
+                  Kịch bản 1: Active Wakeup từ App SWC
+                </span>
+                <span id="step-api-badge" class="font-mono text-xs px-2 py-0.5 rounded bg-amber-500/15 text-amber-600 dark:text-amber-300 border border-amber-500/30">
+                  Sẵn sàng chạy mô phỏng
+                </span>
+              </div>
+              <div id="step-io-pill" class="text-[11px] font-mono text-slate-500 dark:text-slate-400">
+                Input: <strong class="text-sky-400">App SWC</strong> → Xử lý: <strong class="text-emerald-400">CanNm</strong> → Output: <strong class="text-purple-400">CanIf</strong>
+              </div>
+            </div>
+            <p id="step-explanation-text" class="text-xs sm:text-sm text-slate-700 dark:text-slate-200 leading-relaxed">
+              Nhấn nút <strong>"Bước Tiếp Theo"</strong> hoặc <strong>"Tự động chạy"</strong> để theo dõi từng bước luồng xử lý từ tầng Application (SWC) xuống CanNM và CAN Bus, hoặc sử dụng các nút kích hoạt API thủ công bên phải.
+            </p>
+          </div>
+
+          <!-- Real-Time Clock & Manual API Quick Trigger Box -->
+          <div class="xl:col-span-4 bg-slate-50 dark:bg-slate-900/90 rounded-xl p-3 border border-slate-200 dark:border-slate-800 flex flex-col justify-between gap-2">
+            <div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-1.5">
+              <span class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                <i class="fa-regular fa-clock text-sky-400"></i> Chu kỳ CanNm_MainFunction()
+              </span>
+              <span id="sim-clock-display" class="font-mono text-xs font-bold text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                t = 0 ms
+              </span>
+            </div>
+            <div class="flex flex-wrap items-center gap-1.5">
+              <button onclick="stepTime(100)" class="flex-1 px-2.5 py-1.5 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-sky-500 hover:text-white text-xs font-mono font-semibold transition">
+                +100ms
+              </button>
+              <button onclick="stepTime(500)" class="flex-1 px-2.5 py-1.5 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-sky-500 hover:text-white text-xs font-mono font-semibold transition">
+                +500ms
+              </button>
+              <button onclick="toggleRealtimeClock()" id="btn-rt-clock" class="flex-1 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold transition flex items-center justify-center gap-1.5">
+                <i id="rt-clock-icon" class="fa-solid fa-play"></i>
+                <span id="rt-clock-text">Chạy Clock</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Main 3-Column Interactive Engineering Grid -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+
+        <!-- =============================================================== -->
+        <!-- LEFT COLUMN (3 cols): ECUC CONFIGURATION PANEL                  -->
+        <!-- =============================================================== -->
+        <div class="lg:col-span-3 space-y-4">
+          <div class="bg-white dark:bg-[#111827] rounded-2xl border border-slate-200 dark:border-slate-800 p-4 shadow-sm">
+            <div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3 mb-3">
+              <div>
+                <h2 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <i class="fa-solid fa-gears text-sky-400"></i>
+                  <span>Cấu Hình ECUC CanNM</span>
+                </h2>
+                <p class="text-[11px] text-slate-500 dark:text-slate-400">Thay đổi trực tiếp Checkbox & Textbox</p>
+              </div>
+              <button onclick="resetDefaultConfig()" class="text-[11px] px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 font-medium transition">
+                Mặc định
+              </button>
+            </div>
+
+            <!-- Validation Warning Banner -->
+            <div id="config-warning-box" class="hidden mb-3 p-2.5 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-600 dark:text-amber-300 text-xs space-y-1">
+              <div class="font-bold flex items-center gap-1.5">
+                <i class="fa-solid fa-triangle-exclamation"></i> Cảnh báo cấu hình AUTOSAR:
+              </div>
+              <p id="config-warning-text" class="text-[11px] leading-normal"></p>
+            </div>
+
+            <!-- Boolean Checkboxes Group -->
+            <div class="space-y-2 mb-4">
+              <div class="text-[11px] font-mono uppercase tracking-wider text-sky-600 dark:text-sky-400 font-bold">
+                1. Boolean Parameters (Checkboxes)
+              </div>
+
+              <!-- CanNmPassiveModeEnabled -->
+              <label class="flex items-start gap-2.5 p-2 rounded-xl bg-slate-50 dark:bg-slate-900/70 border border-slate-200/80 dark:border-slate-800 hover:border-sky-500/40 cursor-pointer transition">
+                <input type="checkbox" id="cfg-passive-mode" onchange="onConfigChange('CanNmPassiveModeEnabled')" class="mt-0.5 w-4 h-4 rounded text-sky-500 focus:ring-sky-500 bg-slate-800 border-slate-600" />
+                <div class="flex-1">
+                  <div class="text-xs font-mono font-semibold text-slate-800 dark:text-slate-200">CanNmPassiveModeEnabled</div>
+                  <div class="text-[11px] text-slate-500 dark:text-slate-400">Chỉ lắng nghe bus; vô hiệu hóa gửi NM PDU và <code class="text-sky-400">CanNm_NetworkRequest()</code>.</div>
+                </div>
+              </label>
+
+              <!-- CanNmActiveWakeupBitEnabled -->
+              <label class="flex items-start gap-2.5 p-2 rounded-xl bg-slate-50 dark:bg-slate-900/70 border border-slate-200/80 dark:border-slate-800 hover:border-sky-500/40 cursor-pointer transition">
+                <input type="checkbox" id="cfg-awb-enabled" checked onchange="onConfigChange('CanNmActiveWakeupBitEnabled')" class="mt-0.5 w-4 h-4 rounded text-sky-500 focus:ring-sky-500 bg-slate-800 border-slate-600" />
+                <div class="flex-1">
+                  <div class="text-xs font-mono font-semibold text-slate-800 dark:text-slate-200">CanNmActiveWakeupBitEnabled</div>
+                  <div class="text-[11px] text-slate-500 dark:text-slate-400">Tự động set <code class="text-emerald-400">CBV Bit 4 (AWB = 1)</code> khi ECU chủ động đánh thức mạng.</div>
+                </div>
+              </label>
+
+              <!-- CanNmNodeDetectionEnabled -->
+              <label class="flex items-start gap-2.5 p-2 rounded-xl bg-slate-50 dark:bg-slate-900/70 border border-slate-200/80 dark:border-slate-800 hover:border-sky-500/40 cursor-pointer transition">
+                <input type="checkbox" id="cfg-node-detect" checked onchange="onConfigChange('CanNmNodeDetectionEnabled')" class="mt-0.5 w-4 h-4 rounded text-sky-500 focus:ring-sky-500 bg-slate-800 border-slate-600" />
+                <div class="flex-1">
+                  <div class="text-xs font-mono font-semibold text-slate-800 dark:text-slate-200">CanNmNodeDetectionEnabled</div>
+                  <div class="text-[11px] text-slate-500 dark:text-slate-400">Cho phép gửi/nhận <code class="text-amber-400">CBV Bit 0 (RMR)</code> để điểm danh lại các ECU.</div>
+                </div>
+              </label>
+
+              <!-- CanNmImmediateRestartEnabled -->
+              <label class="flex items-start gap-2.5 p-2 rounded-xl bg-slate-50 dark:bg-slate-900/70 border border-slate-200/80 dark:border-slate-800 hover:border-sky-500/40 cursor-pointer transition">
+                <input type="checkbox" id="cfg-imm-restart" checked onchange="onConfigChange('CanNmImmediateRestartEnabled')" class="mt-0.5 w-4 h-4 rounded text-sky-500 focus:ring-sky-500 bg-slate-800 border-slate-600" />
+                <div class="flex-1">
+                  <div class="text-xs font-mono font-semibold text-slate-800 dark:text-slate-200">CanNmImmediateRestartEnabled</div>
+                  <div class="text-[11px] text-slate-500 dark:text-slate-400">Phát ngay lập tức 1 gói NM PDU khi nhận NetworkRequest ở pha <em>Prepare Bus-Sleep</em>.</div>
+                </div>
+              </label>
+
+              <!-- CanNmPnEnabled -->
+              <label class="flex items-start gap-2.5 p-2 rounded-xl bg-slate-50 dark:bg-slate-900/70 border border-slate-200/80 dark:border-slate-800 hover:border-sky-500/40 cursor-pointer transition">
+                <input type="checkbox" id="cfg-pn-enabled" onchange="onConfigChange('CanNmPnEnabled')" class="mt-0.5 w-4 h-4 rounded text-sky-500 focus:ring-sky-500 bg-slate-800 border-slate-600" />
+                <div class="flex-1">
+                  <div class="text-xs font-mono font-semibold text-slate-800 dark:text-slate-200">CanNmPnEnabled (Partial Net)</div>
+                  <div class="text-[11px] text-slate-500 dark:text-slate-400">Bật <code class="text-purple-400">CBV Bit 6 (PNI = 1)</code> và kiểm tra mặt nạ đánh thức từng phần (Byte 2–7).</div>
+                </div>
+              </label>
+
+              <!-- CanNmUserDataEnabled -->
+              <label class="flex items-start gap-2.5 p-2 rounded-xl bg-slate-50 dark:bg-slate-900/70 border border-slate-200/80 dark:border-slate-800 hover:border-sky-500/40 cursor-pointer transition">
+                <input type="checkbox" id="cfg-userdata-enabled" checked onchange="onConfigChange('CanNmUserDataEnabled')" class="mt-0.5 w-4 h-4 rounded text-sky-500 focus:ring-sky-500 bg-slate-800 border-slate-600" />
+                <div class="flex-1">
+                  <div class="text-xs font-mono font-semibold text-slate-800 dark:text-slate-200">CanNmUserDataEnabled</div>
+                  <div class="text-[11px] text-slate-500 dark:text-slate-400">Cho phép truyền dữ liệu ứng dụng (Byte 2–7) trong khung truyền NM PDU.</div>
+                </div>
+              </label>
+            </div>
+
+            <!-- Textboxes & Timers Group -->
+            <div class="space-y-2.5">
+              <div class="text-[11px] font-mono uppercase tracking-wider text-sky-600 dark:text-sky-400 font-bold">
+                2. Node ID, Timers & Payload (Textboxes)
+              </div>
+
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <label class="block text-[11px] font-mono text-slate-500 dark:text-slate-400 mb-1">CanNmNodeId (Hex)</label>
+                  <input type="text" id="cfg-node-id" value="0x1A" onchange="onConfigChange('CanNmNodeId')" class="w-full px-2.5 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 font-mono text-xs font-bold text-sky-600 dark:text-sky-400 focus:outline-none focus:border-sky-500" />
+                </div>
+                <div>
+                  <label class="block text-[11px] font-mono text-slate-500 dark:text-slate-400 mb-1">CanNmMsgCycleTime</label>
+                  <div class="relative">
+                    <input type="number" id="cfg-msg-cycle" value="500" step="100" min="100" onchange="onConfigChange('CanNmMsgCycleTime')" class="w-full px-2.5 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 font-mono text-xs font-bold focus:outline-none focus:border-sky-500" />
+                    <span class="absolute right-2 top-1.5 text-[10px] font-mono text-slate-400">ms</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <label class="block text-[11px] font-mono text-slate-500 dark:text-slate-400 mb-1">RepeatMessageTime</label>
+                  <div class="relative">
+                    <input type="number" id="cfg-repeat-time" value="1500" step="100" min="200" onchange="onConfigChange('CanNmRepeatMessageTime')" class="w-full px-2.5 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 font-mono text-xs font-bold focus:outline-none focus:border-sky-500" />
+                    <span class="absolute right-2 top-1.5 text-[10px] font-mono text-slate-400">ms</span>
+                  </div>
+                </div>
+                <div>
+                  <label class="block text-[11px] font-mono text-slate-500 dark:text-slate-400 mb-1">CanNmTimeoutTime</label>
+                  <div class="relative">
+                    <input type="number" id="cfg-timeout-time" value="2000" step="100" min="200" onchange="onConfigChange('CanNmTimeoutTime')" class="w-full px-2.5 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 font-mono text-xs font-bold focus:outline-none focus:border-sky-500" />
+                    <span class="absolute right-2 top-1.5 text-[10px] font-mono text-slate-400">ms</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <label class="block text-[11px] font-mono text-slate-500 dark:text-slate-400 mb-1">WaitBusSleepTime</label>
+                  <div class="relative">
+                    <input type="number" id="cfg-wait-sleep" value="1500" step="100" min="200" onchange="onConfigChange('CanNmWaitBusSleepTime')" class="w-full px-2.5 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 font-mono text-xs font-bold focus:outline-none focus:border-sky-500" />
+                    <span class="absolute right-2 top-1.5 text-[10px] font-mono text-slate-400">ms</span>
+                  </div>
+                </div>
+                <div>
+                  <label class="block text-[11px] font-mono text-slate-500 dark:text-slate-400 mb-1">ImmediateNmTrans</label>
+                  <div class="relative">
+                    <input type="number" id="cfg-imm-count" value="3" step="1" min="0" max="10" onchange="onConfigChange('CanNmImmediateNmTransmissions')" class="w-full px-2.5 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 font-mono text-xs font-bold focus:outline-none focus:border-sky-500" />
+                    <span class="absolute right-2 top-1.5 text-[10px] font-mono text-slate-400">gói</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <label class="block text-[11px] font-mono text-slate-500 dark:text-slate-400 mb-1">ImmediateNmCycle</label>
+                  <div class="relative">
+                    <input type="number" id="cfg-imm-cycle" value="100" step="50" min="50" onchange="onConfigChange('CanNmImmediateNmCycleTime')" class="w-full px-2.5 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 font-mono text-xs font-bold focus:outline-none focus:border-sky-500" />
+                    <span class="absolute right-2 top-1.5 text-[10px] font-mono text-slate-400">ms</span>
+                  </div>
+                </div>
+                <div>
+                  <label class="block text-[11px] font-mono text-slate-500 dark:text-slate-400 mb-1">Base CAN ID (Hex)</label>
+                  <input type="text" id="cfg-base-id" value="0x500" onchange="onConfigChange('CanNmBaseId')" class="w-full px-2.5 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 font-mono text-xs font-bold text-purple-500 focus:outline-none focus:border-sky-500" />
+                </div>
+              </div>
+
+              <div>
+                <label class="block text-[11px] font-mono text-slate-500 dark:text-slate-400 mb-1">UserData / PN Mask (Byte 2–7 Hex)</label>
+                <input type="text" id="cfg-user-data" value="11 22 33 44 55 66" onchange="onConfigChange('CanNmUserData')" class="w-full px-2.5 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 font-mono text-xs font-bold text-emerald-600 dark:text-emerald-400 focus:outline-none focus:border-sky-500" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Manual API Trigger Pad -->
+          <div class="bg-white dark:bg-[#111827] rounded-2xl border border-slate-200 dark:border-slate-800 p-4 shadow-sm space-y-2.5">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
+              <i class="fa-solid fa-terminal text-emerald-400"></i> Kích Hoạt Hàm API Thủ Công
+            </h3>
+            <p class="text-[11px] text-slate-500 dark:text-slate-400">Gọi trực tiếp các API chuẩn AUTOSAR để kiểm thử trạng thái bất kỳ:</p>
+
+            <button onclick="apiNetworkRequest()" class="w-full p-2 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-left transition flex items-center justify-between group">
+              <div>
+                <div class="text-xs font-mono font-bold text-emerald-600 dark:text-emerald-400">CanNm_NetworkRequest()</div>
+                <div class="text-[10px] text-slate-500 dark:text-slate-400">Từ SWC: ComM_RequestComMode(FULL_COM)</div>
+              </div>
+              <i class="fa-solid fa-arrow-right text-emerald-400 group-hover:translate-x-1 transition"></i>
+            </button>
+
+            <button onclick="apiNetworkRelease()" class="w-full p-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-left transition flex items-center justify-between group">
+              <div>
+                <div class="text-xs font-mono font-bold text-amber-600 dark:text-amber-400">CanNm_NetworkRelease()</div>
+                <div class="text-[10px] text-slate-500 dark:text-slate-400">Từ SWC: ComM_RequestComMode(NO_COM)</div>
+              </div>
+              <i class="fa-solid fa-arrow-right text-amber-400 group-hover:translate-x-1 transition"></i>
+            </button>
+
+            <button onclick="apiPassiveStartUp()" class="w-full p-2 rounded-xl bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/30 text-left transition flex items-center justify-between group">
+              <div>
+                <div class="text-xs font-mono font-bold text-sky-600 dark:text-sky-400">CanNm_PassiveStartUp()</div>
+                <div class="text-[10px] text-slate-500 dark:text-slate-400">Từ EcuM/ComM: Đánh thức thụ động (AWB=0)</div>
+              </div>
+              <i class="fa-solid fa-arrow-right text-sky-400 group-hover:translate-x-1 transition"></i>
+            </button>
+
+            <button onclick="apiRepeatMessageRequest()" class="w-full p-2 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 text-left transition flex items-center justify-between group">
+              <div>
+                <div class="text-xs font-mono font-bold text-purple-600 dark:text-purple-400">CanNm_RepeatMessageRequest()</div>
+                <div class="text-[10px] text-slate-500 dark:text-slate-400">Bật Bit RMR=1 để dò các Node trên mạng</div>
+              </div>
+              <i class="fa-solid fa-arrow-right text-purple-400 group-hover:translate-x-1 transition"></i>
+            </button>
+
+            <!-- Simulated Remote ECU Rx Frame Box -->
+            <div class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="text-[11px] font-mono font-bold text-indigo-500 dark:text-indigo-400">Giả lập ECU #2 gửi gói tin (Rx)</span>
+                <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-indigo-500/10 text-indigo-400">Node 0x2B</span>
+              </div>
+              <div class="flex items-center gap-3 text-[11px] font-mono">
+                <label class="flex items-center gap-1 cursor-pointer">
+                  <input type="checkbox" id="rx-sim-rmr" class="rounded text-indigo-500" />
+                  <span>Rx RMR=1</span>
+                </label>
+                <label class="flex items-center gap-1 cursor-pointer">
+                  <input type="checkbox" id="rx-sim-awb" checked class="rounded text-indigo-500" />
+                  <span>Rx AWB=1</span>
+                </label>
+                <label class="flex items-center gap-1 cursor-pointer">
+                  <input type="checkbox" id="rx-sim-pni" class="rounded text-indigo-500" />
+                  <span>Rx PNI=1</span>
+                </label>
+              </div>
+              <button onclick="apiSimulatedRxIndication()" class="w-full py-1.5 px-3 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-mono font-semibold transition flex items-center justify-center gap-1.5">
+                <i class="fa-solid fa-satellite-dish"></i>
+                <span>Bắn CanNm_RxIndication()</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- =============================================================== -->
+        <!-- CENTER & RIGHT COLUMNS (9 cols): ARCHITECTURE, STATE & PDU      -->
+        <!-- =============================================================== -->
+        <div class="lg:col-span-9 space-y-4">
+
+          <!-- Dual Visualizer Row: AUTOSAR Stack Routing (5 cols) + State Machine (7 cols) -->
+          <div class="grid grid-cols-1 xl:grid-cols-12 gap-4">
+
+            <!-- 1. AUTOSAR LAYERED ARCHITECTURE & SIGNAL ROUTING (5 cols) -->
+            <div class="xl:col-span-5 bg-white dark:bg-[#111827] rounded-2xl border border-slate-200 dark:border-slate-800 p-4 shadow-sm flex flex-col justify-between">
+              <div>
+                <div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2.5 mb-3">
+                  <div>
+                    <h2 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                      <i class="fa-solid fa-layer-group text-indigo-400"></i>
+                      <span>Luồng Tương Tác AUTOSAR Stack</span>
+                    </h2>
+                    <p class="text-[11px] text-slate-500 dark:text-slate-400">Click vào từng Module để xem Input / Output</p>
+                  </div>
+                  <span id="active-direction-badge" class="text-[11px] font-mono px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400">
+                    Idle
+                  </span>
+                </div>
+
+                <!-- Vertical Interactive Stack -->
+                <div class="space-y-1.5 relative">
+
+                  <!-- Layer 1: App SWC -->
+                  <div onclick="selectModuleExplain('SWC')" id="mod-box-SWC" class="mod-box cursor-pointer p-2.5 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-slate-50 dark:bg-slate-900/80 hover:border-sky-500 transition flex items-center justify-between">
+                    <div class="flex items-center gap-2.5">
+                      <div class="w-8 h-8 rounded-lg bg-sky-500/15 text-sky-400 flex items-center justify-center font-bold text-xs">SWC</div>
+                      <div>
+                        <div class="text-xs font-bold text-slate-900 dark:text-white">Application SWC (qua RTE)</div>
+                        <div class="text-[11px] text-slate-500 dark:text-slate-400">Quyết định nhu cầu giữ mạng hay cho ngủ</div>
+                      </div>
+                    </div>
+                    <span id="swc-req-badge" class="text-[11px] font-mono px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-semibold">NO_COM</span>
+                  </div>
+
+                  <!-- Arrow SWC <-> ComM -->
+                  <div id="arrow-SWC-COMM" class="flex items-center justify-between px-3 py-0.5 text-[11px] font-mono text-slate-400">
+                    <span class="flex items-center gap-1"><i class="fa-solid fa-arrows-up-down text-sky-400"></i> <span id="api-label-swc-comm">Rte_Call_UR_ComMUser_RequestComMode()</span></span>
+                  </div>
+
+                  <!-- Layer 2: ComM & BswM -->
+                  <div onclick="selectModuleExplain('COMM')" id="mod-box-COMM" class="mod-box cursor-pointer p-2.5 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-slate-50 dark:bg-slate-900/80 hover:border-sky-500 transition flex items-center justify-between">
+                    <div class="flex items-center gap-2.5">
+                      <div class="w-8 h-8 rounded-lg bg-indigo-500/15 text-indigo-400 flex items-center justify-center font-bold text-xs">ComM</div>
+                      <div>
+                        <div class="text-xs font-bold text-slate-900 dark:text-white">ComM / BswM / EcuM</div>
+                        <div class="text-[11px] text-slate-500 dark:text-slate-400">Quản lý trạng thái truyền thông tổng thể</div>
+                      </div>
+                    </div>
+                    <span id="comm-mode-badge" class="text-[11px] font-mono px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-semibold">COMM_NO_COM</span>
+                  </div>
+
+                  <!-- Arrow ComM <-> Nm -->
+                  <div id="arrow-COMM-NM" class="flex items-center justify-between px-3 py-0.5 text-[11px] font-mono text-slate-400">
+                    <span class="flex items-center gap-1"><i class="fa-solid fa-arrows-up-down text-indigo-400"></i> <span id="api-label-comm-nm">Nm_NetworkRequest() / ComM_Nm_...</span></span>
+                  </div>
+
+                  <!-- Layer 3: Generic Nm Interface -->
+                  <div onclick="selectModuleExplain('NM')" id="mod-box-NM" class="mod-box cursor-pointer p-2.5 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-slate-50 dark:bg-slate-900/80 hover:border-sky-500 transition flex items-center justify-between">
+                    <div class="flex items-center gap-2.5">
+                      <div class="w-8 h-8 rounded-lg bg-purple-500/15 text-purple-400 flex items-center justify-center font-bold text-xs">Nm</div>
+                      <div>
+                        <div class="text-xs font-bold text-slate-900 dark:text-white">Generic Nm Interface</div>
+                        <div class="text-[11px] text-slate-500 dark:text-slate-400">Lớp trừu tượng hóa độc lập phần cứng Bus</div>
+                      </div>
+                    </div>
+                    <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-purple-500/10 text-purple-400">Multiplexer</span>
+                  </div>
+
+                  <!-- Arrow Nm <-> CanNm -->
+                  <div id="arrow-NM-CANNM" class="flex items-center justify-between px-3 py-0.5 text-[11px] font-mono text-slate-400">
+                    <span class="flex items-center gap-1"><i class="fa-solid fa-arrows-up-down text-emerald-400"></i> <span id="api-label-nm-cannm">CanNm_NetworkRequest() / Nm_StateChange...</span></span>
+                  </div>
+
+                  <!-- Layer 4: CanNM (Core Focus) -->
+                  <div onclick="selectModuleExplain('CANNM')" id="mod-box-CANNM" class="mod-box cursor-pointer p-3 rounded-xl border-2 border-sky-500/70 bg-sky-500/10 transition flex items-center justify-between shadow-sm">
+                    <div class="flex items-center gap-2.5">
+                      <div class="w-9 h-9 rounded-lg bg-sky-500 text-white flex items-center justify-center font-bold text-xs shadow">CanNm</div>
+                      <div>
+                        <div class="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                          <span>AUTOSAR CanNM Module</span>
+                          <span class="text-[10px] px-1.5 py-0.2 rounded bg-sky-500/20 text-sky-300 font-mono">Trọng tâm</span>
+                        </div>
+                        <div class="text-[11px] text-slate-600 dark:text-slate-300">State Machine, 4 Timers & Đóng gói 8-Byte PDU</div>
+                      </div>
+                    </div>
+                    <span id="stack-cannm-badge" class="text-[11px] font-mono px-2 py-0.5 rounded bg-sky-500 text-white font-bold">BUS_SLEEP</span>
+                  </div>
+
+                  <!-- Arrow CanNm <-> CanIf -->
+                  <div id="arrow-CANNM-CANIF" class="flex items-center justify-between px-3 py-0.5 text-[11px] font-mono text-slate-400">
+                    <span class="flex items-center gap-1"><i class="fa-solid fa-arrows-up-down text-amber-400"></i> <span id="api-label-cannm-canif">CanIf_Transmit() / CanNm_RxIndication()</span></span>
+                  </div>
+
+                  <!-- Layer 5: CanIf / CanSM / CAN Bus -->
+                  <div onclick="selectModuleExplain('CANIF')" id="mod-box-CANIF" class="mod-box cursor-pointer p-2.5 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-slate-50 dark:bg-slate-900/80 hover:border-sky-500 transition flex items-center justify-between">
+                    <div class="flex items-center gap-2.5">
+                      <div class="w-8 h-8 rounded-lg bg-amber-500/15 text-amber-400 flex items-center justify-center font-bold text-xs">CanIf</div>
+                      <div>
+                        <div class="text-xs font-bold text-slate-900 dark:text-white">CanIf / CanSM & CAN Bus</div>
+                        <div class="text-[11px] text-slate-500 dark:text-slate-400">Truyền/Nhận CAN Frame (0x500 + NodeId)</div>
+                      </div>
+                    </div>
+                    <span id="canbus-traffic-badge" class="text-[11px] font-mono px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-800 text-slate-500">Bus Quiet</span>
+                  </div>
+
+                </div>
+              </div>
+
+              <!-- Quick Module Inspector Drawer inside Stack Box -->
+              <div id="mini-module-inspector" class="mt-3 p-3 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs space-y-1">
+                <div class="flex items-center justify-between">
+                  <span id="mini-mod-title" class="font-bold text-sky-600 dark:text-sky-400">Chi tiết Module: AUTOSAR CanNM</span>
+                  <button onclick="switchMainTab('architecture')" class="text-[11px] text-indigo-500 hover:underline font-medium">Xem toàn bộ bảng I/O →</button>
+                </div>
+                <p id="mini-mod-desc" class="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">
+                  <strong>Input:</strong> Nhận lệnh từ <code class="font-mono">Nm</code> và chỉ báo Tx/Rx từ <code class="font-mono">CanIf</code>.<br/>
+                  <strong>Xử lý:</strong> Vận hành State Machine (Bus-Sleep, Prepare Bus-Sleep, Network Mode) và 4 bộ đếm thời gian trong <code class="font-mono">CanNm_MainFunction()</code>.<br/>
+                  <strong>Output:</strong> Gọi <code class="font-mono">CanIf_Transmit()</code> xuống CAN Bus và báo trạng thái ngược lên <code class="font-mono">Nm / ComM</code>.
+                </p>
+              </div>
+            </div>
+
+            <!-- 2. CANNM STATE MACHINE & LIVE TIMERS CANVAS (7 cols) -->
+            <div class="xl:col-span-7 bg-white dark:bg-[#111827] rounded-2xl border border-slate-200 dark:border-slate-800 p-4 shadow-sm flex flex-col justify-between">
+              <div>
+                <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 dark:border-slate-800 pb-2.5 mb-3">
+                  <div>
+                    <h2 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                      <i class="fa-solid fa-sitemap text-emerald-400"></i>
+                      <span>Máy Trạng Thái CanNM (State Machine & Timers)</span>
+                    </h2>
+                    <p class="text-[11px] text-slate-500 dark:text-slate-400">Chuẩn AUTOSAR SWS_CanNm — Tự động cập nhật theo sự kiện và bộ đếm</p>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <span class="text-[11px] font-mono text-slate-400">Network Status:</span>
+                    <span id="net-req-status-pill" class="text-[11px] font-mono font-bold px-2 py-0.5 rounded bg-rose-500/15 text-rose-400 border border-rose-500/30">
+                      RELEASED (Không giữ mạng)
+                    </span>
+                  </div>
+                </div>
+
+                <!-- Visual State Machine Canvas -->
+                <div class="grid-bg rounded-xl p-3.5 border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-950/60 space-y-4">
+                  
+                  <!-- Top Row: Bus-Sleep Mode & Prepare Bus-Sleep Mode -->
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    
+                    <!-- BUS-SLEEP MODE -->
+                    <div id="state-card-BUS_SLEEP" class="p-3.5 rounded-xl border-2 transition-all bg-white dark:bg-slate-900 border-sky-500 state-active-glow">
+                      <div class="flex items-center justify-between mb-1">
+                        <span class="text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold">Mode 1</span>
+                        <span id="badge-active-BUS_SLEEP" class="text-[10px] font-mono font-bold text-sky-400 flex items-center gap-1">
+                          <i class="fa-solid fa-circle text-[7px]"></i> ĐANG HOẠT ĐỘNG
+                        </span>
+                      </div>
+                      <div class="text-sm font-bold text-slate-900 dark:text-white font-mono">Bus-Sleep Mode</div>
+                      <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                        Transceiver ở chế độ ngủ tiết kiệm điện. Không truyền NM PDU. Chờ lệnh <code class="text-sky-400">NetworkRequest</code> hoặc <code class="text-sky-400">PassiveStartUp / RxIndication</code>.
+                      </p>
+                    </div>
+
+                    <!-- PREPARE BUS-SLEEP MODE -->
+                    <div id="state-card-PREPARE_BUS_SLEEP" class="p-3.5 rounded-xl border-2 transition-all bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 opacity-75">
+                      <div class="flex items-center justify-between mb-1">
+                        <span class="text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded bg-amber-500/15 text-amber-400 font-bold">Mode 2</span>
+                        <span id="badge-active-PREPARE_BUS_SLEEP" class="hidden text-[10px] font-mono font-bold text-amber-400 flex items-center gap-1">
+                          <i class="fa-solid fa-circle text-[7px]"></i> ĐANG HOẠT ĐỘNG
+                        </span>
+                      </div>
+                      <div class="text-sm font-bold text-slate-900 dark:text-white font-mono">Prepare Bus-Sleep Mode</div>
+                      <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                        Pha đệm làm trống hàng đợi bus. Đếm ngược <code class="text-amber-400">WaitBusSleepTime</code>. Khi hết giờ sẽ chuyển hẳn về <em>Bus-Sleep Mode</em>.
+                      </p>
+                    </div>
+                  </div>
+
+                  <!-- Transition Indicators between Top & Network Mode -->
+                  <div class="flex flex-wrap items-center justify-around text-[11px] font-mono text-slate-500 dark:text-slate-400 gap-2 py-0.5">
+                    <span class="flex items-center gap-1 text-emerald-500 dark:text-emerald-400">
+                      <i class="fa-solid fa-arrow-down"></i> Wakeup (NetworkRequest / PassiveStartUp / Rx PDU)
+                    </span>
+                    <span class="flex items-center gap-1 text-amber-500 dark:text-amber-400">
+                      <i class="fa-solid fa-arrow-up"></i> NM-Timeout Timer hết hạn tại Ready Sleep
+                    </span>
+                  </div>
+
+                  <!-- Bottom Container: NETWORK MODE (3 Sub-states) -->
+                  <div id="container-network-mode" class="p-3.5 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 bg-slate-100/60 dark:bg-slate-900/50 space-y-3">
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                      <div class="flex items-center gap-2">
+                        <span class="text-xs font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 font-mono">
+                          <i class="fa-solid fa-network-wired mr-1"></i> Mode 3: Network Mode (COMM_FULL_COMMUNICATION)
+                        </span>
+                      </div>
+                      <span class="text-[11px] font-mono text-slate-500 dark:text-slate-400">
+                        Giữ bộ đếm <code class="text-sky-400">NM-Timeout Timer</code> liên tục
+                      </span>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      
+                      <!-- Substate 1: Repeat Message State -->
+                      <div id="state-card-REPEAT_MESSAGE" class="p-3 rounded-xl border-2 transition-all bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 opacity-75">
+                        <div class="flex items-center justify-between mb-1">
+                          <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-purple-500/15 text-purple-400 font-bold">Sub-State 3.1</span>
+                          <span id="badge-active-REPEAT_MESSAGE" class="hidden text-[10px] font-mono font-bold text-purple-400">● ACTIVE</span>
+                        </div>
+                        <div class="text-xs sm:text-sm font-bold text-slate-900 dark:text-white font-mono">Repeat Message</div>
+                        <ul class="text-[11px] text-slate-500 dark:text-slate-400 mt-1.5 space-y-1 list-disc list-inside">
+                          <li>Truyền NM PDU định kỳ (hoặc gửi nhanh Burst).</li>
+                          <li>Đếm <code class="text-purple-400">RepeatMessageTime</code>.</li>
+                          <li>Hết giờ: Nếu <em>Requested</em> → <strong>Normal Op</strong>; nếu <em>Released</em> → <strong>Ready Sleep</strong>.</li>
+                        </ul>
+                      </div>
+
+                      <!-- Substate 2: Normal Operation State -->
+                      <div id="state-card-NORMAL_OPERATION" class="p-3 rounded-xl border-2 transition-all bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 opacity-75">
+                        <div class="flex items-center justify-between mb-1">
+                          <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 font-bold">Sub-State 3.2</span>
+                          <span id="badge-active-NORMAL_OPERATION" class="hidden text-[10px] font-mono font-bold text-emerald-400">● ACTIVE</span>
+                        </div>
+                        <div class="text-xs sm:text-sm font-bold text-slate-900 dark:text-white font-mono">Normal Operation</div>
+                        <ul class="text-[11px] text-slate-500 dark:text-slate-400 mt-1.5 space-y-1 list-disc list-inside">
+                          <li>ECU đang cần giữ mạng (<code class="text-emerald-400">Requested</code>).</li>
+                          <li>Truyền NM PDU mỗi <code class="text-emerald-400">MsgCycleTime</code>.</li>
+                          <li>Gọi <code class="text-amber-400">NetworkRelease()</code> sẽ chuyển sang <strong>Ready Sleep</strong>.</li>
+                        </ul>
+                      </div>
+
+                      <!-- Substate 3: Ready Sleep State -->
+                      <div id="state-card-READY_SLEEP" class="p-3 rounded-xl border-2 transition-all bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 opacity-75">
+                        <div class="flex items-center justify-between mb-1">
+                          <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-sky-500/15 text-sky-400 font-bold">Sub-State 3.3</span>
+                          <span id="badge-active-READY_SLEEP" class="hidden text-[10px] font-mono font-bold text-sky-400">● ACTIVE</span>
+                        </div>
+                        <div class="text-xs sm:text-sm font-bold text-slate-900 dark:text-white font-mono">Ready Sleep</div>
+                        <ul class="text-[11px] text-slate-500 dark:text-slate-400 mt-1.5 space-y-1 list-disc list-inside">
+                          <li><strong>Ngừng truyền</strong> NM PDU (<code class="text-rose-400">Tx OFF</code>).</li>
+                          <li>Chờ các ECU khác trên bus cùng nghỉ.</li>
+                          <li>Khi <code class="text-sky-400">TimeoutTime</code> về 0 → lên <strong>Prepare Bus-Sleep</strong>.</li>
+                        </ul>
+                      </div>
+
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 4 Live AUTOSAR Timers Progress Section -->
+              <div class="mt-4 pt-3 border-t border-slate-200 dark:border-slate-800">
+                <div class="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 mb-2.5 flex items-center justify-between">
+                  <span><i class="fa-solid fa-stopwatch text-sky-400 mr-1"></i> Trạng Thái 4 Bộ Đếm Thời Gian (CanNM Internal Timers)</span>
+                  <span id="burst-counter-badge" class="text-[11px] font-mono px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-400">Immediate Burst: 0 gói</span>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+                  <!-- Timer 1: Repeat Message Timer -->
+                  <div class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+                    <div class="flex items-center justify-between text-[11px] font-mono mb-1">
+                      <span class="font-semibold text-purple-500 dark:text-purple-400">RepeatMsg Timer</span>
+                      <span id="timer-val-repeat" class="font-bold">0 / 1500 ms</span>
+                    </div>
+                    <div class="w-full h-2 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
+                      <div id="timer-bar-repeat" class="h-full bg-purple-500 transition-all duration-150" style="width: 0%"></div>
+                    </div>
+                  </div>
+
+                  <!-- Timer 2: NM-Timeout Timer -->
+                  <div class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+                    <div class="flex items-center justify-between text-[11px] font-mono mb-1">
+                      <span class="font-semibold text-sky-500 dark:text-sky-400">NM-Timeout Timer</span>
+                      <span id="timer-val-timeout" class="font-bold">0 / 2000 ms</span>
+                    </div>
+                    <div class="w-full h-2 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
+                      <div id="timer-bar-timeout" class="h-full bg-sky-500 transition-all duration-150" style="width: 0%"></div>
+                    </div>
+                  </div>
+
+                  <!-- Timer 3: Msg Cycle Timer -->
+                  <div class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+                    <div class="flex items-center justify-between text-[11px] font-mono mb-1">
+                      <span class="font-semibold text-emerald-500 dark:text-emerald-400">MsgCycle Timer</span>
+                      <span id="timer-val-cycle" class="font-bold">0 / 500 ms</span>
+                    </div>
+                    <div class="w-full h-2 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
+                      <div id="timer-bar-cycle" class="h-full bg-emerald-500 transition-all duration-150" style="width: 0%"></div>
+                    </div>
+                  </div>
+
+                  <!-- Timer 4: Wait Bus-Sleep Timer -->
+                  <div class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+                    <div class="flex items-center justify-between text-[11px] font-mono mb-1">
+                      <span class="font-semibold text-amber-500 dark:text-amber-400">WaitBusSleep Timer</span>
+                      <span id="timer-val-waitsleep" class="font-bold">0 / 1500 ms</span>
+                    </div>
+                    <div class="w-full h-2 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
+                      <div id="timer-bar-waitsleep" class="h-full bg-amber-500 transition-all duration-150" style="width: 0%"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Bottom Row: 8-Byte NM PDU Bit Inspector (5 cols) + Sequence & CAN Trace Console (7 cols) -->
+          <div class="grid grid-cols-1 xl:grid-cols-12 gap-4">
+
+            <!-- 1. 8-BYTE NM PDU & CBV BIT INSPECTOR (5 cols) -->
+            <div class="xl:col-span-5 bg-white dark:bg-[#111827] rounded-2xl border border-slate-200 dark:border-slate-800 p-4 shadow-sm space-y-3">
+              <div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2.5">
+                <div>
+                  <h2 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <i class="fa-solid fa-memory text-amber-400"></i>
+                    <span>Bộ Giải Mã Thanh Ghi 8-Byte NM PDU</span>
+                  </h2>
+                  <p class="text-[11px] text-slate-500 dark:text-slate-400">Khung truyền chuẩn AUTOSAR CanNM gửi xuống CanIf</p>
+                </div>
+                <span id="pdu-can-id-badge" class="font-mono text-xs font-bold px-2.5 py-1 rounded-lg bg-indigo-500/15 text-indigo-400 border border-indigo-500/30">
+                  CAN ID: 0x51A (DLC=8)
+                </span>
+              </div>
+
+              <!-- 8-Byte Array Row -->
+              <div class="grid grid-cols-8 gap-1.5 text-center font-mono">
+                <div class="p-1.5 rounded-lg bg-sky-500/15 border border-sky-500/40">
+                  <div class="text-[9px] text-slate-400">Byte 0</div>
+                  <div id="pdu-byte-0" class="text-xs font-bold text-sky-400">1A</div>
+                  <div class="text-[9px] text-sky-300">SNI</div>
+                </div>
+                <div class="p-1.5 rounded-lg bg-amber-500/20 border-2 border-amber-500">
+                  <div class="text-[9px] text-amber-300">Byte 1</div>
+                  <div id="pdu-byte-1" class="text-xs font-bold text-amber-400">00</div>
+                  <div class="text-[9px] text-amber-300">CBV</div>
+                </div>
+                <div class="p-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30">
+                  <div class="text-[9px] text-slate-400">Byte 2</div>
+                  <div id="pdu-byte-2" class="text-xs font-bold text-emerald-400">11</div>
+                  <div class="text-[9px] text-slate-400">User0</div>
+                </div>
+                <div class="p-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30">
+                  <div class="text-[9px] text-slate-400">Byte 3</div>
+                  <div id="pdu-byte-3" class="text-xs font-bold text-emerald-400">22</div>
+                  <div class="text-[9px] text-slate-400">User1</div>
+                </div>
+                <div class="p-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30">
+                  <div class="text-[9px] text-slate-400">Byte 4</div>
+                  <div id="pdu-byte-4" class="text-xs font-bold text-emerald-400">33</div>
+                  <div class="text-[9px] text-slate-400">User2</div>
+                </div>
+                <div class="p-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30">
+                  <div class="text-[9px] text-slate-400">Byte 5</div>
+                  <div id="pdu-byte-5" class="text-xs font-bold text-emerald-400">44</div>
+                  <div class="text-[9px] text-slate-400">User3</div>
+                </div>
+                <div class="p-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30">
+                  <div class="text-[9px] text-slate-400">Byte 6</div>
+                  <div id="pdu-byte-6" class="text-xs font-bold text-emerald-400">55</div>
+                  <div class="text-[9px] text-slate-400">User4</div>
+                </div>
+                <div class="p-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30">
+                  <div class="text-[9px] text-slate-400">Byte 7</div>
+                  <div id="pdu-byte-7" class="text-xs font-bold text-emerald-400">66</div>
+                  <div class="text-[9px] text-slate-400">User5</div>
+                </div>
+              </div>
+
+              <!-- Detailed Byte 1: Control Bit Vector (CBV) Bit-by-Bit Breakdown -->
+              <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-2">
+                <div class="flex items-center justify-between">
+                  <span class="text-xs font-bold text-amber-500 dark:text-amber-400 font-mono">
+                    Giải phẫu Byte 1: Control Bit Vector (CBV)
+                  </span>
+                  <span id="cbv-binary-str" class="text-xs font-mono font-bold px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200">
+                    0b00000000 (0x00)
+                  </span>
+                </div>
+
+                <!-- 8-bit Visual Strip -->
+                <div class="grid grid-cols-8 gap-1 text-center font-mono text-xs">
+                  <div class="p-1.5 rounded bg-slate-200/70 dark:bg-slate-800/70 text-slate-400">
+                    <div class="text-[9px]">Bit 7</div>
+                    <div class="font-bold">0</div>
+                    <div class="text-[8px]">Res</div>
+                  </div>
+                  <div id="cbv-box-bit6" class="p-1.5 rounded bg-slate-200 dark:bg-slate-800 border border-slate-300 dark:border-slate-700">
+                    <div class="text-[9px] text-purple-400">Bit 6</div>
+                    <div id="cbv-val-bit6" class="font-bold">0</div>
+                    <div class="text-[8px] font-bold text-purple-400">PNI</div>
+                  </div>
+                  <div class="p-1.5 rounded bg-slate-200/70 dark:bg-slate-800/70 text-slate-400">
+                    <div class="text-[9px]">Bit 5</div>
+                    <div class="font-bold">0</div>
+                    <div class="text-[8px]">Res</div>
+                  </div>
+                  <div id="cbv-box-bit4" class="p-1.5 rounded bg-slate-200 dark:bg-slate-800 border border-slate-300 dark:border-slate-700">
+                    <div class="text-[9px] text-emerald-400">Bit 4</div>
+                    <div id="cbv-val-bit4" class="font-bold">0</div>
+                    <div class="text-[8px] font-bold text-emerald-400">AWB</div>
+                  </div>
+                  <div id="cbv-box-bit3" class="p-1.5 rounded bg-slate-200 dark:bg-slate-800 border border-slate-300 dark:border-slate-700">
+                    <div class="text-[9px] text-sky-400">Bit 3</div>
+                    <div id="cbv-val-bit3" class="font-bold">0</div>
+                    <div class="text-[8px] font-bold text-sky-400">CSR</div>
+                  </div>
+                  <div class="p-1.5 rounded bg-slate-200/70 dark:bg-slate-800/70 text-slate-400">
+                    <div class="text-[9px]">Bit 2</div>
+                    <div class="font-bold">0</div>
+                    <div class="text-[8px]">Res</div>
+                  </div>
+                  <div class="p-1.5 rounded bg-slate-200/70 dark:bg-slate-800/70 text-slate-400">
+                    <div class="text-[9px]">Bit 1</div>
+                    <div class="font-bold">0</div>
+                    <div class="text-[8px]">Res</div>
+                  </div>
+                  <div id="cbv-box-bit0" class="p-1.5 rounded bg-slate-200 dark:bg-slate-800 border border-slate-300 dark:border-slate-700">
+                    <div class="text-[9px] text-amber-400">Bit 0</div>
+                    <div id="cbv-val-bit0" class="font-bold">0</div>
+                    <div class="text-[8px] font-bold text-amber-400">RMR</div>
+                  </div>
+                </div>
+
+                <!-- Bit Status Legend -->
+                <div class="space-y-1 text-[11px] pt-1">
+                  <div class="flex items-center justify-between">
+                    <span><strong class="font-mono text-amber-400">Bit 0 (RMR):</strong> Repeat Message Request</span>
+                    <span id="desc-bit0" class="font-mono text-slate-400">0 = Không yêu cầu</span>
+                  </div>
+                  <div class="flex items-center justify-between">
+                    <span><strong class="font-mono text-emerald-400">Bit 4 (AWB):</strong> Active Wakeup Bit</span>
+                    <span id="desc-bit4" class="font-mono text-slate-400">0 = Passive / Chưa đánh thức</span>
+                  </div>
+                  <div class="flex items-center justify-between">
+                    <span><strong class="font-mono text-purple-400">Bit 6 (PNI):</strong> Partial Network Info Bit</span>
+                    <span id="desc-bit6" class="font-mono text-slate-400">0 = PN Disabled</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 2. REAL-TIME SEQUENCE & CAN BUS TRACE CONSOLE (7 cols) -->
+            <div class="xl:col-span-7 bg-white dark:bg-[#111827] rounded-2xl border border-slate-200 dark:border-slate-800 p-4 shadow-sm flex flex-col justify-between">
+              <div>
+                <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 dark:border-slate-800 pb-2.5 mb-2.5">
+                  <div>
+                    <h2 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                      <i class="fa-solid fa-wave-square text-sky-400"></i>
+                      <span>Nhật Ký Luồng Gọi Hàm API & CAN Bus Trace</span>
+                    </h2>
+                    <p class="text-[11px] text-slate-500 dark:text-slate-400">Ghi nhận chi tiết từng lời gọi hàm AUTOSAR, hướng đi và khung truyền</p>
+                  </div>
+                  <div class="flex items-center gap-1.5">
+                    <select id="trace-filter" onchange="renderTraceLogs()" class="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-xs font-medium">
+                      <option value="ALL">Tất cả sự kiện</option>
+                      <option value="API">Chỉ hàm API AUTOSAR</option>
+                      <option value="BUS">Chỉ khung truyền CAN PDU</option>
+                      <option value="STATE">Chỉ chuyển đổi State</option>
+                    </select>
+                    <button onclick="clearTraceLogs()" class="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-rose-500/20 hover:text-rose-400 text-xs font-medium transition">
+                      Xóa Log
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Scrollable Trace Table -->
+                <div class="overflow-y-auto max-h-[260px] rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/80">
+                  <table class="w-full text-left border-collapse text-xs">
+                    <thead class="sticky top-0 bg-slate-200/90 dark:bg-slate-900/95 text-[11px] font-mono uppercase text-slate-600 dark:text-slate-400 border-b border-slate-300 dark:border-slate-800">
+                      <tr>
+                        <th class="py-2 px-2.5 w-20">Time</th>
+                        <th class="py-2 px-2 w-24">Hướng</th>
+                        <th class="py-2 px-2.5 w-36">Nguồn → Đích</th>
+                        <th class="py-2 px-2.5">Hàm API AUTOSAR / CAN PDU</th>
+                        <th class="py-2 px-2.5">Giải thích xử lý</th>
+                      </tr>
+                    </thead>
+                    <tbody id="trace-log-tbody" class="divide-y divide-slate-200 dark:divide-slate-800/80 font-mono text-[11px]">
+                      <!-- Populated dynamically by JS -->
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+    </section>
+
+    <!-- =================================================================== -->
+    <!-- TAB 2: ARCHITECTURE & MODULE I/O ROUTING DEEP-DIVE                  -->
+    <!-- =================================================================== -->
+    <section id="tab-content-architecture" class="hidden space-y-6">
+      
+      <!-- Banner Header -->
+      <div class="bg-gradient-to-r from-sky-900/40 via-indigo-900/30 to-slate-900 rounded-2xl border border-sky-500/30 p-5 shadow-sm">
+        <div class="max-w-4xl space-y-2">
+          <span class="text-xs font-mono uppercase tracking-wider px-2.5 py-0.5 rounded bg-sky-500/20 text-sky-300 font-semibold">
+            AUTOSAR Layered Architecture Deep-Dive
+          </span>
+          <h2 class="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">
+            Giải Phẫu Luồng Xử Lý, Input / Output & Định Tuyến Giữa Các Module
+          </h2>
+          <p class="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+            Trong kiến trúc AUTOSAR Classic, <strong>CanNM</strong> không bao giờ giao tiếp trực tiếp với tầng Application (SWC) hay trực tiếp điều khiển thanh ghi phần cứng CAN Controller. Mọi yêu cầu giữ mạng (Downward Request) và thông báo trạng thái (Upward Indication) đều đi qua chuỗi phân lớp chặt chẽ: <code class="text-sky-400">App SWC ↔ RTE ↔ ComM / BswM ↔ Nm ↔ CanNm ↔ CanIf / CanSM ↔ CanDrv / CanTrcv</code>.
+          </p>
+        </div>
+      </div>
+
+      <!-- Complete Module-by-Module Input / Processing / Output Matrix Table -->
+      <div class="bg-white dark:bg-[#111827] rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm space-y-4">
+        <h3 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+          <i class="fa-solid fa-table-list text-sky-400"></i>
+          <span>Bảng Ma Trận Phân Tích Từng Module: Input lấy từ đâu, Xử lý thế nào & Output đi đâu</span>
+        </h3>
+
+        <div class="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
+          <table class="w-full text-left border-collapse text-xs sm:text-sm">
+            <thead class="bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-slate-300 font-mono text-xs uppercase border-b border-slate-200 dark:border-slate-800">
+              <tr>
+                <th class="p-3.5 w-44">Module & Tầng</th>
+                <th class="p-3.5 w-64">Input (Nhận từ đâu & Sự kiện nào)</th>
+                <th class="p-3.5">Cách Xử Lý Bên Trong (Internal Logic)</th>
+                <th class="p-3.5 w-72">Output (Route đi đâu & Hàm API gọi ra)</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-200 dark:divide-slate-800 text-xs leading-relaxed">
+              <!-- Row 1: App SWC & RTE -->
+              <tr class="hover:bg-slate-50/80 dark:hover:bg-slate-900/50">
+                <td class="p-3.5 font-bold text-sky-500 font-mono">
+                  1. App SWC & RTE<br/>
+                  <span class="text-[11px] font-normal text-slate-400">(Application Layer)</span>
+                </td>
+                <td class="p-3.5">
+                  <ul class="list-disc list-inside space-y-1">
+                    <li>Tín hiệu cảm biến, trạng thái chìa khóa (Ignition KL15), hoặc tác vụ ứng dụng cần gửi/nhận dữ liệu CAN.</li>
+                    <li>Nhận Mode Switch Notification từ <code class="text-sky-400">RTE</code> khi mạng đã sẵn sàng.</li>
+                  </ul>
+                </td>
+                <td class="p-3.5">
+                  Đánh giá logic nghiệp vụ: Nếu cần giao tiếp CAN (ví dụ: người lái mở cửa xe, bật điều hòa từ xa), SWC yêu cầu chế độ <code class="text-emerald-400">COMM_FULL_COMMUNICATION</code>. Khi hoàn tất tác vụ và cho phép ECU ngủ, SWC yêu cầu <code class="text-amber-400">COMM_NO_COMMUNICATION</code>.
+                </td>
+                <td class="p-3.5 font-mono text-[11px]">
+                  Route xuống <strong>ComM</strong> qua RTE:<br/>
+                  • <code class="text-sky-400">Rte_Call_UR_ComMUser_RequestComMode(COMM_FULL_COMMUNICATION)</code><br/>
+                  • <code class="text-amber-400">Rte_Call_UR_ComMUser_RequestComMode(COMM_NO_COMMUNICATION)</code>
+                </td>
+              </tr>
+
+              <!-- Row 2: ComM & BswM / EcuM -->
+              <tr class="hover:bg-slate-50/80 dark:hover:bg-slate-900/50">
+                <td class="p-3.5 font-bold text-indigo-400 font-mono">
+                  2. ComM / EcuM / BswM<br/>
+                  <span class="text-[11px] font-normal text-slate-400">(System & Com Services)</span>
+                </td>
+                <td class="p-3.5">
+                  <ul class="list-disc list-inside space-y-1">
+                    <li>Từ <strong>SWC</strong>: <code class="text-sky-400">ComM_RequestComMode()</code></li>
+                    <li>Từ <strong>EcuM</strong>: <code class="text-sky-400">ComM_EcuM_WakeUpIndication()</code></li>
+                    <li>Từ <strong>Nm</strong> (báo ngược lên): <code class="text-purple-400">ComM_Nm_NetworkStartIndication()</code>, <code class="text-purple-400">ComM_Nm_NetworkMode()</code>, <code class="text-purple-400">ComM_Nm_BusSleepMode()</code></li>
+                  </ul>
+                </td>
+                <td class="p-3.5">
+                  <strong>ComM</strong> đóng vai trò bộ tổng hợp (Aggregator) đếm số lượng User đang cần mạng trên từng Channel:<br/>
+                  • Nếu có ít nhất 1 User yêu cầu <code class="text-emerald-400">FULL_COM</code> → Chuyển sang trạng thái con <code class="text-emerald-400">COMM_FULL_COM_NETWORK_REQUESTED</code> và gọi lệnh giữ mạng.<br/>
+                  • Nếu chỉ bị đánh thức thụ động từ Bus (User = 0) → Gọi <code class="text-sky-400">Nm_PassiveStartUp()</code>.<br/>
+                  • Khi mọi User đều rút yêu cầu (<code class="text-amber-400">NO_COM</code>) → Chuyển sang <code class="text-amber-400">COMM_FULL_COM_READY_SLEEP</code> và giải phóng mạng.
+                </td>
+                <td class="p-3.5 font-mono text-[11px]">
+                  1. Route xuống <strong>Nm</strong>:<br/>
+                  • <code class="text-emerald-400">Nm_NetworkRequest(NetworkHandle)</code><br/>
+                  • <code class="text-amber-400">Nm_NetworkRelease(NetworkHandle)</code><br/>
+                  • <code class="text-sky-400">Nm_PassiveStartUp(NetworkHandle)</code><br/>
+                  2. Route sang <strong>CanSM / BswM</strong>:<br/>
+                  • <code class="text-indigo-400">CanSM_RequestComMode()</code> để bật/tắt nhóm PduGroup (Com).
+                </td>
+              </tr>
+
+              <!-- Row 3: Generic Nm Interface -->
+              <tr class="hover:bg-slate-50/80 dark:hover:bg-slate-900/50">
+                <td class="p-3.5 font-bold text-purple-400 font-mono">
+                  3. Generic Nm<br/>
+                  <span class="text-[11px] font-normal text-slate-400">(Abstration Layer)</span>
+                </td>
+                <td class="p-3.5">
+                  <ul class="list-disc list-inside space-y-1">
+                    <li>Từ <strong>ComM</strong>: Các hàm <code class="text-emerald-400">Nm_NetworkRequest</code>, <code class="text-amber-400">Nm_NetworkRelease</code>, <code class="text-sky-400">Nm_PassiveStartUp</code>.</li>
+                    <li>Từ <strong>CanNm</strong>: Các callback báo chuyển đổi Mode và State.</li>
+                  </ul>
+                </td>
+                <td class="p-3.5">
+                  Tra cứu bảng ánh xạ <code class="text-purple-400">NmChannelConfig</code> để biết Channel hiện tại thuộc loại Bus nào (CAN, FlexRay, LIN hay Ethernet/UDP). Ngoài ra thực hiện thuật toán <strong>NM Coordinator</strong> nếu ECU đóng vai trò Gateway đồng bộ ngủ nhiều nhánh mạng.
+                </td>
+                <td class="p-3.5 font-mono text-[11px]">
+                  • Chuyển tiếp xuống <strong>CanNm</strong>:<br/>
+                  <code class="text-emerald-400">CanNm_NetworkRequest()</code>, <code class="text-amber-400">CanNm_NetworkRelease()</code>, <code class="text-sky-400">CanNm_PassiveStartUp()</code><br/>
+                  • Chuyển tiếp ngược lên <strong>ComM</strong>:<br/>
+                  <code class="text-purple-400">ComM_Nm_NetworkMode()</code>, <code class="text-purple-400">ComM_Nm_PrepareBusSleepMode()</code>, <code class="text-purple-400">ComM_Nm_BusSleepMode()</code>
+                </td>
+              </tr>
+
+              <!-- Row 4: CanNM -->
+              <tr class="bg-sky-500/5 hover:bg-sky-500/10">
+                <td class="p-3.5 font-bold text-sky-400 font-mono">
+                  4. AUTOSAR CanNM<br/>
+                  <span class="text-[11px] font-normal text-sky-300">(Core Protocol Module)</span>
+                </td>
+                <td class="p-3.5">
+                  <ul class="list-disc list-inside space-y-1">
+                    <li>Từ <strong>Nm</strong>: <code class="text-emerald-400">CanNm_NetworkRequest()</code>, <code class="text-amber-400">CanNm_NetworkRelease()</code>, <code class="text-sky-400">CanNm_PassiveStartUp()</code>, <code class="text-purple-400">CanNm_RepeatMessageRequest()</code>.</li>
+                    <li>Từ <strong>CanIf</strong>: <code class="text-indigo-400">CanNm_RxIndication()</code> (nhận gói NM từ bus) và <code class="text-emerald-400">CanNm_TxConfirmation()</code> (xác nhận đã phát xong).</li>
+                    <li>Từ <strong>SchM / OS</strong>: Chu kỳ <code class="text-sky-400">CanNm_MainFunction()</code>.</li>
+                  </ul>
+                </td>
+                <td class="p-3.5">
+                  <ul class="list-disc list-inside space-y-1">
+                    <li>Thực thi <strong>CanNM State Machine</strong> (3 Mode chính, 3 Sub-state trong Network Mode).</li>
+                    <li>Quản lý 4 bộ đếm thời gian: <code class="text-purple-400">RepeatMessageTimer</code>, <code class="text-sky-400">TimeoutTimer</code>, <code class="text-emerald-400">MsgCycleTimer</code>, <code class="text-amber-400">WaitBusSleepTimer</code>.</li>
+                    <li>Đóng gói thanh ghi 8-Byte NM PDU: Ghi <code class="text-sky-400">CanNmNodeId</code> vào Byte 0, điều khiển các bit <code class="text-amber-400">RMR (Bit 0)</code>, <code class="text-emerald-400">AWB (Bit 4)</code>, <code class="text-purple-400">PNI (Bit 6)</code> trong Byte 1 (CBV), và chèn User Data / PN Info vào Byte 2–7.</li>
+                    <li>Giải mã gói tin Rx: Nếu nhận gói tin có <code class="text-amber-400">RMR = 1</code>, lập tức chuyển về <em>Repeat Message State</em>.</li>
+                  </ul>
+                </td>
+                <td class="p-3.5 font-mono text-[11px]">
+                  1. Route xuống <strong>CanIf</strong>:<br/>
+                  • <code class="text-emerald-400">CanIf_Transmit(CanNmTxPduId, &PduInfo)</code><br/>
+                  2. Route ngược lên <strong>Nm</strong>:<br/>
+                  • <code class="text-purple-400">Nm_NetworkStartIndication()</code><br/>
+                  • <code class="text-purple-400">Nm_NetworkMode()</code><br/>
+                  • <code class="text-purple-400">Nm_PrepareBusSleepMode()</code><br/>
+                  • <code class="text-purple-400">Nm_BusSleepMode()</code><br/>
+                  • <code class="text-purple-400">Nm_StateChangeNotification()</code><br/>
+                  3. Route lên <strong>PduR / Com</strong> (nếu dùng ComUserData):<br/>
+                  • <code class="text-sky-400">PduR_CanNmTriggerTransmit()</code>
+                </td>
+              </tr>
+
+              <!-- Row 5: CanIf / CanSM / CanDrv -->
+              <tr class="hover:bg-slate-50/80 dark:hover:bg-slate-900/50">
+                <td class="p-3.5 font-bold text-amber-400 font-mono">
+                  5. CanIf / CanSM / CanDrv<br/>
+                  <span class="text-[11px] font-normal text-slate-400">(ECU Abstraction & MCAL)</span>
+                </td>
+                <td class="p-3.5">
+                  <ul class="list-disc list-inside space-y-1">
+                    <li>Từ <strong>CanNm</strong>: <code class="text-emerald-400">CanIf_Transmit()</code>.</li>
+                    <li>Từ <strong>CAN Bus vật lý</strong>: Ngắt phần cứng Rx/Tx từ CAN Controller (<code class="text-amber-400">CanDrv</code>).</li>
+                  </ul>
+                </td>
+                <td class="p-3.5">
+                  <strong>CanIf</strong> ánh xạ <code class="text-amber-400">PduId</code> sang Hardware Object Handle (HTH/HRH) và CAN ID vật lý (thường nằm trong dải <code class="text-amber-400">0x500 – 0x5FF</code>). Nếu bật Partial Networking, bộ lọc phần cứng trên Transceiver (<code class="text-amber-400">CanTrcv</code>) và <code class="text-amber-400">CanIf</code> sẽ kiểm tra mặt nạ PN trước khi đánh thức ECU.
+                </td>
+                <td class="p-3.5 font-mono text-[11px]">
+                  • Xuống <strong>CanDrv</strong>: <code class="text-amber-400">Can_Write(Hth, &PduInfo)</code><br/>
+                  • Lên <strong>CanNm</strong>:<br/>
+                  <code class="text-indigo-400">CanNm_RxIndication(RxPduId, &PduInfo)</code><br/>
+                  <code class="text-emerald-400">CanNm_TxConfirmation(TxPduId)</code>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Visual Comparison of Downward vs Upward Flows -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="bg-white dark:bg-[#111827] rounded-2xl border border-slate-200 dark:border-slate-800 p-5 space-y-3">
+          <div class="flex items-center gap-2 text-emerald-500 font-bold text-sm">
+            <i class="fa-solid fa-circle-arrow-down text-lg"></i>
+            <span>Luồng Đi Xuống (Downward Control & Tx Flow)</span>
+          </div>
+          <p class="text-xs text-slate-500 dark:text-slate-400">Khi ứng dụng SWC chủ động yêu cầu đánh thức và giữ mạng CAN:</p>
+          <ol class="text-xs font-mono space-y-2 text-slate-700 dark:text-slate-300 list-decimal list-inside bg-slate-50 dark:bg-slate-900 p-3.5 rounded-xl border border-slate-200 dark:border-slate-800">
+            <li><span class="text-sky-400">App SWC</span> gọi <code>Rte_Call_UR_ComMUser_RequestComMode(FULL_COM)</code></li>
+            <li><span class="text-indigo-400">ComM</span> chuyển sang <em>Network Requested</em>, gọi <code>Nm_NetworkRequest()</code></li>
+            <li><span class="text-purple-400">Nm</span> định tuyến xuống <code>CanNm_NetworkRequest()</code></li>
+            <li><span class="text-emerald-400">CanNm</span> bật bit <code>AWB = 1</code>, chuyển sang <em>Repeat Message State</em>, nạp các bộ đếm <code>TimeoutTimer</code> & <code>RepeatMessageTimer</code></li>
+            <li><span class="text-emerald-400">CanNm</span> đóng gói 8-Byte PDU và gọi <code>CanIf_Transmit()</code></li>
+            <li><span class="text-amber-400">CanIf</span> gọi <code>Can_Write()</code> phát CAN Frame <code>0x51A</code> ra CAN Bus</li>
+          </ol>
+        </div>
+
+        <div class="bg-white dark:bg-[#111827] rounded-2xl border border-slate-200 dark:border-slate-800 p-5 space-y-3">
+          <div class="flex items-center gap-2 text-purple-400 font-bold text-sm">
+            <i class="fa-solid fa-circle-arrow-up text-lg"></i>
+            <span>Luồng Đi Lên (Upward Indication & Callback Flow)</span>
+          </div>
+          <p class="text-xs text-slate-500 dark:text-slate-400">Khi có gói tin NM từ ECU khác truyền tới trên CAN Bus lúc đang ngủ:</p>
+          <ol class="text-xs font-mono space-y-2 text-slate-700 dark:text-slate-300 list-decimal list-inside bg-slate-50 dark:bg-slate-900 p-3.5 rounded-xl border border-slate-200 dark:border-slate-800">
+            <li><span class="text-amber-400">CanDrv</span> nhận ngắt Rx CAN Frame <code>0x52B</code>, báo lên <code>CanIf_RxIndication()</code></li>
+            <li><span class="text-amber-400">CanIf</span> nhận diện đây là NM PDU, gọi <code>CanNm_RxIndication()</code></li>
+            <li><span class="text-emerald-400">CanNm</span> đang ở <em>Bus-Sleep</em> nên phát callback <code>Nm_NetworkStartIndication()</code></li>
+            <li><span class="text-purple-400">Nm</span> báo <code>ComM_Nm_NetworkStartIndication()</code> lên <span class="text-indigo-400">ComM</span></li>
+            <li><span class="text-indigo-400">ComM</span> lập tức gọi xuống <code>Nm_PassiveStartUp()</code> → <code>CanNm_PassiveStartUp()</code></li>
+            <li><span class="text-emerald-400">CanNm</span> vào <em>Repeat Message State</em> với <code>AWB = 0</code> và báo <code>Nm_NetworkMode()</code> để <span class="text-indigo-400">ComM / BswM</span> mở cổng truyền thông ứng dụng.</li>
+          </ol>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- =================================================================== -->
+    <!-- TAB 3: QUICK REFERENCE HANDBOOK (SỔ TAY TRA CỨU NHANH)              -->
+    <!-- =================================================================== -->
+    <section id="tab-content-handbook" class="hidden space-y-6">
+      
+      <!-- Search & Filter Bar -->
+      <div class="bg-white dark:bg-[#111827] rounded-2xl border border-slate-200 dark:border-slate-800 p-4 shadow-sm flex flex-col md:flex-row items-center justify-between gap-3">
+        <div>
+          <h2 class="text-base sm:text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+            <i class="fa-solid fa-book-open-reader text-sky-400"></i>
+            <span>Sổ Tay Tra Cứu Nhanh AUTOSAR CanNM (Quick Reference Handbook)</span>
+          </h2>
+          <p class="text-xs text-slate-500 dark:text-slate-400">Tra cứu tức thì API chuẩn, ý nghĩa từng Bit trong thanh ghi CBV, quy tắc cấu hình Timer và kinh nghiệm Debug thực tế</p>
+        </div>
+        <div class="relative w-full md:w-96">
+          <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3 text-slate-400 text-xs"></i>
+          <input type="text" id="handbook-search" oninput="filterHandbook()" placeholder="Tìm kiếm API, tên Bit (RMR, AWB, PNI), Timer..." class="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-xs focus:outline-none focus:border-sky-500" />
+        </div>
+      </div>
+
+      <!-- Handbook Section 1: CBV Register & 8-Byte PDU Anatomy -->
+      <div class="handbook-card bg-white dark:bg-[#111827] rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm space-y-4">
+        <h3 class="text-sm sm:text-base font-bold text-amber-500 dark:text-amber-400 flex items-center gap-2">
+          <i class="fa-solid fa-microchip"></i>
+          <span>1. Sổ Tay Thanh Ghi CBV (Control Bit Vector) & Cấu Trúc 8-Byte NM PDU</span>
+        </h3>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+          <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="font-mono font-bold text-amber-400 text-sm">Bit 0: RMR (Repeat Message Bit)</span>
+              <span class="px-2 py-0.5 rounded bg-amber-500/15 text-amber-400 font-mono">Mask: 0x01</span>
+            </div>
+            <p class="text-slate-600 dark:text-slate-300 leading-relaxed">
+              • <strong>Khi nào bằng 1?</strong> Khi ứng dụng hoặc Tester gọi hàm <code>CanNm_RepeatMessageRequest()</code> (yêu cầu <code>CanNmNodeDetectionEnabled = true</code>).<br/>
+              • <strong>Tác dụng:</strong> Mọi ECU khác trên bus khi nhận gói NM PDU có <code>RMR = 1</code> sẽ lập tức chuyển vào <em>Repeat Message State</em> và phát liên tục gói tin NM của chúng (giúp Tester điểm danh đầy đủ các <code>NodeId</code> đang sống trên mạng).<br/>
+              • <strong>Khi nào xóa về 0?</strong> Tự động xóa về <code>0</code> ngay khi bộ đếm <code>CanNmRepeatMessageTime</code> hết hạn (thoát khỏi <em>Repeat Message State</em>).
+            </p>
+          </div>
+
+          <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="font-mono font-bold text-emerald-400 text-sm">Bit 4: AWB (Active Wakeup Bit)</span>
+              <span class="px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-400 font-mono">Mask: 0x10</span>
+            </div>
+            <p class="text-slate-600 dark:text-slate-300 leading-relaxed">
+              • <strong>Khi nào bằng 1?</strong> Khi ECU đang ở <em>Bus-Sleep</em> hoặc <em>Prepare Bus-Sleep</em> và được đánh thức <strong>chủ động</strong> bởi lệnh nội bộ <code>CanNm_NetworkRequest()</code> (với <code>CanNmActiveWakeupBitEnabled = true</code>).<br/>
+              • <strong>Khi nào bằng 0?</strong> Khi ECU bị đánh thức <strong>thụ động</strong> từ CAN Bus thông qua <code>CanNm_PassiveStartUp()</code>.<br/>
+              • <strong>Tác dụng thực tế:</strong> Giúp kỹ sư chẩn đoán (Diagnostics / CANoe log) biết chính xác ECU nào là "thủ phạm" đầu tiên đánh thức mạng CAN dậy. Tự động xóa về <code>0</code> khi rời khỏi <em>Network Mode</em>.
+            </p>
+          </div>
+
+          <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="font-mono font-bold text-purple-400 text-sm">Bit 6: PNI (Partial Network Bit)</span>
+              <span class="px-2 py-0.5 rounded bg-purple-500/15 text-purple-400 font-mono">Mask: 0x40</span>
+            </div>
+            <p class="text-slate-600 dark:text-slate-300 leading-relaxed">
+              • <strong>Khi nào bằng 1?</strong> Khi cấu hình <code>CanNmPnEnabled = true</code>.<br/>
+              • <strong>Tác dụng:</strong> Báo cho các ECU nhận biết rằng các byte dữ liệu (Byte 2–7) trong gói NM PDU này chứa <strong>Partial Network Info (PN Filter Mask)</strong> chứ không phải User Data thông thường.<br/>
+              • <strong>Lợi ích:</strong> Cho phép chỉ đánh thức một nhóm nhỏ ECU cần thiết (ví dụ: khi sạc xe điện chỉ đánh thức BMS & OBC, các ECU ghế/cửa vẫn ngủ) để tiết kiệm ắc-quy 12V.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Handbook Section 2: Standard AUTOSAR CanNM APIs Dictionary -->
+      <div class="handbook-card bg-white dark:bg-[#111827] rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm space-y-4">
+        <h3 class="text-sm sm:text-base font-bold text-sky-500 dark:text-sky-400 flex items-center gap-2">
+          <i class="fa-solid fa-code"></i>
+          <span>2. Từ Điển Các Hàm API Chuẩn AUTOSAR CanNM (SWS_CanNm)</span>
+        </h3>
+
+        <div class="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead class="bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-300 font-mono uppercase border-b border-slate-200 dark:border-slate-800">
+              <tr>
+                <th class="p-3 w-72">Tên Hàm API Chuẩn AUTOSAR</th>
+                <th class="p-3 w-40">Module Gọi (Caller)</th>
+                <th class="p-3">Chức Năng, Điều Kiện & Hành Vi Xử Lý</th>
+              </tr>
+            </thead>
+            <tbody id="handbook-api-tbody" class="divide-y divide-slate-200 dark:divide-slate-800">
+              <tr class="hb-searchable">
+                <td class="p-3 font-mono font-bold text-sky-400">CanNm_Init( const CanNm_ConfigType* cannmpConfigPtr )</td>
+                <td class="p-3 font-mono text-slate-400">EcuM / BswM</td>
+                <td class="p-3">Khởi tạo toàn bộ biến nội bộ, đưa trạng thái về <code>CANNM_MODE_BUS_SLEEP</code>, xóa CBV về <code>0x00</code> và dừng mọi bộ đếm thời gian.</td>
+              </tr>
+              <tr class="hb-searchable">
+                <td class="p-3 font-mono font-bold text-emerald-400">CanNm_NetworkRequest( NetworkHandleType nmChannelHandle )</td>
+                <td class="p-3 font-mono text-slate-400">Nm (từ ComM)</td>
+                <td class="p-3">Đặt trạng thái nội bộ thành <em>Network Requested</em>. Nếu đang ở <em>Bus-Sleep</em> hoặc <em>Prepare Bus-Sleep</em>, chuyển sang <em>Repeat Message State</em>, bật bit <code>AWB = 1</code>, và kích hoạt truyền nhanh (Immediate Burst) nếu có cấu hình. Không khả dụng nếu <code>CanNmPassiveModeEnabled = true</code>.</td>
+              </tr>
+              <tr class="hb-searchable">
+                <td class="p-3 font-mono font-bold text-amber-400">CanNm_NetworkRelease( NetworkHandleType nmChannelHandle )</td>
+                <td class="p-3 font-mono text-slate-400">Nm (từ ComM)</td>
+                <td class="p-3">Đặt trạng thái nội bộ thành <em>Network Released</em> (ECU không còn nhu cầu giữ mạng). Nếu đang ở <em>Normal Operation State</em>, chuyển ngay sang <em>Ready Sleep State</em> và ngừng phát gói tin NM PDU định kỳ.</td>
+              </tr>
+              <tr class="hb-searchable">
+                <td class="p-3 font-mono font-bold text-sky-400">CanNm_PassiveStartUp( NetworkHandleType nmChannelHandle )</td>
+                <td class="p-3 font-mono text-slate-400">Nm (từ ComM/EcuM)</td>
+                <td class="p-3">Đánh thức thụ động: Chuyển CanNM từ <em>Bus-Sleep</em> hoặc <em>Prepare Bus-Sleep</em> vào <em>Repeat Message State</em> mà <strong>không</strong> bật bit <code>AWB</code> (<code>AWB = 0</code>) và giữ trạng thái nội bộ là <em>Network Released</em>.</td>
+              </tr>
+              <tr class="hb-searchable">
+                <td class="p-3 font-mono font-bold text-purple-400">CanNm_RepeatMessageRequest( NetworkHandleType nmChannelHandle )</td>
+                <td class="p-3 font-mono text-slate-400">Nm / App / Tester</td>
+                <td class="p-3">Khi đang ở <em>Normal Operation</em> hoặc <em>Ready Sleep</em>, hàm này đưa ECU quay về <em>Repeat Message State</em> và bật bit <code>RMR = 1</code> (Bit 0 của CBV) để yêu cầu toàn bộ các node khác trên bus cũng vào <em>Repeat Message</em>.</td>
+              </tr>
+              <tr class="hb-searchable">
+                <td class="p-3 font-mono font-bold text-indigo-400">CanNm_RxIndication( PduIdType RxPduId, const PduInfoType* PduInfoPtr )</td>
+                <td class="p-3 font-mono text-slate-400">CanIf (Callback)</td>
+                <td class="p-3">Được gọi khi nhận thành công 1 gói NM PDU từ CAN Bus. Xử lý: (1) Nếu ở <em>Bus-Sleep</em> → gọi <code>Nm_NetworkStartIndication()</code>; (2) Nếu ở <em>Prepare Bus-Sleep</em> → quay lại <em>Repeat Message</em>; (3) Nếu ở <em>Network Mode</em> → Reset bộ đếm <code>CanNmTimeoutTime</code> về giá trị ban đầu; (4) Nếu bit <code>RMR == 1</code> trong gói nhận → chuyển vào <em>Repeat Message State</em>.</td>
+              </tr>
+              <tr class="hb-searchable">
+                <td class="p-3 font-mono font-bold text-emerald-400">CanNm_TxConfirmation( PduIdType TxPduId, Std_ReturnType result )</td>
+                <td class="p-3 font-mono text-slate-400">CanIf (Callback)</td>
+                <td class="p-3">Được gọi khi gói NM PDU của chính ECU này đã phát thành công lên CAN Bus. Tác dụng quan trọng nhất: <strong>Reset bộ đếm <code>CanNmTimeoutTime</code></strong> để giữ mạng không bị rơi vào Prepare Bus-Sleep.</td>
+              </tr>
+              <tr class="hb-searchable">
+                <td class="p-3 font-mono font-bold text-sky-400">CanNm_SetUserData( NetworkHandleType nmChannelHandle, const uint8* nmUserDataPtr )</td>
+                <td class="p-3 font-mono text-slate-400">Nm / SWC</td>
+                <td class="p-3">Cập nhật dữ liệu người dùng (Byte 2–7) cho khung truyền NM PDU tiếp theo (khi không dùng <code>CanNmComUserDataSupport</code>).</td>
+              </tr>
+              <tr class="hb-searchable">
+                <td class="p-3 font-mono font-bold text-sky-400">CanNm_GetState( NetworkHandleType nmChannelHandle, Nm_StateType* nmStatePtr, Nm_ModeType* nmModePtr )</td>
+                <td class="p-3 font-mono text-slate-400">Nm / BswM / Diag</td>
+                <td class="p-3">Trả về Mode hiện tại (<code>NM_MODE_BUS_SLEEP</code>, <code>NM_MODE_PREPARE_BUS_SLEEP</code>, <code>NM_MODE_NETWORK</code>) và State chi tiết hiện tại.</td>
+              </tr>
+              <tr class="hb-searchable">
+                <td class="p-3 font-mono font-bold text-amber-400">CanNm_DisableCommunication() / CanNm_EnableCommunication()</td>
+                <td class="p-3 font-mono text-slate-400">Nm / Dcm ($28)</td>
+                <td class="p-3">Dùng trong dịch vụ chẩn đoán UDS <code>0x28 CommunicationControl</code> để tạm thời khóa việc phát gói tin NM PDU khi đang Flash phần mềm hoặc chạy bài test chẩn đoán.</td>
+              </tr>
+              <tr class="hb-searchable">
+                <td class="p-3 font-mono font-bold text-emerald-400">CanNm_MainFunction( void )</td>
+                <td class="p-3 font-mono text-slate-400">SchM / OS Task</td>
+                <td class="p-3">Hàm chu kỳ (thường gọi mỗi 5ms hoặc 10ms) chịu trách nhiệm giảm dần các bộ đếm thời gian (Timers), kiểm tra sự kiện hết hạn Timer để chuyển đổi trạng thái và kích hoạt <code>CanIf_Transmit()</code> khi <code>MsgCycleTimer</code> chạm 0.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Handbook Section 3: Golden Timing Rules & FAQ -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="handbook-card bg-white dark:bg-[#111827] rounded-2xl border border-slate-200 dark:border-slate-800 p-5 space-y-3">
+          <h3 class="text-sm sm:text-base font-bold text-emerald-500 dark:text-emerald-400 flex items-center gap-2">
+            <i class="fa-solid fa-ruler-combined"></i>
+            <span>3. Quy Tắc Vàng Khi Cấu Hình Timers (Golden Timing Rules)</span>
+          </h3>
+          <div class="space-y-2.5 text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+            <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+              <div class="font-mono font-bold text-sky-400 mb-1">Quy tắc 1: CanNmTimeoutTime &gt; CanNmMsgCycleTime (Thường gấp 3–4 lần)</div>
+              Nếu <code>CanNmTimeoutTime &lt;= CanNmMsgCycleTime</code>, bộ đếm NM-Timeout sẽ hết hạn trước khi gói tin định kỳ tiếp theo kịp phát ra, gây lỗi tự ngắt mạng hoặc báo lỗi giả.
+            </div>
+            <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+              <div class="font-mono font-bold text-purple-400 mb-1">Quy tắc 2: Đồng nhất TimeoutTime & WaitBusSleepTime trên toàn bộ ECU</div>
+              Tất cả các ECU nằm trên cùng một nhánh CAN vật lý <strong>bắt buộc</strong> phải cấu hình <code>CanNmTimeoutTime</code> và <code>CanNmWaitBusSleepTime</code> giống hệt nhau để mọi node chuyển từ <em>Ready Sleep → Prepare Bus-Sleep → Bus-Sleep</em> hoàn toàn đồng bộ.
+            </div>
+            <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+              <div class="font-mono font-bold text-emerald-400 mb-1">Quy tắc 3: Immediate Burst giúp đánh thức Gateway cực nhanh</div>
+              Khi người lái bấm mở khóa cửa, ECU thân vỏ cần gửi tín hiệu ngay. Cấu hình <code>CanNmImmediateNmTransmissions = 3</code> với chu kỳ ngắn <code>100ms</code> giúp đánh thức và đồng bộ toàn mạng chỉ trong vài chục mili-giây thay vì phải đợi chu kỳ <code>500ms</code>.
+            </div>
+          </div>
+        </div>
+
+        <div class="handbook-card bg-white dark:bg-[#111827] rounded-2xl border border-slate-200 dark:border-slate-800 p-5 space-y-3">
+          <h3 class="text-sm sm:text-base font-bold text-indigo-400 flex items-center gap-2">
+            <i class="fa-solid fa-bug-slash"></i>
+            <span>4. Các Câu Hỏi Phỏng Vấn & Tình Huống Debug Thực Tế (FAQ)</span>
+          </h3>
+          <div class="space-y-2.5 text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+            <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+              <div class="font-bold text-amber-400 mb-1">Hỏi: Điều gì xảy ra nếu NM-Timeout Timer hết hạn khi đang ở Normal Operation State?</div>
+              <strong>Trả lời:</strong> Khác với <em>Ready Sleep</em> (hết giờ sẽ sang <em>Prepare Bus-Sleep</em>), nếu đang ở <em>Repeate Message</em> hoặc <em>Normal Operation</em> mà <code>TimeoutTimer</code> hết hạn (do lỗi kẹt bus khiến không có TxConfirmation/RxIndication), CanNM sẽ <strong>khởi động lại ngay bộ đếm TimeoutTimer</strong> và báo callback lỗi <code>Nm_TxTimeoutException()</code> chứ không cho ECU đi ngủ.
+            </div>
+            <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+              <div class="font-bold text-sky-400 mb-1">Hỏi: Tại sao ECU không chịu đi ngủ (dòng rò ắc-quy cao)?</div>
+              <strong>Trả lời:</strong> Kiểm tra 2 nguyên nhân phổ biến nhất trên CANoe: (1) Một SWC nội bộ quên gọi <code>ComM_RequestComMode(NO_COM)</code> nên ECU kẹt mãi ở <em>Normal Operation</em> và phát NM PDU liên tục; (2) Một ECU khác trên mạng tiếp tục phát gói NM PDU làm <code>CanNm_RxIndication()</code> liên tục reset bộ đếm <code>TimeoutTimer</code> tại trạng thái <em>Ready Sleep</em>.
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- ==================== FOOTER ==================== -->
+  <footer class="border-t border-slate-200 dark:border-slate-800/80 py-3 px-6 text-center text-[11px] text-slate-500 dark:text-slate-400">
+    AUTOSAR CanNM Interactive Simulator & Handbook • Hỗ trợ học tập, thiết kế kiến trúc và kiểm thử ECU Network Management
+  </footer>
+
+  <!-- ==================== APPLICATION JAVASCRIPT ENGINE ==================== -->
+  <script>
+    /*************************************************************************
+     * 1. ECUC CONFIGURATION & INTERNAL SIMULATOR STATE
+     *************************************************************************/
+    const defaultConfig = {
+      CanNmPassiveModeEnabled: false,
+      CanNmActiveWakeupBitEnabled: true,
+      CanNmNodeDetectionEnabled: true,
+      CanNmImmediateRestartEnabled: true,
+      CanNmPnEnabled: false,
+      CanNmUserDataEnabled: true,
+      CanNmNodeId: 0x1A,
+      CanNmBaseId: 0x500,
+      CanNmMsgCycleTime: 500,
+      CanNmRepeatMessageTime: 1500,
+      CanNmTimeoutTime: 2000,
+      CanNmWaitBusSleepTime: 1500,
+      CanNmImmediateNmTransmissions: 3,
+      CanNmImmediateNmCycleTime: 100,
+      CanNmUserDataHex: ['11', '22', '33', '44', '55', '66']
+    };
+
+    let ecucConfig = JSON.parse(JSON.stringify(defaultConfig));
+
+    // Simulator Runtime State
+    const simState = {
+      simTimeMs: 0,
+      mode: 'BUS_SLEEP',          // 'BUS_SLEEP' | 'PREPARE_BUS_SLEEP' | 'NETWORK_MODE'
+      state: 'BUS_SLEEP',         // 'BUS_SLEEP' | 'PREPARE_BUS_SLEEP' | 'REPEAT_MESSAGE' | 'NORMAL_OPERATION' | 'READY_SLEEP'
+      networkRequested: false,    // true = FULL_COM requested by SWC; false = RELEASED
+      commMode: 'COMM_NO_COM',    // 'COMM_NO_COM' | 'COMM_SILENT_COM' | 'COMM_FULL_COM'
+      cbv: {
+        rmr: 0, // Bit 0: Repeat Message Request
+        csr: 0, // Bit 3: Coordinator Sleep Ready
+        awb: 0, // Bit 4: Active Wakeup Bit
+        pni: 0  // Bit 6: Partial Network Info Bit
+      },
+      timers: {
+        repeatMessage: 0,
+        timeout: 0,
+        msgCycle: 0,
+        waitBusSleep: 0
+      },
+      immediateBurstRemaining: 0,
+      lastBusActivity: 'Bus Quiet',
+      activeDirection: 'Idle'
+    };
+
+    // Trace Logs Array
+    let traceLogs = [];
+    let rtClockInterval = null;
+    let scenarioAutoInterval = null;
+    let currentScenarioId = 1;
+    let currentStepIndex = 0;
+
+    /*************************************************************************
+     * 2. PRE-BUILT WALKTHROUGH SCENARIOS (5 COMPREHENSIVE SCENARIOS)
+     *************************************************************************/
+    const scenarios = {
+      1: {
+        title: 'Kịch bản 1: Active Wakeup từ App SWC (Bit AWB=1 & Immediate Burst Tx)',
+        steps: [
+          {
+            api: 'Rte_Call_UR_ComMUser_RequestComMode(COMM_FULL_COMMUNICATION)',
+            io: 'Input: App SWC → Xử lý: ComM → Output: Nm_NetworkRequest()',
+            desc: 'Người lái tác động mở cửa xe. App SWC yêu cầu sử dụng mạng CAN thông qua RTE. ComM nhận yêu cầu và chuyển tiếp lệnh xuống lớp Nm.',
+            action: () => {
+              resetSimulationInternal(false);
+              apiNetworkRequest();
+            }
+          },
+          {
+            api: 'CanNm_MainFunction() [Tick +100ms — Immediate Burst #1]',
+            io: 'Input: SchM Clock → Xử lý: CanNm → Output: CanIf_Transmit(0x51A)',
+            desc: 'Do CanNmActiveWakeupBitEnabled = true, Bit 4 (AWB) trong thanh ghi CBV được bật lên 1 (CBV = 0x10). Đồng thời CanNM phát gói tin Burst thứ 2 với chu kỳ nhanh CanNmImmediateNmCycleTime (100ms).',
+            action: () => stepTime(100)
+          },
+          {
+            api: 'CanNm_MainFunction() [Tick +100ms — Immediate Burst #2]',
+            io: 'Input: SchM Clock → Xử lý: CanNm → Output: CanIf_Transmit(0x51A)',
+            desc: 'CanNM phát gói tin Immediate Burst cuối cùng xuống CanIf. Mỗi lần nhận CanNm_TxConfirmation(), bộ đếm NM-Timeout Timer (2000ms) lại được nạp đầy.',
+            action: () => stepTime(100)
+          },
+          {
+            api: 'CanNm_MainFunction() [Tick +500ms — Chu kỳ MsgCycleTime chuẩn]',
+            io: 'Input: SchM Clock → Xử lý: CanNm → Output: CanIf_Transmit(0x51A)',
+            desc: 'Sau khi hoàn tất chuỗi gửi nhanh (Burst), CanNM chuyển về chu kỳ gửi định kỳ chuẩn CanNmMsgCycleTime (500ms) trong khi vẫn đang đếm ngược RepeatMessageTime.',
+            action: () => stepTime(500)
+          },
+          {
+            api: 'CanNm_MainFunction() [Tick +800ms — Hết RepeatMessageTime (1500ms)]',
+            io: 'Input: RepeatMessageTimer = 0 → Xử lý: CanNm → Output: Nm_StateChangeNotification()',
+            desc: 'Bộ đếm RepeatMessageTime (1500ms) chạm 0! Vì SWC vẫn đang giữ yêu cầu mạng (Network Requested = TRUE), CanNM chuyển từ Repeat Message State sang Normal Operation State.',
+            action: () => stepTime(800)
+          }
+        ]
+      },
+      2: {
+        title: 'Kịch bản 2: Passive Wakeup từ CAN Bus (CanNm_RxIndication, AWB=0 → Ready Sleep)',
+        steps: [
+          {
+            api: 'CanNm_RxIndication(RxPduId, Node=0x2B) -> CanNm_PassiveStartUp()',
+            io: 'Input: CAN Bus (CanIf) → Xử lý: CanNm & ComM → Output: Repeat Message (AWB=0)',
+            desc: 'ECU đang ngủ ở Bus-Sleep Mode thì nhận được gói NM PDU từ ECU 0x2B trên CAN Bus. CanNM báo Nm_NetworkStartIndication() lên ComM, và ComM gọi lại CanNm_PassiveStartUp(). Chú ý: Bit AWB = 0 vì ECU bị đánh thức thụ động!',
+            action: () => {
+              resetSimulationInternal(false);
+              document.getElementById('rx-sim-rmr').checked = false;
+              apiSimulatedRxIndication();
+            }
+          },
+          {
+            api: 'CanNm_MainFunction() [Tick +500ms — Truyền định kỳ ở Repeat Message]',
+            io: 'Input: SchM Clock → Xử lý: CanNm → Output: CanIf_Transmit(0x51A, CBV=0x00)',
+            desc: 'Trong trạng thái Repeat Message State, dù đánh thức thụ động (không có burst nhanh), ECU vẫn phát gói NM PDU theo chu kỳ CanNmMsgCycleTime (500ms) với Byte 1 CBV = 0x00 (AWB=0).',
+            action: () => stepTime(500)
+          },
+          {
+            api: 'CanNm_MainFunction() [Tick +1000ms — Hết RepeatMessageTime (1500ms)]',
+            io: 'Input: RepeatMessageTimer = 0 → Xử lý: CanNm → Output: Ready Sleep State',
+            desc: 'Khi RepeatMessageTime (1500ms) hết hạn, do App SWC nội bộ KHÔNG yêu cầu giữ mạng (Network Released), CanNM rẽ thẳng từ Repeat Message sang Ready Sleep State và ngừng phát gói NM PDU!',
+            action: () => stepTime(1000)
+          }
+        ]
+      },
+      3: {
+        title: 'Kịch bản 3: Node Detection & Repeat Message Request (Bit RMR = 1)',
+        steps: [
+          {
+            api: 'Chuẩn bị: Đưa ECU vào Normal Operation State',
+            io: 'Input: App SWC → Xử lý: CanNm → Output: Normal Operation State',
+            desc: 'Khởi động mạng và tua qua 1500ms đầu tiên để ECU hoạt động ổn định tại trạng thái Normal Operation State (Bit RMR đang bằng 0).',
+            action: () => {
+              resetSimulationInternal(false);
+              apiNetworkRequest();
+              stepTime(1500);
+            }
+          },
+          {
+            api: 'CanNm_RepeatMessageRequest(nmChannelHandle)',
+            io: 'Input: Tester / App → Xử lý: CanNm → Output: Set CBV Bit 0 (RMR = 1)',
+            desc: 'Khi cần điểm danh lại toàn bộ các ECU đang có mặt trên mạng CAN, hàm CanNm_RepeatMessageRequest() được gọi. CanNM lập tức bật Bit 0 (RMR = 1) trong thanh ghi CBV và quay về Repeat Message State.',
+            action: () => apiRepeatMessageRequest()
+          },
+          {
+            api: 'CanNm_MainFunction() [Tick +500ms — Phát gói NM với RMR=1, AWB=1 (CBV=0x11)]',
+            io: 'Input: SchM Clock → Xử lý: CanNm → Output: CanIf_Transmit(CBV=0x11)',
+            desc: 'Gói tin NM PDU phát ra trên CAN Bus mang giá trị CBV = 0x11 (Bit 4 AWB=1 và Bit 0 RMR=1), ép tất cả các ECU khác trên mạng cũng chuyển vào Repeat Message State.',
+            action: () => stepTime(500)
+          },
+          {
+            api: 'CanNm_MainFunction() [Tick +1000ms — Hết RepeatMessageTime, tự xóa RMR=0]',
+            io: 'Input: RepeatMessageTimer = 0 → Xử lý: CanNm → Output: Xóa Bit RMR về 0',
+            desc: 'Sau khi hết 1500ms của RepeatMessageTime, CanNM quay lại Normal Operation State và tự động xóa Bit 0 (RMR) về 0 theo đúng chuẩn AUTOSAR.',
+            action: () => stepTime(1000)
+          }
+        ]
+      },
+      4: {
+        title: 'Kịch bản 4: Chu trình Ngủ Mạng Chuẩn (Normal → Ready Sleep → Prepare Bus-Sleep → Bus-Sleep)',
+        steps: [
+          {
+            api: 'Bước 1: ECU đang hoạt động ở Normal Operation State',
+            io: 'Input: App SWC → Xử lý: CanNm → Output: Normal Operation State',
+            desc: 'Đưa ECU vào trạng thái Normal Operation State (SWC đang giữ mạng, truyền NM PDU mỗi 500ms).',
+            action: () => {
+              resetSimulationInternal(false);
+              apiNetworkRequest();
+              stepTime(1500);
+            }
+          },
+          {
+            api: 'CanNm_NetworkRelease() [Từ SWC: ComM_RequestComMode(NO_COM)]',
+            io: 'Input: App SWC → ComM → Nm → Xử lý: CanNm → Output: Ready Sleep State',
+            desc: 'Người lái tắt máy và khóa xe. SWC gọi ComM_RequestComMode(NO_COM) dẫn tới CanNm_NetworkRelease(). CanNM chuyển ngay sang Ready Sleep State và NGỪNG truyền gói tin NM PDU.',
+            action: () => apiNetworkRelease()
+          },
+          {
+            api: 'CanNm_MainFunction() [Tick +2000ms — Đếm ngược hết CanNmTimeoutTime]',
+            io: 'Input: TimeoutTimer = 0 → Xử lý: CanNm → Output: Nm_PrepareBusSleepMode()',
+            desc: 'Tại Ready Sleep State, không còn bất kỳ gói NM PDU nào trên bus. Sau 2000ms (CanNmTimeoutTime), bộ đếm chạm 0. CanNM chuyển sang Prepare Bus-Sleep Mode và báo lên ComM để đóng hoàn toàn truyền thông ứng dụng.',
+            action: () => stepTime(2000)
+          },
+          {
+            api: 'CanNm_MainFunction() [Tick +1500ms — Đếm ngược hết CanNmWaitBusSleepTime]',
+            io: 'Input: WaitBusSleepTimer = 0 → Xử lý: CanNm → Output: Nm_BusSleepMode()',
+            desc: 'Sau khi chờ thêm 1500ms (CanNmWaitBusSleepTime) ở Prepare Bus-Sleep để làm trống hàng đợi phần cứng, CanNM chính thức chuyển về Bus-Sleep Mode, xóa bit AWB về 0 và đưa CAN Transceiver vào chế độ ngủ.',
+            action: () => stepTime(1500)
+          }
+        ]
+      },
+      5: {
+        title: 'Kịch bản 5: Đánh thức khẩn cấp tại pha Prepare Bus-Sleep (CanNmImmediateRestartEnabled)',
+        steps: [
+          {
+            api: 'Bước 1: Đưa ECU vào pha Prepare Bus-Sleep Mode',
+            io: 'Input: Chu trình giảm tải → Xử lý: CanNm → Output: Prepare Bus-Sleep Mode',
+            desc: 'Giả lập ECU vừa hết hạn NM-Timeout Timer và đang nằm ở trạng thái đệm Prepare Bus-Sleep Mode (đang đếm ngược WaitBusSleepTime = 1500ms).',
+            action: () => {
+              resetSimulationInternal(false);
+              apiNetworkRequest();
+              stepTime(1500);
+              apiNetworkRelease();
+              stepTime(2000);
+            }
+          },
+          {
+            api: 'CanNm_MainFunction() [Tick +500ms — Đang đếm ngược WaitBusSleepTime]',
+            io: 'Input: SchM Clock → Xử lý: CanNm → Output: Còn 1000ms trước khi tắt nguồn',
+            desc: 'Đã trôi qua 500ms trong pha Prepare Bus-Sleep. Chỉ còn 1000ms nữa là ECU sẽ tắt Transceiver.',
+            action: () => stepTime(500)
+          },
+          {
+            api: 'CanNm_NetworkRequest() [Khẩn cấp tại Prepare Bus-Sleep!]',
+            io: 'Input: App SWC → ComM → CanNm → Output: CanIf_Transmit() ngay lập tức',
+            desc: 'Bất ngờ SWC yêu cầu mạng lại! Nhờ bật checkbox CanNmImmediateRestartEnabled = true, CanNM lập tức hủy bộ đếm WaitBusSleep, nhảy về Repeat Message State, bật AWB = 1 và bắn ngay gói NM PDU để giữ toàn bộ mạng thức!',
+            action: () => apiNetworkRequest()
+          }
+        ]
+      }
+    };
+
+    /*************************************************************************
+     * 3. CORE AUTOSAR CANNM STATE MACHINE & API ENGINE
+     *************************************************************************/
+    function updateConfigFromUI() {
+      ecucConfig.CanNmPassiveModeEnabled = document.getElementById('cfg-passive-mode').checked;
+      ecucConfig.CanNmActiveWakeupBitEnabled = document.getElementById('cfg-awb-enabled').checked;
+      ecucConfig.CanNmNodeDetectionEnabled = document.getElementById('cfg-node-detect').checked;
+      ecucConfig.CanNmImmediateRestartEnabled = document.getElementById('cfg-imm-restart').checked;
+      ecucConfig.CanNmPnEnabled = document.getElementById('cfg-pn-enabled').checked;
+      ecucConfig.CanNmUserDataEnabled = document.getElementById('cfg-userdata-enabled').checked;
+
+      // Parse Node ID
+      const rawNode = document.getElementById('cfg-node-id').value.trim();
+      const parsedNode = parseInt(rawNode.replace(/^0x/i, ''), 16);
+      ecucConfig.CanNmNodeId = isNaN(parsedNode) ? 0x1A : (parsedNode & 0xFF);
+
+      // Parse Base CAN ID
+      const rawBase = document.getElementById('cfg-base-id').value.trim();
+      const parsedBase = parseInt(rawBase.replace(/^0x/i, ''), 16);
+      ecucConfig.CanNmBaseId = isNaN(parsedBase) ? 0x500 : parsedBase;
+
+      // Parse Timers
+      ecucConfig.CanNmMsgCycleTime = Math.max(50, parseInt(document.getElementById('cfg-msg-cycle').value) || 500);
+      ecucConfig.CanNmRepeatMessageTime = Math.max(100, parseInt(document.getElementById('cfg-repeat-time').value) || 1500);
+      ecucConfig.CanNmTimeoutTime = Math.max(100, parseInt(document.getElementById('cfg-timeout-time').value) || 2000);
+      ecucConfig.CanNmWaitBusSleepTime = Math.max(100, parseInt(document.getElementById('cfg-wait-sleep').value) || 1500);
+      ecucConfig.CanNmImmediateNmTransmissions = Math.max(0, parseInt(document.getElementById('cfg-imm-count').value) || 0);
+      ecucConfig.CanNmImmediateNmCycleTime = Math.max(20, parseInt(document.getElementById('cfg-imm-cycle').value) || 100);
+
+      // Parse User Data 6 bytes
+      const rawUser = document.getElementById('cfg-user-data').value.trim().split(/[\s,]+/);
+      const bytes = [];
+      for (let i = 0; i < 6; i++) {
+        const val = parseInt(rawUser[i] || '00', 16);
+        bytes.push(isNaN(val) ? '00' : (val & 0xFF).toString(16).toUpperCase().padStart(2, '0'));
+      }
+      ecucConfig.CanNmUserDataHex = bytes;
+
+      // Update PNI bit in CBV immediately
+      simState.cbv.pni = ecucConfig.CanNmPnEnabled ? 1 : 0;
+
+      // Validate ECUC timing rules
+      const warnBox = document.getElementById('config-warning-box');
+      const warnText = document.getElementById('config-warning-text');
+      const warnings = [];
+
+      if (ecucConfig.CanNmTimeoutTime <= ecucConfig.CanNmMsgCycleTime) {
+        warnings.push('CanNmTimeoutTime (' + ecucConfig.CanNmTimeoutTime + 'ms) đang nhỏ hơn hoặc bằng CanNmMsgCycleTime (' + ecucConfig.CanNmMsgCycleTime + 'ms). Điều này sẽ gây lỗi Timeout liên tục!');
+      }
+      if (ecucConfig.CanNmRepeatMessageTime < ecucConfig.CanNmMsgCycleTime) {
+        warnings.push('CanNmRepeatMessageTime nên lớn hơn hoặc bằng ít nhất 2 lần CanNmMsgCycleTime.');
+      }
+      if (ecucConfig.CanNmPassiveModeEnabled) {
+        warnings.push('Đang bật CanNmPassiveModeEnabled = TRUE: ECU chỉ lắng nghe mạng, lệnh CanNm_NetworkRequest() và truyền Tx PDU sẽ bị khóa.');
+      }
+
+      if (warnings.length > 0) {
+        warnBox.classList.remove('hidden');
+        warnText.innerHTML = warnings.join('<br/>');
+      } else {
+        warnBox.classList.add('hidden');
+      }
+    }
+
+    function onConfigChange(paramName) {
+      updateConfigFromUI();
+      addTraceLog('API', 'User → ECUC', `Cập nhật cấu hình: ${paramName}`, 'Áp dụng trực tiếp tham số ECUC vào bộ mô phỏng CanNM.');
+      renderAll();
+    }
+
+    function resetDefaultConfig() {
+      document.getElementById('cfg-passive-mode').checked = defaultConfig.CanNmPassiveModeEnabled;
+      document.getElementById('cfg-awb-enabled').checked = defaultConfig.CanNmActiveWakeupBitEnabled;
+      document.getElementById('cfg-node-detect').checked = defaultConfig.CanNmNodeDetectionEnabled;
+      document.getElementById('cfg-imm-restart').checked = defaultConfig.CanNmImmediateRestartEnabled;
+      document.getElementById('cfg-pn-enabled').checked = defaultConfig.CanNmPnEnabled;
+      document.getElementById('cfg-userdata-enabled').checked = defaultConfig.CanNmUserDataEnabled;
+
+      document.getElementById('cfg-node-id').value = '0x1A';
+      document.getElementById('cfg-base-id').value = '0x500';
+      document.getElementById('cfg-msg-cycle').value = defaultConfig.CanNmMsgCycleTime;
+      document.getElementById('cfg-repeat-time').value = defaultConfig.CanNmRepeatMessageTime;
+      document.getElementById('cfg-timeout-time').value = defaultConfig.CanNmTimeoutTime;
+      document.getElementById('cfg-wait-sleep').value = defaultConfig.CanNmWaitBusSleepTime;
+      document.getElementById('cfg-imm-count').value = defaultConfig.CanNmImmediateNmTransmissions;
+      document.getElementById('cfg-imm-cycle').value = defaultConfig.CanNmImmediateNmCycleTime;
+      document.getElementById('cfg-user-data').value = '11 22 33 44 55 66';
+
+      updateConfigFromUI();
+      renderAll();
+    }
+
+    // Helper to compute CBV Byte 1 integer value
+    function getCbvByteValue() {
+      let val = 0;
+      if (simState.cbv.rmr) val |= (1 << 0); // Bit 0: RMR
+      if (simState.cbv.csr) val |= (1 << 3); // Bit 3: CSR
+      if (simState.cbv.awb) val |= (1 << 4); // Bit 4: AWB
+      if (simState.cbv.pni) val |= (1 << 6); // Bit 6: PNI
+      return val & 0xFF;
+    }
+
+    // Helper to format 8-Byte PDU string
+    function getFormattedPduHex() {
+      const b0 = ecucConfig.CanNmNodeId.toString(16).toUpperCase().padStart(2, '0');
+      const b1 = getCbvByteValue().toString(16).toUpperCase().padStart(2, '0');
+      const userBytes = ecucConfig.CanNmUserDataEnabled
+        ? ecucConfig.CanNmUserDataHex
+        : ['00', '00', '00', '00', '00', '00'];
+      return [b0, b1, ...userBytes];
+    }
+
+    // Transmit NM PDU via CanIf_Transmit
+    function triggerCanNmTransmit(reasonLabel) {
+      if (ecucConfig.CanNmPassiveModeEnabled) {
+        addTraceLog('API', 'CanNm (Internal)', 'Tx bị chặn (CanNmPassiveModeEnabled = TRUE)', 'Node ở chế độ Passive nên không gọi CanIf_Transmit().');
+        return;
+      }
+
+      const canIdHex = '0x' + (ecucConfig.CanNmBaseId + ecucConfig.CanNmNodeId).toString(16).toUpperCase();
+      const bytes = getFormattedPduHex();
+      const frameStr = `CanIf_Transmit(ID=${canIdHex}, Data=[${bytes.join(' ')}])`;
+
+      simState.lastBusActivity = `Tx ${canIdHex} [${bytes[0]} ${bytes[1]} ...]`;
+      simState.activeDirection = 'Downward Request ↓';
+
+      addTraceLog('BUS', 'CanNm → CanIf', frameStr, `${reasonLabel} | SNI=0x${bytes[0]}, CBV=0x${bytes[1]} (AWB=${simState.cbv.awb}, RMR=${simState.cbv.rmr}, PNI=${simState.cbv.pni})`);
+
+      // Immediate TxConfirmation simulation
+      simState.timers.timeout = ecucConfig.CanNmTimeoutTime;
+      addTraceLog('API', 'CanIf → CanNm', 'CanNm_TxConfirmation(TxPduId, E_OK)', `Phát CAN Frame thành công -> Reset bộ đếm NM-Timeout Timer về ${ecucConfig.CanNmTimeoutTime}ms.`);
+
+      animateStackRouting('DOWN', 'CanIf_Transmit(CanNmTxPduId, &PduInfo)');
+    }
+
+    // Enter Repeat Message State helper
+    function enterRepeatMessageState(fromState, isActiveWakeup, isImmediateRestart) {
+      const prevMode = simState.mode;
+      simState.mode = 'NETWORK_MODE';
+      simState.state = 'REPEAT_MESSAGE';
+      simState.commMode = 'COMM_FULL_COM';
+
+      // Set Timers
+      simState.timers.waitBusSleep = 0;
+      simState.timers.repeatMessage = ecucConfig.CanNmRepeatMessageTime;
+      simState.timers.timeout = ecucConfig.CanNmTimeoutTime;
+
+      if (prevMode !== 'NETWORK_MODE') {
+        addTraceLog('STATE', 'CanNm → Nm → ComM', 'Nm_NetworkMode() / ComM_Nm_NetworkMode()', `Chuyển từ ${fromState} vào NETWORK_MODE (Repeat Message State). Mở cổng truyền thông FULL_COM.`);
+      } else {
+        addTraceLog('STATE', 'CanNm → Nm', `Nm_StateChangeNotification(${fromState} -> REPEAT_MESSAGE)`, 'Chuyển trạng thái con về Repeat Message State.');
+      }
+
+      if (!ecucConfig.CanNmPassiveModeEnabled) {
+        if (isActiveWakeup && ecucConfig.CanNmImmediateNmTransmissions > 0) {
+          simState.immediateBurstRemaining = ecucConfig.CanNmImmediateNmTransmissions - 1;
+          simState.timers.msgCycle = ecucConfig.CanNmImmediateNmCycleTime;
+          triggerCanNmTransmit(isImmediateRestart ? 'Immediate Restart & Burst Tx #1' : 'Active Wakeup Burst Tx #1');
+        } else {
+          simState.immediateBurstRemaining = 0;
+          simState.timers.msgCycle = ecucConfig.CanNmMsgCycleTime;
+          triggerCanNmTransmit('Gói NM PDU đầu tiên tại Repeat Message State');
+        }
+      }
+    }
+
+    // 1. API: CanNm_NetworkRequest()
+    function apiNetworkRequest() {
+      updateConfigFromUI();
+      addTraceLog('API', 'SWC → ComM → Nm', 'ComM_RequestComMode(FULL_COM) -> Nm_NetworkRequest()', 'App SWC yêu cầu sử dụng mạng truyền thông CAN.');
+
+      if (ecucConfig.CanNmPassiveModeEnabled) {
+        addTraceLog('API', 'Nm → CanNm', 'CanNm_NetworkRequest() -> E_NOT_OK', 'Bị từ chối do CanNmPassiveModeEnabled = TRUE!');
+        renderAll();
+        return;
+      }
+
+      simState.networkRequested = true;
+      addTraceLog('API', 'Nm → CanNm', 'CanNm_NetworkRequest(nmChannelHandle)', 'Ghi nhận trạng thái nội bộ: Network Requested = TRUE.');
+
+      if (simState.state === 'BUS_SLEEP') {
+        if (ecucConfig.CanNmActiveWakeupBitEnabled) {
+          simState.cbv.awb = 1;
+        }
+        enterRepeatMessageState('BUS_SLEEP', true, false);
+      } else if (simState.state === 'PREPARE_BUS_SLEEP') {
+        if (ecucConfig.CanNmActiveWakeupBitEnabled) {
+          simState.cbv.awb = 1;
+        }
+        const imm = ecucConfig.CanNmImmediateRestartEnabled;
+        enterRepeatMessageState('PREPARE_BUS_SLEEP', true, imm);
+      } else if (simState.state === 'READY_SLEEP') {
+        simState.state = 'NORMAL_OPERATION';
+        simState.timers.msgCycle = ecucConfig.CanNmMsgCycleTime;
+        addTraceLog('STATE', 'CanNm → Nm', 'Nm_StateChangeNotification(READY_SLEEP -> NORMAL_OPERATION)', 'Khôi phục truyền gói NM PDU định kỳ tại Normal Operation State.');
+        triggerCanNmTransmit('Khôi phục truyền tại Normal Operation');
+      } else {
+        addTraceLog('API', 'CanNm (Internal)', 'Giữ nguyên trạng thái ' + simState.state, 'Mạng đã ở trạng thái Active.');
+      }
+
+      animateStackRouting('DOWN', 'CanNm_NetworkRequest(nmChannelHandle)');
+      renderAll();
+    }
+
+    // 2. API: CanNm_NetworkRelease()
+    function apiNetworkRelease() {
+      updateConfigFromUI();
+      simState.networkRequested = false;
+      addTraceLog('API', 'SWC → ComM → CanNm', 'ComM_RequestComMode(NO_COM) -> CanNm_NetworkRelease()', 'App SWC ngừng yêu cầu giữ mạng (Network Released).');
+
+      if (simState.state === 'NORMAL_OPERATION') {
+        simState.state = 'READY_SLEEP';
+        simState.timers.msgCycle = 0;
+        simState.immediateBurstRemaining = 0;
+        addTraceLog('STATE', 'CanNm → Nm', 'Nm_StateChangeNotification(NORMAL_OPERATION -> READY_SLEEP)', 'Chuyển sang Ready Sleep State: Ngừng phát gói NM PDU, chờ NM-Timeout Timer đếm về 0.');
+      } else if (simState.state === 'REPEAT_MESSAGE') {
+        addTraceLog('API', 'CanNm (Internal)', 'Ghi nhận Network Released tại Repeat Message', 'Sẽ chuyển thẳng sang Ready Sleep State ngay khi RepeatMessageTimer hết hạn.');
+      }
+
+      animateStackRouting('DOWN', 'CanNm_NetworkRelease(nmChannelHandle)');
+      renderAll();
+    }
+
+    // 3. API: CanNm_PassiveStartUp()
+    function apiPassiveStartUp() {
+      updateConfigFromUI();
+      addTraceLog('API', 'EcuM/ComM → Nm → CanNm', 'CanNm_PassiveStartUp(nmChannelHandle)', 'Đánh thức thụ động (Passive Wakeup): Không bật bit AWB (AWB = 0).');
+
+      if (simState.state === 'BUS_SLEEP' || simState.state === 'PREPARE_BUS_SLEEP') {
+        const prev = simState.state;
+        simState.cbv.awb = 0;
+        enterRepeatMessageState(prev, false, false);
+        animateStackRouting('UP', 'Nm_NetworkMode() -> ComM_Nm_NetworkMode()');
+      } else {
+        addTraceLog('API', 'CanNm (Internal)', 'CanNm_PassiveStartUp() bị bỏ qua', 'ECU đã nằm trong Network Mode.');
+      }
+      renderAll();
+    }
+
+    // 4. API: CanNm_RepeatMessageRequest()
+    function apiRepeatMessageRequest() {
+      updateConfigFromUI();
+      if (!ecucConfig.CanNmNodeDetectionEnabled) {
+        addTraceLog('API', 'Tester/App → CanNm', 'CanNm_RepeatMessageRequest() -> E_NOT_OK', 'Bị từ chối vì CanNmNodeDetectionEnabled = FALSE.');
+        renderAll();
+        return;
+      }
+
+      if (simState.state === 'NORMAL_OPERATION' || simState.state === 'READY_SLEEP') {
+        const prev = simState.state;
+        simState.cbv.rmr = 1;
+        simState.state = 'REPEAT_MESSAGE';
+        simState.timers.repeatMessage = ecucConfig.CanNmRepeatMessageTime;
+        simState.timers.msgCycle = ecucConfig.CanNmMsgCycleTime;
+
+        addTraceLog('API', 'App/Nm → CanNm', 'CanNm_RepeatMessageRequest(nmChannelHandle)', 'Bật Bit 0 (RMR = 1) trong thanh ghi CBV để yêu cầu toàn mạng điểm danh lại Node ID.');
+        addTraceLog('STATE', 'CanNm → Nm', `Nm_StateChangeNotification(${prev} -> REPEAT_MESSAGE)`, 'Quay về Repeat Message State và khởi động lại RepeatMessageTimer.');
+        triggerCanNmTransmit('Phát gói NM PDU mang cờ RMR = 1');
+        animateStackRouting('DOWN', 'CanNm_RepeatMessageRequest() [CBV.RMR = 1]');
+      } else {
+        addTraceLog('API', 'App/Nm → CanNm', 'CanNm_RepeatMessageRequest() bị bỏ qua', 'Chỉ có hiệu lực khi đang ở Normal Operation hoặc Ready Sleep State.');
+      }
+      renderAll();
+    }
+
+    // 5. API: Simulated CanNm_RxIndication() from Remote Node 0x2B
+    function apiSimulatedRxIndication() {
+      updateConfigFromUI();
+      const rxRmr = document.getElementById('rx-sim-rmr').checked ? 1 : 0;
+      const rxAwb = document.getElementById('rx-sim-awb').checked ? 1 : 0;
+      const rxPni = document.getElementById('rx-sim-pni').checked ? 1 : 0;
+
+      let rxCbv = 0;
+      if (rxRmr) rxCbv |= (1 << 0);
+      if (rxAwb) rxCbv |= (1 << 4);
+      if (rxPni) rxCbv |= (1 << 6);
+
+      const rxCbvHex = rxCbv.toString(16).toUpperCase().padStart(2, '0');
+      const rxCanId = '0x' + (ecucConfig.CanNmBaseId + 0x2B).toString(16).toUpperCase();
+
+      simState.lastBusActivity = `Rx ${rxCanId} [2B ${rxCbvHex} ...]`;
+      addTraceLog('BUS', 'CAN Bus → CanIf → CanNm', `CanNm_RxIndication(ID=${rxCanId}, SNI=0x2B, CBV=0x${rxCbvHex})`, `Nhận gói NM PDU từ ECU 0x2B (Rx RMR=${rxRmr}, AWB=${rxAwb}, PNI=${rxPni}).`);
+
+      if (simState.state === 'BUS_SLEEP') {
+        addTraceLog('API', 'CanNm → Nm → ComM', 'Nm_NetworkStartIndication() -> ComM_Nm_NetworkStartIndication()', 'Báo cho ComM có tín hiệu đánh thức mạng từ CAN Bus.');
+        apiPassiveStartUp();
+      } else if (simState.state === 'PREPARE_BUS_SLEEP') {
+        addTraceLog('API', 'CanNm → Nm → ComM', 'Khôi phục mạng từ Prepare Bus-Sleep do nhận Rx NM PDU', 'Chuyển ngược vào Repeat Message State.');
+        apiPassiveStartUp();
+      } else if (simState.mode === 'NETWORK_MODE') {
+        // Reset NM-Timeout Timer
+        simState.timers.timeout = ecucConfig.CanNmTimeoutTime;
+        addTraceLog('API', 'CanNm (Internal)', `Reset NM-Timeout Timer = ${ecucConfig.CanNmTimeoutTime}ms`, 'Giữ mạng thức do có hoạt động NM PDU trên CAN Bus.');
+
+        // Check received RMR bit
+        if (rxRmr === 1 && ecucConfig.CanNmNodeDetectionEnabled) {
+          if (simState.state === 'NORMAL_OPERATION' || simState.state === 'READY_SLEEP') {
+            const prev = simState.state;
+            simState.state = 'REPEAT_MESSAGE';
+            simState.timers.repeatMessage = ecucConfig.CanNmRepeatMessageTime;
+            simState.timers.msgCycle = ecucConfig.CanNmMsgCycleTime;
+            addTraceLog('STATE', 'CanNm → Nm', `Nm_RepeatMessageIndication() & State -> REPEAT_MESSAGE`, `Gói Rx có Bit RMR = 1! Ép ECU chuyển từ ${prev} về Repeat Message State.`);
+          }
+        }
+      }
+
+      animateStackRouting('UP', 'CanNm_RxIndication(RxPduId, &PduInfo)');
+      renderAll();
+    }
+
+    // 6. Periodic Tick: CanNm_MainFunction()
+    function stepTime(deltaMs) {
+      updateConfigFromUI();
+      const stepChunk = 100;
+      const steps = Math.max(1, Math.round(deltaMs / stepChunk));
+
+      for (let i = 0; i < steps; i++) {
+        simState.simTimeMs += stepChunk;
+        processMainFunctionTick(stepChunk);
+      }
+      renderAll();
+    }
+
+    function processMainFunctionTick(dt) {
+      if (simState.state === 'BUS_SLEEP') {
+        return;
+      }
+
+      // Case 1: Prepare Bus-Sleep Mode
+      if (simState.state === 'PREPARE_BUS_SLEEP') {
+        if (simState.timers.waitBusSleep > 0) {
+          simState.timers.waitBusSleep = Math.max(0, simState.timers.waitBusSleep - dt);
+          if (simState.timers.waitBusSleep === 0) {
+            // Transition to Bus-Sleep Mode
+            simState.mode = 'BUS_SLEEP';
+            simState.state = 'BUS_SLEEP';
+            simState.commMode = 'COMM_NO_COM';
+            simState.cbv.awb = 0;
+            simState.cbv.rmr = 0;
+            simState.lastBusActivity = 'Bus Sleep (Tắt Transceiver)';
+            addTraceLog('STATE', 'CanNm → Nm → ComM', 'Nm_BusSleepMode() -> ComM_Nm_BusSleepMode()', 'WaitBusSleepTimer chạm 0! Chuyển hẳn về BUS-SLEEP MODE và xóa bit AWB = 0.');
+            animateStackRouting('UP', 'Nm_BusSleepMode() -> ComM_Nm_BusSleepMode()');
+          }
+        }
+        return;
+      }
+
+      // Case 2: Inside Network Mode (Repeat Message, Normal Operation, Ready Sleep)
+      // A. Process MsgCycleTimer (only in Repeat Message or Normal Operation when not Passive)
+      if ((simState.state === 'REPEAT_MESSAGE' || simState.state === 'NORMAL_OPERATION') && !ecucConfig.CanNmPassiveModeEnabled) {
+        if (simState.timers.msgCycle > 0) {
+          simState.timers.msgCycle = Math.max(0, simState.timers.msgCycle - dt);
+          if (simState.timers.msgCycle === 0) {
+            if (simState.immediateBurstRemaining > 0) {
+              const burstNum = ecucConfig.CanNmImmediateNmTransmissions - simState.immediateBurstRemaining + 1;
+              simState.immediateBurstRemaining--;
+              simState.timers.msgCycle = simState.immediateBurstRemaining > 0
+                ? ecucConfig.CanNmImmediateNmCycleTime
+                : ecucConfig.CanNmMsgCycleTime;
+              triggerCanNmTransmit(`Immediate Burst Tx #${burstNum}`);
+            } else {
+              simState.timers.msgCycle = ecucConfig.CanNmMsgCycleTime;
+              triggerCanNmTransmit(`Truyền định kỳ (CanNmMsgCycleTime = ${ecucConfig.CanNmMsgCycleTime}ms)`);
+            }
+          }
+        }
+      }
+
+      // B. Process RepeatMessageTimer (only in Repeat Message State)
+      if (simState.state === 'REPEAT_MESSAGE') {
+        if (simState.timers.repeatMessage > 0) {
+          simState.timers.repeatMessage = Math.max(0, simState.timers.repeatMessage - dt);
+          if (simState.timers.repeatMessage === 0) {
+            // Clear RMR Bit 0 upon leaving Repeat Message State (AUTOSAR SWS_CanNm_00107)
+            if (simState.cbv.rmr === 1) {
+              simState.cbv.rmr = 0;
+              addTraceLog('API', 'CanNm (Internal)', 'Tự động xóa CBV Bit 0 (RMR = 0)', 'Chuẩn AUTOSAR: Xóa bit RMR khi rời khỏi Repeat Message State.');
+            }
+
+            if (simState.networkRequested) {
+              simState.state = 'NORMAL_OPERATION';
+              addTraceLog('STATE', 'CanNm → Nm', 'Nm_StateChangeNotification(REPEAT_MESSAGE -> NORMAL_OPERATION)', 'Hết RepeatMessageTime và mạng đang được giữ (Requested) -> Sang Normal Operation State.');
+            } else {
+              simState.state = 'READY_SLEEP';
+              simState.timers.msgCycle = 0;
+              simState.immediateBurstRemaining = 0;
+              addTraceLog('STATE', 'CanNm → Nm', 'Nm_StateChangeNotification(REPEAT_MESSAGE -> READY_SLEEP)', 'Hết RepeatMessageTime và mạng không có yêu cầu giữ (Released) -> Sang Ready Sleep State (Ngừng Tx).');
+            }
+          }
+        }
+      }
+
+      // C. Process NM-Timeout Timer
+      if (simState.timers.timeout > 0) {
+        simState.timers.timeout = Math.max(0, simState.timers.timeout - dt);
+        if (simState.timers.timeout === 0) {
+          if (simState.state === 'READY_SLEEP') {
+            // Transition from Ready Sleep to Prepare Bus-Sleep Mode
+            simState.mode = 'PREPARE_BUS_SLEEP';
+            simState.state = 'PREPARE_BUS_SLEEP';
+            simState.commMode = 'COMM_SILENT_COM';
+            simState.timers.waitBusSleep = ecucConfig.CanNmWaitBusSleepTime;
+            simState.lastBusActivity = 'Prepare Sleep (Silent)';
+            addTraceLog('STATE', 'CanNm → Nm → ComM', 'Nm_PrepareBusSleepMode() -> ComM_Nm_PrepareBusSleepMode()', `NM-Timeout Timer hết hạn tại Ready Sleep! Chuyển sang PREPARE BUS-SLEEP MODE và đếm ngược WaitBusSleepTime (${ecucConfig.CanNmWaitBusSleepTime}ms).`);
+            animateStackRouting('UP', 'Nm_PrepareBusSleepMode()');
+          } else {
+            // Abnormal expiration in Repeat Message or Normal Operation -> Restart Timeout Timer
+            simState.timers.timeout = ecucConfig.CanNmTimeoutTime;
+            addTraceLog('API', 'CanNm → Nm', 'Nm_TxTimeoutException() [Restart NM-Timeout Timer]', 'NM-Timeout hết hạn khi đang ở trạng thái truyền tích cực -> Tự nạp lại TimeoutTimer.');
+          }
+        }
+      }
+    }
+
+    /*************************************************************************
+     * 4. UI RENDERING & VISUALIZATION UPDATES
+     *************************************************************************/
+    function renderAll() {
+      // 1. Update Clock
+      document.getElementById('sim-clock-display').textContent = `t = ${simState.simTimeMs} ms`;
+
+      // 2. Update Header & Stack State Badges
+      const headerBadge = document.getElementById('header-state-badge');
+      const stackCanNmBadge = document.getElementById('stack-cannm-badge');
+      const swcBadge = document.getElementById('swc-req-badge');
+      const commBadge = document.getElementById('comm-mode-badge');
+      const busBadge = document.getElementById('canbus-traffic-badge');
+      const netStatusPill = document.getElementById('net-req-status-pill');
+
+      headerBadge.textContent = simState.state.replace(/_/g, ' ');
+      stackCanNmBadge.textContent = simState.state;
+      busBadge.textContent = simState.lastBusActivity;
+
+      if (simState.networkRequested) {
+        swcBadge.textContent = 'FULL_COM';
+        swcBadge.className = 'text-[11px] font-mono px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-bold border border-emerald-500/30';
+        netStatusPill.textContent = 'REQUESTED (Đang giữ mạng)';
+        netStatusPill.className = 'text-[11px] font-mono font-bold px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/30';
+      } else {
+        swcBadge.textContent = 'NO_COM';
+        swcBadge.className = 'text-[11px] font-mono px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-800 text-slate-500 font-semibold';
+        netStatusPill.textContent = 'RELEASED (Không giữ mạng)';
+        netStatusPill.className = 'text-[11px] font-mono font-bold px-2 py-0.5 rounded bg-rose-500/15 text-rose-400 border border-rose-500/30';
+      }
+
+      commBadge.textContent = simState.commMode;
+      if (simState.commMode === 'COMM_FULL_COM') {
+        commBadge.className = 'text-[11px] font-mono px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-bold';
+      } else if (simState.commMode === 'COMM_SILENT_COM') {
+        commBadge.className = 'text-[11px] font-mono px-2 py-0.5 rounded bg-amber-500/20 text-amber-400 font-bold';
+      } else {
+        commBadge.className = 'text-[11px] font-mono px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-800 text-slate-500 font-semibold';
+      }
+
+      // Highlight State Machine Cards
+      const allStates = ['BUS_SLEEP', 'PREPARE_BUS_SLEEP', 'REPEAT_MESSAGE', 'NORMAL_OPERATION', 'READY_SLEEP'];
+      allStates.forEach(st => {
+        const card = document.getElementById(`state-card-${st}`);
+        const badge = document.getElementById(`badge-active-${st}`);
+        if (simState.state === st) {
+          card.className = 'p-3.5 rounded-xl border-2 transition-all bg-white dark:bg-slate-900 border-sky-400 state-active-glow opacity-100';
+          badge.classList.remove('hidden');
+        } else {
+          card.className = 'p-3.5 rounded-xl border-2 transition-all bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 opacity-65';
+          badge.classList.add('hidden');
+        }
+      });
+
+      const netContainer = document.getElementById('container-network-mode');
+      if (simState.mode === 'NETWORK_MODE') {
+        netContainer.className = 'p-3.5 rounded-2xl border-2 border-emerald-500/70 bg-emerald-500/5 space-y-3 transition-all';
+      } else {
+        netContainer.className = 'p-3.5 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 bg-slate-100/60 dark:bg-slate-900/50 space-y-3 transition-all';
+      }
+
+      // 3. Update 4 Timer Progress Bars
+      updateTimerBar('repeat', simState.timers.repeatMessage, ecucConfig.CanNmRepeatMessageTime);
+      updateTimerBar('timeout', simState.timers.timeout, ecucConfig.CanNmTimeoutTime);
+      const maxCycle = simState.immediateBurstRemaining > 0 ? ecucConfig.CanNmImmediateNmCycleTime : ecucConfig.CanNmMsgCycleTime;
+      updateTimerBar('cycle', simState.timers.msgCycle, maxCycle);
+      updateTimerBar('waitsleep', simState.timers.waitBusSleep, ecucConfig.CanNmWaitBusSleepTime);
+
+      document.getElementById('burst-counter-badge').textContent =
+        `Immediate Burst còn lại: ${simState.immediateBurstRemaining} gói`;
+
+      // 4. Update 8-Byte NM PDU & CBV Register Inspector
+      const canIdHex = '0x' + (ecucConfig.CanNmBaseId + ecucConfig.CanNmNodeId).toString(16).toUpperCase();
+      document.getElementById('pdu-can-id-badge').textContent = `CAN ID: ${canIdHex} (DLC=8)`;
+
+      const bytes = getFormattedPduHex();
+      for (let i = 0; i < 8; i++) {
+        document.getElementById(`pdu-byte-${i}`).textContent = bytes[i];
+      }
+
+      const cbvVal = getCbvByteValue();
+      const cbvBin = cbvVal.toString(2).padStart(8, '0');
+      document.getElementById('cbv-binary-str').textContent = `0b${cbvBin} (0x${bytes[1]})`;
+
+      // Update Individual CBV Bits (Bit 0 RMR, Bit 3 CSR, Bit 4 AWB, Bit 6 PNI)
+      updateCbvBitUI(0, simState.cbv.rmr, 'amber', 'desc-bit0', '1 = Yêu cầu Repeat Message', '0 = Không yêu cầu');
+      updateCbvBitUI(4, simState.cbv.awb, 'emerald', 'desc-bit4', '1 = Chủ động đánh thức (Active)', '0 = Đánh thức thụ động (Passive)');
+      updateCbvBitUI(6, simState.cbv.pni, 'purple', 'desc-bit6', '1 = Có mặt nạ PN (Byte 2–7)', '0 = PN Disabled');
+
+      // 5. Render Trace Logs
+      renderTraceLogs();
+    }
+
+    function updateTimerBar(key, currentVal, maxVal) {
+      const label = document.getElementById(`timer-val-${key}`);
+      const bar = document.getElementById(`timer-bar-${key}`);
+      label.textContent = `${currentVal} / ${maxVal} ms`;
+      const pct = maxVal > 0 ? Math.min(100, Math.round((currentVal / maxVal) * 100)) : 0;
+      bar.style.width = `${pct}%`;
+    }
+
+    function updateCbvBitUI(bitIndex, bitValue, colorName, descElemId, activeText, inactiveText) {
+      const valEl = document.getElementById(`cbv-val-bit${bitIndex}`);
+      const boxEl = document.getElementById(`cbv-box-bit${bitIndex}`);
+      const descEl = document.getElementById(descElemId);
+
+      valEl.textContent = bitValue;
+      if (bitValue === 1) {
+        boxEl.className = `p-1.5 rounded bg-${colorName}-500/25 border-2 border-${colorName}-400 text-${colorName}-300 shadow-sm`;
+        descEl.textContent = activeText;
+        descEl.className = `font-mono font-bold text-${colorName}-400`;
+      } else {
+        boxEl.className = 'p-1.5 rounded bg-slate-200 dark:bg-slate-800 border border-slate-300 dark:border-slate-700';
+        descEl.textContent = inactiveText;
+        descEl.className = 'font-mono text-slate-400';
+      }
+    }
+
+    function animateStackRouting(direction, apiText) {
+      const dirBadge = document.getElementById('active-direction-badge');
+      if (direction === 'DOWN') {
+        dirBadge.textContent = '↓ Downward Request';
+        dirBadge.className = 'text-[11px] font-mono px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-bold';
+      } else {
+        dirBadge.textContent = '↑ Upward Indication';
+        dirBadge.className = 'text-[11px] font-mono px-2 py-0.5 rounded bg-purple-500/20 text-purple-400 font-bold';
+      }
+      document.getElementById('api-label-nm-cannm').textContent = apiText;
+    }
+
+    /*************************************************************************
+     * 5. TRACE LOG & MODULE INSPECTOR HELPERS
+     *************************************************************************/
+    function addTraceLog(category, route, apiCall, explanation) {
+      traceLogs.unshift({
+        time: simState.simTimeMs,
+        category,
+        route,
+        apiCall,
+        explanation
+      });
+      if (traceLogs.length > 80) traceLogs.pop();
+    }
+
+    function renderTraceLogs() {
+      const filter = document.getElementById('trace-filter').value;
+      const tbody = document.getElementById('trace-log-tbody');
+      const filtered = traceLogs.filter(item => filter === 'ALL' || item.category === filter);
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-slate-400">Chưa có sự kiện nào. Hãy bấm "Bước Tiếp Theo" hoặc gọi API thủ công.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = filtered.map(item => {
+        let badgeHtml = '';
+        if (item.category === 'BUS') {
+          badgeHtml = `<span class="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 font-bold">CAN PDU</span>`;
+        } else if (item.category === 'STATE') {
+          badgeHtml = `<span class="px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400 font-bold">STATE</span>`;
+        } else {
+          badgeHtml = `<span class="px-1.5 py-0.5 rounded bg-sky-500/20 text-sky-400 font-bold">API CALL</span>`;
+        }
+
+        return `
+          <tr class="hover:bg-slate-200/50 dark:hover:bg-slate-900/70 transition">
+            <td class="py-2 px-2.5 font-bold text-slate-500 dark:text-slate-400">${item.time} ms</td>
+            <td class="py-2 px-2">${badgeHtml}</td>
+            <td class="py-2 px-2.5 text-slate-700 dark:text-slate-300 font-semibold">${item.route}</td>
+            <td class="py-2 px-2.5 text-sky-600 dark:text-sky-300 font-bold">${item.apiCall}</td>
+            <td class="py-2 px-2.5 font-sans text-slate-600 dark:text-slate-300">${item.explanation}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function clearTraceLogs() {
+      traceLogs = [];
+      renderTraceLogs();
+    }
+
+    // Mini Module Inspector in Tab 1 Stack Diagram
+    const moduleDetails = {
+      SWC: {
+        title: 'Chi tiết Module: Application SWC & RTE',
+        desc: '<strong>Input:</strong> Logic ứng dụng (Ignition, cảm biến cửa, yêu cầu chẩn đoán).<br/><strong>Xử lý:</strong> Quyết định khi nào ECU cần giao tiếp mạng (FULL_COM) và khi nào hoàn tất tác vụ (NO_COM).<br/><strong>Output:</strong> Gọi <code>Rte_Call_UR_ComMUser_RequestComMode()</code> xuống ComM.'
+      },
+      COMM: {
+        title: 'Chi tiết Module: ComM (Communication Manager) & BswM',
+        desc: '<strong>Input:</strong> Yêu cầu từ các SWC và các callback báo thức từ <code>Nm / EcuM</code>.<br/><strong>Xử lý:</strong> Tổng hợp yêu cầu của mọi User trên từng kênh mạng; điều phối bật/tắt nhóm PduGroup.<br/><strong>Output:</strong> Gọi <code>Nm_NetworkRequest()</code>, <code>Nm_NetworkRelease()</code>, hoặc <code>Nm_PassiveStartUp()</code>.'
+      },
+      NM: {
+        title: 'Chi tiết Module: Generic Nm Interface',
+        desc: '<strong>Input:</strong> Lệnh điều khiển từ <code>ComM</code> và các thông báo trạng thái từ <code>CanNm</code>.<br/><strong>Xử lý:</strong> Trừu tượng hóa giao thức quản lý mạng độc lập với loại bus vật lý (CAN, FlexRay, Ethernet).<br/><strong>Output:</strong> Định tuyến xuống <code>CanNm_*</code> và báo ngược lên <code>ComM_Nm_*</code>.'
+      },
+      CANNM: {
+        title: 'Chi tiết Module: AUTOSAR CanNM (Trọng tâm)',
+        desc: '<strong>Input:</strong> Lệnh từ <code>Nm</code>, sự kiện <code>CanNm_RxIndication</code> / <code>CanNm_TxConfirmation</code> từ <code>CanIf</code>.<br/><strong>Xử lý:</strong> Vận hành State Machine, đếm 4 Timers trong <code>CanNm_MainFunction()</code> và đóng gói 8-Byte NM PDU.<br/><strong>Output:</strong> Gọi <code>CanIf_Transmit()</code> xuống bus và báo callback trạng thái lên <code>Nm</code>.'
+      },
+      CANIF: {
+        title: 'Chi tiết Module: CanIf / CanSM & Physical CAN Bus',
+        desc: '<strong>Input:</strong> Yêu cầu truyền <code>CanIf_Transmit()</code> từ CanNM hoặc ngắt nhận gói tin từ <code>CanDrv</code>.<br/><strong>Xử lý:</strong> Kiểm tra CAN ID (0x500 + NodeId), lọc Partial Networking nếu có.<br/><strong>Output:</strong> Phát khung truyền ra CAN Bus và gọi <code>CanNm_RxIndication()</code> / <code>CanNm_TxConfirmation()</code>.'
+      }
+    };
+
+    function selectModuleExplain(modKey) {
+      const info = moduleDetails[modKey];
+      if (!info) return;
+      document.getElementById('mini-mod-title').textContent = info.title;
+      document.getElementById('mini-mod-desc').innerHTML = info.desc;
+    }
+
+    /*************************************************************************
+     * 6. SCENARIO WALKTHROUGH CONTROLLER & REAL-TIME CLOCK
+     *************************************************************************/
+    function loadScenario(scenId) {
+      stopAllAutoTimers();
+      currentScenarioId = scenId;
+      currentStepIndex = 0;
+
+      // Update Scenario Button Styles
+      for (let i = 1; i <= 5; i++) {
+        const btn = document.getElementById(`scen-btn-${i}`);
+        if (i === scenId) {
+          btn.className = 'scen-btn px-3 py-1.5 rounded-lg text-xs font-semibold border transition flex items-center gap-1.5 bg-sky-500/15 border-sky-500 text-sky-600 dark:text-sky-300';
+        } else {
+          btn.className = 'scen-btn px-3 py-1.5 rounded-lg text-xs font-semibold border border-slate-300 dark:border-slate-700 hover:border-sky-500 text-slate-700 dark:text-slate-300 transition';
+        }
+      }
+
+      resetSimulationInternal(false);
+      const scen = scenarios[scenId];
+      document.getElementById('step-badge-title').textContent = scen.title;
+      document.getElementById('step-api-badge').textContent = 'Sẵn sàng (Bước 0/' + scen.steps.length + ')';
+      document.getElementById('step-explanation-text').innerHTML =
+        `Đã nạp <strong>${scen.title}</strong>. Nhấn nút <strong>"Bước Tiếp Theo"</strong> để thực thi từng bước hoặc <strong>"Tự động chạy"</strong>.`;
+      document.getElementById('scenario-step-counter').textContent = `Bước 0 / ${scen.steps.length}`;
+      renderAll();
+    }
+
+    function nextScenarioStep() {
+      const scen = scenarios[currentScenarioId];
+      if (!scen) return;
+
+      if (currentStepIndex >= scen.steps.length) {
+        currentStepIndex = 0;
+      }
+
+      const stepObj = scen.steps[currentStepIndex];
+      currentStepIndex++;
+
+      document.getElementById('scenario-step-counter').textContent = `Bước ${currentStepIndex} / ${scen.steps.length}`;
+      document.getElementById('step-badge-title').textContent = scen.title;
+      document.getElementById('step-api-badge').textContent = stepObj.api;
+      document.getElementById('step-io-pill').textContent = stepObj.io;
+      document.getElementById('step-explanation-text').textContent = stepObj.desc;
+
+      stepObj.action();
+    }
+
+    function prevScenarioStep() {
+      const scen = scenarios[currentScenarioId];
+      if (!scen || currentStepIndex <= 1) {
+        loadScenario(currentScenarioId);
+        return;
+      }
+      const targetStep = currentStepIndex - 1;
+      resetSimulationInternal(false);
+      currentStepIndex = 0;
+      for (let i = 0; i < targetStep; i++) {
+        nextScenarioStep();
+      }
+    }
+
+    function toggleScenarioAutoPlay() {
+      const label = document.getElementById('auto-scen-label');
+      if (scenarioAutoInterval) {
+        clearInterval(scenarioAutoInterval);
+        scenarioAutoInterval = null;
+        label.textContent = 'Tự động chạy';
+        return;
+      }
+
+      const scen = scenarios[currentScenarioId];
+      if (currentStepIndex >= scen.steps.length) {
+        currentStepIndex = 0;
+      }
+
+      label.textContent = 'Đang chạy...';
+      nextScenarioStep();
+      scenarioAutoInterval = setInterval(() => {
+        if (currentStepIndex >= scen.steps.length) {
+          clearInterval(scenarioAutoInterval);
+          scenarioAutoInterval = null;
+          label.textContent = 'Tự động chạy';
+        } else {
+          nextScenarioStep();
+        }
+      }, 2200);
+    }
+
+    function toggleRealtimeClock() {
+      const icon = document.getElementById('rt-clock-icon');
+      const text = document.getElementById('rt-clock-text');
+      if (rtClockInterval) {
+        clearInterval(rtClockInterval);
+        rtClockInterval = null;
+        icon.className = 'fa-solid fa-play';
+        text.textContent = 'Chạy Clock';
+      } else {
+        icon.className = 'fa-solid fa-pause';
+        text.textContent = 'Dừng Clock';
+        rtClockInterval = setInterval(() => {
+          stepTime(100);
+        }, 450);
+      }
+    }
+
+    function stopAllAutoTimers() {
+      if (rtClockInterval) {
+        clearInterval(rtClockInterval);
+        rtClockInterval = null;
+        document.getElementById('rt-clock-icon').className = 'fa-solid fa-play';
+        document.getElementById('rt-clock-text').textContent = 'Chạy Clock';
+      }
+      if (scenarioAutoInterval) {
+        clearInterval(scenarioAutoInterval);
+        scenarioAutoInterval = null;
+        document.getElementById('auto-scen-label').textContent = 'Tự động chạy';
+      }
+    }
+
+    function resetSimulationInternal(addLog = true) {
+      simState.simTimeMs = 0;
+      simState.mode = 'BUS_SLEEP';
+      simState.state = 'BUS_SLEEP';
+      simState.networkRequested = false;
+      simState.commMode = 'COMM_NO_COM';
+      simState.cbv.rmr = 0;
+      simState.cbv.csr = 0;
+      simState.cbv.awb = 0;
+      simState.cbv.pni = ecucConfig.CanNmPnEnabled ? 1 : 0;
+      simState.timers.repeatMessage = 0;
+      simState.timers.timeout = 0;
+      simState.timers.msgCycle = 0;
+      simState.timers.waitBusSleep = 0;
+      simState.immediateBurstRemaining = 0;
+      simState.lastBusActivity = 'Bus Quiet';
+      traceLogs = [];
+
+      if (addLog) {
+        addTraceLog('STATE', 'EcuM → CanNm', 'CanNm_Init(&CanNm_Config)', 'Khởi tạo Module CanNM về trạng thái mặc định BUS-SLEEP MODE.');
+      }
+    }
+
+    function resetSimulation() {
+      stopAllAutoTimers();
+      currentStepIndex = 0;
+      const scen = scenarios[currentScenarioId];
+      document.getElementById('scenario-step-counter').textContent = `Bước 0 / ${scen.steps.length}`;
+      resetSimulationInternal(true);
+      renderAll();
+    }
+
+    /*************************************************************************
+     * 7. NAVIGATION TABS, HANDBOOK SEARCH, THEME & HTML EXPORT
+     *************************************************************************/
+    function switchMainTab(tabName) {
+      const tabs = ['simulator', 'architecture', 'handbook'];
+      tabs.forEach(t => {
+        const content = document.getElementById(`tab-content-${t}`);
+        const btn = document.getElementById(`tab-btn-${t}`);
+        if (t === tabName) {
+          content.classList.remove('hidden');
+          btn.className = 'flex-1 xl:flex-initial px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all flex items-center justify-center gap-2 bg-sky-500 text-white shadow-sm';
+        } else {
+          content.classList.add('hidden');
+          btn.className = 'flex-1 xl:flex-initial px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all flex items-center justify-center gap-2 text-slate-600 dark:text-slate-300 hover:text-sky-500';
+        }
+      });
+    }
+
+    function filterHandbook() {
+      const query = document.getElementById('handbook-search').value.trim().toLowerCase();
+      const rows = document.querySelectorAll('.hb-searchable');
+      rows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        row.style.display = text.includes(query) ? '' : 'none';
+      });
+    }
+
+    function toggleTheme() {
+      const htmlEl = document.documentElement;
+      const icon = document.getElementById('theme-icon');
+      if (htmlEl.classList.contains('dark')) {
+        htmlEl.classList.remove('dark');
+        icon.className = 'fa-solid fa-moon';
+      } else {
+        htmlEl.classList.add('dark');
+        icon.className = 'fa-solid fa-sun';
+      }
+    }
+
+    function downloadStandaloneHTML() {
+      const htmlContent = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+      const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'AUTOSAR_CanNM_Interactive_Simulator.html';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    // Initialize on Window Load
+    window.onload = function () {
+      updateConfigFromUI();
+      resetSimulationInternal(true);
+      loadScenario(1);
+    };
+  </script>
+</body>
+</html>
