@@ -1,0 +1,5224 @@
+<!DOCTYPE html>
+<html lang="vi" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AUTOSAR Classic Interactive Architecture &amp; Simulation Hub</title>
+  <style>
+    /* ===================== OFFLINE THEME VARIABLES ===================== */
+    :root, [data-theme="dark"] {
+      --bg: #070b14;
+      --bg-elev: #0e1525;
+      --panel: #111a2d;
+      --panel-2: #162138;
+      --panel-3: #0b1220;
+      --bdr: #24334d;
+      --bdr-soft: #1b273d;
+      --txt: #e5edf8;
+      --txt-soft: #c0cfe4;
+      --mut: #8b9eb9;
+      --dim: #5d708c;
+      --pri: #38bdf8;
+      --pri-bg: rgba(56, 189, 248, 0.14);
+      --acc: #818cf8;
+      --acc-bg: rgba(129, 140, 248, 0.14);
+      --ok: #34d399;
+      --ok-bg: rgba(52, 211, 153, 0.14);
+      --warn: #fbbf24;
+      --warn-bg: rgba(251, 191, 36, 0.14);
+      --err: #f87171;
+      --err-bg: rgba(248, 113, 113, 0.14);
+      --pur: #c084fc;
+      --pur-bg: rgba(192, 132, 252, 0.14);
+      --org: #fb923c;
+      --org-bg: rgba(251, 146, 60, 0.14);
+      --code: #060a14;
+      --grid: rgba(148, 163, 184, 0.08);
+      --shadow: 0 10px 28px rgba(0, 0, 0, 0.42);
+    }
+
+    [data-theme="light"] {
+      --bg: #eef2f7;
+      --bg-elev: #ffffff;
+      --panel: #ffffff;
+      --panel-2: #f6f9fc;
+      --panel-3: #edf2f8;
+      --bdr: #cbd5e1;
+      --bdr-soft: #e2e8f0;
+      --txt: #0f172a;
+      --txt-soft: #334155;
+      --mut: #475569;
+      --dim: #7c8ba1;
+      --pri: #0284c7;
+      --pri-bg: rgba(2, 132, 199, 0.10);
+      --acc: #4f46e5;
+      --acc-bg: rgba(79, 70, 229, 0.10);
+      --ok: #059669;
+      --ok-bg: rgba(5, 150, 105, 0.11);
+      --warn: #d97706;
+      --warn-bg: rgba(217, 119, 6, 0.11);
+      --err: #dc2626;
+      --err-bg: rgba(220, 38, 38, 0.10);
+      --pur: #7c3aed;
+      --pur-bg: rgba(124, 58, 237, 0.10);
+      --org: #ea580c;
+      --org-bg: rgba(234, 88, 12, 0.10);
+      --code: #f8fafc;
+      --grid: rgba(71, 85, 105, 0.10);
+      --shadow: 0 8px 22px rgba(15, 23, 42, 0.09);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      background: var(--bg);
+      color: var(--txt);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      font-size: 13px;
+      line-height: 1.45;
+      min-height: 100vh;
+    }
+    body { display: flex; flex-direction: column; overflow-x: hidden; }
+    code, pre, .mono { font-family: "JetBrains Mono", "Cascadia Code", Consolas, "Courier New", monospace; }
+    a { color: var(--pri); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    button, input, select, textarea { font-family: inherit; font-size: inherit; color: var(--txt); }
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--bdr); border-radius: 99px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--mut); }
+
+    /* ===================== HEADER ===================== */
+    .hdr {
+      position: sticky;
+      top: 0;
+      z-index: 60;
+      background: var(--bg-elev);
+      border-bottom: 1px solid var(--bdr);
+      box-shadow: var(--shadow);
+    }
+    .hdr-inner {
+      max-width: 1960px;
+      margin: 0 auto;
+      padding: 9px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .hdr-top {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+    .brand-logo {
+      width: 40px; height: 40px; border-radius: 10px; flex: none;
+      background: linear-gradient(135deg, #0284c7, #4f46e5);
+      display: flex; align-items: center; justify-content: center;
+      color: #fff; font-weight: 800; font-size: 11px; letter-spacing: 0.04em;
+      box-shadow: 0 4px 14px rgba(2, 132, 199, 0.36);
+    }
+    .brand-title { font-size: 15px; font-weight: 800; letter-spacing: -0.01em; line-height: 1.25; }
+    .brand-sub { font-size: 11px; color: var(--mut); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 650px; }
+    .nav-tabs { display: flex; flex-wrap: wrap; gap: 5px; }
+    .nav-tab {
+      padding: 6px 12px; border-radius: 8px;
+      border: 1px solid var(--bdr); background: var(--panel-2); color: var(--mut);
+      font-weight: 700; font-size: 12px; cursor: pointer; transition: all 0.15s;
+      display: inline-flex; align-items: center; gap: 6px;
+    }
+    .nav-tab:hover { border-color: var(--pri); color: var(--txt); }
+    .nav-tab.active {
+      background: var(--pri-bg); border-color: var(--pri); color: var(--txt);
+      box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.25);
+    }
+    .hdr-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+
+    /* ===================== BUTTONS & INPUTS ===================== */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+      padding: 6px 11px; border-radius: 7px; border: 1px solid var(--bdr);
+      background: var(--panel-2); color: var(--txt); font-size: 12px; font-weight: 600;
+      cursor: pointer; transition: all 0.14s; white-space: nowrap;
+    }
+    .btn:hover:not(:disabled) { border-color: var(--pri); transform: translateY(-1px); }
+    .btn:disabled { opacity: 0.42; cursor: not-allowed; }
+    .btn-sm { padding: 4px 9px; font-size: 11.5px; }
+    .btn-xs { padding: 2px 7px; font-size: 10.5px; border-radius: 5px; }
+    .btn-pri { background: #0284c7; border-color: #0284c7; color: #fff; }
+    .btn-pri:hover:not(:disabled) { background: #0369a1; border-color: #0369a1; }
+    .btn-ok { background: var(--ok-bg); border-color: rgba(52, 211, 153, 0.45); color: var(--ok); }
+    .btn-warn { background: var(--warn-bg); border-color: rgba(251, 191, 36, 0.45); color: var(--warn); }
+    .btn-pur { background: var(--pur-bg); border-color: rgba(192, 132, 252, 0.45); color: var(--pur); }
+    .btn-err { background: var(--err-bg); border-color: rgba(248, 113, 113, 0.45); color: var(--err); }
+
+    .pill {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 3px 9px; border-radius: 999px; font-size: 11px; font-weight: 700;
+      border: 1px solid var(--bdr); background: var(--panel-3); color: var(--mut); white-space: nowrap;
+    }
+    .pill-ok { background: var(--ok-bg); border-color: rgba(52, 211, 153, 0.4); color: var(--ok); }
+    .pill-pri { background: var(--pri-bg); border-color: rgba(56, 189, 248, 0.4); color: var(--pri); }
+    .pill-warn { background: var(--warn-bg); border-color: rgba(251, 191, 36, 0.4); color: var(--warn); }
+    .pill-acc { background: var(--acc-bg); border-color: rgba(129, 140, 248, 0.4); color: var(--acc); }
+
+    input[type="text"], input[type="search"], select, textarea {
+      background: var(--code); border: 1px solid var(--bdr); color: var(--txt);
+      border-radius: 7px; padding: 6px 9px; font-size: 12px; outline: none; transition: border-color 0.15s;
+    }
+    input[type="text"]:focus, input[type="search"]:focus, select:focus, textarea:focus {
+      border-color: var(--pri); box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.18);
+    }
+
+    /* ===================== TOOLBAR & VIEWS ===================== */
+    .view-section { display: none; flex: 1; flex-direction: column; max-width: 1960px; width: 100%; margin: 0 auto; padding: 10px 14px 16px; gap: 10px; }
+    .view-section.active { display: flex; }
+
+    .toolbar {
+      background: var(--panel); border: 1px solid var(--bdr); border-radius: 11px;
+      padding: 8px 11px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px;
+      box-shadow: var(--shadow);
+    }
+    .tb-group { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+    .search-wrap { position: relative; display: flex; align-items: center; }
+    .search-wrap input { width: 220px; padding-left: 28px; }
+    .search-icon { position: absolute; left: 9px; font-size: 12px; color: var(--mut); pointer-events: none; }
+
+    .chip-btn {
+      padding: 4px 10px; border-radius: 7px; border: 1px solid var(--bdr);
+      background: var(--panel-3); color: var(--mut); font-size: 11.5px; font-weight: 700;
+      cursor: pointer; transition: all 0.14s;
+    }
+    .chip-btn:hover { border-color: var(--pri); color: var(--txt); }
+    .chip-btn.active { background: var(--pri-bg); border-color: var(--pri); color: var(--pri); }
+
+    /* ===================== CANVAS WORKSPACE ===================== */
+    .canvas-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 375px;
+      gap: 10px;
+      align-items: stretch;
+      flex: 1;
+      min-height: 680px;
+    }
+    @media (max-width: 1180px) {
+      .canvas-layout { grid-template-columns: 1fr; }
+    }
+
+    .canvas-shell {
+      background: var(--panel); border: 1px solid var(--bdr); border-radius: 12px;
+      box-shadow: var(--shadow); display: flex; flex-direction: column; min-width: 0; overflow: hidden;
+    }
+    .canvas-bar {
+      padding: 7px 12px; border-bottom: 1px solid var(--bdr); background: var(--panel-2);
+      display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px;
+    }
+    .legend-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; font-size: 11px; color: var(--mut); }
+    .legend-item { display: inline-flex; align-items: center; gap: 5px; }
+    .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; flex: none; }
+    .dot-ok { background: var(--ok); box-shadow: 0 0 8px rgba(52, 211, 153, 0.75); }
+    .dot-plan { background: var(--dim); border: 1px dashed var(--mut); }
+    .dot-flow { background: var(--pri); box-shadow: 0 0 8px rgba(56, 189, 248, 0.85); }
+
+    .canvas-viewport {
+      position: relative;
+      flex: 1;
+      min-height: 620px;
+      overflow: auto;
+      background-color: var(--panel-3);
+      background-image:
+        linear-gradient(to right, var(--grid) 1px, transparent 1px),
+        linear-gradient(to bottom, var(--grid) 1px, transparent 1px);
+      background-size: 24px 24px;
+      cursor: grab;
+      padding: 16px;
+    }
+    .canvas-viewport.panning { cursor: grabbing; user-select: none; }
+
+    .arch-stage-wrap {
+      position: relative;
+      display: inline-block;
+      min-width: 100%;
+    }
+    .arch-stage {
+      position: relative;
+      width: 1240px;
+      transform-origin: 0 0;
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
+      padding: 4px;
+    }
+
+    /* SVG Edges Layer */
+    #archEdgesSvg {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 15;
+      overflow: visible;
+    }
+
+    /* ===================== AUTOSAR LAYER BLOCKS ===================== */
+    .layer-band {
+      position: relative;
+      z-index: 5;
+      border-radius: 11px;
+      border: 1px solid var(--bdr);
+      background: rgba(17, 26, 45, 0.76);
+      padding: 8px 10px 10px;
+      backdrop-filter: blur(4px);
+    }
+    [data-theme="light"] .layer-band {
+      background: rgba(255, 255, 255, 0.88);
+    }
+    .layer-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 7px;
+      padding-bottom: 5px;
+      border-bottom: 1px dashed var(--bdr);
+    }
+    .layer-title-wrap { display: flex; align-items: center; gap: 7px; }
+    .layer-stripe { width: 4px; height: 15px; border-radius: 3px; flex: none; }
+    .layer-title { font-size: 11.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; }
+    .layer-sub { font-size: 10.5px; color: var(--mut); }
+    .layer-stat { font-size: 10.5px; font-weight: 700; color: var(--mut); font-family: "JetBrains Mono", Consolas, monospace; white-space: nowrap; }
+
+    .bsw-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 186px;
+      gap: 10px;
+      align-items: stretch;
+    }
+    .bsw-stacks-col {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-width: 0;
+    }
+    .cdd-band {
+      display: flex;
+      flex-direction: column;
+    }
+    .cdd-band .mod-grid { flex: 1; align-content: start; }
+
+    .stacks-row-services {
+      display: grid;
+      grid-template-columns: 1.55fr 0.72fr 0.78fr;
+      gap: 8px;
+    }
+    .stacks-row-comm-full {
+      margin-top: 8px;
+    }
+    .stacks-row-5col {
+      display: grid;
+      grid-template-columns: 0.72fr 0.92fr 0.68fr 2.25fr 0.78fr;
+      gap: 8px;
+    }
+    .stack-box {
+      border: 1px solid var(--bdr-soft);
+      background: var(--panel-3);
+      border-radius: 8px;
+      padding: 7px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .stack-label {
+      font-size: 10px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--mut);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .mod-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .mod-grid-4 {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 7px;
+    }
+
+    /* ===================== MODULE CARD ===================== */
+    .mod-card {
+      position: relative;
+      z-index: 6;
+      min-width: 122px;
+      flex: 1 1 124px;
+      max-width: 210px;
+      padding: 5px 7px;
+      border-radius: 8px;
+      border: 1px dashed var(--bdr);
+      background: var(--panel);
+      cursor: pointer;
+      transition: transform 0.14s, border-color 0.14s, box-shadow 0.14s, opacity 0.18s;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      user-select: none;
+    }
+    .mod-card.full-span {
+      max-width: none;
+      flex: 1 1 100%;
+    }
+    .mod-card.linked {
+      border-style: solid;
+      border-color: rgba(52, 211, 153, 0.55);
+      background: linear-gradient(180deg, rgba(52, 211, 153, 0.10) 0%, var(--panel) 100%);
+      box-shadow: 0 3px 12px rgba(16, 185, 129, 0.10);
+    }
+    .mod-card:hover {
+      transform: translateY(-2px);
+      border-color: var(--pri);
+      box-shadow: 0 6px 16px rgba(56, 189, 248, 0.22);
+      z-index: 12;
+    }
+    .mod-card.selected {
+      border-style: solid;
+      border-color: var(--pri);
+      box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.45), 0 8px 20px rgba(56, 189, 248, 0.24);
+      z-index: 14;
+    }
+    .mod-card.neighbor {
+      border-style: solid;
+      border-color: rgba(129, 140, 248, 0.72);
+      box-shadow: 0 0 0 1px rgba(129, 140, 248, 0.35);
+    }
+    .mod-card.flow-active {
+      border-style: solid;
+      border-color: var(--warn);
+      box-shadow: 0 0 0 2px rgba(251, 191, 36, 0.55), 0 0 18px rgba(251, 191, 36, 0.3);
+      z-index: 14;
+    }
+    .mod-card.dimmed { opacity: 0.24; }
+    .mod-card.search-hit {
+      box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.65);
+    }
+
+    .mod-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 4px;
+    }
+    .mod-id-wrap { display: flex; align-items: center; gap: 5px; min-width: 0; }
+    .mod-id {
+      font-weight: 800;
+      font-size: 11.5px;
+      color: var(--txt);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .mod-launch {
+      display: inline-flex; align-items: center; justify-content: center;
+      padding: 1px 5px; border-radius: 5px; font-size: 9.5px; font-weight: 700;
+      background: var(--ok-bg); color: var(--ok); border: 1px solid rgba(52, 211, 153, 0.45);
+      text-decoration: none !important; flex: none; transition: all 0.12s;
+    }
+    .mod-launch:hover {
+      background: var(--ok); color: #052e16; transform: scale(1.06);
+    }
+    .mod-add-mini {
+      font-size: 10px; color: var(--dim); padding: 0 4px; border-radius: 4px;
+      border: 1px solid transparent; flex: none;
+    }
+    .mod-card:hover .mod-add-mini { color: var(--pri); border-color: var(--bdr); }
+    .mod-name {
+      font-size: 10.2px;
+      color: var(--mut);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .mod-foot {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 4px;
+      margin-top: 1px;
+    }
+    .mod-file-tag {
+      font-family: "JetBrains Mono", Consolas, monospace;
+      font-size: 9.2px;
+      color: var(--ok);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .mod-bus-tag {
+      font-size: 9px;
+      font-weight: 700;
+      padding: 0 4px;
+      border-radius: 4px;
+      background: var(--panel-3);
+      border: 1px solid var(--bdr-soft);
+      color: var(--dim);
+      flex: none;
+    }
+
+    /* ===================== FLOW NARRATIVE BANNER ===================== */
+    .flow-banner {
+      border-top: 1px solid var(--bdr);
+      background: var(--panel-2);
+      padding: 9px 12px;
+      display: none;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .flow-banner.active { display: flex; }
+    .flow-banner-top {
+      display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px;
+    }
+    .flow-step-title { font-size: 12.5px; font-weight: 800; color: var(--pri); }
+    .flow-api {
+      font-family: "JetBrains Mono", Consolas, monospace;
+      font-size: 11px; padding: 2px 7px; border-radius: 5px;
+      background: var(--code); border: 1px solid var(--bdr); color: var(--warn);
+    }
+    .flow-detail { font-size: 12px; color: var(--txt-soft); }
+
+    /* ===================== INSPECTOR SIDEBAR ===================== */
+    .inspector {
+      background: var(--panel); border: 1px solid var(--bdr); border-radius: 12px;
+      box-shadow: var(--shadow); display: flex; flex-direction: column; overflow: hidden;
+      min-width: 0;
+    }
+    .inspector-h {
+      padding: 9px 12px; border-bottom: 1px solid var(--bdr); background: var(--panel-2);
+      display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    }
+    .inspector-t { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: var(--pri); }
+    .inspector-body {
+      padding: 12px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 11px;
+      flex: 1;
+    }
+    .card-box {
+      background: var(--panel-2); border: 1px solid var(--bdr); border-radius: 9px; padding: 10px;
+      display: flex; flex-direction: column; gap: 7px;
+    }
+    .card-box-title {
+      font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: var(--mut);
+    }
+    .kpi-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 7px; }
+    .kpi-card {
+      background: var(--panel-3); border: 1px solid var(--bdr-soft); border-radius: 8px; padding: 8px 10px;
+    }
+    .kpi-num { font-size: 20px; font-weight: 800; line-height: 1.15; }
+    .kpi-lbl { font-size: 10.5px; color: var(--mut); margin-top: 2px; }
+
+    .sim-cta-box {
+      border-radius: 9px; padding: 10px;
+      border: 1px solid rgba(52, 211, 153, 0.45);
+      background: var(--ok-bg);
+      display: flex; flex-direction: column; gap: 7px;
+    }
+    .sim-cta-box.empty {
+      border-color: rgba(251, 191, 36, 0.4);
+      background: var(--warn-bg);
+    }
+    .sim-open-btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+      padding: 8px 12px; border-radius: 8px; font-weight: 800; font-size: 12.5px;
+      background: #059669; color: #fff !important; border: 1px solid #10b981;
+      text-decoration: none !important; transition: all 0.15s; text-align: center;
+    }
+    .sim-open-btn:hover { background: #047857; transform: translateY(-1px); }
+
+    .chip-list { display: flex; flex-wrap: wrap; gap: 5px; }
+    .api-chip {
+      font-family: "JetBrains Mono", Consolas, monospace;
+      font-size: 10.5px; padding: 2px 7px; border-radius: 5px;
+      background: var(--code); border: 1px solid var(--bdr); color: var(--pri);
+    }
+    .conn-chip {
+      font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 6px;
+      background: var(--panel-3); border: 1px solid var(--bdr); color: var(--txt);
+      cursor: pointer; transition: all 0.12s; display: inline-flex; align-items: center; gap: 4px;
+    }
+    .conn-chip:hover { border-color: var(--pri); color: var(--pri); }
+    .conn-chip.has-link { border-color: rgba(52, 211, 153, 0.5); }
+
+    .quick-sim-list { display: flex; flex-direction: column; gap: 5px; }
+    .quick-sim-row {
+      display: flex; align-items: center; justify-content: space-between; gap: 8px;
+      padding: 6px 8px; border-radius: 7px; background: var(--panel-3); border: 1px solid var(--bdr-soft);
+      transition: border-color 0.12s;
+    }
+    .quick-sim-row:hover { border-color: var(--pri); }
+
+    /* ===================== DIRECTORY TABLE VIEW ===================== */
+    .panel-box {
+      background: var(--panel); border: 1px solid var(--bdr); border-radius: 12px;
+      box-shadow: var(--shadow); overflow: hidden; display: flex; flex-direction: column;
+    }
+    .panel-box-h {
+      padding: 10px 14px; border-bottom: 1px solid var(--bdr); background: var(--panel-2);
+      display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px;
+    }
+    .dir-stats-row {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(175px, 1fr)); gap: 8px;
+    }
+    .progress-bar {
+      height: 6px; border-radius: 99px; background: var(--panel-3); overflow: hidden; margin-top: 5px; border: 1px solid var(--bdr-soft);
+    }
+    .progress-fill { height: 100%; background: linear-gradient(90deg, #0284c7, #34d399); transition: width 0.25s; }
+
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    th, td { padding: 8px 10px; border-bottom: 1px solid var(--bdr-soft); text-align: left; vertical-align: middle; }
+    th {
+      background: var(--panel-2); color: var(--mut); font-size: 10.5px; font-weight: 800;
+      text-transform: uppercase; letter-spacing: 0.05em; position: sticky; top: 0; z-index: 2;
+    }
+    tr:hover td { background: rgba(56, 189, 248, 0.04); }
+    .inline-path-input { width: 230px; max-width: 100%; padding: 4px 7px; font-size: 11.5px; font-family: "JetBrains Mono", Consolas, monospace; }
+
+    /* ===================== JSON STUDIO VIEW ===================== */
+    .json-grid {
+      display: grid;
+      grid-template-columns: 1.05fr 0.95fr;
+      gap: 10px;
+      align-items: start;
+    }
+    @media (max-width: 1120px) { .json-grid { grid-template-columns: 1fr; } }
+    .json-editor {
+      width: 100%; min-height: 490px; resize: vertical; padding: 12px;
+      font-family: "JetBrains Mono", Consolas, monospace; font-size: 12px; line-height: 1.5;
+      background: var(--code); border: 1px solid var(--bdr); border-radius: 9px; color: var(--txt);
+    }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    @media (max-width: 640px) { .form-grid { grid-template-columns: 1fr; } }
+    .field { display: flex; flex-direction: column; gap: 3px; }
+    .field.full { grid-column: 1 / -1; }
+    .field label { font-size: 11px; font-weight: 700; color: var(--mut); }
+
+    /* ===================== HANDBOOK VIEW ===================== */
+    .hb-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 10px; }
+    .hb-card {
+      background: var(--panel); border: 1px solid var(--bdr); border-radius: 11px; padding: 14px;
+      box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 8px;
+    }
+    .hb-card h3 { font-size: 14px; color: var(--pri); font-weight: 800; }
+    .hb-card p, .hb-card li { font-size: 12.5px; color: var(--txt-soft); line-height: 1.55; }
+    .hb-card ul { padding-left: 18px; display: flex; flex-direction: column; gap: 4px; }
+    pre.code-blk {
+      background: var(--code); border: 1px solid var(--bdr); border-radius: 8px; padding: 10px;
+      font-size: 11.5px; overflow-x: auto; line-height: 1.5; color: var(--txt-soft);
+    }
+
+    /* ===================== DRAG & DROP + TOAST ===================== */
+    .drop-overlay {
+      position: fixed; inset: 0; z-index: 200;
+      background: rgba(7, 11, 20, 0.84); backdrop-filter: blur(5px);
+      display: none; align-items: center; justify-content: center;
+      border: 3px dashed var(--pri); margin: 16px; border-radius: 18px;
+    }
+    .drop-overlay.active { display: flex; }
+    .drop-box {
+      text-align: center; padding: 28px 36px; border-radius: 14px;
+      background: var(--panel); border: 1px solid var(--pri); box-shadow: var(--shadow);
+    }
+
+    .toast-wrap {
+      position: fixed; bottom: 16px; right: 16px; z-index: 220;
+      display: flex; flex-direction: column; gap: 7px; max-width: 390px;
+    }
+    .toast {
+      padding: 9px 13px; border-radius: 9px; font-size: 12px; font-weight: 600;
+      background: var(--panel); border: 1px solid var(--bdr); box-shadow: var(--shadow);
+      animation: slideIn 0.18s ease-out;
+    }
+    .toast.ok { border-color: var(--ok); color: var(--ok); }
+    .toast.err { border-color: var(--err); color: var(--err); }
+    .toast.pri { border-color: var(--pri); color: var(--pri); }
+    @keyframes slideIn { from { transform: translateY(10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+    .notice-bar {
+      padding: 7px 12px; border-radius: 8px; font-size: 11.5px;
+      background: var(--pri-bg); border: 1px solid rgba(56, 189, 248, 0.35); color: var(--txt-soft);
+      display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Hidden file inputs -->
+  <input id="jsonFileInput" type="file" accept=".json,application/json" style="display:none" />
+  <input id="folderScanInput" type="file" webkitdirectory multiple style="display:none" />
+
+  <!-- Drag & Drop JSON Overlay -->
+  <div id="dropOverlay" class="drop-overlay">
+    <div class="drop-box">
+      <div style="font-size:32px;margin-bottom:8px;">📂</div>
+      <div style="font-size:16px;font-weight:800;color:var(--pri);margin-bottom:4px;">Thả file .JSON vào đây</div>
+      <div style="font-size:12px;color:var(--mut);">Hỗ trợ cả file <code>autosar_modules.json</code> đầy đủ hoặc file JSON map link <code>{ "ModuleId": "file.html" }</code></div>
+    </div>
+  </div>
+
+  <!-- Toast notifications -->
+  <div id="toastContainer" class="toast-wrap"></div>
+
+  <!-- ================= STICKY HEADER ================= -->
+  <header class="hdr">
+    <div class="hdr-inner">
+      <div class="hdr-top">
+        <div class="brand">
+          <div class="brand-logo">AUTOSAR</div>
+          <div style="min-width:0">
+            <div id="hdrTitle" class="brand-title">AUTOSAR Classic R23-11 Interactive Architecture &amp; Simulation Hub</div>
+            <div id="hdrSubtitle" class="brand-sub">Kiến trúc phân tầng ASW · RTE · BSW (Services / ECU Ab / MCAL / CDD) · Liên kết trực tiếp các trình mô phỏng Simulation.html</div>
+          </div>
+        </div>
+
+        <nav class="nav-tabs" role="tablist">
+          <button id="tabBtnCanvas" class="nav-tab active" onclick="switchView('canvas')">🗺️ Kiến Trúc Tương Tác (Canvas)</button>
+          <button id="tabBtnDirectory" class="nav-tab" onclick="switchView('directory')">📋 Danh Mục &amp; Links</button>
+          <button id="tabBtnJson" class="nav-tab" onclick="switchView('json')">🧩 JSON Input &amp; Sửa Link</button>
+          <button id="tabBtnHandbook" class="nav-tab" onclick="switchView('handbook')">📖 Hướng Dẫn Kiến Trúc</button>
+        </nav>
+
+        <div class="hdr-actions">
+          <span id="jsonSourceBadge" class="pill pill-pri">📦 Embedded JSON</span>
+          <button class="btn btn-sm" onclick="triggerLoadJsonFile()" title="Nạp file autosar_modules.json từ máy tính">📂 Nạp JSON</button>
+          <button id="btnReloadHttp" class="btn btn-sm" onclick="reloadFromServerJson()" style="display:none" title="Tải lại autosar_modules.json qua HTTP">🔄 Reload JSON</button>
+          <button class="btn btn-sm btn-ok" onclick="exportJsonFile()" title="Lưu thành file autosar_modules.json">💾 Xuất JSON</button>
+          <button class="btn btn-sm btn-pri" onclick="downloadStandaloneHTML()" title="Tải 1 file AUTOSAR.html hoàn chỉnh kèm dữ liệu JSON hiện tại để chia sẻ">📥 Tải File .HTML</button>
+          <button id="btnTheme" class="btn btn-sm" onclick="toggleTheme()">☀️ Light Mode</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ================= VIEW 1: INTERACTIVE ARCHITECTURE CANVAS ================= -->
+  <section id="viewCanvas" class="view-section active">
+    <div class="toolbar">
+      <div class="tb-group">
+        <div class="search-wrap">
+          <span class="search-icon">🔍</span>
+          <input id="canvasSearchInput" type="search" placeholder="Tìm module, API, SWS... (phím /)" oninput="onSearchInput(this.value)" />
+        </div>
+        <button id="fltAll" class="chip-btn active" onclick="setStatusFilter('all')">Tất cả (<span id="cntAll">0</span>)</button>
+        <button id="fltLinked" class="chip-btn" onclick="setStatusFilter('linked')">✅ Đã có Sim (<span id="cntLinked">0</span>)</button>
+        <button id="fltUnlinked" class="chip-btn" onclick="setStatusFilter('unlinked')">⏳ Chưa có .html (<span id="cntUnlinked">0</span>)</button>
+        <select id="busFilterSelect" onchange="setBusFilter(this.value)" style="width:auto;padding:4px 8px;font-size:11.5px;">
+          <option value="ALL">Bus / Nhóm: Tất cả</option>
+          <option value="Core">Core / OS / Mode</option>
+          <option value="CAN">CAN Stack</option>
+          <option value="Diagnostic">Diagnostic (UDS/Dem/FiM)</option>
+          <option value="Security">Security (SecOC/Csm/IdsM)</option>
+          <option value="Ethernet">Ethernet / SOME/IP</option>
+          <option value="LIN">LIN Stack</option>
+          <option value="FlexRay">FlexRay Stack</option>
+          <option value="Memory">Memory (NvM/Fee/Fls)</option>
+          <option value="I/O">I/O (IoHwAb/ADC/DIO/PWM)</option>
+        </select>
+      </div>
+
+      <div class="tb-group">
+        <span style="font-size:11px;font-weight:700;color:var(--mut)">Luồng mô phỏng:</span>
+        <select id="flowSelect" onchange="onFlowSelectChange(this.value)" style="width:280px;max-width:100%;padding:4px 8px;font-size:11.5px;">
+          <option value="">-- Chọn luồng AUTOSAR để mô phỏng --</option>
+        </select>
+        <button id="btnFlowPrev" class="btn btn-sm" onclick="flowPrevStep()" disabled>◀</button>
+        <span id="flowStepPill" class="pill">0 / 0</span>
+        <button id="btnFlowNext" class="btn btn-sm btn-pri" onclick="flowNextStep()" disabled>Bước Tiếp ▶</button>
+        <button id="btnFlowAuto" class="btn btn-sm btn-pur" onclick="flowToggleAuto()" disabled>▶ Tự Động</button>
+        <button id="btnFlowReset" class="btn btn-sm" onclick="flowReset()" disabled>⟲</button>
+      </div>
+
+      <div class="tb-group">
+        <button id="btnToggleEdges" class="chip-btn active" onclick="toggleShowConnections()">🔗 Dây kết nối: BẬT</button>
+        <button class="btn btn-xs" onclick="setZoom(currentZoom - 0.1)" title="Thu nhỏ">−</button>
+        <span id="zoomLabel" class="mono" style="font-size:11px;min-width:38px;text-align:center;">100%</span>
+        <button class="btn btn-xs" onclick="setZoom(currentZoom + 0.1)" title="Phóng to">+</button>
+        <button class="btn btn-xs" onclick="fitCanvasToViewport()" title="Vừa khung màn hình">⛶ Fit</button>
+      </div>
+    </div>
+
+    <div id="fileProtocolHint" class="notice-bar" style="display:none">
+      <span>💡 <b>Đang mở ở chế độ offline (<code>file://</code>):</b> Trình duyệt chặn đọc tự động file <code>.json</code> từ ổ cứng. Bạn có thể <b>kéo-thả file <code>autosar_modules.json</code></b> vào đây hoặc bấm <b>📂 Nạp JSON</b> để cập nhật link, hoặc chạy <code>python -m http.server</code> để đồng bộ tự động.</span>
+      <button class="btn btn-xs" onclick="hideNotice('fileProtocolHint')">Đã hiểu</button>
+    </div>
+
+    <div class="canvas-layout">
+      <!-- Interactive Layered Canvas -->
+      <div class="canvas-shell">
+        <div class="canvas-bar">
+          <div class="legend-row">
+            <span class="legend-item"><span class="dot dot-ok"></span> Đã có Simulation (.html) — Click để xem, Double-Click hoặc bấm <code>↗</code> để mở</span>
+            <span class="legend-item"><span class="dot dot-plan"></span> Chưa có .html — Click để gắn đường dẫn qua JSON/UI</span>
+            <span class="legend-item"><span class="dot dot-flow"></span> Đang chọn / Luồng mô phỏng</span>
+          </div>
+          <span style="font-size:11px;color:var(--mut)">Kéo vùng trống để pan · Ctrl+Scroll để zoom</span>
+        </div>
+
+        <div id="canvasViewport" class="canvas-viewport">
+          <div id="archStageWrap" class="arch-stage-wrap">
+            <div id="archStage" class="arch-stage">
+              <div id="archLayersMount"></div>
+              <svg id="archEdgesSvg" xmlns="http://www.w3.org/2000/svg"></svg>
+            </div>
+          </div>
+        </div>
+
+        <!-- Flow Simulation Active Step Banner -->
+        <div id="flowBanner" class="flow-banner"></div>
+      </div>
+
+      <!-- Right Docked Module Inspector -->
+      <aside class="inspector">
+        <div class="inspector-h">
+          <span class="inspector-t">🔎 Chi Tiết Module &amp; Simulation Link</span>
+          <button id="btnClearSelect" class="btn btn-xs" onclick="selectModule(null)" style="display:none">✕ Bỏ chọn</button>
+        </div>
+        <div id="inspectorBody" class="inspector-body"></div>
+      </aside>
+    </div>
+  </section>
+
+  <!-- ================= VIEW 2: DIRECTORY TABLE ================= -->
+  <section id="viewDirectory" class="view-section">
+    <div id="dirStatsRow" class="dir-stats-row"></div>
+
+    <div class="toolbar">
+      <div class="tb-group">
+        <div class="search-wrap">
+          <span class="search-icon">🔍</span>
+          <input id="dirSearchInput" type="search" placeholder="Lọc module, đường dẫn .html, SWS..." oninput="renderDirectory()" />
+        </div>
+        <select id="dirLayerFilter" onchange="renderDirectory()" style="width:auto;padding:5px 8px;">
+          <option value="ALL">Tất cả tầng kiến trúc</option>
+        </select>
+        <select id="dirStatusFilter" onchange="renderDirectory()" style="width:auto;padding:5px 8px;">
+          <option value="ALL">Tất cả trạng thái link</option>
+          <option value="LINKED">✅ Đã có file .html</option>
+          <option value="UNLINKED">⏳ Chưa có file .html</option>
+        </select>
+      </div>
+      <div class="tb-group">
+        <button class="btn btn-sm" onclick="triggerScanFolder()" title="Chọn thư mục Simulation để kiểm tra các file .html đang tồn tại">📁 Quét thư mục Simulation</button>
+        <button id="btnVerifyHttp" class="btn btn-sm" onclick="verifyHttpLinks()" style="display:none" title="Kiểm tra các file .html qua HTTP HEAD">🌐 Kiểm tra HTTP Links</button>
+        <button class="btn btn-sm btn-pri" onclick="switchView('json')">➕ Thêm Module / Sửa JSON</button>
+      </div>
+    </div>
+
+    <div id="folderScanResults" class="notice-bar" style="display:none"></div>
+
+    <div class="panel-box">
+      <div class="panel-box-h">
+        <div>
+          <span style="font-weight:800;font-size:13px;">Bảng Tổng Hợp Toàn Bộ Module AUTOSAR &amp; Đường Dẫn Simulation</span>
+          <span id="dirTableCount" class="pill" style="margin-left:8px;">0 modules</span>
+        </div>
+        <span style="font-size:11px;color:var(--mut)">Sửa trực tiếp đường dẫn <code>.html</code> ở cột Link rồi bấm <b>Lưu</b> — dữ liệu JSON tự động cập nhật</span>
+      </div>
+      <div class="table-wrap" style="max-height:66vh;">
+        <table>
+          <thead>
+            <tr>
+              <th>Module</th>
+              <th>Tầng / Stack</th>
+              <th>SWS / Bus</th>
+              <th>Trạng thái</th>
+              <th>Đường dẫn Simulation (.html)</th>
+              <th style="text-align:right">Thao tác</th>
+            </tr>
+          </thead>
+          <tbody id="dirTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= VIEW 3: JSON INPUT & LINK MANAGER ================= -->
+  <section id="viewJson" class="view-section">
+    <div class="notice-bar">
+      <span>🧩 <b>Dùng file JSON làm input:</b> Bạn có thể (1) Nạp file <code>autosar_modules.json</code> đã sửa bên ngoài, (2) Sửa trực tiếp JSON bên trái (hỗ trợ cả Full Schema lẫn JSON rút gọn <code>{"ModuleId": "file.html"}</code>), hoặc (3) Thêm module mới bằng form bên phải rồi xuất file JSON / HTML để chia sẻ.</span>
+      <div class="tb-group">
+        <button class="btn btn-xs" onclick="triggerLoadJsonFile()">📂 Nạp file .json</button>
+        <button class="btn btn-xs btn-ok" onclick="exportJsonFile()">💾 Tải autosar_modules.json</button>
+        <button class="btn btn-xs btn-err" onclick="resetToDefaultCatalog()">↺ Khôi phục mặc định</button>
+      </div>
+    </div>
+
+    <div class="json-grid">
+      <!-- Raw JSON Editor -->
+      <div class="panel-box">
+        <div class="panel-box-h">
+          <div class="tb-group">
+            <span style="font-weight:800;font-size:13px;">Trình Soạn Thảo JSON Input</span>
+            <button id="jsonModeFullBtn" class="chip-btn active" onclick="setJsonEditorMode('full')">Full Catalog JSON</button>
+            <button id="jsonModeLinksBtn" class="chip-btn" onclick="setJsonEditorMode('links')">Chỉ Links Map</button>
+          </div>
+          <span id="jsonValidBadge" class="pill pill-ok">✅ JSON hợp lệ</span>
+        </div>
+        <div style="padding:12px;display:flex;flex-direction:column;gap:9px;">
+          <textarea id="jsonRawEditor" class="json-editor" spellcheck="false" oninput="onJsonEditorInput()"></textarea>
+          <div style="display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px;">
+            <div class="tb-group">
+              <button class="btn btn-sm btn-pri" onclick="applyRawJson()">✅ Áp dụng JSON vào Sơ đồ</button>
+              <button class="btn btn-sm" onclick="formatRawJson()">✨ Format</button>
+              <button class="btn btn-sm" onclick="copyRawJson()">📋 Copy JSON</button>
+            </div>
+            <span id="jsonStatsHint" style="font-size:11px;color:var(--mut)"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Add Module Form + Schema Help -->
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <div class="panel-box">
+          <div class="panel-box-h">
+            <span style="font-weight:800;font-size:13px;">➕ Thêm Module Mới / Gắn Link Nhanh</span>
+            <span style="font-size:11px;color:var(--mut)">Tự động cập nhật Canvas &amp; JSON</span>
+          </div>
+          <form onsubmit="addNewModuleFromForm(event)" style="padding:12px;">
+            <div class="form-grid">
+              <div class="field">
+                <label for="newModId">Module ID * (vd: NvM, CanIf, MySWC)</label>
+                <input id="newModId" type="text" required placeholder="vd: CustomDiag" />
+              </div>
+              <div class="field">
+                <label for="newModName">Tên đầy đủ *</label>
+                <input id="newModName" type="text" required placeholder="vd: Custom Diagnostic Manager" />
+              </div>
+              <div class="field">
+                <label for="newModLayer">Tầng kiến trúc (Layer)</label>
+                <select id="newModLayer" onchange="updateNewModStackOptions()">
+                  <option value="application">Application Layer (ASW)</option>
+                  <option value="rte">Runtime Environment (RTE)</option>
+                  <option value="services" selected>Services Layer</option>
+                  <option value="ecu_ab">ECU Abstraction Layer</option>
+                  <option value="mcal">MCAL Drivers</option>
+                  <option value="cdd">Complex Drivers (CDD)</option>
+                  <option value="hardware">Hardware</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="newModStack">Nhóm con (Stack)</label>
+                <select id="newModStack"></select>
+              </div>
+              <div class="field full">
+                <label for="newModPath">Đường dẫn file .html (cùng thư mục hoặc URL)</label>
+                <input id="newModPath" type="text" placeholder="vd: AUTOSAR_NvM.html (để trống nếu chưa có)" />
+              </div>
+              <div class="field">
+                <label for="newModSws">Đặc tả SWS</label>
+                <input id="newModSws" type="text" placeholder="vd: SWS_NvM" />
+              </div>
+              <div class="field">
+                <label for="newModBus">Bus / Nhóm chức năng</label>
+                <input id="newModBus" type="text" value="Core" placeholder="Core / CAN / Ethernet / Memory..." />
+              </div>
+              <div class="field full">
+                <label for="newModSummary">Mô tả chức năng</label>
+                <input id="newModSummary" type="text" placeholder="Mô tả ngắn vai trò của module trong hệ thống AUTOSAR..." />
+              </div>
+              <div class="field">
+                <label for="newModApis">APIs chuẩn (phân cách bằng dấu phẩy)</label>
+                <input id="newModApis" type="text" placeholder="vd: Mod_Init, Mod_MainFunction" />
+              </div>
+              <div class="field">
+                <label for="newModConns">Kết nối tới Module IDs (dấu phẩy)</label>
+                <input id="newModConns" type="text" placeholder="vd: RTE, BswM, PduR" />
+              </div>
+            </div>
+            <div style="margin-top:10px;display:flex;justify-content:flex-end;gap:8px;">
+              <button type="submit" class="btn btn-pri">➕ Thêm / Cập Nhật Module</button>
+            </div>
+          </form>
+        </div>
+
+        <div class="panel-box">
+          <div class="panel-box-h">
+            <span style="font-weight:800;font-size:13px;">📘 3 Định Dạng JSON Input Được Hỗ Trợ</span>
+          </div>
+          <div style="padding:12px;display:flex;flex-direction:column;gap:8px;font-size:12px;color:var(--txt-soft);">
+            <div><b>1. File chuẩn <code>autosar_modules.json</code>:</b> Chứa toàn bộ <code>layers</code>, <code>modules[]</code>, <code>flows[]</code> và <code>basePath</code>.</div>
+            <div><b>2. JSON cập nhật nhanh dạng Key-Value:</b> Chỉ cần liệt kê <code>ModuleId: "ten_file.html"</code> (module đã có sẽ tự gắn link, module chưa có sẽ tự thêm mới).</div>
+            <pre class="code-blk">{
+  "NvM": "AUTOSAR_NvM.html",
+  "CanIf": "AUTOSAR_CanIf.html",
+  "BswM": "AUTOSAR_BswM_v2.html"
+}</pre>
+            <div><b>3. JSON Patch có thêm module mới:</b></div>
+            <pre class="code-blk">{
+  "links": { "NvM": "AUTOSAR_NvM.html" },
+  "addModules": [
+    { "id": "E2E", "name": "End-to-End Protection", "layer": "services", "stack": "comm", "htmlPath": "AUTOSAR_E2E.html" }
+  ]
+}</pre>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= VIEW 4: ARCHITECTURE & USAGE HANDBOOK ================= -->
+  <section id="viewHandbook" class="view-section">
+    <div id="handbookMount" class="hb-grid"></div>
+  </section>
+
+  <!-- Embedded Default Catalog JSON (updated automatically on HTML download) -->
+  <script id="embedded-catalog-json" type="application/json">
+{
+  "schemaVersion": "1.0",
+  "title": "AUTOSAR Classic R23-11 Interactive Architecture & Simulation Hub",
+  "subtitle": "Tổng hợp kiến trúc phân tầng AUTOSAR Classic (ASW · RTE · Services · ECU Abstraction · MCAL · CDD) & liên kết các trình mô phỏng tương tác",
+  "basePath": "./",
+  "updatedAt": "2026-11-13",
+  "layers": [
+    {
+      "id": "application",
+      "name": "Application Layer (ASW)",
+      "shortName": "Application SW-Cs",
+      "description": "Tầng ứng dụng chứa các Software Components (SW-C) độc lập phần cứng, giao tiếp thông qua Virtual Function Bus (VFB) và Ports.",
+      "color": "#38bdf8"
+    },
+    {
+      "id": "rte",
+      "name": "Runtime Environment (RTE)",
+      "shortName": "RTE & SchM",
+      "description": "Hiện thực hóa VFB cho từng ECU, điều phối giao tiếp giữa các SW-C (Intra/Inter-Task, Multicore IOC, Inter-ECU) và cung cấp Schedule Manager (SchM) cho BSW.",
+      "color": "#818cf8"
+    },
+    {
+      "id": "services",
+      "name": "Basic Software — Services Layer",
+      "shortName": "Services Layer",
+      "description": "Cung cấp các dịch vụ chuẩn hóa cho Application và BSW: quản lý hệ điều hành/mode/lỗi (System), bộ nhớ (Memory), mật mã (Crypto) và truyền thông/chẩn đoán (Communication).",
+      "color": "#34d399"
+    },
+    {
+      "id": "ecu_ab",
+      "name": "Basic Software — ECU Abstraction Layer",
+      "shortName": "ECU Abstraction",
+      "description": "Trừu tượng hóa bố cục phần cứng cấp bo mạch ECU (Interface & External Device Drivers), giúp tầng Services độc lập với vi điều khiển và IC ngoại vi.",
+      "color": "#fbbf24"
+    },
+    {
+      "id": "mcal",
+      "name": "Basic Software — Microcontroller Abstraction Layer (MCAL)",
+      "shortName": "MCAL Drivers",
+      "description": "Tầng thấp nhất của BSW truy cập trực tiếp thanh ghi vi điều khiển (Memory-mapped registers, DMA, Interrupts) cho CAN/ETH/LIN, Flash, Timer, ADC/DIO/PWM.",
+      "color": "#fb923c"
+    },
+    {
+      "id": "cdd",
+      "name": "Complex Drivers (CDD)",
+      "shortName": "Complex Drivers",
+      "description": "Trình điều khiển phức hợp xuyên tầng từ phần cứng trực tiếp lên RTE cho các bài toán thời gian thực nghiêm ngặt hoặc ngoại vi phi chuẩn AUTOSAR.",
+      "color": "#c084fc"
+    },
+    {
+      "id": "hardware",
+      "name": "Microcontroller & ECU Hardware",
+      "shortName": "ECU Hardware",
+      "description": "Phần cứng thực tế của ECU: Vi điều khiển (TriCore / ARM Cortex-R / S32K), bộ nhớ Flash/RAM, HSM, Transceiver CAN/LIN/ETH và IC Watchdog.",
+      "color": "#94a3b8"
+    }
+  ],
+  "modules": [
+    {
+      "id": "SWC_App",
+      "name": "Application SW-Components",
+      "layer": "application",
+      "stack": "asw",
+      "htmlPath": "",
+      "sws": "TPS_SWCTemplate",
+      "bus": "Core",
+      "summary": "Các thành phần phần mềm ứng dụng lõi (Powertrain, Body, ADAS, Chassis) thực thi thuật toán điều khiển qua Runnables và Sender-Receiver / Client-Server Ports.",
+      "apis": [
+        "Rte_Read_*",
+        "Rte_Write_*",
+        "Rte_Call_*",
+        "Rte_IrvRead_*"
+      ],
+      "connections": [
+        "RTE"
+      ],
+      "tags": [
+        "SW-C",
+        "Application",
+        "Runnables",
+        "VFB"
+      ]
+    },
+    {
+      "id": "SWC_SensorAct",
+      "name": "Sensor / Actuator SW-Cs",
+      "layer": "application",
+      "stack": "asw",
+      "htmlPath": "",
+      "sws": "TPS_SWCTemplate",
+      "bus": "I/O",
+      "summary": "SW-C chuyên trách đọc giá trị cảm biến vật lý và xuất tín hiệu điều khiển cơ cấu chấp hành thông qua RTE tới IoHwAb hoặc Complex Drivers.",
+      "apis": [
+        "Rte_Call_IoHwAb_*",
+        "Rte_Write_SensorVal",
+        "Rte_Read_ActuatorCmd"
+      ],
+      "connections": [
+        "RTE"
+      ],
+      "tags": [
+        "Sensor",
+        "Actuator",
+        "IoHwAb",
+        "ASW"
+      ]
+    },
+    {
+      "id": "SWC_ModeReq",
+      "name": "Mode & Comm Requester SW-Cs",
+      "layer": "application",
+      "stack": "asw",
+      "htmlPath": "",
+      "sws": "SWS_BswM / SWS_ComM",
+      "bus": "Core",
+      "summary": "SW-C quản lý trạng thái vận hành ứng dụng, gửi yêu cầu chế độ truyền thông tới ComM và chế độ ECU/BSW tới BswM qua Mode Switch / Request Ports.",
+      "apis": [
+        "Rte_Call_ComM_UserRequest",
+        "Rte_Write_BswM_ModeReq",
+        "Rte_Switch_AppMode"
+      ],
+      "connections": [
+        "RTE"
+      ],
+      "tags": [
+        "Mode",
+        "ComM",
+        "BswM",
+        "Wakeup"
+      ]
+    },
+    {
+      "id": "SWC_DiagApp",
+      "name": "Diagnostic & Monitor SW-Cs",
+      "layer": "application",
+      "stack": "asw",
+      "htmlPath": "",
+      "sws": "SWS_Dem / SWS_FiM / SWS_WdgM",
+      "bus": "Diagnostic",
+      "summary": "SW-C thực hiện kiểm tra hợp lý tín hiệu (Diagnostic Monitor), báo cáo EventStatus tới Dem, kiểm tra Function Permission từ FiM và Checkpoint tới WdgM.",
+      "apis": [
+        "Rte_Call_Event_SetEventStatus",
+        "Rte_Call_FiM_GetFunctionPermission",
+        "Rte_Call_WdgM_CheckpointReached"
+      ],
+      "connections": [
+        "RTE"
+      ],
+      "tags": [
+        "Diagnostic",
+        "Monitor",
+        "FID",
+        "Supervision"
+      ]
+    },
+    {
+      "id": "RTE",
+      "name": "Runtime Environment",
+      "layer": "rte",
+      "stack": "rte",
+      "htmlPath": "AUTOSAR_RTE.html",
+      "sws": "SWS_RTE",
+      "bus": "Core",
+      "summary": "Cầu nối trung tâm hiện thực hóa Virtual Function Bus (VFB), ánh xạ Runnables vào OS Tasks, quản lý S/R, C/S, Mode Switch, IRV, PIM, Multicore IOC và BSW Schedule Manager (SchM).",
+      "apis": [
+        "Rte_Start",
+        "Rte_Stop",
+        "Rte_Read",
+        "Rte_Write",
+        "Rte_Call",
+        "SchM_Enter",
+        "SchM_Exit"
+      ],
+      "connections": [
+        "SWC_App",
+        "SWC_SensorAct",
+        "SWC_ModeReq",
+        "SWC_DiagApp",
+        "OS",
+        "EcuM",
+        "BswM",
+        "WdgM",
+        "Dem",
+        "FiM",
+        "NvM",
+        "Csm",
+        "ComM",
+        "Com",
+        "LdCom",
+        "Xfrm",
+        "Dcm",
+        "IoHwAb",
+        "CDD"
+      ],
+      "tags": [
+        "RTE",
+        "VFB",
+        "SchM",
+        "IOC",
+        "SenderReceiver",
+        "ClientServer"
+      ]
+    },
+    {
+      "id": "OS",
+      "name": "AUTOSAR OS",
+      "layer": "services",
+      "stack": "system",
+      "htmlPath": "AUTOSAR_OS.html",
+      "sws": "SWS_Os",
+      "bus": "Core",
+      "summary": "Hệ điều hành thời gian thực (OSEK/VDX mở rộng): lập lịch Task ưu tiên tĩnh, Events, Resources (PCP), Counters/Alarms, Schedule Tables, ISRs, Hooks, IOC và Multicore Spinlocks.",
+      "apis": [
+        "StartOS",
+        "ActivateTask",
+        "SetEvent",
+        "GetResource",
+        "SetRelAlarm",
+        "StartScheduleTableRel"
+      ],
+      "connections": [
+        "RTE",
+        "EcuM",
+        "BswM",
+        "WdgM",
+        "Mcu",
+        "Gpt"
+      ],
+      "tags": [
+        "OS",
+        "RTOS",
+        "Task",
+        "ISR",
+        "Alarm",
+        "ScheduleTable",
+        "Multicore"
+      ]
+    },
+    {
+      "id": "EcuM",
+      "name": "ECU State Manager",
+      "layer": "services",
+      "stack": "system",
+      "htmlPath": "AUTOSAR_EcuM.html",
+      "sws": "SWS_EcuM",
+      "bus": "Core",
+      "summary": "Quản lý vòng đời ECU (EcuM Fixed / Flexible): Pre-OS Init, Wakeup Source Validation (TTII), chuyển trạng thái Startup → Up → Sleep/Off và phối hợp NvM/BswM/Mcu.",
+      "apis": [
+        "EcuM_Init",
+        "EcuM_StartupTwo",
+        "EcuM_SetWakeupEvent",
+        "EcuM_ValidateWakeupEvent",
+        "EcuM_GoDownHaltPoll"
+      ],
+      "connections": [
+        "OS",
+        "BswM",
+        "RTE",
+        "NvM",
+        "ComM",
+        "CanTrcv",
+        "LinTrcv",
+        "EthTrcv",
+        "Mcu",
+        "Gpt"
+      ],
+      "tags": [
+        "EcuM",
+        "Startup",
+        "Wakeup",
+        "Shutdown",
+        "Sleep",
+        "ECU State"
+      ]
+    },
+    {
+      "id": "BswM",
+      "name": "Basic Software Mode Manager",
+      "layer": "services",
+      "stack": "system",
+      "htmlPath": "AUTOSAR_BswM.html",
+      "sws": "SWS_BswM",
+      "bus": "Core",
+      "summary": "Bộ não điều phối chính sách (Mode Arbitration & Mode Control): đánh giá Rules (IMMEDIATE/DEFERRED, TRIGGER/CONDITION) từ EcuM, ComM, CanSM, Dcm, WdgM để thực thi ActionLists & bật/tắt I-PDU Groups.",
+      "apis": [
+        "BswM_Init",
+        "BswM_MainFunction",
+        "BswM_RequestMode",
+        "BswM_CanSM_CurrentState",
+        "BswM_ComM_CurrentMode"
+      ],
+      "connections": [
+        "EcuM",
+        "OS",
+        "RTE",
+        "NvM",
+        "WdgM",
+        "Dem",
+        "ComM",
+        "CanSM",
+        "LinSM",
+        "EthSM",
+        "FrSM",
+        "Com",
+        "PduR",
+        "Dcm"
+      ],
+      "tags": [
+        "BswM",
+        "Mode",
+        "Arbitration",
+        "ActionList",
+        "IpduGroup",
+        "Rule"
+      ]
+    },
+    {
+      "id": "WdgM",
+      "name": "Watchdog Manager",
+      "layer": "services",
+      "stack": "system",
+      "htmlPath": "AUTOSAR_WdgM.html",
+      "sws": "SWS_WdgM",
+      "bus": "Core",
+      "summary": "Giám sát thực thi phần mềm (Alive, Deadline, Logical Supervision) cho các Supervised Entities; cập nhật trạng thái Local/Global và kích hoạt trigger hoặc reset an toàn qua WdgIf/BswM.",
+      "apis": [
+        "WdgM_Init",
+        "WdgM_MainFunction",
+        "WdgM_CheckpointReached",
+        "WdgM_SetMode",
+        "WdgM_GetGlobalStatus"
+      ],
+      "connections": [
+        "RTE",
+        "OS",
+        "BswM",
+        "Dem",
+        "WdgIf"
+      ],
+      "tags": [
+        "WdgM",
+        "Watchdog",
+        "Alive",
+        "Deadline",
+        "Logical",
+        "Safety"
+      ]
+    },
+    {
+      "id": "Dem",
+      "name": "Diagnostic Event Manager",
+      "layer": "services",
+      "stack": "system",
+      "htmlPath": "AUTOSAR_DEM.html",
+      "sws": "SWS_Dem",
+      "bus": "Diagnostic",
+      "summary": "Quản lý sự kiện chẩn đoán & mã lỗi DTC (UDS Event Status Byte, Debounce Counter/Time, Aging, Operation Cycle), lưu FreezeFrame/ExtendedData xuống NvM và thông báo FiM/Dcm.",
+      "apis": [
+        "Dem_SetEventStatus",
+        "Dem_GetStatusOfDTC",
+        "Dem_ClearDTC",
+        "Dem_SetOperationCycleState",
+        "Dem_MainFunction"
+      ],
+      "connections": [
+        "RTE",
+        "FiM",
+        "Dcm",
+        "NvM",
+        "BswM",
+        "WdgM",
+        "CanSM"
+      ],
+      "tags": [
+        "Dem",
+        "DTC",
+        "Debounce",
+        "FreezeFrame",
+        "UDS",
+        "Fault"
+      ]
+    },
+    {
+      "id": "FiM",
+      "name": "Function Inhibition Manager",
+      "layer": "services",
+      "stack": "system",
+      "htmlPath": "AUTOSAR_FiM.html",
+      "sws": "SWS_FiM",
+      "bus": "Diagnostic",
+      "summary": "Đánh giá quyền cho phép thực thi chức năng (Function Identifier — FID) dựa trên trạng thái Event/DTC từ Dem (Inhibition Masks: Last Failed, Tested, Not Tested, Pending) cho SW-Cs & BSW.",
+      "apis": [
+        "FiM_Init",
+        "FiM_GetFunctionPermission",
+        "FiM_DemTriggerOnEventStatus",
+        "FiM_MainFunction"
+      ],
+      "connections": [
+        "RTE",
+        "Dem",
+        "BswM"
+      ],
+      "tags": [
+        "FiM",
+        "FID",
+        "Inhibition",
+        "Permission",
+        "Degradation"
+      ]
+    },
+    {
+      "id": "Det",
+      "name": "Default Error Tracer",
+      "layer": "services",
+      "stack": "system",
+      "htmlPath": "",
+      "sws": "SWS_Det",
+      "bus": "Core",
+      "summary": "Thu nhận và ghi nhận các lỗi phát triển (Development Errors), lỗi runtime và lỗi transient từ tất cả các module BSW và RTE để hỗ trợ debug và kiểm thử tích hợp.",
+      "apis": [
+        "Det_Init",
+        "Det_ReportError",
+        "Det_ReportRuntimeError",
+        "Det_ReportTransientFault"
+      ],
+      "connections": [
+        "BswM",
+        "Dlt",
+        "OS"
+      ],
+      "tags": [
+        "Det",
+        "Error",
+        "Trace",
+        "Debug"
+      ]
+    },
+    {
+      "id": "Dlt",
+      "name": "Diagnostic Log and Trace",
+      "layer": "services",
+      "stack": "system",
+      "htmlPath": "",
+      "sws": "SWS_Dlt",
+      "bus": "Diagnostic",
+      "summary": "Thu thập bản tin log ứng dụng, VFB trace và lỗi Det để xuất ra kênh chẩn đoán tốc độ cao (Ethernet/CAN/Serial) theo giao thức DLT.",
+      "apis": [
+        "Dlt_RegisterContext",
+        "Dlt_SendLogMessage",
+        "Dlt_SendTraceMessage"
+      ],
+      "connections": [
+        "Det",
+        "PduR",
+        "RTE"
+      ],
+      "tags": [
+        "Dlt",
+        "Logging",
+        "Trace"
+      ]
+    },
+    {
+      "id": "StbM",
+      "name": "Synchronized Time-Base Manager",
+      "layer": "services",
+      "stack": "system",
+      "htmlPath": "",
+      "sws": "SWS_StbM",
+      "bus": "Core",
+      "summary": "Quản lý các Time-Base toàn cục đồng bộ trên mạng xe (gPTP Ethernet, CAN TimeSync, FlexRay) phục vụ timestamp cho SecOC Freshness, Dem và IdsM.",
+      "apis": [
+        "StbM_GetCurrentTime",
+        "StbM_BusSetGlobalTime",
+        "StbM_UpdateGlobalTime"
+      ],
+      "connections": [
+        "SecOC",
+        "Dem",
+        "IdsM",
+        "Gpt",
+        "EthIf",
+        "CanIf"
+      ],
+      "tags": [
+        "StbM",
+        "TimeSync",
+        "GlobalTime",
+        "Timestamp"
+      ]
+    },
+    {
+      "id": "Tm",
+      "name": "Time Service",
+      "layer": "services",
+      "stack": "system",
+      "htmlPath": "",
+      "sws": "SWS_Tm",
+      "bus": "Core",
+      "summary": "Cung cấp các bộ đếm thời gian độ phân giải cao (Predefined Timers 1µs/100µs/1ms) và hàm busy-wait chuẩn hóa dựa trên GPT Free-Running Timer.",
+      "apis": [
+        "Tm_ResetTimer1us16bit",
+        "Tm_GetTimeSpan1us16bit",
+        "Tm_BusyWait1us16bit"
+      ],
+      "connections": [
+        "Gpt"
+      ],
+      "tags": [
+        "Tm",
+        "Timer",
+        "Delay",
+        "1us"
+      ]
+    },
+    {
+      "id": "IdsM",
+      "name": "Intrusion Detection System Manager",
+      "layer": "services",
+      "stack": "system",
+      "htmlPath": "",
+      "sws": "SWS_IdsM",
+      "bus": "Security",
+      "summary": "Thu thập, lọc và phân cấp các Security Events (QSEv) từ SecOC, KeyM, EthIf, CanIf; lưu log bảo mật hoặc chuyển tiếp qua IdsR tới SOC trên xe.",
+      "apis": [
+        "IdsM_SetSecurityEvent",
+        "IdsM_SetSecurityEventWithContextData",
+        "IdsM_MainFunction"
+      ],
+      "connections": [
+        "SecOC",
+        "KeyM",
+        "StbM",
+        "NvM",
+        "PduR"
+      ],
+      "tags": [
+        "IdsM",
+        "IDS",
+        "Security",
+        "Cybersecurity",
+        "QSEv"
+      ]
+    },
+    {
+      "id": "NvM",
+      "name": "NVRAM Manager",
+      "layer": "services",
+      "stack": "memory",
+      "htmlPath": "",
+      "sws": "SWS_NvM",
+      "bus": "Memory",
+      "summary": "Quản lý đọc/ghi dữ liệu bền vững (Non-Volatile Blocks: Native, Redundant, Dataset), tính CRC, ReadAll khi khởi động EcuM và WriteAll khi tắt máy ECU.",
+      "apis": [
+        "NvM_ReadAll",
+        "NvM_WriteAll",
+        "NvM_ReadBlock",
+        "NvM_WriteBlock",
+        "NvM_MainFunction"
+      ],
+      "connections": [
+        "RTE",
+        "EcuM",
+        "BswM",
+        "Dem",
+        "IdsM",
+        "MemIf"
+      ],
+      "tags": [
+        "NvM",
+        "NVRAM",
+        "ReadAll",
+        "WriteAll",
+        "Flash",
+        "EEPROM"
+      ]
+    },
+    {
+      "id": "Csm",
+      "name": "Crypto Service Manager",
+      "layer": "services",
+      "stack": "crypto",
+      "htmlPath": "",
+      "sws": "SWS_Csm",
+      "bus": "Security",
+      "summary": "Quản lý hàng đợi tác vụ mật mã (Sync/Async Jobs: AES, CMAC, SHA-256, ECDSA, RNG) cho SecOC, KeyM, Dcm (SecurityAccess 0x27) thông qua CryIf.",
+      "apis": [
+        "Csm_MacGenerate",
+        "Csm_MacVerify",
+        "Csm_Encrypt",
+        "Csm_SignatureVerify",
+        "Csm_RandomGenerate"
+      ],
+      "connections": [
+        "RTE",
+        "SecOC",
+        "KeyM",
+        "Dcm",
+        "CryIf"
+      ],
+      "tags": [
+        "Csm",
+        "Crypto",
+        "CMAC",
+        "AES",
+        "Security"
+      ]
+    },
+    {
+      "id": "KeyM",
+      "name": "Key Manager",
+      "layer": "services",
+      "stack": "crypto",
+      "htmlPath": "",
+      "sws": "SWS_KeyM",
+      "bus": "Security",
+      "summary": "Quản lý vòng đời khóa mật mã (SHE/HSM Key Update) và kiểm chứng chuỗi chứng chỉ số X.509 phục vụ xác thực ECU và TLS/SecOC.",
+      "apis": [
+        "KeyM_Update",
+        "KeyM_VerifyCertificate",
+        "KeyM_SetCertificate"
+      ],
+      "connections": [
+        "Csm",
+        "IdsM",
+        "CryIf",
+        "Dcm"
+      ],
+      "tags": [
+        "KeyM",
+        "Key",
+        "Certificate",
+        "PKI",
+        "X509"
+      ]
+    },
+    {
+      "id": "ComM",
+      "name": "Communication Manager",
+      "layer": "services",
+      "stack": "comm",
+      "htmlPath": "AUTOSAR_ComM.html",
+      "sws": "SWS_ComM",
+      "bus": "Core",
+      "summary": "Điều phối trạng thái kênh truyền thông (NO_COM, SILENT_COM, FULL_COM) dựa trên yêu cầu từ ComM Users (SW-C/Dcm), Partial Networking (PNC) và báo cáo cho BswM/CanSM/Nm.",
+      "apis": [
+        "ComM_RequestComMode",
+        "ComM_CommunicationAllowed",
+        "ComM_Nm_NetworkMode",
+        "ComM_BusSM_ModeIndication"
+      ],
+      "connections": [
+        "RTE",
+        "EcuM",
+        "BswM",
+        "Dcm",
+        "Nm",
+        "CanSM",
+        "LinSM",
+        "EthSM",
+        "FrSM"
+      ],
+      "tags": [
+        "ComM",
+        "FULL_COM",
+        "SILENT_COM",
+        "NO_COM",
+        "PNC"
+      ]
+    },
+    {
+      "id": "Com",
+      "name": "AUTOSAR COM",
+      "layer": "services",
+      "stack": "comm",
+      "htmlPath": "AUTOSAR_COM.html",
+      "sws": "SWS_COM",
+      "bus": "Core",
+      "summary": "Đóng gói/giải nén Signals & Signal Groups vào I-PDU theo Byte Order (Intel/Motorola), Signal Filters, Transfer Properties (Triggered/Pending), Tx Modes và Rx Deadline Monitoring.",
+      "apis": [
+        "Com_SendSignal",
+        "Com_ReceiveSignal",
+        "Com_IpduGroupStart",
+        "Com_IpduGroupStop",
+        "Com_MainFunctionTx",
+        "Com_MainFunctionRx"
+      ],
+      "connections": [
+        "RTE",
+        "BswM",
+        "PduR",
+        "IpduM"
+      ],
+      "tags": [
+        "COM",
+        "Signal",
+        "I-PDU",
+        "BitMap",
+        "Endianness",
+        "Deadline"
+      ]
+    },
+    {
+      "id": "LdCom",
+      "name": "Large Data COM",
+      "layer": "services",
+      "stack": "comm",
+      "htmlPath": "",
+      "sws": "SWS_LdCom",
+      "bus": "Core",
+      "summary": "Cho phép truyền trực tiếp khối dữ liệu lớn (TP I-PDU hoặc High-Throughput Signal Arrays) từ RTE xuống PduR bỏ qua tầng packing từng bit của Com.",
+      "apis": [
+        "LdCom_Transmit",
+        "LdCom_CopyTxData",
+        "LdCom_CopyRxData"
+      ],
+      "connections": [
+        "RTE",
+        "PduR"
+      ],
+      "tags": [
+        "LdCom",
+        "LargeData",
+        "TP",
+        "SOME/IP"
+      ]
+    },
+    {
+      "id": "Xfrm",
+      "name": "Transformers (E2EXf / SomeIpXf)",
+      "layer": "services",
+      "stack": "comm",
+      "htmlPath": "",
+      "sws": "SWS_E2EXf / SWS_SomeIpXf",
+      "bus": "Core",
+      "summary": "Chuỗi Transformer tuần tự hóa dữ liệu phức hợp (SomeIpXf/ComXf) và bọc bảo vệ an toàn chức năng End-to-End (E2EXf: CRC + Alive Counter + DataID) tại ranh giới RTE.",
+      "apis": [
+        "E2EXf_Transformer",
+        "E2EXf_InvTransformer",
+        "SomeIpXf_Transformer"
+      ],
+      "connections": [
+        "RTE",
+        "Com",
+        "LdCom"
+      ],
+      "tags": [
+        "Transformer",
+        "E2E",
+        "SomeIpXf",
+        "Safety"
+      ]
+    },
+    {
+      "id": "IpduM",
+      "name": "I-PDU Multiplexer",
+      "layer": "services",
+      "stack": "comm",
+      "htmlPath": "",
+      "sws": "SWS_IpduM",
+      "bus": "Core",
+      "summary": "Ghép nhiều Dynamic Parts theo Selector Field vào cùng một Multiplexed I-PDU hoặc gom nhiều Contained I-PDUs vào một Container PDU (CAN FD / FlexRay).",
+      "apis": [
+        "IpduM_Transmit",
+        "IpduM_RxIndication",
+        "IpduM_TriggerTransmit"
+      ],
+      "connections": [
+        "Com",
+        "PduR"
+      ],
+      "tags": [
+        "IpduM",
+        "Multiplex",
+        "ContainerPDU",
+        "CAN-FD"
+      ]
+    },
+    {
+      "id": "PduR",
+      "name": "PDU Router",
+      "layer": "services",
+      "stack": "comm",
+      "htmlPath": "AUTOSAR_PduR.html",
+      "sws": "SWS_PduR",
+      "bus": "Core",
+      "summary": "Bộ định tuyến I-PDU trung tâm dựa trên cấu hình tĩnh: định tuyến Upper ↔ Lower (Com, Dcm, LdCom, IpduM ↔ CanIf, CanTp, SecOC, SoAd, LinIf, FrIf) và Gateway (IF/TP FIFO Buffers).",
+      "apis": [
+        "PduR_ComTransmit",
+        "PduR_DcmTransmit",
+        "PduR_CanIfRxIndication",
+        "PduR_CanTpCopyRxData"
+      ],
+      "connections": [
+        "BswM",
+        "Com",
+        "LdCom",
+        "IpduM",
+        "Dcm",
+        "SecOC",
+        "Dlt",
+        "IdsM",
+        "CanIf",
+        "CanTp",
+        "LinIf",
+        "FrIf",
+        "FrTp",
+        "SoAd",
+        "DoIP"
+      ],
+      "tags": [
+        "PduR",
+        "Router",
+        "Gateway",
+        "Multicast",
+        "TPBuffer"
+      ]
+    },
+    {
+      "id": "SecOC",
+      "name": "Secure Onboard Communication",
+      "layer": "services",
+      "stack": "comm",
+      "htmlPath": "AUTOSAR_SecOC.html",
+      "sws": "SWS_SecOC",
+      "bus": "Security",
+      "summary": "Xác thực tính toàn vẹn và nguồn gốc I-PDU trên bus xe bằng Truncated MAC + Freshness Value (FVM); tích hợp Csm/HSM và báo cáo vi phạm cho IdsM.",
+      "apis": [
+        "SecOC_IfTransmit",
+        "SecOC_IfRxIndication",
+        "SecOC_MainFunctionTx",
+        "SecOC_MainFunctionRx"
+      ],
+      "connections": [
+        "PduR",
+        "Csm",
+        "IdsM",
+        "StbM",
+        "CanIf",
+        "SoAd"
+      ],
+      "tags": [
+        "SecOC",
+        "MAC",
+        "Freshness",
+        "FVM",
+        "Cybersecurity",
+        "HSM"
+      ]
+    },
+    {
+      "id": "Dcm",
+      "name": "Diagnostic Communication Manager",
+      "layer": "services",
+      "stack": "comm",
+      "htmlPath": "AUTOSAR_DCM.html",
+      "sws": "SWS_Dcm",
+      "bus": "Diagnostic",
+      "summary": "Xử lý giao thức chẩn đoán UDS (ISO 14229-1) theo 3 lớp DSL (Timers P2/P2*/S3, Sessions), DSD (Dispatcher & SecurityAccess) và DSP (0x10, 0x11, 0x19, 0x22, 0x27, 0x28, 0x31...).",
+      "apis": [
+        "Dcm_StartOfReception",
+        "Dcm_CopyRxData",
+        "Dcm_RxIndication",
+        "Dcm_MainFunction",
+        "Dcm_SetNegResponse"
+      ],
+      "connections": [
+        "RTE",
+        "PduR",
+        "BswM",
+        "ComM",
+        "Dem",
+        "Csm",
+        "KeyM"
+      ],
+      "tags": [
+        "Dcm",
+        "UDS",
+        "DSL",
+        "DSD",
+        "DSP",
+        "P2Timer",
+        "Diagnostic"
+      ]
+    },
+    {
+      "id": "Nm",
+      "name": "Network Management Interface",
+      "layer": "services",
+      "stack": "comm",
+      "htmlPath": "AUTOSAR_Nm_CanNm.html",
+      "sws": "SWS_Nm",
+      "bus": "Core",
+      "summary": "Giao diện trừu tượng hóa quản lý mạng giữa ComM và các Bus NM cụ thể (CanNm, UdpNm, FrNm), hỗ trợ NM Coordinator đồng bộ ngủ/thức đa kênh (Co-Simulation cùng CanNm).",
+      "apis": [
+        "Nm_NetworkRequest",
+        "Nm_NetworkRelease",
+        "Nm_NetworkMode",
+        "Nm_BusSleepMode",
+        "Nm_CoordReadyToSleepIndication"
+      ],
+      "connections": [
+        "ComM",
+        "CanNm",
+        "UdpNm",
+        "FrNm",
+        "BswM"
+      ],
+      "tags": [
+        "Nm",
+        "Coordinator",
+        "Co-Simulation",
+        "NetworkManagement"
+      ]
+    },
+    {
+      "id": "CanNm",
+      "name": "CAN Network Management",
+      "layer": "services",
+      "stack": "comm",
+      "htmlPath": "AUTOSAR_CanNM.html",
+      "sws": "SWS_CanNm",
+      "bus": "CAN",
+      "summary": "Quản lý trạng thái ngủ/thức phân tán trên CAN (Bus-Sleep, Prepare Bus-Sleep, Repeat Message, Normal Operation, Ready Sleep), cơ chế PNC Bit Vector, Car Wakeup và Timer T_NM_TIMEOUT / T_WAIT_BUS_SLEEP.",
+      "apis": [
+        "CanNm_Init",
+        "CanNm_NetworkRequest",
+        "CanNm_PassiveStartUp",
+        "CanNm_RxIndication",
+        "CanNm_MainFunction"
+      ],
+      "connections": [
+        "Nm",
+        "CanIf",
+        "CanSM"
+      ],
+      "tags": [
+        "CanNm",
+        "RMS",
+        "RSS",
+        "NOS",
+        "PBS",
+        "BSM",
+        "PNC"
+      ]
+    },
+    {
+      "id": "CanSM",
+      "name": "CAN State Manager",
+      "layer": "services",
+      "stack": "comm",
+      "htmlPath": "AUTOSAR_CanSM.html",
+      "sws": "SWS_CanSM",
+      "bus": "CAN",
+      "summary": "Điều khiển chuyển trạng thái CAN Controller/Transceiver theo yêu cầu của ComM, thực thi khôi phục Bus-Off (L1 Fast Recovery / L2 Slow Recovery), Baudrate Change và báo lỗi Dem/BswM.",
+      "apis": [
+        "CanSM_RequestComMode",
+        "CanSM_ControllerBusOff",
+        "CanSM_ControllerModeIndication",
+        "CanSM_MainFunction"
+      ],
+      "connections": [
+        "ComM",
+        "BswM",
+        "Dem",
+        "CanNm",
+        "CanIf"
+      ],
+      "tags": [
+        "CanSM",
+        "BusOff",
+        "BOR",
+        "CAN",
+        "StateMachine"
+      ]
+    },
+    {
+      "id": "CanTp",
+      "name": "CAN Transport Protocol (DoCAN)",
+      "layer": "services",
+      "stack": "comm",
+      "htmlPath": "AUTOSAR_DoCAN.html",
+      "sws": "SWS_CanTp / ISO 15765-2",
+      "bus": "CAN",
+      "summary": "Phân mảnh và ghép gói tin UDS lớn qua CAN/CAN-FD (Single Frame, First Frame, Flow Control BS/STmin, Consecutive Frame) kèm trình mô phỏng các dịch vụ UDS cốt lõi (DoCAN).",
+      "apis": [
+        "CanTp_Transmit",
+        "CanTp_RxIndication",
+        "CanTp_TxConfirmation",
+        "CanTp_MainFunction"
+      ],
+      "connections": [
+        "PduR",
+        "CanIf"
+      ],
+      "tags": [
+        "CanTp",
+        "DoCAN",
+        "ISO-TP",
+        "UDS",
+        "Segmentation"
+      ]
+    },
+    {
+      "id": "DoIP",
+      "name": "Diagnostics over IP",
+      "layer": "services",
+      "stack": "comm",
+      "htmlPath": "",
+      "sws": "SWS_DoIP / ISO 13400",
+      "bus": "Ethernet",
+      "summary": "Truyền tải thông điệp chẩn đoán UDS qua TCP/UDP Ethernet (Vehicle Identification Announcement, Routing Activation, Alive Check) kết nối tới PduR/Dcm.",
+      "apis": [
+        "DoIP_SoAdTpCopyRxData",
+        "DoIP_TpTransmit",
+        "DoIP_MainFunction"
+      ],
+      "connections": [
+        "PduR",
+        "SoAd"
+      ],
+      "tags": [
+        "DoIP",
+        "Ethernet",
+        "UDS",
+        "ISO13400"
+      ]
+    },
+    {
+      "id": "SoAd",
+      "name": "Socket Adaptor",
+      "layer": "services",
+      "stack": "comm",
+      "htmlPath": "",
+      "sws": "SWS_SoAd",
+      "bus": "Ethernet",
+      "summary": "Ánh xạ giữa AUTOSAR I-PDUs (PduR, SecOC, Sd, DoIP, UdpNm) và kết nối Socket TCP/UDP của module TcpIp.",
+      "apis": [
+        "SoAd_IfTransmit",
+        "SoAd_TpTransmit",
+        "SoAd_RxIndication"
+      ],
+      "connections": [
+        "PduR",
+        "SecOC",
+        "DoIP",
+        "Sd",
+        "UdpNm",
+        "TcpIp"
+      ],
+      "tags": [
+        "SoAd",
+        "Socket",
+        "Ethernet",
+        "SOME/IP"
+      ]
+    },
+    {
+      "id": "Sd",
+      "name": "Service Discovery (SOME/IP-SD)",
+      "layer": "services",
+      "stack": "comm",
+      "htmlPath": "",
+      "sws": "SWS_ServiceDiscovery",
+      "bus": "Ethernet",
+      "summary": "Phát hiện và đăng ký dịch vụ SOME/IP động trên mạng Ethernet (OfferService, FindService, SubscribeEventgroup) và báo trạng thái cho BswM.",
+      "apis": [
+        "Sd_ServerServiceSetState",
+        "Sd_ClientServiceSetState",
+        "Sd_MainFunction"
+      ],
+      "connections": [
+        "SoAd",
+        "BswM",
+        "ComM"
+      ],
+      "tags": [
+        "SD",
+        "SOME/IP",
+        "ServiceDiscovery",
+        "Ethernet"
+      ]
+    },
+    {
+      "id": "TcpIp",
+      "name": "TCP/IP Stack",
+      "layer": "services",
+      "stack": "comm",
+      "htmlPath": "",
+      "sws": "SWS_TcpIp",
+      "bus": "Ethernet",
+      "summary": "Ngăn xếp giao thức mạng IPv4/IPv6, ARP, NDP, ICMP, DHCP, UDP và TCP chạy phía trên EthIf.",
+      "apis": [
+        "TcpIp_UdpTransmit",
+        "TcpIp_TcpTransmit",
+        "TcpIp_RxIndication",
+        "TcpIp_MainFunction"
+      ],
+      "connections": [
+        "SoAd",
+        "EthIf",
+        "EthSM"
+      ],
+      "tags": [
+        "TcpIp",
+        "IPv4",
+        "IPv6",
+        "UDP",
+        "TCP",
+        "Ethernet"
+      ]
+    },
+    {
+      "id": "UdpNm",
+      "name": "UDP Network Management",
+      "layer": "services",
+      "stack": "comm",
+      "htmlPath": "",
+      "sws": "SWS_UdpNm",
+      "bus": "Ethernet",
+      "summary": "Quản lý trạng thái ngủ/thức mạng dựa trên gói tin UDP đa hướng cho các cụm ECU kết nối qua Automotive Ethernet (hỗ trợ PNC).",
+      "apis": [
+        "UdpNm_NetworkRequest",
+        "UdpNm_RxIndication",
+        "UdpNm_MainFunction"
+      ],
+      "connections": [
+        "Nm",
+        "SoAd",
+        "EthSM"
+      ],
+      "tags": [
+        "UdpNm",
+        "Ethernet",
+        "NM",
+        "PNC"
+      ]
+    },
+    {
+      "id": "EthSM",
+      "name": "Ethernet State Manager",
+      "layer": "services",
+      "stack": "comm",
+      "htmlPath": "",
+      "sws": "SWS_EthSM",
+      "bus": "Ethernet",
+      "summary": "Điều phối chế độ kênh Ethernet (EthTrcv Link Up/Down, TcpIp State, ComM Mode) và báo cáo trạng thái về ComM/BswM.",
+      "apis": [
+        "EthSM_RequestComMode",
+        "EthSM_TrcvLinkStateChg",
+        "EthSM_TcpIpModeIndication"
+      ],
+      "connections": [
+        "ComM",
+        "BswM",
+        "TcpIp",
+        "UdpNm",
+        "EthIf"
+      ],
+      "tags": [
+        "EthSM",
+        "Ethernet",
+        "LinkState"
+      ]
+    },
+    {
+      "id": "LinSM",
+      "name": "LIN State Manager",
+      "layer": "services",
+      "stack": "comm",
+      "htmlPath": "",
+      "sws": "SWS_LinSM",
+      "bus": "LIN",
+      "summary": "Quản lý chế độ hoạt động và bảng lịch trình (Schedule Table) cho từng kênh LIN Master/Slave theo yêu cầu ComM/BswM.",
+      "apis": [
+        "LinSM_RequestComMode",
+        "LinSM_ScheduleRequest",
+        "LinSM_GotoSleepConfirmation"
+      ],
+      "connections": [
+        "ComM",
+        "BswM",
+        "LinIf"
+      ],
+      "tags": [
+        "LinSM",
+        "LIN",
+        "ScheduleTable"
+      ]
+    },
+    {
+      "id": "FrSM",
+      "name": "FlexRay State Manager",
+      "layer": "services",
+      "stack": "comm",
+      "htmlPath": "",
+      "sws": "SWS_FrSM",
+      "bus": "FlexRay",
+      "summary": "Điều khiển chu trình khởi động Coldstart, đồng bộ POC và chế độ ngủ/thức của cụm mạng FlexRay.",
+      "apis": [
+        "FrSM_RequestComMode",
+        "FrSM_MainFunction"
+      ],
+      "connections": [
+        "ComM",
+        "BswM",
+        "FrNm",
+        "FrIf"
+      ],
+      "tags": [
+        "FrSM",
+        "FlexRay"
+      ]
+    },
+    {
+      "id": "FrNm",
+      "name": "FlexRay Network Management",
+      "layer": "services",
+      "stack": "comm",
+      "htmlPath": "",
+      "sws": "SWS_FrNm",
+      "bus": "FlexRay",
+      "summary": "Điều phối Network Management trên các slot tĩnh/động của mạng FlexRay dưới sự trừu tượng hóa của module Nm.",
+      "apis": [
+        "FrNm_NetworkRequest",
+        "FrNm_RxIndication"
+      ],
+      "connections": [
+        "Nm",
+        "FrSM",
+        "FrIf"
+      ],
+      "tags": [
+        "FrNm",
+        "FlexRay",
+        "NM"
+      ]
+    },
+    {
+      "id": "FrTp",
+      "name": "FlexRay Transport Protocol",
+      "layer": "services",
+      "stack": "comm",
+      "htmlPath": "",
+      "sws": "SWS_FrTp",
+      "bus": "FlexRay",
+      "summary": "Phân mảnh và truyền tải gói dữ liệu lớn (chẩn đoán UDS) trên bus FlexRay kết nối với PduR.",
+      "apis": [
+        "FrTp_Transmit",
+        "FrTp_RxIndication"
+      ],
+      "connections": [
+        "PduR",
+        "FrIf"
+      ],
+      "tags": [
+        "FrTp",
+        "FlexRay",
+        "ISO10681"
+      ]
+    },
+    {
+      "id": "WdgIf",
+      "name": "Watchdog Interface",
+      "layer": "ecu_ab",
+      "stack": "onboard",
+      "htmlPath": "",
+      "sws": "SWS_WdgIf",
+      "bus": "Core",
+      "summary": "Cung cấp giao diện thống nhất giữa WdgM và một hoặc nhiều Watchdog Drivers (nội bộ MCU hoặc Watchdog IC gắn ngoài qua SPI/DIO).",
+      "apis": [
+        "WdgIf_SetMode",
+        "WdgIf_SetTriggerCondition"
+      ],
+      "connections": [
+        "WdgM",
+        "Wdg"
+      ],
+      "tags": [
+        "WdgIf",
+        "Watchdog",
+        "Interface"
+      ]
+    },
+    {
+      "id": "MemIf",
+      "name": "Memory Abstraction Interface",
+      "layer": "ecu_ab",
+      "stack": "mem_ab",
+      "htmlPath": "",
+      "sws": "SWS_MemIf",
+      "bus": "Memory",
+      "summary": "Định tuyến lời gọi đọc/ghi từ NvM xuống lớp giả lập Flash EEPROM (Fee) hoặc EEPROM Abstraction (Ea) dựa trên Device Index.",
+      "apis": [
+        "MemIf_Read",
+        "MemIf_Write",
+        "MemIf_GetJobResult"
+      ],
+      "connections": [
+        "NvM",
+        "Fee",
+        "Ea"
+      ],
+      "tags": [
+        "MemIf",
+        "Memory",
+        "Abstraction"
+      ]
+    },
+    {
+      "id": "Fee",
+      "name": "Flash EEPROM Emulation",
+      "layer": "ecu_ab",
+      "stack": "mem_ab",
+      "htmlPath": "",
+      "sws": "SWS_Fee",
+      "bus": "Memory",
+      "summary": "Giả lập cấu trúc EEPROM ghi từng block và thực thi Wear Leveling / Garbage Collection trên bộ nhớ Data Flash vật lý qua Fls.",
+      "apis": [
+        "Fee_Read",
+        "Fee_Write",
+        "Fee_InvalidateBlock",
+        "Fee_MainFunction"
+      ],
+      "connections": [
+        "MemIf",
+        "Fls"
+      ],
+      "tags": [
+        "Fee",
+        "Flash",
+        "WearLeveling",
+        "Emulation"
+      ]
+    },
+    {
+      "id": "Ea",
+      "name": "EEPROM Abstraction",
+      "layer": "ecu_ab",
+      "stack": "mem_ab",
+      "htmlPath": "",
+      "sws": "SWS_Ea",
+      "bus": "Memory",
+      "summary": "Trừu tượng hóa truy cập theo Logical Block lên EEPROM nội bộ (Eep) hoặc EEPROM ngoài qua SPI.",
+      "apis": [
+        "Ea_Read",
+        "Ea_Write",
+        "Ea_MainFunction"
+      ],
+      "connections": [
+        "MemIf",
+        "Eep"
+      ],
+      "tags": [
+        "Ea",
+        "EEPROM"
+      ]
+    },
+    {
+      "id": "CryIf",
+      "name": "Crypto Interface",
+      "layer": "ecu_ab",
+      "stack": "cry_ab",
+      "htmlPath": "",
+      "sws": "SWS_CryIf",
+      "bus": "Security",
+      "summary": "Ánh xạ Crypto Jobs & Keys từ Csm/KeyM xuống nhiều Crypto Drivers khác nhau (HSM phần cứng hoặc thư viện phần mềm).",
+      "apis": [
+        "CryIf_ProcessJob",
+        "CryIf_KeyElementSet",
+        "CryIf_CallbackNotification"
+      ],
+      "connections": [
+        "Csm",
+        "KeyM",
+        "Crypto"
+      ],
+      "tags": [
+        "CryIf",
+        "Crypto",
+        "HSM"
+      ]
+    },
+    {
+      "id": "CanIf",
+      "name": "CAN Interface",
+      "layer": "ecu_ab",
+      "stack": "comm_ab",
+      "htmlPath": "",
+      "sws": "SWS_CanIf",
+      "bus": "CAN",
+      "summary": "Trừu tượng hóa bộ điều khiển CAN (Can) và bộ thu phát (CanTrcv): ánh xạ HOH/Mailbox sang L-PDU ID, quản lý Tx Buffers, Software Filtering và phân phát RxIndication cho PduR/CanTp/CanNm.",
+      "apis": [
+        "CanIf_Transmit",
+        "CanIf_RxIndication",
+        "CanIf_TxConfirmation",
+        "CanIf_SetControllerMode",
+        "CanIf_SetTrcvMode"
+      ],
+      "connections": [
+        "PduR",
+        "CanTp",
+        "CanNm",
+        "CanSM",
+        "SecOC",
+        "StbM",
+        "Can",
+        "CanTrcv"
+      ],
+      "tags": [
+        "CanIf",
+        "CAN",
+        "L-PDU",
+        "TxBuffer",
+        "Filter"
+      ]
+    },
+    {
+      "id": "CanTrcv",
+      "name": "CAN Transceiver Driver",
+      "layer": "ecu_ab",
+      "stack": "comm_ab",
+      "htmlPath": "",
+      "sws": "SWS_CanTrcv",
+      "bus": "CAN",
+      "summary": "Điều khiển phần cứng CAN PHY/Transceiver (Normal, Standby, Sleep), hỗ trợ Partial Networking (WUF) và phát hiện Wakeup đánh thức EcuM.",
+      "apis": [
+        "CanTrcv_SetOpMode",
+        "CanTrcv_CheckWakeup",
+        "CanTrcv_GetBusWuReason"
+      ],
+      "connections": [
+        "CanIf",
+        "EcuM",
+        "Spi",
+        "Dio",
+        "ECU_HW"
+      ],
+      "tags": [
+        "CanTrcv",
+        "Transceiver",
+        "Wakeup",
+        "PHY",
+        "PNC"
+      ]
+    },
+    {
+      "id": "LinIf",
+      "name": "LIN Interface",
+      "layer": "ecu_ab",
+      "stack": "comm_ab",
+      "htmlPath": "",
+      "sws": "SWS_LinIf",
+      "bus": "LIN",
+      "summary": "Thực thi Schedule Table của mạng LIN Master, khung Unconditional/Sporadic/Diagnostic và chuyển tiếp PDU tới PduR.",
+      "apis": [
+        "LinIf_Transmit",
+        "LinIf_ScheduleRequest",
+        "LinIf_MainFunction"
+      ],
+      "connections": [
+        "PduR",
+        "LinSM",
+        "Lin",
+        "LinTrcv"
+      ],
+      "tags": [
+        "LinIf",
+        "LIN",
+        "Schedule"
+      ]
+    },
+    {
+      "id": "LinTrcv",
+      "name": "LIN Transceiver Driver",
+      "layer": "ecu_ab",
+      "stack": "comm_ab",
+      "htmlPath": "",
+      "sws": "SWS_LinTrcv",
+      "bus": "LIN",
+      "summary": "Điều khiển trạng thái nguồn của LIN PHY (Normal/Sleep/Standby) và phát hiện Wakeup trên đường dây LIN.",
+      "apis": [
+        "LinTrcv_SetOpMode",
+        "LinTrcv_CheckWakeupMode"
+      ],
+      "connections": [
+        "LinIf",
+        "EcuM",
+        "Dio",
+        "ECU_HW"
+      ],
+      "tags": [
+        "LinTrcv",
+        "LIN",
+        "Transceiver"
+      ]
+    },
+    {
+      "id": "EthIf",
+      "name": "Ethernet Interface",
+      "layer": "ecu_ab",
+      "stack": "comm_ab",
+      "htmlPath": "",
+      "sws": "SWS_EthIf",
+      "bus": "Ethernet",
+      "summary": "Trừu tượng hóa nhiều cổng Ethernet Controller (MAC), VLAN tagging, Switch (EthSwt) và PHY (EthTrcv) cho tầng TcpIp/StbM.",
+      "apis": [
+        "EthIf_Transmit",
+        "EthIf_RxIndication",
+        "EthIf_UpdatePhysAddrFilter"
+      ],
+      "connections": [
+        "TcpIp",
+        "EthSM",
+        "StbM",
+        "Eth",
+        "EthSwt",
+        "EthTrcv"
+      ],
+      "tags": [
+        "EthIf",
+        "Ethernet",
+        "VLAN",
+        "MAC"
+      ]
+    },
+    {
+      "id": "EthSwt",
+      "name": "Ethernet Switch Driver",
+      "layer": "ecu_ab",
+      "stack": "comm_ab",
+      "htmlPath": "",
+      "sws": "SWS_EthSwt",
+      "bus": "Ethernet",
+      "summary": "Cấu hình và giám sát các cổng Automotive Ethernet Switch gắn ngoài/tích hợp (ARL Table, Port Mirroring, VLAN).",
+      "apis": [
+        "EthSwt_SetSwitchPortMode",
+        "EthSwt_GetPortLinkState"
+      ],
+      "connections": [
+        "EthIf",
+        "Spi",
+        "ECU_HW"
+      ],
+      "tags": [
+        "EthSwt",
+        "Switch",
+        "Ethernet"
+      ]
+    },
+    {
+      "id": "EthTrcv",
+      "name": "Ethernet Transceiver Driver",
+      "layer": "ecu_ab",
+      "stack": "comm_ab",
+      "htmlPath": "",
+      "sws": "SWS_EthTrcv",
+      "bus": "Ethernet",
+      "summary": "Quản lý Automotive Ethernet PHY (100BASE-T1 / 1000BASE-T1), kiểm tra Link State, Signal Quality Index (SQI) và Wake-on-LAN.",
+      "apis": [
+        "EthTrcv_SetTransceiverMode",
+        "EthTrcv_GetLinkState",
+        "EthTrcv_CheckWakeup"
+      ],
+      "connections": [
+        "EthIf",
+        "EcuM",
+        "ECU_HW"
+      ],
+      "tags": [
+        "EthTrcv",
+        "PHY",
+        "100BASE-T1"
+      ]
+    },
+    {
+      "id": "FrIf",
+      "name": "FlexRay Interface",
+      "layer": "ecu_ab",
+      "stack": "comm_ab",
+      "htmlPath": "",
+      "sws": "SWS_FrIf",
+      "bus": "FlexRay",
+      "summary": "Đồng bộ hóa Job List theo Global FlexRay Macroticks và điều phối truyền nhận L-PDU giữa PduR/FrNm/FrTp với Fr Driver.",
+      "apis": [
+        "FrIf_Transmit",
+        "FrIf_MainFunction_0",
+        "FrIf_SetTransceiverMode"
+      ],
+      "connections": [
+        "PduR",
+        "FrSM",
+        "FrNm",
+        "FrTp",
+        "Fr",
+        "FrTrcv"
+      ],
+      "tags": [
+        "FrIf",
+        "FlexRay"
+      ]
+    },
+    {
+      "id": "FrTrcv",
+      "name": "FlexRay Transceiver Driver",
+      "layer": "ecu_ab",
+      "stack": "comm_ab",
+      "htmlPath": "",
+      "sws": "SWS_FrTrcv",
+      "bus": "FlexRay",
+      "summary": "Điều khiển trạng thái bộ thu phát FlexRay và báo lỗi bus / wakeup.",
+      "apis": [
+        "FrTrcv_SetTransceiverMode",
+        "FrTrcv_CheckWakeupByTransceiver"
+      ],
+      "connections": [
+        "FrIf",
+        "EcuM",
+        "ECU_HW"
+      ],
+      "tags": [
+        "FrTrcv",
+        "FlexRay"
+      ]
+    },
+    {
+      "id": "IoHwAb",
+      "name": "I/O Hardware Abstraction",
+      "layer": "ecu_ab",
+      "stack": "io_ab",
+      "htmlPath": "",
+      "sws": "SWS_IoHwAb",
+      "bus": "I/O",
+      "summary": "Chuyển đổi tín hiệu điện (ADC raw ticks, DIO pins, PWM duty, ICU frequency) sang đơn vị vật lý chuẩn (mV, °C, RPM) cung cấp cho Sensor/Actuator SW-Cs qua RTE.",
+      "apis": [
+        "IoHwAb_GetPin",
+        "IoHwAb_SetPin",
+        "IoHwAb_ReadAnalog",
+        "IoHwAb_SetPwmDuty"
+      ],
+      "connections": [
+        "RTE",
+        "Port",
+        "Dio",
+        "Adc",
+        "Pwm",
+        "Icu"
+      ],
+      "tags": [
+        "IoHwAb",
+        "IO",
+        "Sensor",
+        "Actuator"
+      ]
+    },
+    {
+      "id": "Mcu",
+      "name": "Microcontroller Driver",
+      "layer": "mcal",
+      "stack": "mcu_drv",
+      "htmlPath": "",
+      "sws": "SWS_Mcu",
+      "bus": "Core",
+      "summary": "Khởi tạo cây xung nhịp (PLL/Clock Tree), phân vùng RAM, quản lý chế độ tiết kiệm năng lượng (Sleep/DeepSleep) và thực thi Software Reset.",
+      "apis": [
+        "Mcu_Init",
+        "Mcu_InitClock",
+        "Mcu_SetMode",
+        "Mcu_PerformReset",
+        "Mcu_GetResetReason"
+      ],
+      "connections": [
+        "EcuM",
+        "OS",
+        "BswM",
+        "ECU_HW"
+      ],
+      "tags": [
+        "Mcu",
+        "PLL",
+        "Clock",
+        "Reset",
+        "LowPower"
+      ]
+    },
+    {
+      "id": "Gpt",
+      "name": "General Purpose Timer Driver",
+      "layer": "mcal",
+      "stack": "mcu_drv",
+      "htmlPath": "",
+      "sws": "SWS_Gpt",
+      "bus": "Core",
+      "summary": "Cấu hình bộ đếm phần cứng (One-shot / Continuous Timer, Predefined Timer, Wakeup Timer) phục vụ OS tick, Tm và EcuM.",
+      "apis": [
+        "Gpt_StartTimer",
+        "Gpt_StopTimer",
+        "Gpt_GetTimeElapsed",
+        "Gpt_EnableNotification"
+      ],
+      "connections": [
+        "OS",
+        "Tm",
+        "EcuM",
+        "ECU_HW"
+      ],
+      "tags": [
+        "Gpt",
+        "Timer",
+        "MCAL"
+      ]
+    },
+    {
+      "id": "Wdg",
+      "name": "Watchdog Driver",
+      "layer": "mcal",
+      "stack": "mcu_drv",
+      "htmlPath": "",
+      "sws": "SWS_Wdg",
+      "bus": "Core",
+      "summary": "Cấu hình chế độ (OFF/SLOW/FAST) và nạp lại bộ đếm Watchdog phần cứng (nội bộ MCU hoặc ngoại vi) nhằm reset hệ thống khi treo.",
+      "apis": [
+        "Wdg_Init",
+        "Wdg_SetMode",
+        "Wdg_SetTriggerCondition"
+      ],
+      "connections": [
+        "WdgIf",
+        "ECU_HW"
+      ],
+      "tags": [
+        "Wdg",
+        "Watchdog",
+        "MCAL"
+      ]
+    },
+    {
+      "id": "Fls",
+      "name": "Flash Driver",
+      "layer": "mcal",
+      "stack": "mem_drv",
+      "htmlPath": "",
+      "sws": "SWS_Fls",
+      "bus": "Memory",
+      "summary": "Xóa, ghi và đọc trực tiếp bộ nhớ Data Flash nội bộ của vi điều khiển (theo chu kỳ trạng thái bất đồng bộ của Fee).",
+      "apis": [
+        "Fls_Read",
+        "Fls_Write",
+        "Fls_Erase",
+        "Fls_MainFunction"
+      ],
+      "connections": [
+        "Fee",
+        "ECU_HW"
+      ],
+      "tags": [
+        "Fls",
+        "Flash",
+        "MCAL"
+      ]
+    },
+    {
+      "id": "Eep",
+      "name": "EEPROM Driver",
+      "layer": "mcal",
+      "stack": "mem_drv",
+      "htmlPath": "",
+      "sws": "SWS_Eep",
+      "bus": "Memory",
+      "summary": "Đọc/ghi/xóa bộ nhớ EEPROM phần cứng (nội bộ hoặc ngoại vi) phục vụ module Ea.",
+      "apis": [
+        "Eep_Read",
+        "Eep_Write",
+        "Eep_Erase",
+        "Eep_MainFunction"
+      ],
+      "connections": [
+        "Ea",
+        "ECU_HW"
+      ],
+      "tags": [
+        "Eep",
+        "EEPROM",
+        "MCAL"
+      ]
+    },
+    {
+      "id": "Crypto",
+      "name": "Crypto Driver (HSM / SHE)",
+      "layer": "mcal",
+      "stack": "cry_drv",
+      "htmlPath": "",
+      "sws": "SWS_Crypto",
+      "bus": "Security",
+      "summary": "Giao tiếp trực tiếp với module bảo mật phần cứng (HSM / SHE / Crypto Accelerator) qua thanh ghi/mailbox để tăng tốc mã hóa, sinh CMAC và bảo vệ khóa bí mật.",
+      "apis": [
+        "Crypto_ProcessJob",
+        "Crypto_KeyElementSet",
+        "Crypto_MainFunction"
+      ],
+      "connections": [
+        "CryIf",
+        "ECU_HW"
+      ],
+      "tags": [
+        "Crypto",
+        "HSM",
+        "SHE",
+        "MCAL"
+      ]
+    },
+    {
+      "id": "Can",
+      "name": "CAN Driver",
+      "layer": "mcal",
+      "stack": "comm_drv",
+      "htmlPath": "",
+      "sws": "SWS_Can",
+      "bus": "CAN",
+      "summary": "Điều khiển trực tiếp phần cứng CAN / CAN-FD Controller: quản lý Hardware Transmit/Receive Handles (HTH/HRH), ngắt Rx/Tx/BusOff và chuyển tiếp lên CanIf.",
+      "apis": [
+        "Can_Write",
+        "Can_SetControllerMode",
+        "Can_SetBaudrate",
+        "Can_MainFunction_Read"
+      ],
+      "connections": [
+        "CanIf",
+        "ECU_HW"
+      ],
+      "tags": [
+        "Can",
+        "CAN-FD",
+        "MCAL",
+        "Mailbox"
+      ]
+    },
+    {
+      "id": "Lin",
+      "name": "LIN Driver",
+      "layer": "mcal",
+      "stack": "comm_drv",
+      "htmlPath": "",
+      "sws": "SWS_Lin",
+      "bus": "LIN",
+      "summary": "Truyền nhận khung LIN (Break, Sync, PID, Payload, Checksum) thông qua ngoại vi UART/LIN của vi điều khiển.",
+      "apis": [
+        "Lin_SendFrame",
+        "Lin_GoToSleep",
+        "Lin_GetStatus"
+      ],
+      "connections": [
+        "LinIf",
+        "ECU_HW"
+      ],
+      "tags": [
+        "Lin",
+        "LIN",
+        "MCAL"
+      ]
+    },
+    {
+      "id": "Eth",
+      "name": "Ethernet Driver",
+      "layer": "mcal",
+      "stack": "comm_drv",
+      "htmlPath": "",
+      "sws": "SWS_Eth",
+      "bus": "Ethernet",
+      "summary": "Điều khiển Ethernet MAC Controller, DMA TX/RX Descriptors, MDIO quản lý PHY và Hardware Timestamping (IEEE 802.1AS).",
+      "apis": [
+        "Eth_ProvideTxBuffer",
+        "Eth_Transmit",
+        "Eth_Receive",
+        "Eth_GetCurrentTime"
+      ],
+      "connections": [
+        "EthIf",
+        "ECU_HW"
+      ],
+      "tags": [
+        "Eth",
+        "MAC",
+        "DMA",
+        "MCAL"
+      ]
+    },
+    {
+      "id": "Fr",
+      "name": "FlexRay Driver",
+      "layer": "mcal",
+      "stack": "comm_drv",
+      "htmlPath": "",
+      "sws": "SWS_Fr",
+      "bus": "FlexRay",
+      "summary": "Điều khiển FlexRay Communication Controller (POC states, Message Buffers, Global Time Sync).",
+      "apis": [
+        "Fr_TransmitTxLPdu",
+        "Fr_ReceiveRxLPdu",
+        "Fr_GetGlobalTime"
+      ],
+      "connections": [
+        "FrIf",
+        "ECU_HW"
+      ],
+      "tags": [
+        "Fr",
+        "FlexRay",
+        "MCAL"
+      ]
+    },
+    {
+      "id": "Spi",
+      "name": "SPI Handler / Driver",
+      "layer": "mcal",
+      "stack": "comm_drv",
+      "htmlPath": "",
+      "sws": "SWS_Spi",
+      "bus": "I/O",
+      "summary": "Quản lý hàng đợi truyền nhận đồng bộ/bất đồng bộ (Channels/Jobs/Sequences) qua bus SPI tới SBC, Transceiver thông minh, Switch hoặc EEPROM ngoài.",
+      "apis": [
+        "Spi_WriteIB",
+        "Spi_AsyncTransmit",
+        "Spi_SyncTransmit",
+        "Spi_MainFunction_Handling"
+      ],
+      "connections": [
+        "CanTrcv",
+        "EthSwt",
+        "Eep",
+        "ECU_HW"
+      ],
+      "tags": [
+        "Spi",
+        "MCAL",
+        "Serial"
+      ]
+    },
+    {
+      "id": "Port",
+      "name": "Port Driver",
+      "layer": "mcal",
+      "stack": "io_drv",
+      "htmlPath": "",
+      "sws": "SWS_Port",
+      "bus": "I/O",
+      "summary": "Cấu hình chức năng đa hợp chân vi điều khiển (Pin Muxing: GPIO, CAN, SPI, ADC, PWM), hướng vào/ra và trở kéo.",
+      "apis": [
+        "Port_Init",
+        "Port_SetPinDirection",
+        "Port_SetPinMode"
+      ],
+      "connections": [
+        "IoHwAb",
+        "ECU_HW"
+      ],
+      "tags": [
+        "Port",
+        "PinMux",
+        "MCAL"
+      ]
+    },
+    {
+      "id": "Dio",
+      "name": "DIO Driver",
+      "layer": "mcal",
+      "stack": "io_drv",
+      "htmlPath": "",
+      "sws": "SWS_Dio",
+      "bus": "I/O",
+      "summary": "Đọc/ghi tức thời trạng thái mức logic (High/Low) trên các kênh hoặc nhóm chân Digital I/O.",
+      "apis": [
+        "Dio_ReadChannel",
+        "Dio_WriteChannel",
+        "Dio_ReadPort",
+        "Dio_FlipChannel"
+      ],
+      "connections": [
+        "IoHwAb",
+        "CanTrcv",
+        "LinTrcv",
+        "ECU_HW"
+      ],
+      "tags": [
+        "Dio",
+        "GPIO",
+        "MCAL"
+      ]
+    },
+    {
+      "id": "Adc",
+      "name": "ADC Driver",
+      "layer": "mcal",
+      "stack": "io_drv",
+      "htmlPath": "",
+      "sws": "SWS_Adc",
+      "bus": "I/O",
+      "summary": "Khởi tạo và chuyển đổi tín hiệu tương tự sang số theo nhóm kênh (SW/HW Trigger, DMA Buffer) phục vụ đo điện áp/nhiệt độ/dòng.",
+      "apis": [
+        "Adc_StartGroupConversion",
+        "Adc_ReadGroup",
+        "Adc_SetupResultBuffer"
+      ],
+      "connections": [
+        "IoHwAb",
+        "ECU_HW"
+      ],
+      "tags": [
+        "Adc",
+        "Analog",
+        "MCAL"
+      ]
+    },
+    {
+      "id": "Pwm",
+      "name": "PWM Driver",
+      "layer": "mcal",
+      "stack": "io_drv",
+      "htmlPath": "",
+      "sws": "SWS_Pwm",
+      "bus": "I/O",
+      "summary": "Sinh xung điều biến độ rộng (Duty Cycle & Period) để điều khiển động cơ, van điện từ, đèn LED.",
+      "apis": [
+        "Pwm_SetDutyCycle",
+        "Pwm_SetPeriodAndDuty",
+        "Pwm_SetOutputToIdle"
+      ],
+      "connections": [
+        "IoHwAb",
+        "ECU_HW"
+      ],
+      "tags": [
+        "Pwm",
+        "MCAL",
+        "Actuator"
+      ]
+    },
+    {
+      "id": "Icu",
+      "name": "ICU Driver",
+      "layer": "mcal",
+      "stack": "io_drv",
+      "htmlPath": "",
+      "sws": "SWS_Icu",
+      "bus": "I/O",
+      "summary": "Đo chu kỳ, độ rộng xung, đếm cạnh hoặc phát hiện Wakeup trên các chân đầu vào số tốc độ cao.",
+      "apis": [
+        "Icu_StartSignalMeasurement",
+        "Icu_GetDutyCycleValues",
+        "Icu_EnableWakeup"
+      ],
+      "connections": [
+        "IoHwAb",
+        "ECU_HW"
+      ],
+      "tags": [
+        "Icu",
+        "InputCapture",
+        "MCAL"
+      ]
+    },
+    {
+      "id": "CDD",
+      "name": "Complex Device Drivers",
+      "layer": "cdd",
+      "stack": "cdd",
+      "htmlPath": "",
+      "sws": "SRS_BSW_CDD",
+      "bus": "Core",
+      "summary": "Tập hợp các trình điều khiển đặc thù không chuẩn hóa bởi BSW (Motor Control FOC, Radar/Lidar DMA, GTM/eTPU Timing, High-Speed Sensors), kết nối trực tiếp phần cứng tới RTE.",
+      "apis": [
+        "CDD_Init",
+        "CDD_IsrHandler",
+        "CDD_MainFunction",
+        "Rte_Call_CDD_*"
+      ],
+      "connections": [
+        "RTE",
+        "ECU_HW"
+      ],
+      "tags": [
+        "CDD",
+        "ComplexDriver",
+        "RealTime",
+        "Bypass"
+      ]
+    },
+    {
+      "id": "ECU_HW",
+      "name": "Microcontroller & ECU Hardware",
+      "layer": "hardware",
+      "stack": "hw",
+      "htmlPath": "",
+      "sws": "Hardware Silicon",
+      "bus": "Core",
+      "summary": "Tầng phần cứng vật lý: CPU Đa lõi (TriCore AURIX / ARM Cortex-R), RAM/Data Flash, Bộ điều khiển CAN-FD/ETH/LIN, HSM Security Module, Watchdog IC và đường truyền Bus xe.",
+      "apis": [
+        "Registers / SFR",
+        "DMA & Interrupts",
+        "CAN/LIN/ETH PHY",
+        "Hardware Pins"
+      ],
+      "connections": [
+        "Mcu",
+        "Gpt",
+        "Wdg",
+        "Fls",
+        "Eep",
+        "Crypto",
+        "Can",
+        "Lin",
+        "Eth",
+        "Fr",
+        "Spi",
+        "Port",
+        "Dio",
+        "Adc",
+        "Pwm",
+        "Icu",
+        "CanTrcv",
+        "LinTrcv",
+        "EthSwt",
+        "EthTrcv",
+        "FrTrcv",
+        "CDD"
+      ],
+      "tags": [
+        "Hardware",
+        "MCU",
+        "Silicon",
+        "Bus"
+      ]
+    }
+  ],
+  "flows": [
+    {
+      "id": "F1_BOOTUP",
+      "name": "F1: Khởi Động ECU (Boot-Up, NvM_ReadAll, BswM & Rte_Start)",
+      "description": "Mô phỏng chuỗi khởi tạo chuẩn AUTOSAR Classic từ phần cứng Mcu → EcuM → OS → NvM → BswM mở I-PDU Group và khởi chạy RTE/SW-C.",
+      "steps": [
+        {
+          "from": "ECU_HW",
+          "to": "Mcu",
+          "api": "Mcu_Init() & Mcu_InitClock()",
+          "detail": "Phần cứng cấp nguồn, Reset Vector nhảy vào Startup Code; Mcu khởi tạo Clock Tree / PLL và kiểm tra Reset Reason."
+        },
+        {
+          "from": "Mcu",
+          "to": "EcuM",
+          "api": "EcuM_Init() → StartPreOSInit()",
+          "detail": "EcuM thực hiện InitBlock 0/I (khởi tạo Det, Dem PreInit, Gpt, Can/Fls) trước khi bàn giao quyền điều khiển cho hệ điều hành."
+        },
+        {
+          "from": "EcuM",
+          "to": "OS",
+          "api": "StartOS(OSDEFAULTAPPMODE)",
+          "detail": "Khởi động nhân AUTOSAR OS, bật ngắt và kích hoạt Task khởi tạo hệ thống (Init Task / EcuM_StartupTwo)."
+        },
+        {
+          "from": "OS",
+          "to": "EcuM",
+          "api": "EcuM_StartupTwo() → BswM_Init()",
+          "detail": "Trong ngữ cảnh OS, EcuM khởi tạo SchM, BswM và phát lệnh đọc toàn bộ dữ liệu NVRAM bền vững."
+        },
+        {
+          "from": "EcuM",
+          "to": "NvM",
+          "api": "NvM_ReadAll() → MemIf → Fee → Fls",
+          "detail": "NvM tải dữ liệu hiệu chuẩn, DTC history và cấu hình từ Data Flash qua ngăn xếp MemIf/Fee/Fls."
+        },
+        {
+          "from": "NvM",
+          "to": "BswM",
+          "api": "BswM_NvM_CurrentJobMode(NVM_REQ_OK)",
+          "detail": "Khi NvM_ReadAll xong, BswM đánh giá Rule khởi động hợp lệ và thực thi ActionList kích hoạt RTE & Com I-PDU Groups."
+        },
+        {
+          "from": "BswM",
+          "to": "RTE",
+          "api": "Rte_Start() → Runnables Active",
+          "detail": "RTE khởi tạo toàn bộ S/R buffers, kết nối Ports và bắt đầu gọi định kỳ các Runnables của tầng Application SW-Cs."
+        }
+      ]
+    },
+    {
+      "id": "F2_COM_TX",
+      "name": "F2: Truyền Tín Hiệu Giao Tiếp (SW-C → RTE → Com → PduR → CanIf → Can)",
+      "description": "Luồng dữ liệu chuẩn từ Application Software Component đi xuyên qua RTE, Com Signal Packing, PduR Routing xuống CAN Driver.",
+      "steps": [
+        {
+          "from": "SWC_App",
+          "to": "RTE",
+          "api": "Rte_Write_VehSpeed_Speed(val)",
+          "detail": "Application SW-C ghi giá trị tín hiệu thông qua Sender-Receiver Port mà không cần biết đích là cùng ECU hay qua mạng CAN."
+        },
+        {
+          "from": "RTE",
+          "to": "Com",
+          "api": "Com_SendSignal(SignalId, &val)",
+          "detail": "RTE chuyển tiếp sang AUTOSAR COM; Com thực hiện Signal Filter, chuyển Endianness (Intel/Motorola) và pack bit vào I-PDU Buffer."
+        },
+        {
+          "from": "Com",
+          "to": "PduR",
+          "api": "PduR_ComTransmit(TxPduId, &PduInfo)",
+          "detail": "Khi Triggered hoặc chu kỳ Mixed/Periodic đến hạn, Com gọi PduR để định tuyến I-PDU theo bảng Routing Table."
+        },
+        {
+          "from": "PduR",
+          "to": "CanIf",
+          "api": "CanIf_Transmit(CanTxPduId, &PduInfo)",
+          "detail": "PduR chuyển PDU xuống CanIf; CanIf ánh xạ L-PDU ID thành CAN ID chuẩn/mở rộng và chọn Hardware Transmit Handle (HTH)."
+        },
+        {
+          "from": "CanIf",
+          "to": "Can",
+          "api": "Can_Write(Hth, &CanPduInfo)",
+          "detail": "CAN Driver ghi CAN ID, DLC và 8/64 byte payload vào thanh ghi Mailbox phần cứng của CAN Controller."
+        },
+        {
+          "from": "Can",
+          "to": "ECU_HW",
+          "api": "CAN-FD Frame Tx → Bus",
+          "detail": "Phần cứng CAN Controller truyền khung dữ liệu ra đường truyền vật lý thông qua CanTrcv và phát ngắt TxConfirmation ngược lên tầng trên."
+        }
+      ]
+    },
+    {
+      "id": "F3_NM_WAKEUP",
+      "name": "F3: Đánh Thức & Quản Lý Mạng CAN (CanTrcv → EcuM → ComM → CanSM & Nm/CanNm)",
+      "description": "Luồng phối hợp đánh thức ECU và mở kênh truyền thông FULL_COMMUNICATION giữa CanTrcv, EcuM, ComM, CanSM, Nm, CanNm và BswM.",
+      "steps": [
+        {
+          "from": "ECU_HW",
+          "to": "CanTrcv",
+          "api": "Bus Wakeup Pattern Detected",
+          "detail": "Khung tin đánh thức trên bus CAN tác động vào bộ thu phát CanTrcv (hỗ trợ Selective Wakeup / WUF)."
+        },
+        {
+          "from": "CanTrcv",
+          "to": "EcuM",
+          "api": "EcuM_SetWakeupEvent(ECUM_WKSOURCE_CAN)",
+          "detail": "EcuM xác nhận nguồn Wakeup hợp lệ và kích hoạt chế độ sẵn sàng truyền thông cho kênh tương ứng."
+        },
+        {
+          "from": "SWC_ModeReq",
+          "to": "ComM",
+          "api": "ComM_RequestComMode(User, FULL_COM)",
+          "detail": "SW-C hoặc EcuM yêu cầu ComM chuyển kênh sang trạng thái FULL_COMMUNICATION."
+        },
+        {
+          "from": "ComM",
+          "to": "CanSM",
+          "api": "CanSM_RequestComMode(Net, FULL_COM)",
+          "detail": "CanSM ra lệnh cho CanIf đưa CanTrcv và CAN Controller vào chế độ STARTED/NORMAL và kiểm soát phục hồi Bus-Off."
+        },
+        {
+          "from": "ComM",
+          "to": "Nm",
+          "api": "Nm_NetworkRequest() → CanNm_NetworkRequest()",
+          "detail": "Nm điều phối gọi CanNm chuyển từ Bus-Sleep vào Repeat Message State, bắt đầu phát chu kỳ gói NM PDU giữ cả mạng thức."
+        },
+        {
+          "from": "CanSM",
+          "to": "BswM",
+          "api": "BswM_CanSM_CurrentState(FULL_COM)",
+          "detail": "CanSM thông báo BUS đã sẵn sàng; BswM kích hoạt ActionList mở Com_IpduGroupStart cho các gói tin ứng dụng."
+        }
+      ]
+    },
+    {
+      "id": "F4_DIAG_UDS",
+      "name": "F4: Chẩn Đoán UDS & Ức Chế Chức Năng (CanTp/DoCAN → PduR → Dcm ↔ Dem ↔ FiM)",
+      "description": "Xử lý bản tin chẩn đoán UDS qua ISO-TP (DoCAN), định tuyến PduR vào Dcm và tương tác kho lỗi Dem cùng cơ chế ức chế chức năng FiM.",
+      "steps": [
+        {
+          "from": "Can",
+          "to": "CanIf",
+          "api": "CanIf_RxIndication(RxPdu)",
+          "detail": "CAN Driver nhận khung UDS Physical/Functional từ máy chẩn đoán và chuyển giao cho CanIf."
+        },
+        {
+          "from": "CanIf",
+          "to": "CanTp",
+          "api": "CanTp_RxIndication() [ISO 15765-2]",
+          "detail": "CanTp (DoCAN) thực hiện giải mã Single Frame hoặc điều phối First Frame / Flow Control / Consecutive Frame."
+        },
+        {
+          "from": "CanTp",
+          "to": "PduR",
+          "api": "PduR_CanTpCopyRxData() & RxIndication()",
+          "detail": "CanTp bơm dữ liệu vào buffer của Dcm thông qua API TP định tuyến của PduR."
+        },
+        {
+          "from": "PduR",
+          "to": "Dcm",
+          "api": "Dcm_RxIndication() [DSL → DSD → DSP]",
+          "detail": "Dcm kiểm tra P2/S3 Timers tại DSL, xác thực Session/Security tại DSD và gọi dịch vụ tại DSP (vd: 0x19 ReadDTC / 0x14 ClearDTC)."
+        },
+        {
+          "from": "Dcm",
+          "to": "Dem",
+          "api": "Dem_GetNextFilteredDTC() / Dem_ClearDTC()",
+          "detail": "Dcm truy xuất hoặc xóa thông tin DTC, Snapshot và Extended Data Record được lưu trữ trong Dem / NvM."
+        },
+        {
+          "from": "Dem",
+          "to": "FiM",
+          "api": "FiM_DemTriggerOnEventStatus()",
+          "detail": "Mỗi khi Event Status thay đổi, Dem thông báo ngay cho FiM tính lại Permission của các FID để SWC_DiagApp qua RTE kịp thời hạ cấp an toàn."
+        }
+      ]
+    },
+    {
+      "id": "F5_WDGM_SAFETY",
+      "name": "F5: Giám Sát Watchdog & Phản Ứng An Toàn (RTE → WdgM → WdgIf → Wdg & BswM)",
+      "description": "Giám sát Alive/Deadline/Logical cho Runnables qua WdgM, cấp xung phần cứng qua WdgIf/Wdg và xử lý sự cố qua Dem/BswM.",
+      "steps": [
+        {
+          "from": "SWC_DiagApp",
+          "to": "RTE",
+          "api": "Rte_Call_WdgM_CheckpointReached(SE, CP)",
+          "detail": "SW-C báo cáo đã đi qua Checkpoint hợp lệ trong chu kỳ thực thi."
+        },
+        {
+          "from": "RTE",
+          "to": "WdgM",
+          "api": "WdgM_CheckpointReached() & MainFunction()",
+          "detail": "WdgM kiểm tra Alive Counter, thời gian Deadline giữa 2 checkpoints và đồ thị chuyển trạng thái Logical."
+        },
+        {
+          "from": "WdgM",
+          "to": "WdgIf",
+          "api": "WdgIf_SetTriggerCondition(timeout)",
+          "detail": "Nếu Global Supervision Status = OK/EXPIRED (trong dung sai), WdgM nạp lại giá trị timeout cho tầng WdgIf."
+        },
+        {
+          "from": "WdgIf",
+          "to": "Wdg",
+          "api": "Wdg_SetTriggerCondition(timeout)",
+          "detail": "Wdg Driver thực hiện kích phần cứng Watchdog nội bộ hoặc Watchdog SBC gắn ngoài."
+        },
+        {
+          "from": "WdgM",
+          "to": "Dem",
+          "api": "Dem_SetEventStatus(WDGM_E_MONITORING, FAILED)",
+          "detail": "Khi Supervised Entity vượt ngưỡng lỗi, WdgM ghi nhận lỗi chẩn đoán vào Dem."
+        },
+        {
+          "from": "WdgM",
+          "to": "BswM",
+          "api": "BswM_WdgM_RequestPartitionReset()",
+          "detail": "Nếu trạng thái toàn cục chuyển STOPPED, WdgM ngừng trigger Watchdog hoặc báo BswM cắt tải / Reset ECU an toàn."
+        }
+      ]
+    },
+    {
+      "id": "F6_SECOC",
+      "name": "F6: Bảo Mật Thông Điệp SecOC (Com → PduR → SecOC ↔ Csm ↔ CryIf ↔ Crypto)",
+      "description": "Luồng đóng gói Authentic I-PDU qua SecOC để sinh Truncated CMAC và ghép Freshness Value trước khi đẩy xuống CanIf.",
+      "steps": [
+        {
+          "from": "Com",
+          "to": "PduR",
+          "api": "PduR_ComTransmit(AuthenticPduId)",
+          "detail": "COM xuất Authentic I-PDU chưa có mã xác thực xuống PduR để định tuyến tới SecOC."
+        },
+        {
+          "from": "PduR",
+          "to": "SecOC",
+          "api": "SecOC_IfTransmit(TxPduId, &AuthenticPdu)",
+          "detail": "SecOC nhận dữ liệu gốc và truy vấn bộ đếm Freshness Value mới nhất từ FVM / StbM."
+        },
+        {
+          "from": "SecOC",
+          "to": "Csm",
+          "api": "Csm_MacGenerate(JobId, Data+FV, MAC)",
+          "detail": "SecOC đóng gói DataID + Authentic Payload + Full Freshness Value gửi tới Crypto Service Manager."
+        },
+        {
+          "from": "Csm",
+          "to": "CryIf",
+          "api": "CryIf_ProcessJob() → Crypto_ProcessJob()",
+          "detail": "CryIf định tuyến Job xuống Crypto Driver (HSM/SHE) để tính toán AES-CMAC bằng khóa bí mật phần cứng."
+        },
+        {
+          "from": "SecOC",
+          "to": "PduR",
+          "api": "PduR_SecOCIfTransmit(SecuredPdu)",
+          "detail": "SecOC ghép [Authentic Payload | Truncated FV | Truncated MAC] thành Secured I-PDU và trả lại cho PduR."
+        },
+        {
+          "from": "PduR",
+          "to": "CanIf",
+          "api": "CanIf_Transmit() → Can_Write()",
+          "detail": "Secured I-PDU được truyền an toàn ra bus CAN; phía nhận sẽ lặp lại chuỗi xác thực ngược trước khi giao cho Com."
+        }
+      ]
+    }
+  ]
+}
+  </script>
+
+  <script>
+    /* ===================== STATE & CONSTANTS ===================== */
+    const STORAGE_KEY_CATALOG = "autosar_hub_catalog_v1";
+    const STORAGE_KEY_THEME = "autosar_hub_theme_v1";
+    const STORAGE_KEY_SOURCE = "autosar_hub_source_v1";
+
+    const STACK_CATALOG = {
+      application: [{ id: "asw", label: "Application Software Components (SW-Cs)" }],
+      rte: [{ id: "rte", label: "Runtime Environment & Schedule Manager" }],
+      services: [
+        { id: "system", label: "System Services" },
+        { id: "memory", label: "Memory Services" },
+        { id: "crypto", label: "Crypto Services" },
+        { id: "comm", label: "Communication & Diagnostic Services" }
+      ],
+      ecu_ab: [
+        { id: "onboard", label: "Onboard Device Abs." },
+        { id: "mem_ab", label: "Memory HW Abs." },
+        { id: "cry_ab", label: "Crypto HW Abs." },
+        { id: "comm_ab", label: "Communication HW Abs." },
+        { id: "io_ab", label: "I/O HW Abs." }
+      ],
+      mcal: [
+        { id: "mcu_drv", label: "Microcontroller Drv" },
+        { id: "mem_drv", label: "Memory Drv" },
+        { id: "cry_drv", label: "Crypto Drv (HSM)" },
+        { id: "comm_drv", label: "Communication Drv" },
+        { id: "io_drv", label: "I/O Drivers" }
+      ],
+      cdd: [{ id: "cdd", label: "Complex Device Drivers" }],
+      hardware: [{ id: "hw", label: "Microcontroller & ECU Hardware" }]
+    };
+
+    let defaultCatalog = null;
+    let catalog = null;
+    let modulesById = new Map();
+    let selectedModuleId = null;
+    let hoveredModuleId = null;
+    let statusFilter = "all";
+    let busFilter = "ALL";
+    let searchQuery = "";
+    let showConnections = true;
+    let currentZoom = 1.0;
+
+    // Flow animation state
+    let activeFlowId = "";
+    let flowStepIndex = 0; // 0 = overview, 1..N = step
+    let flowAutoTimer = null;
+    let packetAnimFrame = null;
+
+    // File verification cache
+    let localFolderFiles = null; // Set<string> of filenames when scanned
+    let httpLinkStatus = new Map(); // id -> boolean
+
+    // JSON editor mode
+    let jsonEditorMode = "full";
+
+    /* ===================== UTILITIES ===================== */
+    function escapeHtml(str) {
+      if (str === null || str === undefined) return "";
+      return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
+    function deepClone(obj) {
+      return JSON.parse(JSON.stringify(obj));
+    }
+
+    function hideNotice(id) {
+      const el = document.getElementById(id);
+      if (el) el.style.display = "none";
+    }
+
+    function showToast(msg, type = "pri") {
+      const wrap = document.getElementById("toastContainer");
+      if (!wrap) return;
+      const el = document.createElement("div");
+      el.className = "toast " + type;
+      el.textContent = msg;
+      wrap.appendChild(el);
+      setTimeout(() => {
+        el.style.opacity = "0";
+        el.style.transition = "opacity 0.25s";
+        setTimeout(() => el.remove(), 260);
+      }, 3200);
+    }
+
+    function isLinked(mod) {
+      return Boolean(mod && typeof mod.htmlPath === "string" && mod.htmlPath.trim().length > 0);
+    }
+
+    function resolveSimUrl(htmlPath) {
+      const raw = (htmlPath || "").trim();
+      if (!raw) return "";
+      const lower = raw.toLowerCase();
+      if (lower.startsWith("javascript:") || lower.startsWith("data:") || lower.startsWith("vbscript:")) {
+        return "";
+      }
+      if (/^[a-zA-Z]:[\\/]/.test(raw)) {
+        return "file:///" + raw.replace(/\\/g, "/");
+      }
+      if (/^(https?:|file:|\/|\.\.?\/)/i.test(raw)) {
+        return raw;
+      }
+      let base = (catalog && catalog.basePath) ? catalog.basePath.trim() : "./";
+      if (!base) base = "./";
+      if (!base.endsWith("/")) base += "/";
+      return base + raw.replace(/^\.\//, "");
+    }
+
+    function normalizeCatalog(raw) {
+      const base = deepClone(defaultCatalog || { schemaVersion: "1.0", basePath: "./", layers: [], modules: [], flows: [] });
+      const out = {
+        schemaVersion: raw.schemaVersion || base.schemaVersion || "1.0",
+        title: raw.title || base.title || "AUTOSAR Classic Interactive Hub",
+        subtitle: raw.subtitle || base.subtitle || "",
+        basePath: typeof raw.basePath === "string" ? raw.basePath : (base.basePath || "./"),
+        updatedAt: raw.updatedAt || new Date().toISOString().slice(0, 10),
+        layers: Array.isArray(raw.layers) && raw.layers.length ? raw.layers : base.layers,
+        modules: [],
+        flows: Array.isArray(raw.flows) && raw.flows.length ? raw.flows : base.flows
+      };
+      const seen = new Set();
+      const inputMods = Array.isArray(raw.modules) ? raw.modules : [];
+      for (const m of inputMods) {
+        if (!m || !m.id) continue;
+        const id = String(m.id).trim();
+        if (!id || seen.has(id)) continue;
+        seen.add(id);
+        out.modules.push({
+          id,
+          name: m.name ? String(m.name) : id,
+          layer: m.layer || "services",
+          stack: m.stack || defaultStackForLayer(m.layer || "services"),
+          htmlPath: m.htmlPath ? String(m.htmlPath).trim() : "",
+          sws: m.sws ? String(m.sws) : "Custom / User",
+          bus: m.bus ? String(m.bus) : "Core",
+          summary: m.summary ? String(m.summary) : "Module trong kiến trúc AUTOSAR Classic.",
+          apis: Array.isArray(m.apis) ? m.apis.map(String) : [],
+          connections: Array.isArray(m.connections) ? m.connections.map(String) : [],
+          tags: Array.isArray(m.tags) ? m.tags.map(String) : []
+        });
+      }
+      return out;
+    }
+
+    function defaultStackForLayer(layerId) {
+      const list = STACK_CATALOG[layerId];
+      return list && list.length ? list[0].id : "custom";
+    }
+
+    function rebuildIndexes() {
+      modulesById = new Map();
+      for (const m of catalog.modules) {
+        modulesById.set(m.id, m);
+      }
+      // Header titles
+      const hdrT = document.getElementById("hdrTitle");
+      const hdrS = document.getElementById("hdrSubtitle");
+      if (hdrT && catalog.title) hdrT.textContent = catalog.title;
+      if (hdrS && catalog.subtitle) hdrS.textContent = catalog.subtitle;
+
+      // Counts
+      const total = catalog.modules.length;
+      const linked = catalog.modules.filter(isLinked).length;
+      document.getElementById("cntAll").textContent = total;
+      document.getElementById("cntLinked").textContent = linked;
+      document.getElementById("cntUnlinked").textContent = total - linked;
+
+      // Populate flow dropdown
+      const flowSel = document.getElementById("flowSelect");
+      if (flowSel) {
+        const prev = activeFlowId;
+        flowSel.innerHTML = '<option value="">-- Chọn luồng AUTOSAR để mô phỏng --</option>' +
+          (catalog.flows || []).map(f => `<option value="${escapeHtml(f.id)}">${escapeHtml(f.name)}</option>`).join("");
+        if (prev && (catalog.flows || []).some(f => f.id === prev)) {
+          flowSel.value = prev;
+        } else {
+          activeFlowId = "";
+          flowStepIndex = 0;
+        }
+      }
+
+      // Populate directory layer filter
+      const dirLayerSel = document.getElementById("dirLayerFilter");
+      if (dirLayerSel) {
+        const cur = dirLayerSel.value || "ALL";
+        dirLayerSel.innerHTML = '<option value="ALL">Tất cả tầng kiến trúc</option>' +
+          (catalog.layers || []).map(l => `<option value="${escapeHtml(l.id)}">${escapeHtml(l.name)}</option>`).join("");
+        dirLayerSel.value = cur;
+      }
+    }
+
+    function setSourceBadge(label, variant = "pill-pri") {
+      const el = document.getElementById("jsonSourceBadge");
+      if (!el) return;
+      el.className = "pill " + variant;
+      el.textContent = label;
+    }
+
+    function persistCatalogOverride(sourceLabel) {
+      try {
+        localStorage.setItem(STORAGE_KEY_CATALOG, JSON.stringify(catalog));
+        localStorage.setItem(STORAGE_KEY_SOURCE, sourceLabel);
+      } catch (_) {}
+      setSourceBadge(sourceLabel, "pill-acc");
+    }
+
+    /* ===================== JSON INPUT INGESTION ===================== */
+    function ingestJsonInput(parsed, sourceLabel = "📄 JSON tùy chỉnh") {
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+        throw new Error("File JSON phải là một Object hợp lệ.");
+      }
+
+      // Case 1: Full Catalog JSON
+      if (Array.isArray(parsed.modules)) {
+        catalog = normalizeCatalog(parsed);
+        rebuildIndexes();
+        persistCatalogOverride(sourceLabel);
+        refreshAllViews();
+        return { mode: "full", count: catalog.modules.length };
+      }
+
+      // Case 2: Patch format { basePath?, links?: {...}, addModules?: [...] }
+      let updatedCount = 0;
+      let addedCount = 0;
+      const working = deepClone(catalog);
+
+      if (typeof parsed.basePath === "string") {
+        working.basePath = parsed.basePath;
+      }
+
+      if (parsed.links && typeof parsed.links === "object" && !Array.isArray(parsed.links)) {
+        for (const [modId, pathVal] of Object.entries(parsed.links)) {
+          const cleanPath = pathVal === null || pathVal === undefined ? "" : String(pathVal).trim();
+          const target = working.modules.find(m => m.id === modId);
+          if (target) {
+            target.htmlPath = cleanPath;
+            updatedCount++;
+          } else {
+            working.modules.push({
+              id: modId,
+              name: modId,
+              layer: "services",
+              stack: "system",
+              htmlPath: cleanPath,
+              sws: "Custom JSON",
+              bus: "Core",
+              summary: "Module được thêm tự động từ JSON links input.",
+              apis: [],
+              connections: [],
+              tags: ["Custom"]
+            });
+            addedCount++;
+          }
+        }
+      }
+
+      if (Array.isArray(parsed.addModules)) {
+        for (const nm of parsed.addModules) {
+          if (!nm || !nm.id) continue;
+          const idx = working.modules.findIndex(m => m.id === nm.id);
+          const merged = {
+            id: String(nm.id).trim(),
+            name: nm.name ? String(nm.name) : String(nm.id),
+            layer: nm.layer || "services",
+            stack: nm.stack || defaultStackForLayer(nm.layer || "services"),
+            htmlPath: nm.htmlPath ? String(nm.htmlPath).trim() : "",
+            sws: nm.sws || "Custom",
+            bus: nm.bus || "Core",
+            summary: nm.summary || "Module bổ sung từ JSON.",
+            apis: Array.isArray(nm.apis) ? nm.apis : [],
+            connections: Array.isArray(nm.connections) ? nm.connections : [],
+            tags: Array.isArray(nm.tags) ? nm.tags : ["Custom"]
+          };
+          if (idx >= 0) {
+            working.modules[idx] = { ...working.modules[idx], ...merged };
+            updatedCount++;
+          } else {
+            working.modules.push(merged);
+            addedCount++;
+          }
+        }
+      }
+
+      // Case 3: Flat Key-Value Map { "NvM": "AUTOSAR_NvM.html", ... }
+      if (!parsed.links && !parsed.addModules) {
+        const entries = Object.entries(parsed).filter(([k, v]) => !k.startsWith("_") && !k.startsWith("$") && (typeof v === "string" || v === null));
+        if (!entries.length) {
+          throw new Error("Không nhận diện được cấu trúc JSON (cần 'modules', 'links', hoặc map 'ModuleId': 'file.html').");
+        }
+        for (const [modId, pathVal] of entries) {
+          const cleanPath = pathVal ? String(pathVal).trim() : "";
+          const target = working.modules.find(m => m.id === modId);
+          if (target) {
+            target.htmlPath = cleanPath;
+            updatedCount++;
+          } else {
+            working.modules.push({
+              id: modId,
+              name: modId,
+              layer: "services",
+              stack: "system",
+              htmlPath: cleanPath,
+              sws: "Custom JSON",
+              bus: "Core",
+              summary: "Module được thêm từ JSON mapping.",
+              apis: [],
+              connections: [],
+              tags: ["Custom"]
+            });
+            addedCount++;
+          }
+        }
+      }
+
+      catalog = normalizeCatalog(working);
+      rebuildIndexes();
+      persistCatalogOverride(sourceLabel);
+      refreshAllViews();
+      return { mode: "patch", updatedCount, addedCount };
+    }
+
+    function refreshAllViews() {
+      renderArchitectureCanvas();
+      renderInspector();
+      renderDirectory();
+      syncJsonEditorFromCatalog();
+      renderHandbook();
+    }
+
+    /* ===================== CANVAS RENDERING ===================== */
+    function getLayerMeta(layerId) {
+      return (catalog.layers || []).find(l => l.id === layerId) || { id: layerId, name: layerId, description: "", color: "#38bdf8" };
+    }
+
+    function matchesFilters(mod) {
+      if (statusFilter === "linked" && !isLinked(mod)) return false;
+      if (statusFilter === "unlinked" && isLinked(mod)) return false;
+      if (busFilter !== "ALL" && mod.bus !== busFilter) return false;
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+        const hay = [
+          mod.id, mod.name, mod.sws, mod.bus, mod.htmlPath, mod.summary,
+          ...(mod.apis || []), ...(mod.tags || [])
+        ].join(" ").toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    }
+
+    function getNeighborSet(modId) {
+      const set = new Set();
+      if (!modId || !modulesById.has(modId)) return set;
+      const mod = modulesById.get(modId);
+      for (const c of (mod.connections || [])) {
+        if (modulesById.has(c)) set.add(c);
+      }
+      for (const other of catalog.modules) {
+        if ((other.connections || []).includes(modId)) {
+          set.add(other.id);
+        }
+      }
+      set.delete(modId);
+      return set;
+    }
+
+    function getActiveFlow() {
+      if (!activeFlowId) return null;
+      return (catalog.flows || []).find(f => f.id === activeFlowId) || null;
+    }
+
+    function getFlowHighlightedSet() {
+      const flow = getActiveFlow();
+      const set = new Set();
+      if (!flow) return set;
+      if (flowStepIndex > 0 && flow.steps[flowStepIndex - 1]) {
+        const st = flow.steps[flowStepIndex - 1];
+        set.add(st.from);
+        set.add(st.to);
+      } else {
+        for (const st of flow.steps) {
+          set.add(st.from);
+          set.add(st.to);
+        }
+      }
+      return set;
+    }
+
+    function renderModuleCardHtml(mod, extraClass = "") {
+      const linked = isLinked(mod);
+      const url = linked ? resolveSimUrl(mod.htmlPath) : "";
+      const activeFocus = selectedModuleId || hoveredModuleId;
+      const neighbors = activeFocus ? getNeighborSet(activeFocus) : new Set();
+      const flowSet = getFlowHighlightedSet();
+
+      const classes = ["mod-card"];
+      if (extraClass) classes.push(extraClass);
+      if (linked) classes.push("linked");
+      if (mod.id === selectedModuleId) classes.push("selected");
+      else if (activeFocus && neighbors.has(mod.id)) classes.push("neighbor");
+
+      if (flowSet.has(mod.id)) classes.push("flow-active");
+
+      const filterActive = (statusFilter !== "all" || busFilter !== "ALL" || searchQuery.length > 0);
+      const hit = matchesFilters(mod);
+      if (filterActive) {
+        if (hit) {
+          if (searchQuery) classes.push("search-hit");
+        } else if (mod.id !== selectedModuleId && !flowSet.has(mod.id)) {
+          classes.push("dimmed");
+        }
+      } else if (activeFocus && mod.id !== activeFocus && !neighbors.has(mod.id) && !flowSet.has(mod.id)) {
+        classes.push("dimmed");
+      }
+
+      const fileBadge = linked
+        ? `<a class="mod-launch" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" title="Mở ${escapeHtml(mod.htmlPath)}">Mở ↗</a>`
+        : `<span class="mod-add-mini" title="Chưa có .html — Click để gắn link">+ link</span>`;
+
+      const footLeft = linked
+        ? `<span class="mod-file-tag" title="${escapeHtml(mod.htmlPath)}">${escapeHtml(mod.htmlPath)}</span>`
+        : `<span class="mod-file-tag" style="color:var(--dim)">chưa có .html</span>`;
+
+      return `
+        <div class="${classes.join(" ")}"
+             data-mod-id="${escapeHtml(mod.id)}"
+             onclick="selectModule('${escapeHtml(mod.id)}')"
+             ondblclick="onCardDblClick('${escapeHtml(mod.id)}')"
+             onmouseenter="onCardHover('${escapeHtml(mod.id)}')"
+             onmouseleave="onCardHover(null)"
+             title="${escapeHtml(mod.id + ' — ' + mod.name + (linked ? ' (' + mod.htmlPath + ')' : ' (Chưa gắn .html)'))}">
+          <div class="mod-top">
+            <div class="mod-id-wrap">
+              <span class="dot ${linked ? "dot-ok" : "dot-plan"}"></span>
+              <span class="mod-id">${escapeHtml(mod.id)}</span>
+            </div>
+            ${fileBadge}
+          </div>
+          <div class="mod-name">${escapeHtml(mod.name)}</div>
+          <div class="mod-foot">
+            ${footLeft}
+            <span class="mod-bus-tag">${escapeHtml(mod.bus)}</span>
+          </div>
+        </div>
+      `;
+    }
+
+    function modsIn(layerId, stackId = null) {
+      return catalog.modules.filter(m => m.layer === layerId && (stackId === null || m.stack === stackId));
+    }
+
+    function layerStatText(layerId) {
+      const all = modsIn(layerId);
+      const lnk = all.filter(isLinked).length;
+      return `${lnk}/${all.length} Sim`;
+    }
+
+    function renderStackBox(label, mods, extraGridClass = "") {
+      if (!mods.length) {
+        return `
+          <div class="stack-box">
+            <div class="stack-label"><span>${escapeHtml(label)}</span><span>0</span></div>
+            <div style="font-size:10.5px;color:var(--dim);padding:4px 0;">Chưa có module</div>
+          </div>
+        `;
+      }
+      return `
+        <div class="stack-box">
+          <div class="stack-label"><span>${escapeHtml(label)}</span><span>${mods.filter(isLinked).length}/${mods.length}</span></div>
+          <div class="mod-grid ${extraGridClass}">
+            ${mods.map(m => renderModuleCardHtml(m)).join("")}
+          </div>
+        </div>
+      `;
+    }
+
+    function renderCustomStacksForLayer(layerId, knownStacks) {
+      const customMods = catalog.modules.filter(m => m.layer === layerId && !knownStacks.includes(m.stack));
+      if (!customMods.length) return "";
+      const groups = new Map();
+      for (const m of customMods) {
+        const key = m.stack || "custom";
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key).push(m);
+      }
+      let html = '<div class="stacks-row-comm-full" style="display:flex;flex-direction:column;gap:8px;">';
+      for (const [sk, list] of groups.entries()) {
+        html += renderStackBox(`Custom: ${sk}`, list);
+      }
+      html += "</div>";
+      return html;
+    }
+
+    function renderArchitectureCanvas() {
+      const mount = document.getElementById("archLayersMount");
+      if (!mount) return;
+
+      const appMeta = getLayerMeta("application");
+      const rteMeta = getLayerMeta("rte");
+      const srvMeta = getLayerMeta("services");
+      const ecuMeta = getLayerMeta("ecu_ab");
+      const mcalMeta = getLayerMeta("mcal");
+      const cddMeta = getLayerMeta("cdd");
+      const hwMeta = getLayerMeta("hardware");
+
+      const appMods = modsIn("application");
+      const rteMods = modsIn("rte");
+      const srvSys = modsIn("services", "system");
+      const srvMem = modsIn("services", "memory");
+      const srvCry = modsIn("services", "crypto");
+      const srvComm = modsIn("services", "comm");
+
+      const abOnboard = modsIn("ecu_ab", "onboard");
+      const abMem = modsIn("ecu_ab", "mem_ab");
+      const abCry = modsIn("ecu_ab", "cry_ab");
+      const abComm = modsIn("ecu_ab", "comm_ab");
+      const abIo = modsIn("ecu_ab", "io_ab");
+
+      const mcMcu = modsIn("mcal", "mcu_drv");
+      const mcMem = modsIn("mcal", "mem_drv");
+      const mcCry = modsIn("mcal", "cry_drv");
+      const mcComm = modsIn("mcal", "comm_drv");
+      const mcIo = modsIn("mcal", "io_drv");
+
+      const cddMods = modsIn("cdd");
+      const hwMods = modsIn("hardware");
+
+      // Extra completely unknown layers added via JSON
+      const knownLayers = new Set(["application", "rte", "services", "ecu_ab", "mcal", "cdd", "hardware"]);
+      const extraLayerMods = catalog.modules.filter(m => !knownLayers.has(m.layer));
+
+      mount.innerHTML = `
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <!-- 1. APPLICATION LAYER -->
+          <div class="layer-band">
+            <div class="layer-head">
+              <div class="layer-title-wrap">
+                <span class="layer-stripe" style="background:${escapeHtml(appMeta.color)}"></span>
+                <span class="layer-title">${escapeHtml(appMeta.name)}</span>
+                <span class="layer-sub">— VFB Software Components (SW-Cs)</span>
+              </div>
+              <span class="layer-stat">${layerStatText("application")}</span>
+            </div>
+            <div class="mod-grid-4">
+              ${appMods.map(m => renderModuleCardHtml(m, "full-span")).join("")}
+            </div>
+          </div>
+
+          <!-- 2. RTE -->
+          <div class="layer-band">
+            <div class="layer-head">
+              <div class="layer-title-wrap">
+                <span class="layer-stripe" style="background:${escapeHtml(rteMeta.color)}"></span>
+                <span class="layer-title">${escapeHtml(rteMeta.name)}</span>
+                <span class="layer-sub">— Sender/Receiver · Client/Server · Mode Switch · IOC · SchM</span>
+              </div>
+              <span class="layer-stat">${layerStatText("rte")}</span>
+            </div>
+            <div class="mod-grid">
+              ${rteMods.map(m => renderModuleCardHtml(m, "full-span")).join("")}
+            </div>
+          </div>
+
+          <!-- 3. BSW STACKS + COMPLEX DRIVERS (CDD) -->
+          <div class="bsw-grid">
+            <div class="bsw-stacks-col">
+              <!-- 3A. SERVICES LAYER -->
+              <div class="layer-band">
+                <div class="layer-head">
+                  <div class="layer-title-wrap">
+                    <span class="layer-stripe" style="background:${escapeHtml(srvMeta.color)}"></span>
+                    <span class="layer-title">${escapeHtml(srvMeta.name)}</span>
+                    <span class="layer-sub">— System, Memory, Crypto &amp; Communication Services</span>
+                  </div>
+                  <span class="layer-stat">${layerStatText("services")}</span>
+                </div>
+                <div class="stacks-row-services">
+                  ${renderStackBox("System Services", srvSys)}
+                  ${renderStackBox("Memory Services", srvMem)}
+                  ${renderStackBox("Crypto Services", srvCry)}
+                </div>
+                <div class="stacks-row-comm-full">
+                  ${renderStackBox("Communication & Diagnostic Services", srvComm)}
+                </div>
+                ${renderCustomStacksForLayer("services", ["system", "memory", "crypto", "comm"])}
+              </div>
+
+              <!-- 3B. ECU ABSTRACTION LAYER -->
+              <div class="layer-band">
+                <div class="layer-head">
+                  <div class="layer-title-wrap">
+                    <span class="layer-stripe" style="background:${escapeHtml(ecuMeta.color)}"></span>
+                    <span class="layer-title">${escapeHtml(ecuMeta.name)}</span>
+                    <span class="layer-sub">— Board &amp; Peripheral Interfaces</span>
+                  </div>
+                  <span class="layer-stat">${layerStatText("ecu_ab")}</span>
+                </div>
+                <div class="stacks-row-5col">
+                  ${renderStackBox("Onboard", abOnboard)}
+                  ${renderStackBox("Memory HW Abs.", abMem)}
+                  ${renderStackBox("Crypto Abs.", abCry)}
+                  ${renderStackBox("Communication HW Abs.", abComm)}
+                  ${renderStackBox("I/O Abs.", abIo)}
+                </div>
+                ${renderCustomStacksForLayer("ecu_ab", ["onboard", "mem_ab", "cry_ab", "comm_ab", "io_ab"])}
+              </div>
+
+              <!-- 3C. MCAL -->
+              <div class="layer-band">
+                <div class="layer-head">
+                  <div class="layer-title-wrap">
+                    <span class="layer-stripe" style="background:${escapeHtml(mcalMeta.color)}"></span>
+                    <span class="layer-title">${escapeHtml(mcalMeta.name)}</span>
+                    <span class="layer-sub">— Direct Microcontroller Silicon Drivers</span>
+                  </div>
+                  <span class="layer-stat">${layerStatText("mcal")}</span>
+                </div>
+                <div class="stacks-row-5col">
+                  ${renderStackBox("MCU / Timers", mcMcu)}
+                  ${renderStackBox("Memory Drv", mcMem)}
+                  ${renderStackBox("Crypto Drv", mcCry)}
+                  ${renderStackBox("Communication Drivers", mcComm)}
+                  ${renderStackBox("I/O Drivers", mcIo)}
+                </div>
+                ${renderCustomStacksForLayer("mcal", ["mcu_drv", "mem_drv", "cry_drv", "comm_drv", "io_drv"])}
+              </div>
+            </div>
+
+            <!-- 3D. COMPLEX DRIVERS (CDD) SPANNING COLUMN -->
+            <div class="layer-band cdd-band">
+              <div class="layer-head">
+                <div class="layer-title-wrap">
+                  <span class="layer-stripe" style="background:${escapeHtml(cddMeta.color)}"></span>
+                  <span class="layer-title" style="font-size:10.5px;">Complex Drivers</span>
+                </div>
+                <span class="layer-stat">${layerStatText("cdd")}</span>
+              </div>
+              <div style="font-size:10.5px;color:var(--mut);margin-bottom:8px;">Xuyên tầng Hardware → RTE cho điều khiển thời gian thực đặc thù</div>
+              <div class="mod-grid">
+                ${cddMods.map(m => renderModuleCardHtml(m, "full-span")).join("")}
+              </div>
+              ${renderCustomStacksForLayer("cdd", ["cdd"])}
+            </div>
+          </div>
+
+          <!-- 4. HARDWARE -->
+          <div class="layer-band">
+            <div class="layer-head">
+              <div class="layer-title-wrap">
+                <span class="layer-stripe" style="background:${escapeHtml(hwMeta.color)}"></span>
+                <span class="layer-title">${escapeHtml(hwMeta.name)}</span>
+                <span class="layer-sub">— Silicon Cores · Bus Controllers · Transceivers · Flash/NVM · Watchdog IC</span>
+              </div>
+              <span class="layer-stat">${layerStatText("hardware")}</span>
+            </div>
+            <div class="mod-grid">
+              ${hwMods.map(m => renderModuleCardHtml(m, "full-span")).join("")}
+            </div>
+          </div>
+
+          ${extraLayerMods.length ? `
+            <div class="layer-band">
+              <div class="layer-head">
+                <div class="layer-title-wrap">
+                  <span class="layer-stripe" style="background:#38bdf8"></span>
+                  <span class="layer-title">Custom Layers (Từ JSON Input)</span>
+                </div>
+                <span class="layer-stat">${extraLayerMods.filter(isLinked).length}/${extraLayerMods.length} Sim</span>
+              </div>
+              <div class="mod-grid">
+                ${extraLayerMods.map(m => renderModuleCardHtml(m)).join("")}
+              </div>
+            </div>
+          ` : ""}
+        </div>
+      `;
+
+      renderEdges();
+    }
+
+    /* ===================== SVG DEPENDENCY & FLOW WIRES ===================== */
+    function getCardRectInStage(modId) {
+      const stage = document.getElementById("archStage");
+      const card = stage ? stage.querySelector(`[data-mod-id="${CSS.escape(modId)}"]`) : null;
+      if (!stage || !card) return null;
+      const sRect = stage.getBoundingClientRect();
+      const cRect = card.getBoundingClientRect();
+      const z = currentZoom || 1;
+      const x = (cRect.left - sRect.left) / z;
+      const y = (cRect.top - sRect.top) / z;
+      const w = cRect.width / z;
+      const h = cRect.height / z;
+      return { x, y, w, h, cx: x + w / 2, cy: y + h / 2 };
+    }
+
+    function buildEdgePath(r1, r2) {
+      const dy = r2.cy - r1.cy;
+      const dx = r2.cx - r1.cx;
+      let x1, y1, x2, y2, d;
+
+      if (Math.abs(dy) > 26) {
+        // Vertical connection
+        const down = dy > 0;
+        x1 = r1.cx;
+        y1 = down ? r1.y + r1.h : r1.y;
+        x2 = r2.cx;
+        y2 = down ? r2.y : r2.y + r2.h;
+        const midY = (y1 + y2) / 2;
+        d = `M ${x1.toFixed(1)} ${y1.toFixed(1)} C ${x1.toFixed(1)} ${midY.toFixed(1)}, ${x2.toFixed(1)} ${midY.toFixed(1)}, ${x2.toFixed(1)} ${y2.toFixed(1)}`;
+      } else {
+        // Horizontal or same-band arch
+        const right = dx >= 0;
+        x1 = right ? r1.x + r1.w : r1.x;
+        y1 = r1.cy;
+        x2 = right ? r2.x : r2.x + r2.w;
+        y2 = r2.cy;
+        const arch = Math.min(y1, y2) - Math.min(36, 16 + Math.abs(dx) * 0.06);
+        d = `M ${x1.toFixed(1)} ${y1.toFixed(1)} Q ${((x1 + x2) / 2).toFixed(1)} ${arch.toFixed(1)}, ${x2.toFixed(1)} ${y2.toFixed(1)}`;
+      }
+      return { d, x1, y1, x2, y2 };
+    }
+
+    function renderEdges() {
+      if (packetAnimFrame) {
+        cancelAnimationFrame(packetAnimFrame);
+        packetAnimFrame = null;
+      }
+
+      const svg = document.getElementById("archEdgesSvg");
+      const stage = document.getElementById("archStage");
+      if (!svg || !stage) return;
+
+      const w = stage.offsetWidth || 1240;
+      const h = stage.offsetHeight || 720;
+      svg.setAttribute("viewBox", `0 0 ${w} ${h}`);
+
+      const flow = getActiveFlow();
+      const focusId = selectedModuleId || hoveredModuleId;
+
+      if (!flow && (!showConnections || !focusId)) {
+        svg.innerHTML = "";
+        return;
+      }
+
+      let defs = `
+        <defs>
+          <marker id="arrowPri" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 1 L 9 5 L 0 9 z" fill="#38bdf8" />
+          </marker>
+          <marker id="arrowWarn" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 1 L 9 5 L 0 9 z" fill="#fbbf24" />
+          </marker>
+          <marker id="arrowAcc" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 1 L 9 5 L 0 9 z" fill="#818cf8" />
+          </marker>
+        </defs>
+      `;
+
+      let pathsHtml = "";
+      let activeStepPathId = null;
+
+      if (flow) {
+        flow.steps.forEach((st, idx) => {
+          const r1 = getCardRectInStage(st.from);
+          const r2 = getCardRectInStage(st.to);
+          if (!r1 || !r2) return;
+          const geom = buildEdgePath(r1, r2);
+          const isCurrent = (flowStepIndex === idx + 1);
+          const pathId = `flowPath_${idx}`;
+          if (isCurrent) activeStepPathId = pathId;
+
+          const stroke = isCurrent ? "#fbbf24" : "#38bdf8";
+          const sw = isCurrent ? 3.2 : 1.7;
+          const op = isCurrent ? 0.96 : (flowStepIndex === 0 ? 0.72 : 0.25);
+          const dash = isCurrent ? "" : 'stroke-dasharray="5 4"';
+          const marker = isCurrent ? "url(#arrowWarn)" : "url(#arrowPri)";
+
+          pathsHtml += `<path id="${pathId}" d="${geom.d}" fill="none" stroke="${stroke}" stroke-width="${sw}" opacity="${op}" ${dash} marker-end="${marker}" />`;
+
+          // Step number badge on active or overview
+          if (isCurrent || flowStepIndex === 0) {
+            const mx = (geom.x1 + geom.x2) / 2;
+            const my = (geom.y1 + geom.y2) / 2;
+            pathsHtml += `
+              <g transform="translate(${mx.toFixed(1)}, ${my.toFixed(1)})">
+                <circle r="9.5" fill="${isCurrent ? "#fbbf24" : "#0f172a"}" stroke="${isCurrent ? "#fef08a" : "#38bdf8"}" stroke-width="1.5"/>
+                <text y="3.5" text-anchor="middle" font-size="10" font-weight="800" fill="${isCurrent ? "#0f172a" : "#e2e8f0"}">${idx + 1}</text>
+              </g>
+            `;
+          }
+        });
+
+        if (activeStepPathId) {
+          pathsHtml += `<circle id="flowPacketDot" r="5.5" fill="#fef08a" stroke="#f59e0b" stroke-width="2" opacity="0.95" />`;
+        }
+      }
+
+      if (showConnections && focusId && modulesById.has(focusId)) {
+        const rCenter = getCardRectInStage(focusId);
+        const neighbors = getNeighborSet(focusId);
+        if (rCenter) {
+          for (const nid of neighbors) {
+            const rOther = getCardRectInStage(nid);
+            if (!rOther) continue;
+            const geom = buildEdgePath(rCenter, rOther);
+            const hasSim = isLinked(modulesById.get(nid));
+            const color = hasSim ? "#34d399" : "#818cf8";
+            pathsHtml += `<path d="${geom.d}" fill="none" stroke="${color}" stroke-width="2" opacity="0.72" marker-end="url(#arrowAcc)" />`;
+          }
+        }
+      }
+
+      svg.innerHTML = defs + pathsHtml;
+
+      // Animate packet dot along current flow step path
+      if (activeStepPathId) {
+        const pathEl = document.getElementById(activeStepPathId);
+        const dotEl = document.getElementById("flowPacketDot");
+        if (pathEl && dotEl && typeof pathEl.getTotalLength === "function") {
+          const totalLen = pathEl.getTotalLength();
+          const start = performance.now();
+          const tick = (now) => {
+            if (!document.getElementById("flowPacketDot")) return;
+            const t = ((now - start) % 1350) / 1350;
+            const pt = pathEl.getPointAtLength(t * totalLen);
+            dotEl.setAttribute("cx", pt.x.toFixed(1));
+            dotEl.setAttribute("cy", pt.y.toFixed(1));
+            packetAnimFrame = requestAnimationFrame(tick);
+          };
+          packetAnimFrame = requestAnimationFrame(tick);
+        }
+      }
+    }
+
+    /* ===================== SELECTION & INSPECTOR ===================== */
+    function selectModule(modId) {
+      selectedModuleId = modId && modulesById.has(modId) ? modId : null;
+      const clrBtn = document.getElementById("btnClearSelect");
+      if (clrBtn) clrBtn.style.display = selectedModuleId ? "inline-flex" : "none";
+      renderArchitectureCanvas();
+      renderInspector();
+    }
+
+    function onCardHover(modId) {
+      hoveredModuleId = modId;
+      if (!selectedModuleId) {
+        renderEdges();
+      }
+    }
+
+    function onCardDblClick(modId) {
+      const mod = modulesById.get(modId);
+      if (!mod) return;
+      if (isLinked(mod)) {
+        const url = resolveSimUrl(mod.htmlPath);
+        if (url) window.open(url, "_blank", "noopener,noreferrer");
+      } else {
+        selectModule(modId);
+        const inp = document.getElementById("inspPathInput");
+        if (inp) inp.focus();
+      }
+    }
+
+    function renderInspector() {
+      const body = document.getElementById("inspectorBody");
+      if (!body) return;
+
+      if (!selectedModuleId || !modulesById.has(selectedModuleId)) {
+        const total = catalog.modules.length;
+        const linkedMods = catalog.modules.filter(isLinked);
+        const pct = total ? Math.round((linkedMods.length / total) * 100) : 0;
+
+        body.innerHTML = `
+          <div class="kpi-grid">
+            <div class="kpi-card">
+              <div class="kpi-num" style="color:var(--pri)">${total}</div>
+              <div class="kpi-lbl">Tổng AUTOSAR Modules</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-num" style="color:var(--ok)">${linkedMods.length}</div>
+              <div class="kpi-lbl">Đã có Simulation (.html)</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-num" style="color:var(--warn)">${total - linkedMods.length}</div>
+              <div class="kpi-lbl">Chưa gắn link .html</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-num" style="color:var(--acc)">${pct}%</div>
+              <div class="kpi-lbl">Độ phủ Simulation</div>
+            </div>
+          </div>
+
+          <div class="card-box">
+            <div class="card-box-title">🚀 Mở Nhanh Trình Mô Phỏng Sẵn Có (${linkedMods.length})</div>
+            <div class="quick-sim-list">
+              ${linkedMods.map(m => `
+                <div class="quick-sim-row">
+                  <div style="min-width:0;cursor:pointer;" onclick="selectModule('${escapeHtml(m.id)}')">
+                    <div style="font-weight:800;font-size:12px;">${escapeHtml(m.id)} <span style="font-weight:500;color:var(--mut);font-size:11px;">· ${escapeHtml(m.name)}</span></div>
+                    <div class="mono" style="font-size:10.5px;color:var(--ok);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(m.htmlPath)}</div>
+                  </div>
+                  <a class="btn btn-xs btn-ok" href="${escapeHtml(resolveSimUrl(m.htmlPath))}" target="_blank" rel="noopener noreferrer">Mở ↗</a>
+                </div>
+              `).join("")}
+            </div>
+          </div>
+
+          <div class="card-box">
+            <div class="card-box-title">💡 Mẹo Tương Tác Nhanh</div>
+            <div style="font-size:12px;color:var(--txt-soft);line-height:1.5;">
+              • Click bất kỳ module nào trên sơ đồ để xem API, kết nối tầng trên/dưới và gắn hoặc sửa đường dẫn <code>.html</code>.<br/>
+              • Dùng thanh <b>Luồng mô phỏng</b> phía trên để chạy animation luồng tín hiệu xuyên qua toàn bộ ngăn xếp AUTOSAR.<br/>
+              • Kéo thả file <code>autosar_modules.json</code> vào bất cứ đâu để cập nhật liên kết tức thì.
+            </div>
+          </div>
+        `;
+        return;
+      }
+
+      const mod = modulesById.get(selectedModuleId);
+      const layerMeta = getLayerMeta(mod.layer);
+      const linked = isLinked(mod);
+      const url = linked ? resolveSimUrl(mod.htmlPath) : "";
+      const neighbors = Array.from(getNeighborSet(mod.id));
+
+      body.innerHTML = `
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+            <span style="font-size:19px;font-weight:800;letter-spacing:-0.01em;">${escapeHtml(mod.id)}</span>
+            <span class="pill ${linked ? "pill-ok" : "pill-warn"}">${linked ? "✅ Có Simulation" : "⏳ Chưa có .html"}</span>
+          </div>
+          <div style="font-size:13px;font-weight:700;color:var(--txt-soft);">${escapeHtml(mod.name)}</div>
+          <div style="display:flex;flex-wrap:wrap;gap:5px;">
+            <span class="pill pill-pri">${escapeHtml(layerMeta.shortName || layerMeta.name)}</span>
+            <span class="pill">${escapeHtml(mod.sws)}</span>
+            <span class="pill">${escapeHtml(mod.bus)}</span>
+          </div>
+        </div>
+
+        <div class="sim-cta-box ${linked ? "" : "empty"}">
+          <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:0.04em;">
+            ${linked ? "Trình Mô Phỏng Đã Liên Kết" : "Chưa Gắn File Simulation (.html)"}
+          </div>
+          ${linked ? `
+            <div class="mono" style="font-size:11.5px;word-break:break-all;color:var(--txt);">📄 ${escapeHtml(url)}</div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+              <a class="sim-open-btn" style="flex:1;" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">🚀 Mở Simulation (Tab mới)</a>
+              <a class="btn btn-sm" href="${escapeHtml(url)}" title="Mở trong tab hiện tại">Mở tại đây</a>
+            </div>
+          ` : `
+            <div style="font-size:12px;color:var(--txt-soft);">Module này hiện chưa có đường dẫn file <code>.html</code>. Nhập tên file bên dưới để gắn link ngay hoặc cập nhật qua JSON.</div>
+          `}
+          <div style="display:flex;gap:6px;margin-top:2px;">
+            <input id="inspPathInput" type="text" value="${escapeHtml(mod.htmlPath || "")}" placeholder="vd: AUTOSAR_${escapeHtml(mod.id)}.html" onkeydown="if(event.key==='Enter'){event.preventDefault();saveInspectorLink('${escapeHtml(mod.id)}');}" style="flex:1;min-width:0;font-family:'JetBrains Mono',Consolas,monospace;font-size:11.5px;" />
+            <button class="btn btn-sm btn-pri" onclick="saveInspectorLink('${escapeHtml(mod.id)}')">Lưu Link</button>
+            ${linked ? `<button class="btn btn-sm btn-err" onclick="clearInspectorLink('${escapeHtml(mod.id)}')" title="Xóa link">✕</button>` : ""}
+          </div>
+        </div>
+
+        <div class="card-box">
+          <div class="card-box-title">Mô Tả Kiến Trúc &amp; Chức Năng</div>
+          <div style="font-size:12.2px;color:var(--txt-soft);line-height:1.55;">${escapeHtml(mod.summary)}</div>
+        </div>
+
+        <div class="card-box">
+          <div class="card-box-title">APIs Chuẩn Hóa Chính (${(mod.apis || []).length})</div>
+          <div class="chip-list">
+            ${(mod.apis && mod.apis.length)
+              ? mod.apis.map(a => `<span class="api-chip">${escapeHtml(a)}</span>`).join("")
+              : '<span style="font-size:11.5px;color:var(--dim)">Chưa khai báo API</span>'}
+          </div>
+        </div>
+
+        <div class="card-box">
+          <div class="card-box-title">Kết Nối Trực Tiếp (${neighbors.length})</div>
+          <div class="chip-list">
+            ${neighbors.length
+              ? neighbors.map(nid => {
+                  const nm = modulesById.get(nid);
+                  const nLnk = nm && isLinked(nm);
+                  return `<button class="conn-chip ${nLnk ? "has-link" : ""}" onclick="selectModule('${escapeHtml(nid)}')"><span class="dot ${nLnk ? "dot-ok" : "dot-plan"}"></span>${escapeHtml(nid)}</button>`;
+                }).join("")
+              : '<span style="font-size:11.5px;color:var(--dim)">Chưa khai báo kết nối</span>'}
+          </div>
+        </div>
+      `;
+    }
+
+    function saveInspectorLink(modId) {
+      const mod = modulesById.get(modId);
+      const inp = document.getElementById("inspPathInput");
+      if (!mod || !inp) return;
+      mod.htmlPath = inp.value.trim();
+      rebuildIndexes();
+      persistCatalogOverride("💾 Đã sửa trong UI");
+      refreshAllViews();
+      showToast(mod.htmlPath ? `Đã gắn link ${mod.htmlPath} cho ${modId}` : `Đã gỡ link của ${modId}`, "ok");
+    }
+
+    function clearInspectorLink(modId) {
+      const mod = modulesById.get(modId);
+      if (!mod) return;
+      mod.htmlPath = "";
+      rebuildIndexes();
+      persistCatalogOverride("💾 Đã sửa trong UI");
+      refreshAllViews();
+      showToast(`Đã xóa đường dẫn .html của ${modId}`, "pri");
+    }
+
+    /* ===================== FLOW SIMULATOR ===================== */
+    function onFlowSelectChange(flowId) {
+      stopFlowAuto();
+      activeFlowId = flowId || "";
+      flowStepIndex = activeFlowId ? 1 : 0;
+      updateFlowControls();
+      renderArchitectureCanvas();
+    }
+
+    function updateFlowControls() {
+      const flow = getActiveFlow();
+      const total = flow ? flow.steps.length : 0;
+      const pill = document.getElementById("flowStepPill");
+      const prev = document.getElementById("btnFlowPrev");
+      const next = document.getElementById("btnFlowNext");
+      const auto = document.getElementById("btnFlowAuto");
+      const rst = document.getElementById("btnFlowReset");
+      const banner = document.getElementById("flowBanner");
+
+      if (pill) pill.textContent = `${flowStepIndex} / ${total}`;
+      if (prev) prev.disabled = !flow || flowStepIndex <= 0;
+      if (next) next.disabled = !flow || flowStepIndex >= total;
+      if (auto) auto.disabled = !flow;
+      if (rst) rst.disabled = !flow;
+
+      if (!flow) {
+        if (banner) { banner.classList.remove("active"); banner.innerHTML = ""; }
+        return;
+      }
+
+      banner.classList.add("active");
+      if (flowStepIndex === 0) {
+        banner.innerHTML = `
+          <div class="flow-banner-top">
+            <span class="flow-step-title">📌 ${escapeHtml(flow.name)} (Tổng quan ${total} bước)</span>
+            <button class="btn btn-xs btn-pri" onclick="flowNextStep()">Bắt đầu Bước 1 ▶</button>
+          </div>
+          <div class="flow-detail">${escapeHtml(flow.description)}</div>
+        `;
+      } else {
+        const st = flow.steps[flowStepIndex - 1];
+        const mFrom = modulesById.get(st.from);
+        const mTo = modulesById.get(st.to);
+        const linkBtn = (m) => (m && isLinked(m))
+          ? `<a class="btn btn-xs btn-ok" href="${escapeHtml(resolveSimUrl(m.htmlPath))}" target="_blank" rel="noopener noreferrer">Mở ${escapeHtml(m.id)} ↗</a>`
+          : `<button class="btn btn-xs" onclick="selectModule('${escapeHtml(m ? m.id : "")}')">Xem ${escapeHtml(m ? m.id : "")}</button>`;
+
+        banner.innerHTML = `
+          <div class="flow-banner-top">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+              <span class="flow-step-title">Bước ${flowStepIndex}/${total}: ${escapeHtml(st.from)} ➔ ${escapeHtml(st.to)}</span>
+              <span class="flow-api">${escapeHtml(st.api)}</span>
+            </div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+              ${mFrom ? linkBtn(mFrom) : ""}
+              ${mTo ? linkBtn(mTo) : ""}
+            </div>
+          </div>
+          <div class="flow-detail">${escapeHtml(st.detail)}</div>
+        `;
+      }
+    }
+
+    function flowPrevStep() {
+      const flow = getActiveFlow();
+      if (!flow) return;
+      flowStepIndex = Math.max(0, flowStepIndex - 1);
+      updateFlowControls();
+      renderArchitectureCanvas();
+    }
+
+    function flowNextStep() {
+      const flow = getActiveFlow();
+      if (!flow) return;
+      if (flowStepIndex < flow.steps.length) flowStepIndex++;
+      else flowStepIndex = 1;
+      updateFlowControls();
+      renderArchitectureCanvas();
+    }
+
+    function flowReset() {
+      stopFlowAuto();
+      flowStepIndex = activeFlowId ? 0 : 0;
+      updateFlowControls();
+      renderArchitectureCanvas();
+    }
+
+    function stopFlowAuto() {
+      if (flowAutoTimer) {
+        clearInterval(flowAutoTimer);
+        flowAutoTimer = null;
+      }
+      const btn = document.getElementById("btnFlowAuto");
+      if (btn) btn.textContent = "▶ Tự Động";
+    }
+
+    function flowToggleAuto() {
+      const flow = getActiveFlow();
+      if (!flow) return;
+      if (flowAutoTimer) {
+        stopFlowAuto();
+        return;
+      }
+      const btn = document.getElementById("btnFlowAuto");
+      if (btn) btn.textContent = "⏸ Dừng";
+      if (flowStepIndex === 0) flowNextStep();
+      flowAutoTimer = setInterval(() => {
+        if (flowStepIndex >= flow.steps.length) {
+          flowStepIndex = 1;
+        } else {
+          flowStepIndex++;
+        }
+        updateFlowControls();
+        renderArchitectureCanvas();
+      }, 2100);
+    }
+
+    /* ===================== CANVAS FILTERS, ZOOM & PAN ===================== */
+    function onSearchInput(val) {
+      searchQuery = (val || "").trim();
+      renderArchitectureCanvas();
+    }
+
+    function setStatusFilter(st) {
+      statusFilter = st;
+      document.getElementById("fltAll").classList.toggle("active", st === "all");
+      document.getElementById("fltLinked").classList.toggle("active", st === "linked");
+      document.getElementById("fltUnlinked").classList.toggle("active", st === "unlinked");
+      renderArchitectureCanvas();
+    }
+
+    function setBusFilter(bus) {
+      busFilter = bus || "ALL";
+      renderArchitectureCanvas();
+    }
+
+    function toggleShowConnections() {
+      showConnections = !showConnections;
+      const btn = document.getElementById("btnToggleEdges");
+      if (btn) {
+        btn.classList.toggle("active", showConnections);
+        btn.textContent = showConnections ? "🔗 Dây kết nối: BẬT" : "🔗 Dây kết nối: TẮT";
+      }
+      renderEdges();
+    }
+
+    function setZoom(z) {
+      currentZoom = Math.max(0.55, Math.min(1.55, Math.round(z * 100) / 100));
+      const stage = document.getElementById("archStage");
+      const wrap = document.getElementById("archStageWrap");
+      const lbl = document.getElementById("zoomLabel");
+      if (stage) {
+        stage.style.transform = `scale(${currentZoom})`;
+        if (wrap) {
+          wrap.style.width = Math.ceil((stage.offsetWidth || 1240) * currentZoom) + "px";
+          wrap.style.height = Math.ceil((stage.offsetHeight || 720) * currentZoom) + "px";
+        }
+      }
+      if (lbl) lbl.textContent = Math.round(currentZoom * 100) + "%";
+      renderEdges();
+    }
+
+    function fitCanvasToViewport() {
+      const vp = document.getElementById("canvasViewport");
+      const stage = document.getElementById("archStage");
+      if (!vp || !stage) return;
+      const availW = Math.max(400, vp.clientWidth - 36);
+      const ratio = Math.min(1.12, Math.max(0.58, availW / (stage.offsetWidth || 1240)));
+      setZoom(ratio);
+      vp.scrollTo({ left: 0, top: 0, behavior: "smooth" });
+    }
+
+    function initCanvasPanAndZoom() {
+      const vp = document.getElementById("canvasViewport");
+      if (!vp) return;
+      let isDown = false, startX = 0, startY = 0, scrollL = 0, scrollT = 0;
+
+      vp.addEventListener("mousedown", (e) => {
+        if (e.button !== 0 || e.target.closest(".mod-card") || e.target.closest("a") || e.target.closest("button")) return;
+        isDown = true;
+        vp.classList.add("panning");
+        startX = e.pageX;
+        startY = e.pageY;
+        scrollL = vp.scrollLeft;
+        scrollT = vp.scrollTop;
+      });
+      window.addEventListener("mousemove", (e) => {
+        if (!isDown) return;
+        vp.scrollLeft = scrollL - (e.pageX - startX);
+        vp.scrollTop = scrollT - (e.pageY - startY);
+      });
+      window.addEventListener("mouseup", () => {
+        isDown = false;
+        vp.classList.remove("panning");
+      });
+
+      vp.addEventListener("wheel", (e) => {
+        if (!e.ctrlKey) return;
+        e.preventDefault();
+        setZoom(currentZoom + (e.deltaY < 0 ? 0.08 : -0.08));
+      }, { passive: false });
+    }
+
+    /* ===================== VIEW 2: DIRECTORY TABLE ===================== */
+    function renderDirectory() {
+      const statsEl = document.getElementById("dirStatsRow");
+      const tbody = document.getElementById("dirTableBody");
+      const cntEl = document.getElementById("dirTableCount");
+      if (!statsEl || !tbody) return;
+
+      // Per-layer coverage stats
+      const summaryLayers = ["application", "rte", "services", "ecu_ab", "mcal", "cdd"];
+      statsEl.innerHTML = summaryLayers.map(lid => {
+        const meta = getLayerMeta(lid);
+        const list = modsIn(lid);
+        const lnk = list.filter(isLinked).length;
+        const pct = list.length ? Math.round((lnk / list.length) * 100) : 0;
+        return `
+          <div class="kpi-card" style="background:var(--panel);border-color:var(--bdr);">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <span style="font-size:11px;font-weight:800;color:${escapeHtml(meta.color)}">${escapeHtml(meta.shortName || meta.name)}</span>
+              <span class="mono" style="font-size:11px;font-weight:700;">${lnk}/${list.length}</span>
+            </div>
+            <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
+          </div>
+        `;
+      }).join("");
+
+      const q = (document.getElementById("dirSearchInput")?.value || "").trim().toLowerCase();
+      const lf = document.getElementById("dirLayerFilter")?.value || "ALL";
+      const sf = document.getElementById("dirStatusFilter")?.value || "ALL";
+
+      const filtered = catalog.modules.filter(m => {
+        if (lf !== "ALL" && m.layer !== lf) return false;
+        if (sf === "LINKED" && !isLinked(m)) return false;
+        if (sf === "UNLINKED" && isLinked(m)) return false;
+        if (q) {
+          const hay = [m.id, m.name, m.layer, m.stack, m.sws, m.bus, m.htmlPath].join(" ").toLowerCase();
+          if (!hay.includes(q)) return false;
+        }
+        return true;
+      });
+
+      if (cntEl) cntEl.textContent = `${filtered.length} / ${catalog.modules.length} modules`;
+
+      tbody.innerHTML = filtered.map(m => {
+        const linked = isLinked(m);
+        const url = linked ? resolveSimUrl(m.htmlPath) : "";
+        const lMeta = getLayerMeta(m.layer);
+        let statusPill = linked
+          ? `<span class="pill pill-ok">✅ Có link</span>`
+          : `<span class="pill">⏳ Chưa có .html</span>`;
+
+        if (linked && localFolderFiles) {
+          const baseName = m.htmlPath.split("/").pop();
+          statusPill = localFolderFiles.has(baseName)
+            ? `<span class="pill pill-ok">📁 File tồn tại</span>`
+            : `<span class="pill pill-warn" title="Không thấy file trong thư mục đã quét">⚠️ Thiếu file</span>`;
+        } else if (linked && httpLinkStatus.has(m.id)) {
+          statusPill = httpLinkStatus.get(m.id)
+            ? `<span class="pill pill-ok">🌐 HTTP 200</span>`
+            : `<span class="pill pill-err">❌ HTTP Lỗi</span>`;
+        }
+
+        return `
+          <tr>
+            <td>
+              <div style="font-weight:800;font-size:12.5px;">${escapeHtml(m.id)}</div>
+              <div style="font-size:11px;color:var(--mut);">${escapeHtml(m.name)}</div>
+            </td>
+            <td>
+              <span class="pill pill-pri">${escapeHtml(lMeta.shortName || m.layer)}</span>
+              <span class="mono" style="font-size:10.5px;color:var(--mut);margin-left:4px;">${escapeHtml(m.stack)}</span>
+            </td>
+            <td>
+              <div class="mono" style="font-size:11px;">${escapeHtml(m.sws)}</div>
+              <div style="font-size:10.5px;color:var(--mut);">${escapeHtml(m.bus)}</div>
+            </td>
+            <td>${statusPill}</td>
+            <td>
+              <div style="display:flex;align-items:center;gap:5px;">
+                <input id="tblPath_${escapeHtml(m.id)}" class="inline-path-input" type="text" value="${escapeHtml(m.htmlPath || "")}" placeholder="AUTOSAR_${escapeHtml(m.id)}.html" onkeydown="if(event.key==='Enter'){event.preventDefault();saveTableLink('${escapeHtml(m.id)}');}" />
+                <button class="btn btn-xs btn-pri" onclick="saveTableLink('${escapeHtml(m.id)}')">Lưu</button>
+              </div>
+            </td>
+            <td style="text-align:right;white-space:nowrap;">
+              ${linked ? `<a class="btn btn-xs btn-ok" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">Mở ↗</a>` : ""}
+              <button class="btn btn-xs" onclick="jumpToCanvasModule('${escapeHtml(m.id)}')">🗺️ Canvas</button>
+            </td>
+          </tr>
+        `;
+      }).join("");
+    }
+
+    function saveTableLink(modId) {
+      const mod = modulesById.get(modId);
+      const inp = document.getElementById("tblPath_" + modId);
+      if (!mod || !inp) return;
+      mod.htmlPath = inp.value.trim();
+      rebuildIndexes();
+      persistCatalogOverride("💾 Đã sửa trong Bảng");
+      refreshAllViews();
+      showToast(mod.htmlPath ? `Đã cập nhật link ${mod.htmlPath} cho ${modId}` : `Đã xóa link của ${modId}`, "ok");
+    }
+
+    function jumpToCanvasModule(modId) {
+      switchView("canvas");
+      selectModule(modId);
+    }
+
+    function triggerScanFolder() {
+      const inp = document.getElementById("folderScanInput");
+      if (inp) inp.click();
+    }
+
+    async function verifyHttpLinks() {
+      if (location.protocol === "file:") {
+        showToast("Kiểm tra HTTP chỉ hoạt động khi chạy qua http://localhost", "err");
+        return;
+      }
+      httpLinkStatus.clear();
+      const linked = catalog.modules.filter(isLinked);
+      await Promise.all(linked.map(async m => {
+        try {
+          const res = await fetch(resolveSimUrl(m.htmlPath), { method: "HEAD" });
+          httpLinkStatus.set(m.id, res.ok);
+        } catch (_) {
+          httpLinkStatus.set(m.id, false);
+        }
+      }));
+      renderDirectory();
+      const okCnt = Array.from(httpLinkStatus.values()).filter(Boolean).length;
+      showToast(`Đã kiểm tra ${linked.length} links qua HTTP: ${okCnt} hợp lệ.`, "ok");
+    }
+
+    /* ===================== VIEW 3: JSON STUDIO ===================== */
+    function buildLinksOnlyMap() {
+      const map = {};
+      for (const m of catalog.modules) {
+        map[m.id] = m.htmlPath || "";
+      }
+      return map;
+    }
+
+    function syncJsonEditorFromCatalog() {
+      const ed = document.getElementById("jsonRawEditor");
+      const stats = document.getElementById("jsonStatsHint");
+      const badge = document.getElementById("jsonValidBadge");
+      if (!ed) return;
+      const obj = jsonEditorMode === "links" ? buildLinksOnlyMap() : catalog;
+      ed.value = JSON.stringify(obj, null, 2);
+      if (badge) { badge.className = "pill pill-ok"; badge.textContent = "✅ JSON hợp lệ"; }
+      if (stats) {
+        const lnk = catalog.modules.filter(isLinked).length;
+        stats.textContent = `${catalog.modules.length} modules · ${lnk} có link .html · ${(catalog.flows || []).length} luồng mô phỏng`;
+      }
+    }
+
+    function setJsonEditorMode(mode) {
+      jsonEditorMode = mode === "links" ? "links" : "full";
+      document.getElementById("jsonModeFullBtn").classList.toggle("active", jsonEditorMode === "full");
+      document.getElementById("jsonModeLinksBtn").classList.toggle("active", jsonEditorMode === "links");
+      syncJsonEditorFromCatalog();
+    }
+
+    function onJsonEditorInput() {
+      const ed = document.getElementById("jsonRawEditor");
+      const badge = document.getElementById("jsonValidBadge");
+      if (!ed || !badge) return;
+      try {
+        JSON.parse(ed.value);
+        badge.className = "pill pill-ok";
+        badge.textContent = "✅ Cú pháp JSON hợp lệ (chưa áp dụng)";
+      } catch (e) {
+        badge.className = "pill pill-warn";
+        badge.textContent = "⚠️ Lỗi cú pháp: " + e.message.slice(0, 42);
+      }
+    }
+
+    function applyRawJson() {
+      const ed = document.getElementById("jsonRawEditor");
+      if (!ed) return;
+      try {
+        const parsed = JSON.parse(ed.value);
+        const res = ingestJsonInput(parsed, "🧩 Sửa JSON trực tiếp");
+        showToast(
+          res.mode === "full"
+            ? `Đã nạp ${res.count} modules từ JSON!`
+            : `Đã cập nhật ${res.updatedCount} links, thêm ${res.addedCount} modules!`,
+          "ok"
+        );
+      } catch (e) {
+        showToast("Lỗi JSON: " + e.message, "err");
+      }
+    }
+
+    function formatRawJson() {
+      const ed = document.getElementById("jsonRawEditor");
+      if (!ed) return;
+      try {
+        ed.value = JSON.stringify(JSON.parse(ed.value), null, 2);
+        onJsonEditorInput();
+      } catch (e) {
+        showToast("Không thể format vì JSON lỗi: " + e.message, "err");
+      }
+    }
+
+    async function copyRawJson() {
+      const ed = document.getElementById("jsonRawEditor");
+      if (!ed) return;
+      try {
+        await navigator.clipboard.writeText(ed.value);
+        showToast("Đã copy JSON vào clipboard!", "ok");
+      } catch (_) {
+        ed.select();
+        document.execCommand("copy");
+        showToast("Đã copy JSON!", "ok");
+      }
+    }
+
+    function updateNewModStackOptions() {
+      const layer = document.getElementById("newModLayer").value;
+      const sel = document.getElementById("newModStack");
+      const list = STACK_CATALOG[layer] || [{ id: "custom", label: "Custom" }];
+      sel.innerHTML = list.map(s => `<option value="${escapeHtml(s.id)}">${escapeHtml(s.label)}</option>`).join("");
+    }
+
+    function addNewModuleFromForm(e) {
+      e.preventDefault();
+      const id = document.getElementById("newModId").value.trim();
+      const name = document.getElementById("newModName").value.trim();
+      if (!id || !name) return;
+
+      const modObj = {
+        id,
+        name,
+        layer: document.getElementById("newModLayer").value,
+        stack: document.getElementById("newModStack").value,
+        htmlPath: document.getElementById("newModPath").value.trim(),
+        sws: document.getElementById("newModSws").value.trim() || "Custom",
+        bus: document.getElementById("newModBus").value.trim() || "Core",
+        summary: document.getElementById("newModSummary").value.trim() || "Module bổ sung qua giao diện JSON Hub.",
+        apis: document.getElementById("newModApis").value.split(",").map(s => s.trim()).filter(Boolean),
+        connections: document.getElementById("newModConns").value.split(",").map(s => s.trim()).filter(Boolean),
+        tags: ["Custom"]
+      };
+
+      const existingIdx = catalog.modules.findIndex(m => m.id === id);
+      if (existingIdx >= 0) {
+        catalog.modules[existingIdx] = modObj;
+      } else {
+        catalog.modules.push(modObj);
+      }
+
+      rebuildIndexes();
+      persistCatalogOverride("💾 Đã thêm module");
+      refreshAllViews();
+      selectModule(id);
+      e.target.reset();
+      updateNewModStackOptions();
+      showToast(`${existingIdx >= 0 ? "Đã cập nhật" : "Đã thêm"} module ${id}!`, "ok");
+    }
+
+    function resetToDefaultCatalog() {
+      localStorage.removeItem(STORAGE_KEY_CATALOG);
+      localStorage.removeItem(STORAGE_KEY_SOURCE);
+      catalog = normalizeCatalog(defaultCatalog);
+      selectedModuleId = null;
+      rebuildIndexes();
+      setSourceBadge("📦 Embedded Default JSON", "pill-pri");
+      refreshAllViews();
+      showToast("Đã khôi phục dữ liệu mặc định ban đầu!", "pri");
+    }
+
+    /* ===================== FILE LOAD / EXPORT / STANDALONE HTML ===================== */
+    function triggerLoadJsonFile() {
+      const inp = document.getElementById("jsonFileInput");
+      if (inp) {
+        inp.value = "";
+        inp.click();
+      }
+    }
+
+    function handleJsonFileObject(file) {
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const parsed = JSON.parse(String(reader.result));
+          const res = ingestJsonInput(parsed, "📄 " + file.name);
+          showToast(
+            res.mode === "full"
+              ? `Đã nạp ${file.name} (${res.count} modules)`
+              : `Đã gộp ${file.name}: cập nhật ${res.updatedCount} links, thêm ${res.addedCount} modules`,
+            "ok"
+          );
+        } catch (err) {
+          showToast("Không đọc được file JSON: " + err.message, "err");
+        }
+      };
+      reader.readAsText(file, "utf-8");
+    }
+
+    async function reloadFromServerJson() {
+      if (location.protocol === "file:") return;
+      try {
+        const res = await fetch("./autosar_modules.json?ts=" + Date.now());
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const parsed = await res.json();
+        catalog = normalizeCatalog(parsed);
+        localStorage.removeItem(STORAGE_KEY_CATALOG);
+        localStorage.removeItem(STORAGE_KEY_SOURCE);
+        rebuildIndexes();
+        setSourceBadge("📄 autosar_modules.json (HTTP)", "pill-ok");
+        refreshAllViews();
+        showToast("Đã tải lại autosar_modules.json mới nhất từ server!", "ok");
+      } catch (e) {
+        showToast("Không tải được autosar_modules.json: " + e.message, "err");
+      }
+    }
+
+    async function exportJsonFile() {
+      const jsonText = JSON.stringify(catalog, null, 2);
+      if (typeof window.showSaveFilePicker === "function") {
+        try {
+          const handle = await window.showSaveFilePicker({
+            suggestedName: "autosar_modules.json",
+            types: [{ description: "JSON Catalog", accept: { "application/json": [".json"] } }]
+          });
+          const writable = await handle.createWritable();
+          await writable.write(jsonText);
+          await writable.close();
+          showToast("Đã lưu file autosar_modules.json thành công!", "ok");
+          return;
+        } catch (err) {
+          if (err && err.name === "AbortError") return;
+        }
+      }
+      const blob = new Blob([jsonText], { type: "application/json;charset=utf-8" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "autosar_modules.json";
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 1500);
+      showToast("Đã tải xuống autosar_modules.json!", "ok");
+    }
+
+    function downloadStandaloneHTML() {
+      const clone = document.documentElement.cloneNode(true);
+      // Update embedded JSON payload inside clone
+      const emb = clone.querySelector("#embedded-catalog-json");
+      if (emb) {
+        emb.textContent = "\n" + JSON.stringify(catalog, null, 2).replace(/<\//g, "<\\/") + "\n  ";
+      }
+      // Clear dynamically rendered DOM inside clone so downloaded HTML boots fresh
+      const clearIds = [
+        "archLayersMount", "archEdgesSvg", "dirStatsRow", "dirTableBody",
+        "inspectorBody", "flowBanner", "toastContainer", "handbookMount"
+      ];
+      for (const cid of clearIds) {
+        const el = clone.querySelector("#" + cid);
+        if (el) el.innerHTML = "";
+      }
+      const rawEd = clone.querySelector("#jsonRawEditor");
+      if (rawEd) rawEd.textContent = "";
+      const dropOv = clone.querySelector("#dropOverlay");
+      if (dropOv) dropOv.classList.remove("active");
+      for (const hid of ["fileProtocolHint", "folderScanResults", "btnClearSelect", "btnReloadHttp", "btnVerifyHttp"]) {
+        const el = clone.querySelector("#" + hid);
+        if (el) el.style.display = "none";
+      }
+
+      const htmlOut = "<!DOCTYPE html>\n" + clone.outerHTML;
+      const blob = new Blob([htmlOut], { type: "text/html;charset=utf-8" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "AUTOSAR.html";
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 1500);
+      showToast("Đã đóng gói & tải AUTOSAR.html kèm JSON mới nhất!", "ok");
+    }
+
+    /* ===================== HANDBOOK VIEW ===================== */
+    function renderHandbook() {
+      const mount = document.getElementById("handbookMount");
+      if (!mount) return;
+      const linked = catalog.modules.filter(isLinked);
+      mount.innerHTML = `
+        <div class="hb-card">
+          <h3>1. Kiến Trúc Phân Tầng AUTOSAR Classic</h3>
+          <p><b>AUTOSAR Classic Platform</b> chuẩn hóa phần mềm ECU ô tô thành các tầng tách biệt phần cứng khỏi logic điều khiển:</p>
+          <ul>
+            <li><b>Application Layer (ASW):</b> Chứa các Software Components (SW-C) giao tiếp qua Ports trên Virtual Function Bus (VFB).</li>
+            <li><b>Runtime Environment (RTE):</b> Hiện thực hóa VFB cho ECU cụ thể, kết nối SW-Cs với nhau và với Basic Software (BSW) qua Schedule Manager (SchM).</li>
+            <li><b>Services Layer:</b> Các dịch vụ hệ thống (OS, EcuM, BswM, WdgM, Dem, FiM), bộ nhớ (NvM), bảo mật (Csm, KeyM) và ngăn xếp truyền thông (ComM, Com, PduR, SecOC, Dcm, Nm/CanNm, CanSM, CanTp...).</li>
+            <li><b>ECU Abstraction Layer:</b> Trừu tượng hóa mạch bo mạch ECU (CanIf, CanTrcv, MemIf, Fee, CryIf, WdgIf, IoHwAb).</li>
+            <li><b>MCAL:</b> Trình điều khiển thanh ghi trực tiếp trên vi điều khiển (Mcu, Gpt, Wdg, Fls, Crypto, Can, Lin, Eth, Spi, Dio, Adc, Pwm).</li>
+            <li><b>Complex Drivers (CDD):</b> Truy cập phần cứng trực tiếp lên RTE cho các yêu cầu thời gian thực khắt khe.</li>
+          </ul>
+        </div>
+
+        <div class="hb-card">
+          <h3>2. Danh Sách ${linked.length} Trình Mô Phỏng Đã Liên Kết</h3>
+          <p>Tất cả file mô phỏng nằm cùng thư mục với <code>AUTOSAR.html</code>:</p>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+            ${linked.map(m => `
+              <a class="quick-sim-row" style="text-decoration:none;color:var(--txt);" href="${escapeHtml(resolveSimUrl(m.htmlPath))}" target="_blank" rel="noopener noreferrer">
+                <span><b>${escapeHtml(m.id)}</b></span>
+                <span class="mono" style="font-size:10.5px;color:var(--ok);overflow:hidden;text-overflow:ellipsis;">${escapeHtml(m.htmlPath)} ↗</span>
+              </a>
+            `).join("")}
+          </div>
+        </div>
+
+        <div class="hb-card">
+          <h3>3. Cách Sửa &amp; Thêm Link Bằng File JSON</h3>
+          <p>File <code>autosar_modules.json</code> nằm cạnh <code>AUTOSAR.html</code> là cấu hình đầu vào mặc định:</p>
+          <ul>
+            <li><b>Khi tạo thêm file mô phỏng mới</b> (ví dụ <code>AUTOSAR_NvM.html</code> hoặc <code>AUTOSAR_CanIf.html</code>), mở <code>autosar_modules.json</code> và điền tên file vào thuộc tính <code>"htmlPath"</code> của module đó.</li>
+            <li><b>Khi đổi tên hoặc di chuyển file:</b> chỉ cần cập nhật lại chuỗi <code>"htmlPath"</code> (hoặc <code>"basePath"</code>).</li>
+            <li><b>Nạp JSON vào trình duyệt:</b> nếu mở qua <code>http://localhost</code> (ví dụ <code>python -m http.server</code>), trang tự động đọc <code>autosar_modules.json</code>. Nếu mở trực tiếp bằng double-click (<code>file://</code>), chỉ cần <b>kéo-thả file .json</b> vào cửa sổ trình duyệt hoặc bấm nút <b>📂 Nạp JSON</b>.</li>
+          </ul>
+        </div>
+
+        <div class="hb-card">
+          <h3>4. Chia Sẻ Cho Người Khác</h3>
+          <p>Có 2 cách chia sẻ nhanh bộ công cụ này cho đồng nghiệp:</p>
+          <ul>
+            <li><b>Chia sẻ nguyên thư mục Simulation:</b> Gửi thư mục chứa <code>AUTOSAR.html</code>, <code>autosar_modules.json</code> và các file <code>AUTOSAR_*.html</code>. Mọi đường dẫn tương đối giữ nguyên 100%.</li>
+            <li><b>Chia sẻ 1 file duy nhất sau khi chỉnh sửa JSON:</b> Bấm <b>📥 Tải File .HTML</b> ở thanh trên cùng — hệ thống sẽ nhúng toàn bộ thay đổi JSON hiện tại trực tiếp vào bên trong file <code>AUTOSAR.html</code> tải về.</li>
+          </ul>
+        </div>
+      `;
+    }
+
+    /* ===================== VIEW SWITCHING & THEME ===================== */
+    function switchView(view) {
+      const views = {
+        canvas: ["viewCanvas", "tabBtnCanvas"],
+        directory: ["viewDirectory", "tabBtnDirectory"],
+        json: ["viewJson", "tabBtnJson"],
+        handbook: ["viewHandbook", "tabBtnHandbook"]
+      };
+      for (const [k, [secId, btnId]] of Object.entries(views)) {
+        const sec = document.getElementById(secId);
+        const btn = document.getElementById(btnId);
+        if (sec) sec.classList.toggle("active", k === view);
+        if (btn) btn.classList.toggle("active", k === view);
+      }
+      if (view === "canvas") {
+        requestAnimationFrame(renderEdges);
+      } else if (view === "directory") {
+        renderDirectory();
+      } else if (view === "json") {
+        syncJsonEditorFromCatalog();
+      } else if (view === "handbook") {
+        renderHandbook();
+      }
+    }
+
+    function applyTheme(theme) {
+      document.documentElement.setAttribute("data-theme", theme);
+      const btn = document.getElementById("btnTheme");
+      if (btn) btn.textContent = theme === "light" ? "🌙 Dark Mode" : "☀️ Light Mode";
+      try { localStorage.setItem(STORAGE_KEY_THEME, theme); } catch (_) {}
+    }
+
+    function toggleTheme() {
+      const cur = document.documentElement.getAttribute("data-theme") || "dark";
+      applyTheme(cur === "dark" ? "light" : "dark");
+    }
+
+    /* ===================== DRAG & DROP / INPUT LISTENERS ===================== */
+    function initGlobalListeners() {
+      // JSON file picker
+      const jf = document.getElementById("jsonFileInput");
+      if (jf) {
+        jf.addEventListener("change", (e) => {
+          const f = e.target.files && e.target.files[0];
+          if (f) handleJsonFileObject(f);
+        });
+      }
+
+      // Folder scan picker
+      const fs = document.getElementById("folderScanInput");
+      if (fs) {
+        fs.addEventListener("change", (e) => {
+          const files = Array.from(e.target.files || []);
+          const htmlNames = new Set(files.filter(f => f.name.toLowerCase().endsWith(".html")).map(f => f.name));
+          localFolderFiles = htmlNames;
+          const linkedNames = new Set(catalog.modules.filter(isLinked).map(m => m.htmlPath.split("/").pop()));
+          const unlinkedHtml = Array.from(htmlNames).filter(n => n !== "AUTOSAR.html" && !linkedNames.has(n));
+
+          const box = document.getElementById("folderScanResults");
+          if (box) {
+            box.style.display = "flex";
+            box.innerHTML = `
+              <span>📁 Đã quét <b>${htmlNames.size}</b> file <code>.html</code> trong thư mục. ${
+                unlinkedHtml.length
+                  ? `Phát hiện <b>${unlinkedHtml.length}</b> file chưa được gắn link: <code>${unlinkedHtml.map(escapeHtml).join(", ")}</code>`
+                  : "Tất cả file mô phỏng đều đã được đối chiếu!"
+              }</span>
+              <button class="btn btn-xs" onclick="hideNotice('folderScanResults')">Đóng</button>
+            `;
+          }
+          renderDirectory();
+          showToast(`Đã đối chiếu ${htmlNames.size} file .html trong thư mục!`, "ok");
+        });
+      }
+
+      // Drag & Drop JSON anywhere
+      let dragDepth = 0;
+      const overlay = document.getElementById("dropOverlay");
+      window.addEventListener("dragenter", (e) => {
+        if (e.dataTransfer && Array.from(e.dataTransfer.types).includes("Files")) {
+          dragDepth++;
+          if (overlay) overlay.classList.add("active");
+        }
+      });
+      window.addEventListener("dragover", (e) => {
+        e.preventDefault();
+      });
+      window.addEventListener("dragleave", () => {
+        dragDepth = Math.max(0, dragDepth - 1);
+        if (dragDepth === 0 && overlay) overlay.classList.remove("active");
+      });
+      window.addEventListener("drop", (e) => {
+        e.preventDefault();
+        dragDepth = 0;
+        if (overlay) overlay.classList.remove("active");
+        const files = e.dataTransfer && e.dataTransfer.files;
+        if (files && files[0]) {
+          if (files[0].name.toLowerCase().endsWith(".json")) {
+            handleJsonFileObject(files[0]);
+          } else {
+            showToast("Vui lòng thả file có đuôi .json", "err");
+          }
+        }
+      });
+
+      // Keyboard shortcuts: '/' focuses search, Escape clears selection
+      window.addEventListener("keydown", (e) => {
+        const tag = (document.activeElement && document.activeElement.tagName) || "";
+        const editing = ["INPUT", "TEXTAREA", "SELECT"].includes(tag);
+        if (e.key === "/" && !editing) {
+          e.preventDefault();
+          const inp = document.getElementById("canvasSearchInput");
+          if (inp) inp.focus();
+        } else if (e.key === "Escape") {
+          if (selectedModuleId) selectModule(null);
+        }
+      });
+
+      // Recompute SVG wires on resize
+      window.addEventListener("resize", () => requestAnimationFrame(renderEdges));
+    }
+
+    /* ===================== BOOTSTRAP ===================== */
+    async function initApp() {
+      // Load theme
+      try {
+        const savedTheme = localStorage.getItem(STORAGE_KEY_THEME);
+        if (savedTheme === "light" || savedTheme === "dark") applyTheme(savedTheme);
+      } catch (_) {}
+
+      // Parse embedded JSON
+      const embEl = document.getElementById("embedded-catalog-json");
+      defaultCatalog = JSON.parse(embEl ? embEl.textContent : '{"modules":[],"layers":[],"flows":[]}');
+      catalog = normalizeCatalog(defaultCatalog);
+
+      // Check localStorage override vs HTTP external autosar_modules.json
+      const isFileProto = (location.protocol === "file:");
+      if (isFileProto) {
+        document.getElementById("fileProtocolHint").style.display = "flex";
+      } else {
+        document.getElementById("btnReloadHttp").style.display = "inline-flex";
+        document.getElementById("btnVerifyHttp").style.display = "inline-flex";
+      }
+
+      let loadedFromHttp = false;
+      if (!isFileProto) {
+        try {
+          const res = await fetch("./autosar_modules.json?ts=" + Date.now());
+          if (res.ok) {
+            const extJson = await res.json();
+            catalog = normalizeCatalog(extJson);
+            loadedFromHttp = true;
+            setSourceBadge("📄 autosar_modules.json (HTTP)", "pill-ok");
+          }
+        } catch (_) {}
+      }
+
+      if (!loadedFromHttp) {
+        try {
+          const saved = localStorage.getItem(STORAGE_KEY_CATALOG);
+          if (saved) {
+            catalog = normalizeCatalog(JSON.parse(saved));
+            const src = localStorage.getItem(STORAGE_KEY_SOURCE) || "💾 Bản lưu cục bộ";
+            setSourceBadge(src, "pill-acc");
+          } else {
+            setSourceBadge("📦 Embedded Default JSON", "pill-pri");
+          }
+        } catch (_) {
+          setSourceBadge("📦 Embedded Default JSON", "pill-pri");
+        }
+      }
+
+      rebuildIndexes();
+      updateNewModStackOptions();
+      initCanvasPanAndZoom();
+      initGlobalListeners();
+      refreshAllViews();
+
+      // Auto-fit slightly on narrower viewports
+      const vp = document.getElementById("canvasViewport");
+      if (vp && vp.clientWidth > 0 && vp.clientWidth < 1280) {
+        fitCanvasToViewport();
+      } else {
+        setZoom(1.0);
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", initApp);
+  </script>
+</body>
+</html>
