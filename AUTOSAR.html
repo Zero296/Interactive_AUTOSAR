@@ -77,7 +77,7 @@
       line-height: 1.45;
       min-height: 100vh;
     }
-    body { display: flex; flex-direction: column; overflow-x: hidden; }
+    body { display: flex; flex-direction: column; overflow-x: clip; }
     code, pre, .mono { font-family: "JetBrains Mono", "Cascadia Code", Consolas, "Courier New", monospace; }
     a { color: var(--pri); text-decoration: none; }
     a:hover { text-decoration: underline; }
@@ -99,41 +99,45 @@
     .hdr-inner {
       max-width: 1960px;
       margin: 0 auto;
-      padding: 9px 14px;
+      padding: 6px 12px;
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 4px;
     }
     .hdr-top {
       display: flex;
       flex-wrap: wrap;
       align-items: center;
       justify-content: space-between;
-      gap: 10px;
+      gap: 8px;
     }
-    .brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+    .brand { display: flex; align-items: center; gap: 8px; min-width: 0; }
     .brand-logo {
-      width: 40px; height: 40px; border-radius: 10px; flex: none;
+      height: 28px; padding: 0 8px; border-radius: 7px; flex: none;
       background: linear-gradient(135deg, #0284c7, #4f46e5);
       display: flex; align-items: center; justify-content: center;
-      color: #fff; font-weight: 800; font-size: 11px; letter-spacing: 0.04em;
-      box-shadow: 0 4px 14px rgba(2, 132, 199, 0.36);
+      color: #fff; font-weight: 800; font-size: 10.5px; letter-spacing: 0.04em;
+      box-shadow: 0 2px 10px rgba(2, 132, 199, 0.34);
     }
-    .brand-title { font-size: 15px; font-weight: 800; letter-spacing: -0.01em; line-height: 1.25; }
-    .brand-sub { font-size: 11px; color: var(--mut); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 650px; }
-    .nav-tabs { display: flex; flex-wrap: wrap; gap: 5px; }
+    .brand-title {
+      font-size: 13.5px; font-weight: 800; letter-spacing: -0.01em; line-height: 1.2;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 230px;
+    }
+    .nav-tabs { display: flex; flex-wrap: wrap; gap: 4px; }
     .nav-tab {
-      padding: 6px 12px; border-radius: 8px;
+      padding: 4px 9px; border-radius: 7px;
       border: 1px solid var(--bdr); background: var(--panel-2); color: var(--mut);
-      font-weight: 700; font-size: 12px; cursor: pointer; transition: all 0.15s;
-      display: inline-flex; align-items: center; gap: 6px;
+      font-weight: 700; font-size: 11.5px; cursor: pointer; transition: all 0.15s;
+      display: inline-flex; align-items: center; gap: 5px; white-space: nowrap;
     }
     .nav-tab:hover { border-color: var(--pri); color: var(--txt); }
     .nav-tab.active {
       background: var(--pri-bg); border-color: var(--pri); color: var(--txt);
       box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.25);
     }
-    .hdr-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+    .hdr-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; }
+    .hdr-actions .btn-sm { padding: 4px 8px; font-size: 11px; }
+    .hdr-actions .pill { padding: 2px 7px; font-size: 10.5px; max-width: 175px; overflow: hidden; text-overflow: ellipsis; }
 
     /* ===================== BUTTONS & INPUTS ===================== */
     .btn {
@@ -179,6 +183,11 @@
       background: var(--panel); border: 1px solid var(--bdr); border-radius: 11px;
       padding: 8px 11px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px;
       box-shadow: var(--shadow);
+    }
+    .toolbar-sticky {
+      position: sticky;
+      top: var(--hdr-h, 58px);
+      z-index: 55;
     }
     .tb-group { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
     .search-wrap { position: relative; display: flex; align-items: center; }
@@ -470,26 +479,37 @@
       flex: none;
     }
 
-    /* ===================== FLOW NARRATIVE BANNER ===================== */
+    /* ===================== FLOW NARRATIVE CARD (IN RIGHT INSPECTOR) ===================== */
     .flow-banner {
-      border-top: 1px solid var(--bdr);
-      background: var(--panel-2);
-      padding: 9px 12px;
       display: none;
       flex-direction: column;
-      gap: 6px;
+      gap: 8px;
+      padding: 10px;
+      border-radius: 10px;
+      border: 1px solid rgba(56, 189, 248, 0.48);
+      background: linear-gradient(180deg, var(--pri-bg) 0%, var(--panel-2) 100%);
+      flex: none;
     }
     .flow-banner.active { display: flex; }
     .flow-banner-top {
-      display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px;
+      display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px;
     }
     .flow-step-title { font-size: 12.5px; font-weight: 800; color: var(--pri); }
     .flow-api {
       font-family: "JetBrains Mono", Consolas, monospace;
-      font-size: 11px; padding: 2px 7px; border-radius: 5px;
+      font-size: 11px; padding: 3px 7px; border-radius: 5px;
       background: var(--code); border: 1px solid var(--bdr); color: var(--warn);
+      word-break: break-word;
     }
-    .flow-detail { font-size: 12px; color: var(--txt-soft); }
+    .flow-detail { font-size: 12px; color: var(--txt-soft); line-height: 1.5; }
+    .flow-steps-strip { display: flex; flex-wrap: wrap; gap: 4px; }
+    .flow-step-chip {
+      min-width: 24px; height: 22px; padding: 0 6px; border-radius: 6px;
+      border: 1px solid var(--bdr); background: var(--panel-3); color: var(--mut);
+      font-size: 10.5px; font-weight: 800; cursor: pointer; transition: all 0.12s;
+    }
+    .flow-step-chip:hover { border-color: var(--pri); color: var(--txt); }
+    .flow-step-chip.active { background: var(--warn); border-color: var(--warn); color: #0f172a; }
 
     /* ===================== INSPECTOR SIDEBAR ===================== */
     .inspector {
@@ -497,18 +517,40 @@
       box-shadow: var(--shadow); display: flex; flex-direction: column; overflow: hidden;
       min-width: 0;
     }
+    .inspector.is-sticky {
+      position: sticky;
+      top: var(--sticky-top, 76px);
+      align-self: start;
+      max-height: calc(100vh - var(--sticky-top, 76px) - 14px);
+      border-color: rgba(56, 189, 248, 0.55);
+      box-shadow: 0 12px 32px rgba(2, 132, 199, 0.18), var(--shadow);
+    }
+    @media (max-width: 1180px) {
+      .inspector.is-sticky {
+        position: static;
+        align-self: stretch;
+        max-height: none;
+      }
+    }
     .inspector-h {
       padding: 9px 12px; border-bottom: 1px solid var(--bdr); background: var(--panel-2);
       display: flex; align-items: center; justify-content: space-between; gap: 8px;
+      flex: none;
     }
     .inspector-t { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: var(--pri); }
-    .inspector-body {
+    .inspector-scroll {
       padding: 12px;
       overflow-y: auto;
       display: flex;
       flex-direction: column;
       gap: 11px;
       flex: 1;
+      min-height: 0;
+    }
+    .inspector-body {
+      display: flex;
+      flex-direction: column;
+      gap: 11px;
     }
     .card-box {
       background: var(--panel-2); border: 1px solid var(--bdr); border-radius: 9px; padding: 10px;
@@ -680,28 +722,25 @@
   <header class="hdr">
     <div class="hdr-inner">
       <div class="hdr-top">
-        <div class="brand">
+        <div id="brandWrap" class="brand" title="AUTOSAR Classic R23-11 Interactive Architecture &amp; Simulation Hub">
           <div class="brand-logo">AUTOSAR</div>
-          <div style="min-width:0">
-            <div id="hdrTitle" class="brand-title">AUTOSAR Classic R23-11 Interactive Architecture &amp; Simulation Hub</div>
-            <div id="hdrSubtitle" class="brand-sub">Kiến trúc phân tầng ASW · RTE · BSW (Services / ECU Ab / MCAL / CDD) · Liên kết trực tiếp các trình mô phỏng Simulation.html</div>
-          </div>
+          <div id="hdrTitle" class="brand-title">Classic R23-11 Hub</div>
         </div>
 
         <nav class="nav-tabs" role="tablist">
-          <button id="tabBtnCanvas" class="nav-tab active" onclick="switchView('canvas')">🗺️ Kiến Trúc Tương Tác (Canvas)</button>
-          <button id="tabBtnDirectory" class="nav-tab" onclick="switchView('directory')">📋 Danh Mục &amp; Links</button>
-          <button id="tabBtnJson" class="nav-tab" onclick="switchView('json')">🧩 JSON Input &amp; Sửa Link</button>
-          <button id="tabBtnHandbook" class="nav-tab" onclick="switchView('handbook')">📖 Hướng Dẫn Kiến Trúc</button>
+          <button id="tabBtnCanvas" class="nav-tab active" onclick="switchView('canvas')">🗺️ Kiến Trúc</button>
+          <button id="tabBtnDirectory" class="nav-tab" onclick="switchView('directory')">📋 Danh Mục</button>
+          <button id="tabBtnJson" class="nav-tab" onclick="switchView('json')">🧩 JSON / Links</button>
+          <button id="tabBtnHandbook" class="nav-tab" onclick="switchView('handbook')">📖 Hướng Dẫn</button>
         </nav>
 
         <div class="hdr-actions">
           <span id="jsonSourceBadge" class="pill pill-pri">📦 Embedded JSON</span>
           <button class="btn btn-sm" onclick="triggerLoadJsonFile()" title="Nạp file autosar_modules.json từ máy tính">📂 Nạp JSON</button>
-          <button id="btnReloadHttp" class="btn btn-sm" onclick="reloadFromServerJson()" style="display:none" title="Tải lại autosar_modules.json qua HTTP">🔄 Reload JSON</button>
+          <button id="btnReloadHttp" class="btn btn-sm" onclick="reloadFromServerJson()" style="display:none" title="Tải lại autosar_modules.json qua HTTP">🔄 Reload</button>
           <button class="btn btn-sm btn-ok" onclick="exportJsonFile()" title="Lưu thành file autosar_modules.json">💾 Xuất JSON</button>
-          <button class="btn btn-sm btn-pri" onclick="downloadStandaloneHTML()" title="Tải 1 file AUTOSAR.html hoàn chỉnh kèm dữ liệu JSON hiện tại để chia sẻ">📥 Tải File .HTML</button>
-          <button id="btnTheme" class="btn btn-sm" onclick="toggleTheme()">☀️ Light Mode</button>
+          <button class="btn btn-sm btn-pri" onclick="downloadStandaloneHTML()" title="Tải 1 file AUTOSAR.html hoàn chỉnh kèm dữ liệu JSON hiện tại để chia sẻ">📥 Tải .HTML</button>
+          <button id="btnTheme" class="btn btn-sm" onclick="toggleTheme()">☀️ Light</button>
         </div>
       </div>
     </div>
@@ -709,7 +748,7 @@
 
   <!-- ================= VIEW 1: INTERACTIVE ARCHITECTURE CANVAS ================= -->
   <section id="viewCanvas" class="view-section active">
-    <div class="toolbar">
+    <div id="canvasToolbar" class="toolbar toolbar-sticky">
       <div class="tb-group">
         <div class="search-wrap">
           <span class="search-icon">🔍</span>
@@ -763,8 +802,8 @@
       <div class="canvas-shell">
         <div class="canvas-bar">
           <div class="legend-row">
-            <span class="legend-item"><span class="dot dot-ok"></span> Đã có Simulation (.html) — Click để xem, Double-Click hoặc bấm <code>↗</code> để mở</span>
-            <span class="legend-item"><span class="dot dot-plan"></span> Chưa có .html — Click để gắn đường dẫn qua JSON/UI</span>
+            <span class="legend-item"><span class="dot dot-ok"></span> Đã có Simulation (.html) — Click để chọn/bỏ chọn, Double-Click hoặc <code>Mở ↗</code> để mở</span>
+            <span class="legend-item"><span class="dot dot-plan"></span> Chưa có .html — Click để chọn/gắn đường dẫn</span>
             <span class="legend-item"><span class="dot dot-flow"></span> Đang chọn / Luồng mô phỏng</span>
           </div>
           <span style="font-size:11px;color:var(--mut)">Kéo vùng trống để pan · Ctrl+Scroll để zoom</span>
@@ -778,18 +817,23 @@
             </div>
           </div>
         </div>
-
-        <!-- Flow Simulation Active Step Banner -->
-        <div id="flowBanner" class="flow-banner"></div>
       </div>
 
-      <!-- Right Docked Module Inspector -->
-      <aside class="inspector">
+      <!-- Right Docked Module Inspector & Flow Explanation -->
+      <aside id="inspectorPanel" class="inspector">
         <div class="inspector-h">
-          <span class="inspector-t">🔎 Chi Tiết Module &amp; Simulation Link</span>
-          <button id="btnClearSelect" class="btn btn-xs" onclick="selectModule(null)" style="display:none">✕ Bỏ chọn</button>
+          <span class="inspector-t">🔎 Chi Tiết &amp; Mô Phỏng</span>
+          <div style="display:flex;align-items:center;gap:5px;">
+            <button id="btnToggleSticky" class="chip-btn" onclick="toggleInspectorSticky()" title="Ghim cột phải (Sticky) khi cuộn trang" style="padding:2px 7px;font-size:10.5px;">📌 Sticky</button>
+            <button id="btnClearSelect" class="btn btn-xs" onclick="selectModule(null)" style="display:none">✕ Bỏ chọn</button>
+          </div>
         </div>
-        <div id="inspectorBody" class="inspector-body"></div>
+        <div id="inspectorScroll" class="inspector-scroll">
+          <!-- Flow Simulation Step Explanation -->
+          <div id="flowBanner" class="flow-banner"></div>
+          <!-- Module Details / Overview -->
+          <div id="inspectorBody" class="inspector-body"></div>
+        </div>
       </aside>
     </div>
   </section>
@@ -917,8 +961,8 @@
                 <select id="newModStack"></select>
               </div>
               <div class="field full">
-                <label for="newModPath">Đường dẫn file .html (cùng thư mục hoặc URL)</label>
-                <input id="newModPath" type="text" placeholder="vd: AUTOSAR_NvM.html (để trống nếu chưa có)" />
+                <label for="newModPath">Đường dẫn file .html (tương đối từ AUTOSAR.html hoặc URL)</label>
+                <input id="newModPath" type="text" placeholder="vd: Simulation/03_Services/AUTOSAR_NvM.html" />
               </div>
               <div class="field">
                 <label for="newModSws">Đặc tả SWS</label>
@@ -955,15 +999,15 @@
             <div><b>1. File chuẩn <code>autosar_modules.json</code>:</b> Chứa toàn bộ <code>layers</code>, <code>modules[]</code>, <code>flows[]</code> và <code>basePath</code>.</div>
             <div><b>2. JSON cập nhật nhanh dạng Key-Value:</b> Chỉ cần liệt kê <code>ModuleId: "ten_file.html"</code> (module đã có sẽ tự gắn link, module chưa có sẽ tự thêm mới).</div>
             <pre class="code-blk">{
-  "NvM": "AUTOSAR_NvM.html",
-  "CanIf": "AUTOSAR_CanIf.html",
-  "BswM": "AUTOSAR_BswM_v2.html"
+  "NvM": "Simulation/03_Services/AUTOSAR_NvM.html",
+  "CanIf": "Simulation/04_ECU_Abstraction/AUTOSAR_CanIf.html",
+  "BswM": "Simulation/03_Services/AUTOSAR_BswM.html"
 }</pre>
             <div><b>3. JSON Patch có thêm module mới:</b></div>
             <pre class="code-blk">{
-  "links": { "NvM": "AUTOSAR_NvM.html" },
+  "links": { "NvM": "Simulation/03_Services/AUTOSAR_NvM.html" },
   "addModules": [
-    { "id": "E2E", "name": "End-to-End Protection", "layer": "services", "stack": "comm", "htmlPath": "AUTOSAR_E2E.html" }
+    { "id": "E2E", "name": "End-to-End Protection", "layer": "services", "stack": "comm", "htmlPath": "Simulation/03_Services/AUTOSAR_E2E.html" }
   ]
 }</pre>
           </div>
@@ -1139,7 +1183,7 @@
       "name": "Runtime Environment",
       "layer": "rte",
       "stack": "rte",
-      "htmlPath": "AUTOSAR_RTE.html",
+      "htmlPath": "Simulation/02_RTE/AUTOSAR_RTE.html",
       "sws": "SWS_RTE",
       "bus": "Core",
       "summary": "Cầu nối trung tâm hiện thực hóa Virtual Function Bus (VFB), ánh xạ Runnables vào OS Tasks, quản lý S/R, C/S, Mode Switch, IRV, PIM, Multicore IOC và BSW Schedule Manager (SchM).",
@@ -1187,7 +1231,7 @@
       "name": "AUTOSAR OS",
       "layer": "services",
       "stack": "system",
-      "htmlPath": "AUTOSAR_OS.html",
+      "htmlPath": "Simulation/03_Services/AUTOSAR_OS.html",
       "sws": "SWS_Os",
       "bus": "Core",
       "summary": "Hệ điều hành thời gian thực (OSEK/VDX mở rộng): lập lịch Task ưu tiên tĩnh, Events, Resources (PCP), Counters/Alarms, Schedule Tables, ISRs, Hooks, IOC và Multicore Spinlocks.",
@@ -1222,7 +1266,7 @@
       "name": "ECU State Manager",
       "layer": "services",
       "stack": "system",
-      "htmlPath": "AUTOSAR_EcuM.html",
+      "htmlPath": "Simulation/03_Services/AUTOSAR_EcuM.html",
       "sws": "SWS_EcuM",
       "bus": "Core",
       "summary": "Quản lý vòng đời ECU (EcuM Fixed / Flexible): Pre-OS Init, Wakeup Source Validation (TTII), chuyển trạng thái Startup → Up → Sleep/Off và phối hợp NvM/BswM/Mcu.",
@@ -1259,7 +1303,7 @@
       "name": "Basic Software Mode Manager",
       "layer": "services",
       "stack": "system",
-      "htmlPath": "AUTOSAR_BswM.html",
+      "htmlPath": "Simulation/03_Services/AUTOSAR_BswM.html",
       "sws": "SWS_BswM",
       "bus": "Core",
       "summary": "Bộ não điều phối chính sách (Mode Arbitration & Mode Control): đánh giá Rules (IMMEDIATE/DEFERRED, TRIGGER/CONDITION) từ EcuM, ComM, CanSM, Dcm, WdgM để thực thi ActionLists & bật/tắt I-PDU Groups.",
@@ -1300,7 +1344,7 @@
       "name": "Watchdog Manager",
       "layer": "services",
       "stack": "system",
-      "htmlPath": "AUTOSAR_WdgM.html",
+      "htmlPath": "Simulation/03_Services/AUTOSAR_WdgM.html",
       "sws": "SWS_WdgM",
       "bus": "Core",
       "summary": "Giám sát thực thi phần mềm (Alive, Deadline, Logical Supervision) cho các Supervised Entities; cập nhật trạng thái Local/Global và kích hoạt trigger hoặc reset an toàn qua WdgIf/BswM.",
@@ -1332,7 +1376,7 @@
       "name": "Diagnostic Event Manager",
       "layer": "services",
       "stack": "system",
-      "htmlPath": "AUTOSAR_DEM.html",
+      "htmlPath": "Simulation/03_Services/AUTOSAR_DEM.html",
       "sws": "SWS_Dem",
       "bus": "Diagnostic",
       "summary": "Quản lý sự kiện chẩn đoán & mã lỗi DTC (UDS Event Status Byte, Debounce Counter/Time, Aging, Operation Cycle), lưu FreezeFrame/ExtendedData xuống NvM và thông báo FiM/Dcm.",
@@ -1366,7 +1410,7 @@
       "name": "Function Inhibition Manager",
       "layer": "services",
       "stack": "system",
-      "htmlPath": "AUTOSAR_FiM.html",
+      "htmlPath": "Simulation/03_Services/AUTOSAR_FiM.html",
       "sws": "SWS_FiM",
       "bus": "Diagnostic",
       "summary": "Đánh giá quyền cho phép thực thi chức năng (Function Identifier — FID) dựa trên trạng thái Event/DTC từ Dem (Inhibition Masks: Last Failed, Tested, Not Tested, Pending) cho SW-Cs & BSW.",
@@ -1620,7 +1664,7 @@
       "name": "Communication Manager",
       "layer": "services",
       "stack": "comm",
-      "htmlPath": "AUTOSAR_ComM.html",
+      "htmlPath": "Simulation/03_Services/AUTOSAR_ComM.html",
       "sws": "SWS_ComM",
       "bus": "Core",
       "summary": "Điều phối trạng thái kênh truyền thông (NO_COM, SILENT_COM, FULL_COM) dựa trên yêu cầu từ ComM Users (SW-C/Dcm), Partial Networking (PNC) và báo cáo cho BswM/CanSM/Nm.",
@@ -1654,7 +1698,7 @@
       "name": "AUTOSAR COM",
       "layer": "services",
       "stack": "comm",
-      "htmlPath": "AUTOSAR_COM.html",
+      "htmlPath": "Simulation/03_Services/AUTOSAR_COM.html",
       "sws": "SWS_COM",
       "bus": "Core",
       "summary": "Đóng gói/giải nén Signals & Signal Groups vào I-PDU theo Byte Order (Intel/Motorola), Signal Filters, Transfer Properties (Triggered/Pending), Tx Modes và Rx Deadline Monitoring.",
@@ -1762,7 +1806,7 @@
       "name": "PDU Router",
       "layer": "services",
       "stack": "comm",
-      "htmlPath": "AUTOSAR_PduR.html",
+      "htmlPath": "Simulation/03_Services/AUTOSAR_PduR.html",
       "sws": "SWS_PduR",
       "bus": "Core",
       "summary": "Bộ định tuyến I-PDU trung tâm dựa trên cấu hình tĩnh: định tuyến Upper ↔ Lower (Com, Dcm, LdCom, IpduM ↔ CanIf, CanTp, SecOC, SoAd, LinIf, FrIf) và Gateway (IF/TP FIFO Buffers).",
@@ -1802,7 +1846,7 @@
       "name": "Secure Onboard Communication",
       "layer": "services",
       "stack": "comm",
-      "htmlPath": "AUTOSAR_SecOC.html",
+      "htmlPath": "Simulation/03_Services/AUTOSAR_SecOC.html",
       "sws": "SWS_SecOC",
       "bus": "Security",
       "summary": "Xác thực tính toàn vẹn và nguồn gốc I-PDU trên bus xe bằng Truncated MAC + Freshness Value (FVM); tích hợp Csm/HSM và báo cáo vi phạm cho IdsM.",
@@ -1834,7 +1878,7 @@
       "name": "Diagnostic Communication Manager",
       "layer": "services",
       "stack": "comm",
-      "htmlPath": "AUTOSAR_DCM.html",
+      "htmlPath": "Simulation/03_Services/AUTOSAR_DCM.html",
       "sws": "SWS_Dcm",
       "bus": "Diagnostic",
       "summary": "Xử lý giao thức chẩn đoán UDS (ISO 14229-1) theo 3 lớp DSL (Timers P2/P2*/S3, Sessions), DSD (Dispatcher & SecurityAccess) và DSP (0x10, 0x11, 0x19, 0x22, 0x27, 0x28, 0x31...).",
@@ -1869,7 +1913,7 @@
       "name": "Network Management Interface",
       "layer": "services",
       "stack": "comm",
-      "htmlPath": "AUTOSAR_Nm_CanNm.html",
+      "htmlPath": "Simulation/03_Services/AUTOSAR_Nm_CanNm.html",
       "sws": "SWS_Nm",
       "bus": "Core",
       "summary": "Giao diện trừu tượng hóa quản lý mạng giữa ComM và các Bus NM cụ thể (CanNm, UdpNm, FrNm), hỗ trợ NM Coordinator đồng bộ ngủ/thức đa kênh (Co-Simulation cùng CanNm).",
@@ -1899,7 +1943,7 @@
       "name": "CAN Network Management",
       "layer": "services",
       "stack": "comm",
-      "htmlPath": "AUTOSAR_CanNM.html",
+      "htmlPath": "Simulation/03_Services/AUTOSAR_CanNM.html",
       "sws": "SWS_CanNm",
       "bus": "CAN",
       "summary": "Quản lý trạng thái ngủ/thức phân tán trên CAN (Bus-Sleep, Prepare Bus-Sleep, Repeat Message, Normal Operation, Ready Sleep), cơ chế PNC Bit Vector, Car Wakeup và Timer T_NM_TIMEOUT / T_WAIT_BUS_SLEEP.",
@@ -1930,7 +1974,7 @@
       "name": "CAN State Manager",
       "layer": "services",
       "stack": "comm",
-      "htmlPath": "AUTOSAR_CanSM.html",
+      "htmlPath": "Simulation/03_Services/AUTOSAR_CanSM.html",
       "sws": "SWS_CanSM",
       "bus": "CAN",
       "summary": "Điều khiển chuyển trạng thái CAN Controller/Transceiver theo yêu cầu của ComM, thực thi khôi phục Bus-Off (L1 Fast Recovery / L2 Slow Recovery), Baudrate Change và báo lỗi Dem/BswM.",
@@ -1960,7 +2004,7 @@
       "name": "CAN Transport Protocol (DoCAN)",
       "layer": "services",
       "stack": "comm",
-      "htmlPath": "AUTOSAR_DoCAN.html",
+      "htmlPath": "Simulation/03_Services/AUTOSAR_DoCAN.html",
       "sws": "SWS_CanTp / ISO 15765-2",
       "bus": "CAN",
       "summary": "Phân mảnh và ghép gói tin UDS lớn qua CAN/CAN-FD (Single Frame, First Frame, Flow Control BS/STmin, Consecutive Frame) kèm trình mô phỏng các dịch vụ UDS cốt lõi (DoCAN).",
@@ -3388,6 +3432,20 @@
     const STORAGE_KEY_THEME = "autosar_hub_theme_v1";
     const STORAGE_KEY_SOURCE = "autosar_hub_source_v1";
 
+    const LAYER_FOLDERS = {
+      application: "Simulation/01_Application",
+      rte: "Simulation/02_RTE",
+      services: "Simulation/03_Services",
+      ecu_ab: "Simulation/04_ECU_Abstraction",
+      mcal: "Simulation/05_MCAL",
+      cdd: "Simulation/06_Complex_Drivers"
+    };
+
+    function suggestedPathForModule(mod) {
+      const folder = LAYER_FOLDERS[mod.layer] || "Simulation";
+      return `${folder}/AUTOSAR_${mod.id}.html`;
+    }
+
     const STACK_CATALOG = {
       application: [{ id: "asw", label: "Application Software Components (SW-Cs)" }],
       rte: [{ id: "rte", label: "Runtime Environment & Schedule Manager" }],
@@ -3420,6 +3478,7 @@
     let modulesById = new Map();
     let selectedModuleId = null;
     let hoveredModuleId = null;
+    let inspectorSticky = false;
     let statusFilter = "all";
     let busFilter = "ALL";
     let searchQuery = "";
@@ -3542,11 +3601,15 @@
       for (const m of catalog.modules) {
         modulesById.set(m.id, m);
       }
-      // Header titles
+      // Header title & tooltip (keep single-row header compact)
+      const brandW = document.getElementById("brandWrap");
       const hdrT = document.getElementById("hdrTitle");
-      const hdrS = document.getElementById("hdrSubtitle");
-      if (hdrT && catalog.title) hdrT.textContent = catalog.title;
-      if (hdrS && catalog.subtitle) hdrS.textContent = catalog.subtitle;
+      if (brandW) {
+        brandW.title = [catalog.title, catalog.subtitle].filter(Boolean).join(" — ");
+      }
+      if (hdrT && catalog.shortTitle) {
+        hdrT.textContent = catalog.shortTitle;
+      }
 
       // Counts
       const total = catalog.modules.length;
@@ -3806,14 +3869,15 @@
         ? `<a class="mod-launch" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" title="Mở ${escapeHtml(mod.htmlPath)}">Mở ↗</a>`
         : `<span class="mod-add-mini" title="Chưa có .html — Click để gắn link">+ link</span>`;
 
+      const shortFile = linked ? mod.htmlPath.split("/").pop() : "";
       const footLeft = linked
-        ? `<span class="mod-file-tag" title="${escapeHtml(mod.htmlPath)}">${escapeHtml(mod.htmlPath)}</span>`
+        ? `<span class="mod-file-tag" title="${escapeHtml(mod.htmlPath)}">${escapeHtml(shortFile)}</span>`
         : `<span class="mod-file-tag" style="color:var(--dim)">chưa có .html</span>`;
 
       return `
         <div class="${classes.join(" ")}"
              data-mod-id="${escapeHtml(mod.id)}"
-             onclick="selectModule('${escapeHtml(mod.id)}')"
+             onclick="toggleSelectModule('${escapeHtml(mod.id)}')"
              ondblclick="onCardDblClick('${escapeHtml(mod.id)}')"
              onmouseenter="onCardHover('${escapeHtml(mod.id)}')"
              onmouseleave="onCardHover(null)"
@@ -4222,12 +4286,52 @@
     }
 
     /* ===================== SELECTION & INSPECTOR ===================== */
+    function updateStickyOffset() {
+      const hdr = document.querySelector(".hdr");
+      const tb = document.getElementById("canvasToolbar");
+      const hdrH = hdr ? hdr.offsetHeight : 58;
+      const tbH = (tb && tb.offsetHeight) ? tb.offsetHeight : 0;
+      document.documentElement.style.setProperty("--hdr-h", hdrH + "px");
+      document.documentElement.style.setProperty("--sticky-top", (hdrH + tbH + 10) + "px");
+    }
+
+    function applyInspectorStickyState() {
+      updateStickyOffset();
+      const panel = document.getElementById("inspectorPanel");
+      const btn = document.getElementById("btnToggleSticky");
+      if (panel) panel.classList.toggle("is-sticky", inspectorSticky);
+      if (btn) {
+        btn.classList.toggle("active", inspectorSticky);
+        btn.textContent = inspectorSticky ? "📌 Sticky: BẬT" : "📌 Sticky";
+      }
+    }
+
+    function syncAutoSticky() {
+      inspectorSticky = Boolean(selectedModuleId || activeFlowId);
+      applyInspectorStickyState();
+    }
+
+    function toggleInspectorSticky() {
+      inspectorSticky = !inspectorSticky;
+      applyInspectorStickyState();
+    }
+
     function selectModule(modId) {
       selectedModuleId = modId && modulesById.has(modId) ? modId : null;
+      if (!selectedModuleId) hoveredModuleId = null;
+      syncAutoSticky();
       const clrBtn = document.getElementById("btnClearSelect");
       if (clrBtn) clrBtn.style.display = selectedModuleId ? "inline-flex" : "none";
       renderArchitectureCanvas();
       renderInspector();
+    }
+
+    function toggleSelectModule(modId) {
+      if (selectedModuleId === modId) {
+        selectModule(null);
+      } else {
+        selectModule(modId);
+      }
     }
 
     function onCardHover(modId) {
@@ -4340,7 +4444,7 @@
             <div style="font-size:12px;color:var(--txt-soft);">Module này hiện chưa có đường dẫn file <code>.html</code>. Nhập tên file bên dưới để gắn link ngay hoặc cập nhật qua JSON.</div>
           `}
           <div style="display:flex;gap:6px;margin-top:2px;">
-            <input id="inspPathInput" type="text" value="${escapeHtml(mod.htmlPath || "")}" placeholder="vd: AUTOSAR_${escapeHtml(mod.id)}.html" onkeydown="if(event.key==='Enter'){event.preventDefault();saveInspectorLink('${escapeHtml(mod.id)}');}" style="flex:1;min-width:0;font-family:'JetBrains Mono',Consolas,monospace;font-size:11.5px;" />
+            <input id="inspPathInput" type="text" value="${escapeHtml(mod.htmlPath || "")}" placeholder="${escapeHtml(suggestedPathForModule(mod))}" onkeydown="if(event.key==='Enter'){event.preventDefault();saveInspectorLink('${escapeHtml(mod.id)}');}" style="flex:1;min-width:0;font-family:'JetBrains Mono',Consolas,monospace;font-size:11.5px;" />
             <button class="btn btn-sm btn-pri" onclick="saveInspectorLink('${escapeHtml(mod.id)}')">Lưu Link</button>
             ${linked ? `<button class="btn btn-sm btn-err" onclick="clearInspectorLink('${escapeHtml(mod.id)}')" title="Xóa link">✕</button>` : ""}
           </div>
@@ -4401,6 +4505,17 @@
       stopFlowAuto();
       activeFlowId = flowId || "";
       flowStepIndex = activeFlowId ? 1 : 0;
+      const sel = document.getElementById("flowSelect");
+      if (sel && sel.value !== activeFlowId) sel.value = activeFlowId;
+      syncAutoSticky();
+      updateFlowControls();
+      renderArchitectureCanvas();
+    }
+
+    function flowGoToStep(stepNum) {
+      const flow = getActiveFlow();
+      if (!flow) return;
+      flowStepIndex = Math.max(0, Math.min(flow.steps.length, stepNum));
       updateFlowControls();
       renderArchitectureCanvas();
     }
@@ -4427,13 +4542,26 @@
       }
 
       banner.classList.add("active");
+      const stepsStrip = `
+        <div class="flow-steps-strip">
+          ${flow.steps.map((s, i) => `
+            <button class="flow-step-chip ${flowStepIndex === i + 1 ? "active" : ""}" onclick="flowGoToStep(${i + 1})" title="Bước ${i + 1}: ${escapeHtml(s.from)} ➔ ${escapeHtml(s.to)}">${i + 1}</button>
+          `).join("")}
+        </div>
+      `;
+
       if (flowStepIndex === 0) {
         banner.innerHTML = `
           <div class="flow-banner-top">
-            <span class="flow-step-title">📌 ${escapeHtml(flow.name)} (Tổng quan ${total} bước)</span>
+            <span class="pill pill-pri">⚡ Luồng mô phỏng · ${total} bước</span>
+            <button class="btn btn-xs" onclick="onFlowSelectChange('')" title="Đóng luồng mô phỏng">✕ Đóng</button>
+          </div>
+          <div class="flow-step-title">${escapeHtml(flow.name)}</div>
+          <div class="flow-detail">${escapeHtml(flow.description)}</div>
+          ${stepsStrip}
+          <div style="display:flex;justify-content:flex-end;">
             <button class="btn btn-xs btn-pri" onclick="flowNextStep()">Bắt đầu Bước 1 ▶</button>
           </div>
-          <div class="flow-detail">${escapeHtml(flow.description)}</div>
         `;
       } else {
         const st = flow.steps[flowStepIndex - 1];
@@ -4445,16 +4573,22 @@
 
         banner.innerHTML = `
           <div class="flow-banner-top">
-            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-              <span class="flow-step-title">Bước ${flowStepIndex}/${total}: ${escapeHtml(st.from)} ➔ ${escapeHtml(st.to)}</span>
-              <span class="flow-api">${escapeHtml(st.api)}</span>
-            </div>
-            <div style="display:flex;gap:6px;flex-wrap:wrap;">
-              ${mFrom ? linkBtn(mFrom) : ""}
-              ${mTo ? linkBtn(mTo) : ""}
+            <span class="pill pill-pri">⚡ Bước ${flowStepIndex} / ${total}</span>
+            <div style="display:flex;align-items:center;gap:4px;">
+              <button class="btn btn-xs" onclick="flowPrevStep()" ${flowStepIndex <= 0 ? "disabled" : ""}>◀</button>
+              <button class="btn btn-xs btn-pri" onclick="flowNextStep()" ${flowStepIndex >= total ? "disabled" : ""}>Tiếp ▶</button>
+              <button class="btn btn-xs" onclick="onFlowSelectChange('')" title="Đóng luồng mô phỏng">✕</button>
             </div>
           </div>
+          <div style="font-size:11px;color:var(--mut);font-weight:700;">${escapeHtml(flow.name)}</div>
+          <div class="flow-step-title">${escapeHtml(st.from)} ➔ ${escapeHtml(st.to)}</div>
+          <div class="flow-api">${escapeHtml(st.api)}</div>
           <div class="flow-detail">${escapeHtml(st.detail)}</div>
+          ${stepsStrip}
+          <div style="display:flex;gap:6px;flex-wrap:wrap;padding-top:2px;">
+            ${mFrom ? linkBtn(mFrom) : ""}
+            ${mTo ? linkBtn(mTo) : ""}
+          </div>
         `;
       }
     }
@@ -4571,11 +4705,12 @@
     function initCanvasPanAndZoom() {
       const vp = document.getElementById("canvasViewport");
       if (!vp) return;
-      let isDown = false, startX = 0, startY = 0, scrollL = 0, scrollT = 0;
+      let isDown = false, moved = false, startX = 0, startY = 0, scrollL = 0, scrollT = 0;
 
       vp.addEventListener("mousedown", (e) => {
         if (e.button !== 0 || e.target.closest(".mod-card") || e.target.closest("a") || e.target.closest("button")) return;
         isDown = true;
+        moved = false;
         vp.classList.add("panning");
         startX = e.pageX;
         startY = e.pageY;
@@ -4584,10 +4719,16 @@
       });
       window.addEventListener("mousemove", (e) => {
         if (!isDown) return;
-        vp.scrollLeft = scrollL - (e.pageX - startX);
-        vp.scrollTop = scrollT - (e.pageY - startY);
+        const dx = e.pageX - startX;
+        const dy = e.pageY - startY;
+        if (Math.abs(dx) > 4 || Math.abs(dy) > 4) moved = true;
+        vp.scrollLeft = scrollL - dx;
+        vp.scrollTop = scrollT - dy;
       });
-      window.addEventListener("mouseup", () => {
+      window.addEventListener("mouseup", (e) => {
+        if (isDown && !moved && selectedModuleId && !e.target.closest(".mod-card") && !e.target.closest("a") && !e.target.closest("button")) {
+          selectModule(null);
+        }
         isDown = false;
         vp.classList.remove("panning");
       });
@@ -4677,7 +4818,7 @@
             <td>${statusPill}</td>
             <td>
               <div style="display:flex;align-items:center;gap:5px;">
-                <input id="tblPath_${escapeHtml(m.id)}" class="inline-path-input" type="text" value="${escapeHtml(m.htmlPath || "")}" placeholder="AUTOSAR_${escapeHtml(m.id)}.html" onkeydown="if(event.key==='Enter'){event.preventDefault();saveTableLink('${escapeHtml(m.id)}');}" />
+                <input id="tblPath_${escapeHtml(m.id)}" class="inline-path-input" type="text" value="${escapeHtml(m.htmlPath || "")}" placeholder="${escapeHtml(suggestedPathForModule(m))}" onkeydown="if(event.key==='Enter'){event.preventDefault();saveTableLink('${escapeHtml(m.id)}');}" />
                 <button class="btn btn-xs btn-pri" onclick="saveTableLink('${escapeHtml(m.id)}')">Lưu</button>
               </div>
             </td>
@@ -4863,9 +5004,10 @@
       localStorage.removeItem(STORAGE_KEY_CATALOG);
       localStorage.removeItem(STORAGE_KEY_SOURCE);
       catalog = normalizeCatalog(defaultCatalog);
-      selectedModuleId = null;
+      onFlowSelectChange("");
       rebuildIndexes();
-      setSourceBadge("📦 Embedded Default JSON", "pill-pri");
+      selectModule(null);
+      setSourceBadge("📦 Embedded JSON", "pill-pri");
       refreshAllViews();
       showToast("Đã khôi phục dữ liệu mặc định ban đầu!", "pri");
     }
@@ -4963,6 +5105,10 @@
       if (rawEd) rawEd.textContent = "";
       const dropOv = clone.querySelector("#dropOverlay");
       if (dropOv) dropOv.classList.remove("active");
+      const inspP = clone.querySelector("#inspectorPanel");
+      if (inspP) inspP.classList.remove("is-sticky");
+      const stickyBtn = clone.querySelector("#btnToggleSticky");
+      if (stickyBtn) { stickyBtn.classList.remove("active"); stickyBtn.textContent = "📌 Sticky"; }
       for (const hid of ["fileProtocolHint", "folderScanResults", "btnClearSelect", "btnReloadHttp", "btnVerifyHttp"]) {
         const el = clone.querySelector("#" + hid);
         if (el) el.style.display = "none";
@@ -4999,7 +5145,7 @@
 
         <div class="hb-card">
           <h3>2. Danh Sách ${linked.length} Trình Mô Phỏng Đã Liên Kết</h3>
-          <p>Tất cả file mô phỏng nằm cùng thư mục với <code>AUTOSAR.html</code>:</p>
+          <p>Các file mô phỏng được phân loại theo từng layer bên trong thư mục <code>Simulation/</code>:</p>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
             ${linked.map(m => `
               <a class="quick-sim-row" style="text-decoration:none;color:var(--txt);" href="${escapeHtml(resolveSimUrl(m.htmlPath))}" target="_blank" rel="noopener noreferrer">
@@ -5014,18 +5160,19 @@
           <h3>3. Cách Sửa &amp; Thêm Link Bằng File JSON</h3>
           <p>File <code>autosar_modules.json</code> nằm cạnh <code>AUTOSAR.html</code> là cấu hình đầu vào mặc định:</p>
           <ul>
-            <li><b>Khi tạo thêm file mô phỏng mới</b> (ví dụ <code>AUTOSAR_NvM.html</code> hoặc <code>AUTOSAR_CanIf.html</code>), mở <code>autosar_modules.json</code> và điền tên file vào thuộc tính <code>"htmlPath"</code> của module đó.</li>
+            <li><b>Khi tạo thêm file mô phỏng mới</b> (ví dụ <code>Simulation/03_Services/AUTOSAR_NvM.html</code> hoặc <code>Simulation/04_ECU_Abstraction/AUTOSAR_CanIf.html</code>), mở <code>autosar_modules.json</code> và điền đường dẫn vào <code>"htmlPath"</code> của module đó.</li>
             <li><b>Khi đổi tên hoặc di chuyển file:</b> chỉ cần cập nhật lại chuỗi <code>"htmlPath"</code> (hoặc <code>"basePath"</code>).</li>
             <li><b>Nạp JSON vào trình duyệt:</b> nếu mở qua <code>http://localhost</code> (ví dụ <code>python -m http.server</code>), trang tự động đọc <code>autosar_modules.json</code>. Nếu mở trực tiếp bằng double-click (<code>file://</code>), chỉ cần <b>kéo-thả file .json</b> vào cửa sổ trình duyệt hoặc bấm nút <b>📂 Nạp JSON</b>.</li>
           </ul>
         </div>
 
         <div class="hb-card">
-          <h3>4. Chia Sẻ Cho Người Khác</h3>
-          <p>Có 2 cách chia sẻ nhanh bộ công cụ này cho đồng nghiệp:</p>
+          <h3>4. Tổ Chức Thư Mục &amp; Chia Sẻ</h3>
+          <p>Cấu trúc thư mục chuẩn của workspace:</p>
           <ul>
-            <li><b>Chia sẻ nguyên thư mục Simulation:</b> Gửi thư mục chứa <code>AUTOSAR.html</code>, <code>autosar_modules.json</code> và các file <code>AUTOSAR_*.html</code>. Mọi đường dẫn tương đối giữ nguyên 100%.</li>
-            <li><b>Chia sẻ 1 file duy nhất sau khi chỉnh sửa JSON:</b> Bấm <b>📥 Tải File .HTML</b> ở thanh trên cùng — hệ thống sẽ nhúng toàn bộ thay đổi JSON hiện tại trực tiếp vào bên trong file <code>AUTOSAR.html</code> tải về.</li>
+            <li><code>AUTOSAR.html</code> &amp; <code>autosar_modules.json</code> ở thư mục gốc, <code>Simulation/&lt;Layer&gt;/</code> chứa các file mô phỏng, và <code>Scripts/build_*</code> chứa script build.</li>
+            <li><b>Chia sẻ nguyên thư mục:</b> Nén/gửi thư mục gốc gồm <code>AUTOSAR.html</code>, <code>autosar_modules.json</code> và thư mục <code>Simulation/</code>.</li>
+            <li><b>Chia sẻ 1 file duy nhất sau khi chỉnh sửa JSON:</b> Bấm <b>📥 Tải .HTML</b> ở thanh trên cùng — hệ thống sẽ nhúng toàn bộ thay đổi JSON hiện tại trực tiếp vào bên trong file <code>AUTOSAR.html</code> tải về.</li>
           </ul>
         </div>
       `;
@@ -5046,6 +5193,7 @@
         if (btn) btn.classList.toggle("active", k === view);
       }
       if (view === "canvas") {
+        updateStickyOffset();
         requestAnimationFrame(renderEdges);
       } else if (view === "directory") {
         renderDirectory();
@@ -5059,7 +5207,7 @@
     function applyTheme(theme) {
       document.documentElement.setAttribute("data-theme", theme);
       const btn = document.getElementById("btnTheme");
-      if (btn) btn.textContent = theme === "light" ? "🌙 Dark Mode" : "☀️ Light Mode";
+      if (btn) btn.textContent = theme === "light" ? "🌙 Dark" : "☀️ Light";
       try { localStorage.setItem(STORAGE_KEY_THEME, theme); } catch (_) {}
     }
 
@@ -5083,8 +5231,12 @@
       const fs = document.getElementById("folderScanInput");
       if (fs) {
         fs.addEventListener("change", (e) => {
-          const files = Array.from(e.target.files || []);
-          const htmlNames = new Set(files.filter(f => f.name.toLowerCase().endsWith(".html")).map(f => f.name));
+          const files = Array.from(e.target.files || []).filter(f => {
+            if (!f.name.toLowerCase().endsWith(".html")) return false;
+            const rel = (f.webkitRelativePath || "").replace(/\\/g, "/");
+            return !rel.includes("/old/");
+          });
+          const htmlNames = new Set(files.map(f => f.name));
           localFolderFiles = htmlNames;
           const linkedNames = new Set(catalog.modules.filter(isLinked).map(m => m.htmlPath.split("/").pop()));
           const unlinkedHtml = Array.from(htmlNames).filter(n => n !== "AUTOSAR.html" && !linkedNames.has(n));
@@ -5149,8 +5301,18 @@
         }
       });
 
-      // Recompute SVG wires on resize
-      window.addEventListener("resize", () => requestAnimationFrame(renderEdges));
+      // Recompute SVG wires & sticky offset on resize
+      window.addEventListener("resize", () => {
+        updateStickyOffset();
+        requestAnimationFrame(renderEdges);
+      });
+      if (typeof ResizeObserver === "function") {
+        const ro = new ResizeObserver(() => updateStickyOffset());
+        const hdrEl = document.querySelector(".hdr");
+        const tbEl = document.getElementById("canvasToolbar");
+        if (hdrEl) ro.observe(hdrEl);
+        if (tbEl) ro.observe(tbEl);
+      }
     }
 
     /* ===================== BOOTSTRAP ===================== */
@@ -5196,15 +5358,16 @@
             const src = localStorage.getItem(STORAGE_KEY_SOURCE) || "💾 Bản lưu cục bộ";
             setSourceBadge(src, "pill-acc");
           } else {
-            setSourceBadge("📦 Embedded Default JSON", "pill-pri");
+            setSourceBadge("📦 Embedded JSON", "pill-pri");
           }
         } catch (_) {
-          setSourceBadge("📦 Embedded Default JSON", "pill-pri");
+          setSourceBadge("📦 Embedded JSON", "pill-pri");
         }
       }
 
       rebuildIndexes();
       updateNewModStackOptions();
+      updateStickyOffset();
       initCanvasPanAndZoom();
       initGlobalListeners();
       refreshAllViews();

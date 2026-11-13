@@ -1,0 +1,2401 @@
+{
+  "schemaVersion": "1.0",
+  "title": "AUTOSAR Classic R23-11 Interactive Architecture & Simulation Hub",
+  "subtitle": "Tổng hợp kiến trúc phân tầng AUTOSAR Classic (ASW · RTE · Services · ECU Abstraction · MCAL · CDD) & liên kết các trình mô phỏng tương tác",
+  "basePath": "./",
+  "updatedAt": "2026-11-13",
+  "layers": [
+    {
+      "id": "application",
+      "name": "Application Layer (ASW)",
+      "shortName": "Application SW-Cs",
+      "description": "Tầng ứng dụng chứa các Software Components (SW-C) độc lập phần cứng, giao tiếp thông qua Virtual Function Bus (VFB) và Ports.",
+      "color": "#38bdf8"
+    },
+    {
+      "id": "rte",
+      "name": "Runtime Environment (RTE)",
+      "shortName": "RTE & SchM",
+      "description": "Hiện thực hóa VFB cho từng ECU, điều phối giao tiếp giữa các SW-C (Intra/Inter-Task, Multicore IOC, Inter-ECU) và cung cấp Schedule Manager (SchM) cho BSW.",
+      "color": "#818cf8"
+    },
+    {
+      "id": "services",
+      "name": "Basic Software — Services Layer",
+      "shortName": "Services Layer",
+      "description": "Cung cấp các dịch vụ chuẩn hóa cho Application và BSW: quản lý hệ điều hành/mode/lỗi (System), bộ nhớ (Memory), mật mã (Crypto) và truyền thông/chẩn đoán (Communication).",
+      "color": "#34d399"
+    },
+    {
+      "id": "ecu_ab",
+      "name": "Basic Software — ECU Abstraction Layer",
+      "shortName": "ECU Abstraction",
+      "description": "Trừu tượng hóa bố cục phần cứng cấp bo mạch ECU (Interface & External Device Drivers), giúp tầng Services độc lập với vi điều khiển và IC ngoại vi.",
+      "color": "#fbbf24"
+    },
+    {
+      "id": "mcal",
+      "name": "Basic Software — Microcontroller Abstraction Layer (MCAL)",
+      "shortName": "MCAL Drivers",
+      "description": "Tầng thấp nhất của BSW truy cập trực tiếp thanh ghi vi điều khiển (Memory-mapped registers, DMA, Interrupts) cho CAN/ETH/LIN, Flash, Timer, ADC/DIO/PWM.",
+      "color": "#fb923c"
+    },
+    {
+      "id": "cdd",
+      "name": "Complex Drivers (CDD)",
+      "shortName": "Complex Drivers",
+      "description": "Trình điều khiển phức hợp xuyên tầng từ phần cứng trực tiếp lên RTE cho các bài toán thời gian thực nghiêm ngặt hoặc ngoại vi phi chuẩn AUTOSAR.",
+      "color": "#c084fc"
+    },
+    {
+      "id": "hardware",
+      "name": "Microcontroller & ECU Hardware",
+      "shortName": "ECU Hardware",
+      "description": "Phần cứng thực tế của ECU: Vi điều khiển (TriCore / ARM Cortex-R / S32K), bộ nhớ Flash/RAM, HSM, Transceiver CAN/LIN/ETH và IC Watchdog.",
+      "color": "#94a3b8"
+    }
+  ],
+  "modules": [
+    {
+      "id": "SWC_App",
+      "name": "Application SW-Components",
+      "layer": "application",
+      "stack": "asw",
+      "htmlPath": "",
+      "sws": "TPS_SWCTemplate",
+      "bus": "Core",
+      "summary": "Các thành phần phần mềm ứng dụng lõi (Powertrain, Body, ADAS, Chassis) thực thi thuật toán điều khiển qua Runnables và Sender-Receiver / Client-Server Ports.",
+      "apis": [
+        "Rte_Read_*",
+        "Rte_Write_*",
+        "Rte_Call_*",
+        "Rte_IrvRead_*"
+      ],
+      "connections": [
+        "RTE"
+      ],
+      "tags": [
+        "SW-C",
+        "Application",
+        "Runnables",
+        "VFB"
+      ]
+    },
+    {
+      "id": "SWC_SensorAct",
+      "name": "Sensor / Actuator SW-Cs",
+      "layer": "application",
+      "stack": "asw",
+      "htmlPath": "",
+      "sws": "TPS_SWCTemplate",
+      "bus": "I/O",
+      "summary": "SW-C chuyên trách đọc giá trị cảm biến vật lý và xuất tín hiệu điều khiển cơ cấu chấp hành thông qua RTE tới IoHwAb hoặc Complex Drivers.",
+      "apis": [
+        "Rte_Call_IoHwAb_*",
+        "Rte_Write_SensorVal",
+        "Rte_Read_ActuatorCmd"
+      ],
+      "connections": [
+        "RTE"
+      ],
+      "tags": [
+        "Sensor",
+        "Actuator",
+        "IoHwAb",
+        "ASW"
+      ]
+    },
+    {
+      "id": "SWC_ModeReq",
+      "name": "Mode & Comm Requester SW-Cs",
+      "layer": "application",
+      "stack": "asw",
+      "htmlPath": "",
+      "sws": "SWS_BswM / SWS_ComM",
+      "bus": "Core",
+      "summary": "SW-C quản lý trạng thái vận hành ứng dụng, gửi yêu cầu chế độ truyền thông tới ComM và chế độ ECU/BSW tới BswM qua Mode Switch / Request Ports.",
+      "apis": [
+        "Rte_Call_ComM_UserRequest",
+        "Rte_Write_BswM_ModeReq",
+        "Rte_Switch_AppMode"
+      ],
+      "connections": [
+        "RTE"
+      ],
+      "tags": [
+        "Mode",
+        "ComM",
+        "BswM",
+        "Wakeup"
+      ]
+    },
+    {
+      "id": "SWC_DiagApp",
+      "name": "Diagnostic & Monitor SW-Cs",
+      "layer": "application",
+      "stack": "asw",
+      "htmlPath": "",
+      "sws": "SWS_Dem / SWS_FiM / SWS_WdgM",
+      "bus": "Diagnostic",
+      "summary": "SW-C thực hiện kiểm tra hợp lý tín hiệu (Diagnostic Monitor), báo cáo EventStatus tới Dem, kiểm tra Function Permission từ FiM và Checkpoint tới WdgM.",
+      "apis": [
+        "Rte_Call_Event_SetEventStatus",
+        "Rte_Call_FiM_GetFunctionPermission",
+        "Rte_Call_WdgM_CheckpointReached"
+      ],
+      "connections": [
+        "RTE"
+      ],
+      "tags": [
+        "Diagnostic",
+        "Monitor",
+        "FID",
+        "Supervision"
+      ]
+    },
+    {
+      "id": "RTE",
+      "name": "Runtime Environment",
+      "layer": "rte",
+      "stack": "rte",
+      "htmlPath": "Simulation/02_RTE/AUTOSAR_RTE.html",
+      "sws": "SWS_RTE",
+      "bus": "Core",
+      "summary": "Cầu nối trung tâm hiện thực hóa Virtual Function Bus (VFB), ánh xạ Runnables vào OS Tasks, quản lý S/R, C/S, Mode Switch, IRV, PIM, Multicore IOC và BSW Schedule Manager (SchM).",
+      "apis": [
+        "Rte_Start",
+        "Rte_Stop",
+        "Rte_Read",
+        "Rte_Write",
+        "Rte_Call",
+        "SchM_Enter",
+        "SchM_Exit"
+      ],
+      "connections": [
+        "SWC_App",
+        "SWC_SensorAct",
+        "SWC_ModeReq",
+        "SWC_DiagApp",
+        "OS",
+        "EcuM",
+        "BswM",
+        "WdgM",
+        "Dem",
+        "FiM",
+        "NvM",
+        "Csm",
+        "ComM",
+        "Com",
+        "LdCom",
+        "Xfrm",
+        "Dcm",
+        "IoHwAb",
+        "CDD"
+      ],
+      "tags": [
+        "RTE",
+        "VFB",
+        "SchM",
+        "IOC",
+        "SenderReceiver",
+        "ClientServer"
+      ]
+    },
+    {
+      "id": "OS",
+      "name": "AUTOSAR OS",
+      "layer": "services",
+      "stack": "system",
+      "htmlPath": "Simulation/03_Services/AUTOSAR_OS.html",
+      "sws": "SWS_Os",
+      "bus": "Core",
+      "summary": "Hệ điều hành thời gian thực (OSEK/VDX mở rộng): lập lịch Task ưu tiên tĩnh, Events, Resources (PCP), Counters/Alarms, Schedule Tables, ISRs, Hooks, IOC và Multicore Spinlocks.",
+      "apis": [
+        "StartOS",
+        "ActivateTask",
+        "SetEvent",
+        "GetResource",
+        "SetRelAlarm",
+        "StartScheduleTableRel"
+      ],
+      "connections": [
+        "RTE",
+        "EcuM",
+        "BswM",
+        "WdgM",
+        "Mcu",
+        "Gpt"
+      ],
+      "tags": [
+        "OS",
+        "RTOS",
+        "Task",
+        "ISR",
+        "Alarm",
+        "ScheduleTable",
+        "Multicore"
+      ]
+    },
+    {
+      "id": "EcuM",
+      "name": "ECU State Manager",
+      "layer": "services",
+      "stack": "system",
+      "htmlPath": "Simulation/03_Services/AUTOSAR_EcuM.html",
+      "sws": "SWS_EcuM",
+      "bus": "Core",
+      "summary": "Quản lý vòng đời ECU (EcuM Fixed / Flexible): Pre-OS Init, Wakeup Source Validation (TTII), chuyển trạng thái Startup → Up → Sleep/Off và phối hợp NvM/BswM/Mcu.",
+      "apis": [
+        "EcuM_Init",
+        "EcuM_StartupTwo",
+        "EcuM_SetWakeupEvent",
+        "EcuM_ValidateWakeupEvent",
+        "EcuM_GoDownHaltPoll"
+      ],
+      "connections": [
+        "OS",
+        "BswM",
+        "RTE",
+        "NvM",
+        "ComM",
+        "CanTrcv",
+        "LinTrcv",
+        "EthTrcv",
+        "Mcu",
+        "Gpt"
+      ],
+      "tags": [
+        "EcuM",
+        "Startup",
+        "Wakeup",
+        "Shutdown",
+        "Sleep",
+        "ECU State"
+      ]
+    },
+    {
+      "id": "BswM",
+      "name": "Basic Software Mode Manager",
+      "layer": "services",
+      "stack": "system",
+      "htmlPath": "Simulation/03_Services/AUTOSAR_BswM.html",
+      "sws": "SWS_BswM",
+      "bus": "Core",
+      "summary": "Bộ não điều phối chính sách (Mode Arbitration & Mode Control): đánh giá Rules (IMMEDIATE/DEFERRED, TRIGGER/CONDITION) từ EcuM, ComM, CanSM, Dcm, WdgM để thực thi ActionLists & bật/tắt I-PDU Groups.",
+      "apis": [
+        "BswM_Init",
+        "BswM_MainFunction",
+        "BswM_RequestMode",
+        "BswM_CanSM_CurrentState",
+        "BswM_ComM_CurrentMode"
+      ],
+      "connections": [
+        "EcuM",
+        "OS",
+        "RTE",
+        "NvM",
+        "WdgM",
+        "Dem",
+        "ComM",
+        "CanSM",
+        "LinSM",
+        "EthSM",
+        "FrSM",
+        "Com",
+        "PduR",
+        "Dcm"
+      ],
+      "tags": [
+        "BswM",
+        "Mode",
+        "Arbitration",
+        "ActionList",
+        "IpduGroup",
+        "Rule"
+      ]
+    },
+    {
+      "id": "WdgM",
+      "name": "Watchdog Manager",
+      "layer": "services",
+      "stack": "system",
+      "htmlPath": "Simulation/03_Services/AUTOSAR_WdgM.html",
+      "sws": "SWS_WdgM",
+      "bus": "Core",
+      "summary": "Giám sát thực thi phần mềm (Alive, Deadline, Logical Supervision) cho các Supervised Entities; cập nhật trạng thái Local/Global và kích hoạt trigger hoặc reset an toàn qua WdgIf/BswM.",
+      "apis": [
+        "WdgM_Init",
+        "WdgM_MainFunction",
+        "WdgM_CheckpointReached",
+        "WdgM_SetMode",
+        "WdgM_GetGlobalStatus"
+      ],
+      "connections": [
+        "RTE",
+        "OS",
+        "BswM",
+        "Dem",
+        "WdgIf"
+      ],
+      "tags": [
+        "WdgM",
+        "Watchdog",
+        "Alive",
+        "Deadline",
+        "Logical",
+        "Safety"
+      ]
+    },
+    {
+      "id": "Dem",
+      "name": "Diagnostic Event Manager",
+      "layer": "services",
+      "stack": "system",
+      "htmlPath": "Simulation/03_Services/AUTOSAR_DEM.html",
+      "sws": "SWS_Dem",
+      "bus": "Diagnostic",
+      "summary": "Quản lý sự kiện chẩn đoán & mã lỗi DTC (UDS Event Status Byte, Debounce Counter/Time, Aging, Operation Cycle), lưu FreezeFrame/ExtendedData xuống NvM và thông báo FiM/Dcm.",
+      "apis": [
+        "Dem_SetEventStatus",
+        "Dem_GetStatusOfDTC",
+        "Dem_ClearDTC",
+        "Dem_SetOperationCycleState",
+        "Dem_MainFunction"
+      ],
+      "connections": [
+        "RTE",
+        "FiM",
+        "Dcm",
+        "NvM",
+        "BswM",
+        "WdgM",
+        "CanSM"
+      ],
+      "tags": [
+        "Dem",
+        "DTC",
+        "Debounce",
+        "FreezeFrame",
+        "UDS",
+        "Fault"
+      ]
+    },
+    {
+      "id": "FiM",
+      "name": "Function Inhibition Manager",
+      "layer": "services",
+      "stack": "system",
+      "htmlPath": "Simulation/03_Services/AUTOSAR_FiM.html",
+      "sws": "SWS_FiM",
+      "bus": "Diagnostic",
+      "summary": "Đánh giá quyền cho phép thực thi chức năng (Function Identifier — FID) dựa trên trạng thái Event/DTC từ Dem (Inhibition Masks: Last Failed, Tested, Not Tested, Pending) cho SW-Cs & BSW.",
+      "apis": [
+        "FiM_Init",
+        "FiM_GetFunctionPermission",
+        "FiM_DemTriggerOnEventStatus",
+        "FiM_MainFunction"
+      ],
+      "connections": [
+        "RTE",
+        "Dem",
+        "BswM"
+      ],
+      "tags": [
+        "FiM",
+        "FID",
+        "Inhibition",
+        "Permission",
+        "Degradation"
+      ]
+    },
+    {
+      "id": "Det",
+      "name": "Default Error Tracer",
+      "layer": "services",
+      "stack": "system",
+      "htmlPath": "",
+      "sws": "SWS_Det",
+      "bus": "Core",
+      "summary": "Thu nhận và ghi nhận các lỗi phát triển (Development Errors), lỗi runtime và lỗi transient từ tất cả các module BSW và RTE để hỗ trợ debug và kiểm thử tích hợp.",
+      "apis": [
+        "Det_Init",
+        "Det_ReportError",
+        "Det_ReportRuntimeError",
+        "Det_ReportTransientFault"
+      ],
+      "connections": [
+        "BswM",
+        "Dlt",
+        "OS"
+      ],
+      "tags": [
+        "Det",
+        "Error",
+        "Trace",
+        "Debug"
+      ]
+    },
+    {
+      "id": "Dlt",
+      "name": "Diagnostic Log and Trace",
+      "layer": "services",
+      "stack": "system",
+      "htmlPath": "",
+      "sws": "SWS_Dlt",
+      "bus": "Diagnostic",
+      "summary": "Thu thập bản tin log ứng dụng, VFB trace và lỗi Det để xuất ra kênh chẩn đoán tốc độ cao (Ethernet/CAN/Serial) theo giao thức DLT.",
+      "apis": [
+        "Dlt_RegisterContext",
+        "Dlt_SendLogMessage",
+        "Dlt_SendTraceMessage"
+      ],
+      "connections": [
+        "Det",
+        "PduR",
+        "RTE"
+      ],
+      "tags": [
+        "Dlt",
+        "Logging",
+        "Trace"
+      ]
+    },
+    {
+      "id": "StbM",
+      "name": "Synchronized Time-Base Manager",
+      "layer": "services",
+      "stack": "system",
+      "htmlPath": "",
+      "sws": "SWS_StbM",
+      "bus": "Core",
+      "summary": "Quản lý các Time-Base toàn cục đồng bộ trên mạng xe (gPTP Ethernet, CAN TimeSync, FlexRay) phục vụ timestamp cho SecOC Freshness, Dem và IdsM.",
+      "apis": [
+        "StbM_GetCurrentTime",
+        "StbM_BusSetGlobalTime",
+        "StbM_UpdateGlobalTime"
+      ],
+      "connections": [
+        "SecOC",
+        "Dem",
+        "IdsM",
+        "Gpt",
+        "EthIf",
+        "CanIf"
+      ],
+      "tags": [
+        "StbM",
+        "TimeSync",
+        "GlobalTime",
+        "Timestamp"
+      ]
+    },
+    {
+      "id": "Tm",
+      "name": "Time Service",
+      "layer": "services",
+      "stack": "system",
+      "htmlPath": "",
+      "sws": "SWS_Tm",
+      "bus": "Core",
+      "summary": "Cung cấp các bộ đếm thời gian độ phân giải cao (Predefined Timers 1µs/100µs/1ms) và hàm busy-wait chuẩn hóa dựa trên GPT Free-Running Timer.",
+      "apis": [
+        "Tm_ResetTimer1us16bit",
+        "Tm_GetTimeSpan1us16bit",
+        "Tm_BusyWait1us16bit"
+      ],
+      "connections": [
+        "Gpt"
+      ],
+      "tags": [
+        "Tm",
+        "Timer",
+        "Delay",
+        "1us"
+      ]
+    },
+    {
+      "id": "IdsM",
+      "name": "Intrusion Detection System Manager",
+      "layer": "services",
+      "stack": "system",
+      "htmlPath": "",
+      "sws": "SWS_IdsM",
+      "bus": "Security",
+      "summary": "Thu thập, lọc và phân cấp các Security Events (QSEv) từ SecOC, KeyM, EthIf, CanIf; lưu log bảo mật hoặc chuyển tiếp qua IdsR tới SOC trên xe.",
+      "apis": [
+        "IdsM_SetSecurityEvent",
+        "IdsM_SetSecurityEventWithContextData",
+        "IdsM_MainFunction"
+      ],
+      "connections": [
+        "SecOC",
+        "KeyM",
+        "StbM",
+        "NvM",
+        "PduR"
+      ],
+      "tags": [
+        "IdsM",
+        "IDS",
+        "Security",
+        "Cybersecurity",
+        "QSEv"
+      ]
+    },
+    {
+      "id": "NvM",
+      "name": "NVRAM Manager",
+      "layer": "services",
+      "stack": "memory",
+      "htmlPath": "",
+      "sws": "SWS_NvM",
+      "bus": "Memory",
+      "summary": "Quản lý đọc/ghi dữ liệu bền vững (Non-Volatile Blocks: Native, Redundant, Dataset), tính CRC, ReadAll khi khởi động EcuM và WriteAll khi tắt máy ECU.",
+      "apis": [
+        "NvM_ReadAll",
+        "NvM_WriteAll",
+        "NvM_ReadBlock",
+        "NvM_WriteBlock",
+        "NvM_MainFunction"
+      ],
+      "connections": [
+        "RTE",
+        "EcuM",
+        "BswM",
+        "Dem",
+        "IdsM",
+        "MemIf"
+      ],
+      "tags": [
+        "NvM",
+        "NVRAM",
+        "ReadAll",
+        "WriteAll",
+        "Flash",
+        "EEPROM"
+      ]
+    },
+    {
+      "id": "Csm",
+      "name": "Crypto Service Manager",
+      "layer": "services",
+      "stack": "crypto",
+      "htmlPath": "",
+      "sws": "SWS_Csm",
+      "bus": "Security",
+      "summary": "Quản lý hàng đợi tác vụ mật mã (Sync/Async Jobs: AES, CMAC, SHA-256, ECDSA, RNG) cho SecOC, KeyM, Dcm (SecurityAccess 0x27) thông qua CryIf.",
+      "apis": [
+        "Csm_MacGenerate",
+        "Csm_MacVerify",
+        "Csm_Encrypt",
+        "Csm_SignatureVerify",
+        "Csm_RandomGenerate"
+      ],
+      "connections": [
+        "RTE",
+        "SecOC",
+        "KeyM",
+        "Dcm",
+        "CryIf"
+      ],
+      "tags": [
+        "Csm",
+        "Crypto",
+        "CMAC",
+        "AES",
+        "Security"
+      ]
+    },
+    {
+      "id": "KeyM",
+      "name": "Key Manager",
+      "layer": "services",
+      "stack": "crypto",
+      "htmlPath": "",
+      "sws": "SWS_KeyM",
+      "bus": "Security",
+      "summary": "Quản lý vòng đời khóa mật mã (SHE/HSM Key Update) và kiểm chứng chuỗi chứng chỉ số X.509 phục vụ xác thực ECU và TLS/SecOC.",
+      "apis": [
+        "KeyM_Update",
+        "KeyM_VerifyCertificate",
+        "KeyM_SetCertificate"
+      ],
+      "connections": [
+        "Csm",
+        "IdsM",
+        "CryIf",
+        "Dcm"
+      ],
+      "tags": [
+        "KeyM",
+        "Key",
+        "Certificate",
+        "PKI",
+        "X509"
+      ]
+    },
+    {
+      "id": "ComM",
+      "name": "Communication Manager",
+      "layer": "services",
+      "stack": "comm",
+      "htmlPath": "Simulation/03_Services/AUTOSAR_ComM.html",
+      "sws": "SWS_ComM",
+      "bus": "Core",
+      "summary": "Điều phối trạng thái kênh truyền thông (NO_COM, SILENT_COM, FULL_COM) dựa trên yêu cầu từ ComM Users (SW-C/Dcm), Partial Networking (PNC) và báo cáo cho BswM/CanSM/Nm.",
+      "apis": [
+        "ComM_RequestComMode",
+        "ComM_CommunicationAllowed",
+        "ComM_Nm_NetworkMode",
+        "ComM_BusSM_ModeIndication"
+      ],
+      "connections": [
+        "RTE",
+        "EcuM",
+        "BswM",
+        "Dcm",
+        "Nm",
+        "CanSM",
+        "LinSM",
+        "EthSM",
+        "FrSM"
+      ],
+      "tags": [
+        "ComM",
+        "FULL_COM",
+        "SILENT_COM",
+        "NO_COM",
+        "PNC"
+      ]
+    },
+    {
+      "id": "Com",
+      "name": "AUTOSAR COM",
+      "layer": "services",
+      "stack": "comm",
+      "htmlPath": "Simulation/03_Services/AUTOSAR_COM.html",
+      "sws": "SWS_COM",
+      "bus": "Core",
+      "summary": "Đóng gói/giải nén Signals & Signal Groups vào I-PDU theo Byte Order (Intel/Motorola), Signal Filters, Transfer Properties (Triggered/Pending), Tx Modes và Rx Deadline Monitoring.",
+      "apis": [
+        "Com_SendSignal",
+        "Com_ReceiveSignal",
+        "Com_IpduGroupStart",
+        "Com_IpduGroupStop",
+        "Com_MainFunctionTx",
+        "Com_MainFunctionRx"
+      ],
+      "connections": [
+        "RTE",
+        "BswM",
+        "PduR",
+        "IpduM"
+      ],
+      "tags": [
+        "COM",
+        "Signal",
+        "I-PDU",
+        "BitMap",
+        "Endianness",
+        "Deadline"
+      ]
+    },
+    {
+      "id": "LdCom",
+      "name": "Large Data COM",
+      "layer": "services",
+      "stack": "comm",
+      "htmlPath": "",
+      "sws": "SWS_LdCom",
+      "bus": "Core",
+      "summary": "Cho phép truyền trực tiếp khối dữ liệu lớn (TP I-PDU hoặc High-Throughput Signal Arrays) từ RTE xuống PduR bỏ qua tầng packing từng bit của Com.",
+      "apis": [
+        "LdCom_Transmit",
+        "LdCom_CopyTxData",
+        "LdCom_CopyRxData"
+      ],
+      "connections": [
+        "RTE",
+        "PduR"
+      ],
+      "tags": [
+        "LdCom",
+        "LargeData",
+        "TP",
+        "SOME/IP"
+      ]
+    },
+    {
+      "id": "Xfrm",
+      "name": "Transformers (E2EXf / SomeIpXf)",
+      "layer": "services",
+      "stack": "comm",
+      "htmlPath": "",
+      "sws": "SWS_E2EXf / SWS_SomeIpXf",
+      "bus": "Core",
+      "summary": "Chuỗi Transformer tuần tự hóa dữ liệu phức hợp (SomeIpXf/ComXf) và bọc bảo vệ an toàn chức năng End-to-End (E2EXf: CRC + Alive Counter + DataID) tại ranh giới RTE.",
+      "apis": [
+        "E2EXf_Transformer",
+        "E2EXf_InvTransformer",
+        "SomeIpXf_Transformer"
+      ],
+      "connections": [
+        "RTE",
+        "Com",
+        "LdCom"
+      ],
+      "tags": [
+        "Transformer",
+        "E2E",
+        "SomeIpXf",
+        "Safety"
+      ]
+    },
+    {
+      "id": "IpduM",
+      "name": "I-PDU Multiplexer",
+      "layer": "services",
+      "stack": "comm",
+      "htmlPath": "",
+      "sws": "SWS_IpduM",
+      "bus": "Core",
+      "summary": "Ghép nhiều Dynamic Parts theo Selector Field vào cùng một Multiplexed I-PDU hoặc gom nhiều Contained I-PDUs vào một Container PDU (CAN FD / FlexRay).",
+      "apis": [
+        "IpduM_Transmit",
+        "IpduM_RxIndication",
+        "IpduM_TriggerTransmit"
+      ],
+      "connections": [
+        "Com",
+        "PduR"
+      ],
+      "tags": [
+        "IpduM",
+        "Multiplex",
+        "ContainerPDU",
+        "CAN-FD"
+      ]
+    },
+    {
+      "id": "PduR",
+      "name": "PDU Router",
+      "layer": "services",
+      "stack": "comm",
+      "htmlPath": "Simulation/03_Services/AUTOSAR_PduR.html",
+      "sws": "SWS_PduR",
+      "bus": "Core",
+      "summary": "Bộ định tuyến I-PDU trung tâm dựa trên cấu hình tĩnh: định tuyến Upper ↔ Lower (Com, Dcm, LdCom, IpduM ↔ CanIf, CanTp, SecOC, SoAd, LinIf, FrIf) và Gateway (IF/TP FIFO Buffers).",
+      "apis": [
+        "PduR_ComTransmit",
+        "PduR_DcmTransmit",
+        "PduR_CanIfRxIndication",
+        "PduR_CanTpCopyRxData"
+      ],
+      "connections": [
+        "BswM",
+        "Com",
+        "LdCom",
+        "IpduM",
+        "Dcm",
+        "SecOC",
+        "Dlt",
+        "IdsM",
+        "CanIf",
+        "CanTp",
+        "LinIf",
+        "FrIf",
+        "FrTp",
+        "SoAd",
+        "DoIP"
+      ],
+      "tags": [
+        "PduR",
+        "Router",
+        "Gateway",
+        "Multicast",
+        "TPBuffer"
+      ]
+    },
+    {
+      "id": "SecOC",
+      "name": "Secure Onboard Communication",
+      "layer": "services",
+      "stack": "comm",
+      "htmlPath": "Simulation/03_Services/AUTOSAR_SecOC.html",
+      "sws": "SWS_SecOC",
+      "bus": "Security",
+      "summary": "Xác thực tính toàn vẹn và nguồn gốc I-PDU trên bus xe bằng Truncated MAC + Freshness Value (FVM); tích hợp Csm/HSM và báo cáo vi phạm cho IdsM.",
+      "apis": [
+        "SecOC_IfTransmit",
+        "SecOC_IfRxIndication",
+        "SecOC_MainFunctionTx",
+        "SecOC_MainFunctionRx"
+      ],
+      "connections": [
+        "PduR",
+        "Csm",
+        "IdsM",
+        "StbM",
+        "CanIf",
+        "SoAd"
+      ],
+      "tags": [
+        "SecOC",
+        "MAC",
+        "Freshness",
+        "FVM",
+        "Cybersecurity",
+        "HSM"
+      ]
+    },
+    {
+      "id": "Dcm",
+      "name": "Diagnostic Communication Manager",
+      "layer": "services",
+      "stack": "comm",
+      "htmlPath": "Simulation/03_Services/AUTOSAR_DCM.html",
+      "sws": "SWS_Dcm",
+      "bus": "Diagnostic",
+      "summary": "Xử lý giao thức chẩn đoán UDS (ISO 14229-1) theo 3 lớp DSL (Timers P2/P2*/S3, Sessions), DSD (Dispatcher & SecurityAccess) và DSP (0x10, 0x11, 0x19, 0x22, 0x27, 0x28, 0x31...).",
+      "apis": [
+        "Dcm_StartOfReception",
+        "Dcm_CopyRxData",
+        "Dcm_RxIndication",
+        "Dcm_MainFunction",
+        "Dcm_SetNegResponse"
+      ],
+      "connections": [
+        "RTE",
+        "PduR",
+        "BswM",
+        "ComM",
+        "Dem",
+        "Csm",
+        "KeyM"
+      ],
+      "tags": [
+        "Dcm",
+        "UDS",
+        "DSL",
+        "DSD",
+        "DSP",
+        "P2Timer",
+        "Diagnostic"
+      ]
+    },
+    {
+      "id": "Nm",
+      "name": "Network Management Interface",
+      "layer": "services",
+      "stack": "comm",
+      "htmlPath": "Simulation/03_Services/AUTOSAR_Nm_CanNm.html",
+      "sws": "SWS_Nm",
+      "bus": "Core",
+      "summary": "Giao diện trừu tượng hóa quản lý mạng giữa ComM và các Bus NM cụ thể (CanNm, UdpNm, FrNm), hỗ trợ NM Coordinator đồng bộ ngủ/thức đa kênh (Co-Simulation cùng CanNm).",
+      "apis": [
+        "Nm_NetworkRequest",
+        "Nm_NetworkRelease",
+        "Nm_NetworkMode",
+        "Nm_BusSleepMode",
+        "Nm_CoordReadyToSleepIndication"
+      ],
+      "connections": [
+        "ComM",
+        "CanNm",
+        "UdpNm",
+        "FrNm",
+        "BswM"
+      ],
+      "tags": [
+        "Nm",
+        "Coordinator",
+        "Co-Simulation",
+        "NetworkManagement"
+      ]
+    },
+    {
+      "id": "CanNm",
+      "name": "CAN Network Management",
+      "layer": "services",
+      "stack": "comm",
+      "htmlPath": "Simulation/03_Services/AUTOSAR_CanNM.html",
+      "sws": "SWS_CanNm",
+      "bus": "CAN",
+      "summary": "Quản lý trạng thái ngủ/thức phân tán trên CAN (Bus-Sleep, Prepare Bus-Sleep, Repeat Message, Normal Operation, Ready Sleep), cơ chế PNC Bit Vector, Car Wakeup và Timer T_NM_TIMEOUT / T_WAIT_BUS_SLEEP.",
+      "apis": [
+        "CanNm_Init",
+        "CanNm_NetworkRequest",
+        "CanNm_PassiveStartUp",
+        "CanNm_RxIndication",
+        "CanNm_MainFunction"
+      ],
+      "connections": [
+        "Nm",
+        "CanIf",
+        "CanSM"
+      ],
+      "tags": [
+        "CanNm",
+        "RMS",
+        "RSS",
+        "NOS",
+        "PBS",
+        "BSM",
+        "PNC"
+      ]
+    },
+    {
+      "id": "CanSM",
+      "name": "CAN State Manager",
+      "layer": "services",
+      "stack": "comm",
+      "htmlPath": "Simulation/03_Services/AUTOSAR_CanSM.html",
+      "sws": "SWS_CanSM",
+      "bus": "CAN",
+      "summary": "Điều khiển chuyển trạng thái CAN Controller/Transceiver theo yêu cầu của ComM, thực thi khôi phục Bus-Off (L1 Fast Recovery / L2 Slow Recovery), Baudrate Change và báo lỗi Dem/BswM.",
+      "apis": [
+        "CanSM_RequestComMode",
+        "CanSM_ControllerBusOff",
+        "CanSM_ControllerModeIndication",
+        "CanSM_MainFunction"
+      ],
+      "connections": [
+        "ComM",
+        "BswM",
+        "Dem",
+        "CanNm",
+        "CanIf"
+      ],
+      "tags": [
+        "CanSM",
+        "BusOff",
+        "BOR",
+        "CAN",
+        "StateMachine"
+      ]
+    },
+    {
+      "id": "CanTp",
+      "name": "CAN Transport Protocol (DoCAN)",
+      "layer": "services",
+      "stack": "comm",
+      "htmlPath": "Simulation/03_Services/AUTOSAR_DoCAN.html",
+      "sws": "SWS_CanTp / ISO 15765-2",
+      "bus": "CAN",
+      "summary": "Phân mảnh và ghép gói tin UDS lớn qua CAN/CAN-FD (Single Frame, First Frame, Flow Control BS/STmin, Consecutive Frame) kèm trình mô phỏng các dịch vụ UDS cốt lõi (DoCAN).",
+      "apis": [
+        "CanTp_Transmit",
+        "CanTp_RxIndication",
+        "CanTp_TxConfirmation",
+        "CanTp_MainFunction"
+      ],
+      "connections": [
+        "PduR",
+        "CanIf"
+      ],
+      "tags": [
+        "CanTp",
+        "DoCAN",
+        "ISO-TP",
+        "UDS",
+        "Segmentation"
+      ]
+    },
+    {
+      "id": "DoIP",
+      "name": "Diagnostics over IP",
+      "layer": "services",
+      "stack": "comm",
+      "htmlPath": "",
+      "sws": "SWS_DoIP / ISO 13400",
+      "bus": "Ethernet",
+      "summary": "Truyền tải thông điệp chẩn đoán UDS qua TCP/UDP Ethernet (Vehicle Identification Announcement, Routing Activation, Alive Check) kết nối tới PduR/Dcm.",
+      "apis": [
+        "DoIP_SoAdTpCopyRxData",
+        "DoIP_TpTransmit",
+        "DoIP_MainFunction"
+      ],
+      "connections": [
+        "PduR",
+        "SoAd"
+      ],
+      "tags": [
+        "DoIP",
+        "Ethernet",
+        "UDS",
+        "ISO13400"
+      ]
+    },
+    {
+      "id": "SoAd",
+      "name": "Socket Adaptor",
+      "layer": "services",
+      "stack": "comm",
+      "htmlPath": "",
+      "sws": "SWS_SoAd",
+      "bus": "Ethernet",
+      "summary": "Ánh xạ giữa AUTOSAR I-PDUs (PduR, SecOC, Sd, DoIP, UdpNm) và kết nối Socket TCP/UDP của module TcpIp.",
+      "apis": [
+        "SoAd_IfTransmit",
+        "SoAd_TpTransmit",
+        "SoAd_RxIndication"
+      ],
+      "connections": [
+        "PduR",
+        "SecOC",
+        "DoIP",
+        "Sd",
+        "UdpNm",
+        "TcpIp"
+      ],
+      "tags": [
+        "SoAd",
+        "Socket",
+        "Ethernet",
+        "SOME/IP"
+      ]
+    },
+    {
+      "id": "Sd",
+      "name": "Service Discovery (SOME/IP-SD)",
+      "layer": "services",
+      "stack": "comm",
+      "htmlPath": "",
+      "sws": "SWS_ServiceDiscovery",
+      "bus": "Ethernet",
+      "summary": "Phát hiện và đăng ký dịch vụ SOME/IP động trên mạng Ethernet (OfferService, FindService, SubscribeEventgroup) và báo trạng thái cho BswM.",
+      "apis": [
+        "Sd_ServerServiceSetState",
+        "Sd_ClientServiceSetState",
+        "Sd_MainFunction"
+      ],
+      "connections": [
+        "SoAd",
+        "BswM",
+        "ComM"
+      ],
+      "tags": [
+        "SD",
+        "SOME/IP",
+        "ServiceDiscovery",
+        "Ethernet"
+      ]
+    },
+    {
+      "id": "TcpIp",
+      "name": "TCP/IP Stack",
+      "layer": "services",
+      "stack": "comm",
+      "htmlPath": "",
+      "sws": "SWS_TcpIp",
+      "bus": "Ethernet",
+      "summary": "Ngăn xếp giao thức mạng IPv4/IPv6, ARP, NDP, ICMP, DHCP, UDP và TCP chạy phía trên EthIf.",
+      "apis": [
+        "TcpIp_UdpTransmit",
+        "TcpIp_TcpTransmit",
+        "TcpIp_RxIndication",
+        "TcpIp_MainFunction"
+      ],
+      "connections": [
+        "SoAd",
+        "EthIf",
+        "EthSM"
+      ],
+      "tags": [
+        "TcpIp",
+        "IPv4",
+        "IPv6",
+        "UDP",
+        "TCP",
+        "Ethernet"
+      ]
+    },
+    {
+      "id": "UdpNm",
+      "name": "UDP Network Management",
+      "layer": "services",
+      "stack": "comm",
+      "htmlPath": "",
+      "sws": "SWS_UdpNm",
+      "bus": "Ethernet",
+      "summary": "Quản lý trạng thái ngủ/thức mạng dựa trên gói tin UDP đa hướng cho các cụm ECU kết nối qua Automotive Ethernet (hỗ trợ PNC).",
+      "apis": [
+        "UdpNm_NetworkRequest",
+        "UdpNm_RxIndication",
+        "UdpNm_MainFunction"
+      ],
+      "connections": [
+        "Nm",
+        "SoAd",
+        "EthSM"
+      ],
+      "tags": [
+        "UdpNm",
+        "Ethernet",
+        "NM",
+        "PNC"
+      ]
+    },
+    {
+      "id": "EthSM",
+      "name": "Ethernet State Manager",
+      "layer": "services",
+      "stack": "comm",
+      "htmlPath": "",
+      "sws": "SWS_EthSM",
+      "bus": "Ethernet",
+      "summary": "Điều phối chế độ kênh Ethernet (EthTrcv Link Up/Down, TcpIp State, ComM Mode) và báo cáo trạng thái về ComM/BswM.",
+      "apis": [
+        "EthSM_RequestComMode",
+        "EthSM_TrcvLinkStateChg",
+        "EthSM_TcpIpModeIndication"
+      ],
+      "connections": [
+        "ComM",
+        "BswM",
+        "TcpIp",
+        "UdpNm",
+        "EthIf"
+      ],
+      "tags": [
+        "EthSM",
+        "Ethernet",
+        "LinkState"
+      ]
+    },
+    {
+      "id": "LinSM",
+      "name": "LIN State Manager",
+      "layer": "services",
+      "stack": "comm",
+      "htmlPath": "",
+      "sws": "SWS_LinSM",
+      "bus": "LIN",
+      "summary": "Quản lý chế độ hoạt động và bảng lịch trình (Schedule Table) cho từng kênh LIN Master/Slave theo yêu cầu ComM/BswM.",
+      "apis": [
+        "LinSM_RequestComMode",
+        "LinSM_ScheduleRequest",
+        "LinSM_GotoSleepConfirmation"
+      ],
+      "connections": [
+        "ComM",
+        "BswM",
+        "LinIf"
+      ],
+      "tags": [
+        "LinSM",
+        "LIN",
+        "ScheduleTable"
+      ]
+    },
+    {
+      "id": "FrSM",
+      "name": "FlexRay State Manager",
+      "layer": "services",
+      "stack": "comm",
+      "htmlPath": "",
+      "sws": "SWS_FrSM",
+      "bus": "FlexRay",
+      "summary": "Điều khiển chu trình khởi động Coldstart, đồng bộ POC và chế độ ngủ/thức của cụm mạng FlexRay.",
+      "apis": [
+        "FrSM_RequestComMode",
+        "FrSM_MainFunction"
+      ],
+      "connections": [
+        "ComM",
+        "BswM",
+        "FrNm",
+        "FrIf"
+      ],
+      "tags": [
+        "FrSM",
+        "FlexRay"
+      ]
+    },
+    {
+      "id": "FrNm",
+      "name": "FlexRay Network Management",
+      "layer": "services",
+      "stack": "comm",
+      "htmlPath": "",
+      "sws": "SWS_FrNm",
+      "bus": "FlexRay",
+      "summary": "Điều phối Network Management trên các slot tĩnh/động của mạng FlexRay dưới sự trừu tượng hóa của module Nm.",
+      "apis": [
+        "FrNm_NetworkRequest",
+        "FrNm_RxIndication"
+      ],
+      "connections": [
+        "Nm",
+        "FrSM",
+        "FrIf"
+      ],
+      "tags": [
+        "FrNm",
+        "FlexRay",
+        "NM"
+      ]
+    },
+    {
+      "id": "FrTp",
+      "name": "FlexRay Transport Protocol",
+      "layer": "services",
+      "stack": "comm",
+      "htmlPath": "",
+      "sws": "SWS_FrTp",
+      "bus": "FlexRay",
+      "summary": "Phân mảnh và truyền tải gói dữ liệu lớn (chẩn đoán UDS) trên bus FlexRay kết nối với PduR.",
+      "apis": [
+        "FrTp_Transmit",
+        "FrTp_RxIndication"
+      ],
+      "connections": [
+        "PduR",
+        "FrIf"
+      ],
+      "tags": [
+        "FrTp",
+        "FlexRay",
+        "ISO10681"
+      ]
+    },
+    {
+      "id": "WdgIf",
+      "name": "Watchdog Interface",
+      "layer": "ecu_ab",
+      "stack": "onboard",
+      "htmlPath": "",
+      "sws": "SWS_WdgIf",
+      "bus": "Core",
+      "summary": "Cung cấp giao diện thống nhất giữa WdgM và một hoặc nhiều Watchdog Drivers (nội bộ MCU hoặc Watchdog IC gắn ngoài qua SPI/DIO).",
+      "apis": [
+        "WdgIf_SetMode",
+        "WdgIf_SetTriggerCondition"
+      ],
+      "connections": [
+        "WdgM",
+        "Wdg"
+      ],
+      "tags": [
+        "WdgIf",
+        "Watchdog",
+        "Interface"
+      ]
+    },
+    {
+      "id": "MemIf",
+      "name": "Memory Abstraction Interface",
+      "layer": "ecu_ab",
+      "stack": "mem_ab",
+      "htmlPath": "",
+      "sws": "SWS_MemIf",
+      "bus": "Memory",
+      "summary": "Định tuyến lời gọi đọc/ghi từ NvM xuống lớp giả lập Flash EEPROM (Fee) hoặc EEPROM Abstraction (Ea) dựa trên Device Index.",
+      "apis": [
+        "MemIf_Read",
+        "MemIf_Write",
+        "MemIf_GetJobResult"
+      ],
+      "connections": [
+        "NvM",
+        "Fee",
+        "Ea"
+      ],
+      "tags": [
+        "MemIf",
+        "Memory",
+        "Abstraction"
+      ]
+    },
+    {
+      "id": "Fee",
+      "name": "Flash EEPROM Emulation",
+      "layer": "ecu_ab",
+      "stack": "mem_ab",
+      "htmlPath": "",
+      "sws": "SWS_Fee",
+      "bus": "Memory",
+      "summary": "Giả lập cấu trúc EEPROM ghi từng block và thực thi Wear Leveling / Garbage Collection trên bộ nhớ Data Flash vật lý qua Fls.",
+      "apis": [
+        "Fee_Read",
+        "Fee_Write",
+        "Fee_InvalidateBlock",
+        "Fee_MainFunction"
+      ],
+      "connections": [
+        "MemIf",
+        "Fls"
+      ],
+      "tags": [
+        "Fee",
+        "Flash",
+        "WearLeveling",
+        "Emulation"
+      ]
+    },
+    {
+      "id": "Ea",
+      "name": "EEPROM Abstraction",
+      "layer": "ecu_ab",
+      "stack": "mem_ab",
+      "htmlPath": "",
+      "sws": "SWS_Ea",
+      "bus": "Memory",
+      "summary": "Trừu tượng hóa truy cập theo Logical Block lên EEPROM nội bộ (Eep) hoặc EEPROM ngoài qua SPI.",
+      "apis": [
+        "Ea_Read",
+        "Ea_Write",
+        "Ea_MainFunction"
+      ],
+      "connections": [
+        "MemIf",
+        "Eep"
+      ],
+      "tags": [
+        "Ea",
+        "EEPROM"
+      ]
+    },
+    {
+      "id": "CryIf",
+      "name": "Crypto Interface",
+      "layer": "ecu_ab",
+      "stack": "cry_ab",
+      "htmlPath": "",
+      "sws": "SWS_CryIf",
+      "bus": "Security",
+      "summary": "Ánh xạ Crypto Jobs & Keys từ Csm/KeyM xuống nhiều Crypto Drivers khác nhau (HSM phần cứng hoặc thư viện phần mềm).",
+      "apis": [
+        "CryIf_ProcessJob",
+        "CryIf_KeyElementSet",
+        "CryIf_CallbackNotification"
+      ],
+      "connections": [
+        "Csm",
+        "KeyM",
+        "Crypto"
+      ],
+      "tags": [
+        "CryIf",
+        "Crypto",
+        "HSM"
+      ]
+    },
+    {
+      "id": "CanIf",
+      "name": "CAN Interface",
+      "layer": "ecu_ab",
+      "stack": "comm_ab",
+      "htmlPath": "",
+      "sws": "SWS_CanIf",
+      "bus": "CAN",
+      "summary": "Trừu tượng hóa bộ điều khiển CAN (Can) và bộ thu phát (CanTrcv): ánh xạ HOH/Mailbox sang L-PDU ID, quản lý Tx Buffers, Software Filtering và phân phát RxIndication cho PduR/CanTp/CanNm.",
+      "apis": [
+        "CanIf_Transmit",
+        "CanIf_RxIndication",
+        "CanIf_TxConfirmation",
+        "CanIf_SetControllerMode",
+        "CanIf_SetTrcvMode"
+      ],
+      "connections": [
+        "PduR",
+        "CanTp",
+        "CanNm",
+        "CanSM",
+        "SecOC",
+        "StbM",
+        "Can",
+        "CanTrcv"
+      ],
+      "tags": [
+        "CanIf",
+        "CAN",
+        "L-PDU",
+        "TxBuffer",
+        "Filter"
+      ]
+    },
+    {
+      "id": "CanTrcv",
+      "name": "CAN Transceiver Driver",
+      "layer": "ecu_ab",
+      "stack": "comm_ab",
+      "htmlPath": "",
+      "sws": "SWS_CanTrcv",
+      "bus": "CAN",
+      "summary": "Điều khiển phần cứng CAN PHY/Transceiver (Normal, Standby, Sleep), hỗ trợ Partial Networking (WUF) và phát hiện Wakeup đánh thức EcuM.",
+      "apis": [
+        "CanTrcv_SetOpMode",
+        "CanTrcv_CheckWakeup",
+        "CanTrcv_GetBusWuReason"
+      ],
+      "connections": [
+        "CanIf",
+        "EcuM",
+        "Spi",
+        "Dio",
+        "ECU_HW"
+      ],
+      "tags": [
+        "CanTrcv",
+        "Transceiver",
+        "Wakeup",
+        "PHY",
+        "PNC"
+      ]
+    },
+    {
+      "id": "LinIf",
+      "name": "LIN Interface",
+      "layer": "ecu_ab",
+      "stack": "comm_ab",
+      "htmlPath": "",
+      "sws": "SWS_LinIf",
+      "bus": "LIN",
+      "summary": "Thực thi Schedule Table của mạng LIN Master, khung Unconditional/Sporadic/Diagnostic và chuyển tiếp PDU tới PduR.",
+      "apis": [
+        "LinIf_Transmit",
+        "LinIf_ScheduleRequest",
+        "LinIf_MainFunction"
+      ],
+      "connections": [
+        "PduR",
+        "LinSM",
+        "Lin",
+        "LinTrcv"
+      ],
+      "tags": [
+        "LinIf",
+        "LIN",
+        "Schedule"
+      ]
+    },
+    {
+      "id": "LinTrcv",
+      "name": "LIN Transceiver Driver",
+      "layer": "ecu_ab",
+      "stack": "comm_ab",
+      "htmlPath": "",
+      "sws": "SWS_LinTrcv",
+      "bus": "LIN",
+      "summary": "Điều khiển trạng thái nguồn của LIN PHY (Normal/Sleep/Standby) và phát hiện Wakeup trên đường dây LIN.",
+      "apis": [
+        "LinTrcv_SetOpMode",
+        "LinTrcv_CheckWakeupMode"
+      ],
+      "connections": [
+        "LinIf",
+        "EcuM",
+        "Dio",
+        "ECU_HW"
+      ],
+      "tags": [
+        "LinTrcv",
+        "LIN",
+        "Transceiver"
+      ]
+    },
+    {
+      "id": "EthIf",
+      "name": "Ethernet Interface",
+      "layer": "ecu_ab",
+      "stack": "comm_ab",
+      "htmlPath": "",
+      "sws": "SWS_EthIf",
+      "bus": "Ethernet",
+      "summary": "Trừu tượng hóa nhiều cổng Ethernet Controller (MAC), VLAN tagging, Switch (EthSwt) và PHY (EthTrcv) cho tầng TcpIp/StbM.",
+      "apis": [
+        "EthIf_Transmit",
+        "EthIf_RxIndication",
+        "EthIf_UpdatePhysAddrFilter"
+      ],
+      "connections": [
+        "TcpIp",
+        "EthSM",
+        "StbM",
+        "Eth",
+        "EthSwt",
+        "EthTrcv"
+      ],
+      "tags": [
+        "EthIf",
+        "Ethernet",
+        "VLAN",
+        "MAC"
+      ]
+    },
+    {
+      "id": "EthSwt",
+      "name": "Ethernet Switch Driver",
+      "layer": "ecu_ab",
+      "stack": "comm_ab",
+      "htmlPath": "",
+      "sws": "SWS_EthSwt",
+      "bus": "Ethernet",
+      "summary": "Cấu hình và giám sát các cổng Automotive Ethernet Switch gắn ngoài/tích hợp (ARL Table, Port Mirroring, VLAN).",
+      "apis": [
+        "EthSwt_SetSwitchPortMode",
+        "EthSwt_GetPortLinkState"
+      ],
+      "connections": [
+        "EthIf",
+        "Spi",
+        "ECU_HW"
+      ],
+      "tags": [
+        "EthSwt",
+        "Switch",
+        "Ethernet"
+      ]
+    },
+    {
+      "id": "EthTrcv",
+      "name": "Ethernet Transceiver Driver",
+      "layer": "ecu_ab",
+      "stack": "comm_ab",
+      "htmlPath": "",
+      "sws": "SWS_EthTrcv",
+      "bus": "Ethernet",
+      "summary": "Quản lý Automotive Ethernet PHY (100BASE-T1 / 1000BASE-T1), kiểm tra Link State, Signal Quality Index (SQI) và Wake-on-LAN.",
+      "apis": [
+        "EthTrcv_SetTransceiverMode",
+        "EthTrcv_GetLinkState",
+        "EthTrcv_CheckWakeup"
+      ],
+      "connections": [
+        "EthIf",
+        "EcuM",
+        "ECU_HW"
+      ],
+      "tags": [
+        "EthTrcv",
+        "PHY",
+        "100BASE-T1"
+      ]
+    },
+    {
+      "id": "FrIf",
+      "name": "FlexRay Interface",
+      "layer": "ecu_ab",
+      "stack": "comm_ab",
+      "htmlPath": "",
+      "sws": "SWS_FrIf",
+      "bus": "FlexRay",
+      "summary": "Đồng bộ hóa Job List theo Global FlexRay Macroticks và điều phối truyền nhận L-PDU giữa PduR/FrNm/FrTp với Fr Driver.",
+      "apis": [
+        "FrIf_Transmit",
+        "FrIf_MainFunction_0",
+        "FrIf_SetTransceiverMode"
+      ],
+      "connections": [
+        "PduR",
+        "FrSM",
+        "FrNm",
+        "FrTp",
+        "Fr",
+        "FrTrcv"
+      ],
+      "tags": [
+        "FrIf",
+        "FlexRay"
+      ]
+    },
+    {
+      "id": "FrTrcv",
+      "name": "FlexRay Transceiver Driver",
+      "layer": "ecu_ab",
+      "stack": "comm_ab",
+      "htmlPath": "",
+      "sws": "SWS_FrTrcv",
+      "bus": "FlexRay",
+      "summary": "Điều khiển trạng thái bộ thu phát FlexRay và báo lỗi bus / wakeup.",
+      "apis": [
+        "FrTrcv_SetTransceiverMode",
+        "FrTrcv_CheckWakeupByTransceiver"
+      ],
+      "connections": [
+        "FrIf",
+        "EcuM",
+        "ECU_HW"
+      ],
+      "tags": [
+        "FrTrcv",
+        "FlexRay"
+      ]
+    },
+    {
+      "id": "IoHwAb",
+      "name": "I/O Hardware Abstraction",
+      "layer": "ecu_ab",
+      "stack": "io_ab",
+      "htmlPath": "",
+      "sws": "SWS_IoHwAb",
+      "bus": "I/O",
+      "summary": "Chuyển đổi tín hiệu điện (ADC raw ticks, DIO pins, PWM duty, ICU frequency) sang đơn vị vật lý chuẩn (mV, °C, RPM) cung cấp cho Sensor/Actuator SW-Cs qua RTE.",
+      "apis": [
+        "IoHwAb_GetPin",
+        "IoHwAb_SetPin",
+        "IoHwAb_ReadAnalog",
+        "IoHwAb_SetPwmDuty"
+      ],
+      "connections": [
+        "RTE",
+        "Port",
+        "Dio",
+        "Adc",
+        "Pwm",
+        "Icu"
+      ],
+      "tags": [
+        "IoHwAb",
+        "IO",
+        "Sensor",
+        "Actuator"
+      ]
+    },
+    {
+      "id": "Mcu",
+      "name": "Microcontroller Driver",
+      "layer": "mcal",
+      "stack": "mcu_drv",
+      "htmlPath": "",
+      "sws": "SWS_Mcu",
+      "bus": "Core",
+      "summary": "Khởi tạo cây xung nhịp (PLL/Clock Tree), phân vùng RAM, quản lý chế độ tiết kiệm năng lượng (Sleep/DeepSleep) và thực thi Software Reset.",
+      "apis": [
+        "Mcu_Init",
+        "Mcu_InitClock",
+        "Mcu_SetMode",
+        "Mcu_PerformReset",
+        "Mcu_GetResetReason"
+      ],
+      "connections": [
+        "EcuM",
+        "OS",
+        "BswM",
+        "ECU_HW"
+      ],
+      "tags": [
+        "Mcu",
+        "PLL",
+        "Clock",
+        "Reset",
+        "LowPower"
+      ]
+    },
+    {
+      "id": "Gpt",
+      "name": "General Purpose Timer Driver",
+      "layer": "mcal",
+      "stack": "mcu_drv",
+      "htmlPath": "",
+      "sws": "SWS_Gpt",
+      "bus": "Core",
+      "summary": "Cấu hình bộ đếm phần cứng (One-shot / Continuous Timer, Predefined Timer, Wakeup Timer) phục vụ OS tick, Tm và EcuM.",
+      "apis": [
+        "Gpt_StartTimer",
+        "Gpt_StopTimer",
+        "Gpt_GetTimeElapsed",
+        "Gpt_EnableNotification"
+      ],
+      "connections": [
+        "OS",
+        "Tm",
+        "EcuM",
+        "ECU_HW"
+      ],
+      "tags": [
+        "Gpt",
+        "Timer",
+        "MCAL"
+      ]
+    },
+    {
+      "id": "Wdg",
+      "name": "Watchdog Driver",
+      "layer": "mcal",
+      "stack": "mcu_drv",
+      "htmlPath": "",
+      "sws": "SWS_Wdg",
+      "bus": "Core",
+      "summary": "Cấu hình chế độ (OFF/SLOW/FAST) và nạp lại bộ đếm Watchdog phần cứng (nội bộ MCU hoặc ngoại vi) nhằm reset hệ thống khi treo.",
+      "apis": [
+        "Wdg_Init",
+        "Wdg_SetMode",
+        "Wdg_SetTriggerCondition"
+      ],
+      "connections": [
+        "WdgIf",
+        "ECU_HW"
+      ],
+      "tags": [
+        "Wdg",
+        "Watchdog",
+        "MCAL"
+      ]
+    },
+    {
+      "id": "Fls",
+      "name": "Flash Driver",
+      "layer": "mcal",
+      "stack": "mem_drv",
+      "htmlPath": "",
+      "sws": "SWS_Fls",
+      "bus": "Memory",
+      "summary": "Xóa, ghi và đọc trực tiếp bộ nhớ Data Flash nội bộ của vi điều khiển (theo chu kỳ trạng thái bất đồng bộ của Fee).",
+      "apis": [
+        "Fls_Read",
+        "Fls_Write",
+        "Fls_Erase",
+        "Fls_MainFunction"
+      ],
+      "connections": [
+        "Fee",
+        "ECU_HW"
+      ],
+      "tags": [
+        "Fls",
+        "Flash",
+        "MCAL"
+      ]
+    },
+    {
+      "id": "Eep",
+      "name": "EEPROM Driver",
+      "layer": "mcal",
+      "stack": "mem_drv",
+      "htmlPath": "",
+      "sws": "SWS_Eep",
+      "bus": "Memory",
+      "summary": "Đọc/ghi/xóa bộ nhớ EEPROM phần cứng (nội bộ hoặc ngoại vi) phục vụ module Ea.",
+      "apis": [
+        "Eep_Read",
+        "Eep_Write",
+        "Eep_Erase",
+        "Eep_MainFunction"
+      ],
+      "connections": [
+        "Ea",
+        "ECU_HW"
+      ],
+      "tags": [
+        "Eep",
+        "EEPROM",
+        "MCAL"
+      ]
+    },
+    {
+      "id": "Crypto",
+      "name": "Crypto Driver (HSM / SHE)",
+      "layer": "mcal",
+      "stack": "cry_drv",
+      "htmlPath": "",
+      "sws": "SWS_Crypto",
+      "bus": "Security",
+      "summary": "Giao tiếp trực tiếp với module bảo mật phần cứng (HSM / SHE / Crypto Accelerator) qua thanh ghi/mailbox để tăng tốc mã hóa, sinh CMAC và bảo vệ khóa bí mật.",
+      "apis": [
+        "Crypto_ProcessJob",
+        "Crypto_KeyElementSet",
+        "Crypto_MainFunction"
+      ],
+      "connections": [
+        "CryIf",
+        "ECU_HW"
+      ],
+      "tags": [
+        "Crypto",
+        "HSM",
+        "SHE",
+        "MCAL"
+      ]
+    },
+    {
+      "id": "Can",
+      "name": "CAN Driver",
+      "layer": "mcal",
+      "stack": "comm_drv",
+      "htmlPath": "",
+      "sws": "SWS_Can",
+      "bus": "CAN",
+      "summary": "Điều khiển trực tiếp phần cứng CAN / CAN-FD Controller: quản lý Hardware Transmit/Receive Handles (HTH/HRH), ngắt Rx/Tx/BusOff và chuyển tiếp lên CanIf.",
+      "apis": [
+        "Can_Write",
+        "Can_SetControllerMode",
+        "Can_SetBaudrate",
+        "Can_MainFunction_Read"
+      ],
+      "connections": [
+        "CanIf",
+        "ECU_HW"
+      ],
+      "tags": [
+        "Can",
+        "CAN-FD",
+        "MCAL",
+        "Mailbox"
+      ]
+    },
+    {
+      "id": "Lin",
+      "name": "LIN Driver",
+      "layer": "mcal",
+      "stack": "comm_drv",
+      "htmlPath": "",
+      "sws": "SWS_Lin",
+      "bus": "LIN",
+      "summary": "Truyền nhận khung LIN (Break, Sync, PID, Payload, Checksum) thông qua ngoại vi UART/LIN của vi điều khiển.",
+      "apis": [
+        "Lin_SendFrame",
+        "Lin_GoToSleep",
+        "Lin_GetStatus"
+      ],
+      "connections": [
+        "LinIf",
+        "ECU_HW"
+      ],
+      "tags": [
+        "Lin",
+        "LIN",
+        "MCAL"
+      ]
+    },
+    {
+      "id": "Eth",
+      "name": "Ethernet Driver",
+      "layer": "mcal",
+      "stack": "comm_drv",
+      "htmlPath": "",
+      "sws": "SWS_Eth",
+      "bus": "Ethernet",
+      "summary": "Điều khiển Ethernet MAC Controller, DMA TX/RX Descriptors, MDIO quản lý PHY và Hardware Timestamping (IEEE 802.1AS).",
+      "apis": [
+        "Eth_ProvideTxBuffer",
+        "Eth_Transmit",
+        "Eth_Receive",
+        "Eth_GetCurrentTime"
+      ],
+      "connections": [
+        "EthIf",
+        "ECU_HW"
+      ],
+      "tags": [
+        "Eth",
+        "MAC",
+        "DMA",
+        "MCAL"
+      ]
+    },
+    {
+      "id": "Fr",
+      "name": "FlexRay Driver",
+      "layer": "mcal",
+      "stack": "comm_drv",
+      "htmlPath": "",
+      "sws": "SWS_Fr",
+      "bus": "FlexRay",
+      "summary": "Điều khiển FlexRay Communication Controller (POC states, Message Buffers, Global Time Sync).",
+      "apis": [
+        "Fr_TransmitTxLPdu",
+        "Fr_ReceiveRxLPdu",
+        "Fr_GetGlobalTime"
+      ],
+      "connections": [
+        "FrIf",
+        "ECU_HW"
+      ],
+      "tags": [
+        "Fr",
+        "FlexRay",
+        "MCAL"
+      ]
+    },
+    {
+      "id": "Spi",
+      "name": "SPI Handler / Driver",
+      "layer": "mcal",
+      "stack": "comm_drv",
+      "htmlPath": "",
+      "sws": "SWS_Spi",
+      "bus": "I/O",
+      "summary": "Quản lý hàng đợi truyền nhận đồng bộ/bất đồng bộ (Channels/Jobs/Sequences) qua bus SPI tới SBC, Transceiver thông minh, Switch hoặc EEPROM ngoài.",
+      "apis": [
+        "Spi_WriteIB",
+        "Spi_AsyncTransmit",
+        "Spi_SyncTransmit",
+        "Spi_MainFunction_Handling"
+      ],
+      "connections": [
+        "CanTrcv",
+        "EthSwt",
+        "Eep",
+        "ECU_HW"
+      ],
+      "tags": [
+        "Spi",
+        "MCAL",
+        "Serial"
+      ]
+    },
+    {
+      "id": "Port",
+      "name": "Port Driver",
+      "layer": "mcal",
+      "stack": "io_drv",
+      "htmlPath": "",
+      "sws": "SWS_Port",
+      "bus": "I/O",
+      "summary": "Cấu hình chức năng đa hợp chân vi điều khiển (Pin Muxing: GPIO, CAN, SPI, ADC, PWM), hướng vào/ra và trở kéo.",
+      "apis": [
+        "Port_Init",
+        "Port_SetPinDirection",
+        "Port_SetPinMode"
+      ],
+      "connections": [
+        "IoHwAb",
+        "ECU_HW"
+      ],
+      "tags": [
+        "Port",
+        "PinMux",
+        "MCAL"
+      ]
+    },
+    {
+      "id": "Dio",
+      "name": "DIO Driver",
+      "layer": "mcal",
+      "stack": "io_drv",
+      "htmlPath": "",
+      "sws": "SWS_Dio",
+      "bus": "I/O",
+      "summary": "Đọc/ghi tức thời trạng thái mức logic (High/Low) trên các kênh hoặc nhóm chân Digital I/O.",
+      "apis": [
+        "Dio_ReadChannel",
+        "Dio_WriteChannel",
+        "Dio_ReadPort",
+        "Dio_FlipChannel"
+      ],
+      "connections": [
+        "IoHwAb",
+        "CanTrcv",
+        "LinTrcv",
+        "ECU_HW"
+      ],
+      "tags": [
+        "Dio",
+        "GPIO",
+        "MCAL"
+      ]
+    },
+    {
+      "id": "Adc",
+      "name": "ADC Driver",
+      "layer": "mcal",
+      "stack": "io_drv",
+      "htmlPath": "",
+      "sws": "SWS_Adc",
+      "bus": "I/O",
+      "summary": "Khởi tạo và chuyển đổi tín hiệu tương tự sang số theo nhóm kênh (SW/HW Trigger, DMA Buffer) phục vụ đo điện áp/nhiệt độ/dòng.",
+      "apis": [
+        "Adc_StartGroupConversion",
+        "Adc_ReadGroup",
+        "Adc_SetupResultBuffer"
+      ],
+      "connections": [
+        "IoHwAb",
+        "ECU_HW"
+      ],
+      "tags": [
+        "Adc",
+        "Analog",
+        "MCAL"
+      ]
+    },
+    {
+      "id": "Pwm",
+      "name": "PWM Driver",
+      "layer": "mcal",
+      "stack": "io_drv",
+      "htmlPath": "",
+      "sws": "SWS_Pwm",
+      "bus": "I/O",
+      "summary": "Sinh xung điều biến độ rộng (Duty Cycle & Period) để điều khiển động cơ, van điện từ, đèn LED.",
+      "apis": [
+        "Pwm_SetDutyCycle",
+        "Pwm_SetPeriodAndDuty",
+        "Pwm_SetOutputToIdle"
+      ],
+      "connections": [
+        "IoHwAb",
+        "ECU_HW"
+      ],
+      "tags": [
+        "Pwm",
+        "MCAL",
+        "Actuator"
+      ]
+    },
+    {
+      "id": "Icu",
+      "name": "ICU Driver",
+      "layer": "mcal",
+      "stack": "io_drv",
+      "htmlPath": "",
+      "sws": "SWS_Icu",
+      "bus": "I/O",
+      "summary": "Đo chu kỳ, độ rộng xung, đếm cạnh hoặc phát hiện Wakeup trên các chân đầu vào số tốc độ cao.",
+      "apis": [
+        "Icu_StartSignalMeasurement",
+        "Icu_GetDutyCycleValues",
+        "Icu_EnableWakeup"
+      ],
+      "connections": [
+        "IoHwAb",
+        "ECU_HW"
+      ],
+      "tags": [
+        "Icu",
+        "InputCapture",
+        "MCAL"
+      ]
+    },
+    {
+      "id": "CDD",
+      "name": "Complex Device Drivers",
+      "layer": "cdd",
+      "stack": "cdd",
+      "htmlPath": "",
+      "sws": "SRS_BSW_CDD",
+      "bus": "Core",
+      "summary": "Tập hợp các trình điều khiển đặc thù không chuẩn hóa bởi BSW (Motor Control FOC, Radar/Lidar DMA, GTM/eTPU Timing, High-Speed Sensors), kết nối trực tiếp phần cứng tới RTE.",
+      "apis": [
+        "CDD_Init",
+        "CDD_IsrHandler",
+        "CDD_MainFunction",
+        "Rte_Call_CDD_*"
+      ],
+      "connections": [
+        "RTE",
+        "ECU_HW"
+      ],
+      "tags": [
+        "CDD",
+        "ComplexDriver",
+        "RealTime",
+        "Bypass"
+      ]
+    },
+    {
+      "id": "ECU_HW",
+      "name": "Microcontroller & ECU Hardware",
+      "layer": "hardware",
+      "stack": "hw",
+      "htmlPath": "",
+      "sws": "Hardware Silicon",
+      "bus": "Core",
+      "summary": "Tầng phần cứng vật lý: CPU Đa lõi (TriCore AURIX / ARM Cortex-R), RAM/Data Flash, Bộ điều khiển CAN-FD/ETH/LIN, HSM Security Module, Watchdog IC và đường truyền Bus xe.",
+      "apis": [
+        "Registers / SFR",
+        "DMA & Interrupts",
+        "CAN/LIN/ETH PHY",
+        "Hardware Pins"
+      ],
+      "connections": [
+        "Mcu",
+        "Gpt",
+        "Wdg",
+        "Fls",
+        "Eep",
+        "Crypto",
+        "Can",
+        "Lin",
+        "Eth",
+        "Fr",
+        "Spi",
+        "Port",
+        "Dio",
+        "Adc",
+        "Pwm",
+        "Icu",
+        "CanTrcv",
+        "LinTrcv",
+        "EthSwt",
+        "EthTrcv",
+        "FrTrcv",
+        "CDD"
+      ],
+      "tags": [
+        "Hardware",
+        "MCU",
+        "Silicon",
+        "Bus"
+      ]
+    }
+  ],
+  "flows": [
+    {
+      "id": "F1_BOOTUP",
+      "name": "F1: Khởi Động ECU (Boot-Up, NvM_ReadAll, BswM & Rte_Start)",
+      "description": "Mô phỏng chuỗi khởi tạo chuẩn AUTOSAR Classic từ phần cứng Mcu → EcuM → OS → NvM → BswM mở I-PDU Group và khởi chạy RTE/SW-C.",
+      "steps": [
+        {
+          "from": "ECU_HW",
+          "to": "Mcu",
+          "api": "Mcu_Init() & Mcu_InitClock()",
+          "detail": "Phần cứng cấp nguồn, Reset Vector nhảy vào Startup Code; Mcu khởi tạo Clock Tree / PLL và kiểm tra Reset Reason."
+        },
+        {
+          "from": "Mcu",
+          "to": "EcuM",
+          "api": "EcuM_Init() → StartPreOSInit()",
+          "detail": "EcuM thực hiện InitBlock 0/I (khởi tạo Det, Dem PreInit, Gpt, Can/Fls) trước khi bàn giao quyền điều khiển cho hệ điều hành."
+        },
+        {
+          "from": "EcuM",
+          "to": "OS",
+          "api": "StartOS(OSDEFAULTAPPMODE)",
+          "detail": "Khởi động nhân AUTOSAR OS, bật ngắt và kích hoạt Task khởi tạo hệ thống (Init Task / EcuM_StartupTwo)."
+        },
+        {
+          "from": "OS",
+          "to": "EcuM",
+          "api": "EcuM_StartupTwo() → BswM_Init()",
+          "detail": "Trong ngữ cảnh OS, EcuM khởi tạo SchM, BswM và phát lệnh đọc toàn bộ dữ liệu NVRAM bền vững."
+        },
+        {
+          "from": "EcuM",
+          "to": "NvM",
+          "api": "NvM_ReadAll() → MemIf → Fee → Fls",
+          "detail": "NvM tải dữ liệu hiệu chuẩn, DTC history và cấu hình từ Data Flash qua ngăn xếp MemIf/Fee/Fls."
+        },
+        {
+          "from": "NvM",
+          "to": "BswM",
+          "api": "BswM_NvM_CurrentJobMode(NVM_REQ_OK)",
+          "detail": "Khi NvM_ReadAll xong, BswM đánh giá Rule khởi động hợp lệ và thực thi ActionList kích hoạt RTE & Com I-PDU Groups."
+        },
+        {
+          "from": "BswM",
+          "to": "RTE",
+          "api": "Rte_Start() → Runnables Active",
+          "detail": "RTE khởi tạo toàn bộ S/R buffers, kết nối Ports và bắt đầu gọi định kỳ các Runnables của tầng Application SW-Cs."
+        }
+      ]
+    },
+    {
+      "id": "F2_COM_TX",
+      "name": "F2: Truyền Tín Hiệu Giao Tiếp (SW-C → RTE → Com → PduR → CanIf → Can)",
+      "description": "Luồng dữ liệu chuẩn từ Application Software Component đi xuyên qua RTE, Com Signal Packing, PduR Routing xuống CAN Driver.",
+      "steps": [
+        {
+          "from": "SWC_App",
+          "to": "RTE",
+          "api": "Rte_Write_VehSpeed_Speed(val)",
+          "detail": "Application SW-C ghi giá trị tín hiệu thông qua Sender-Receiver Port mà không cần biết đích là cùng ECU hay qua mạng CAN."
+        },
+        {
+          "from": "RTE",
+          "to": "Com",
+          "api": "Com_SendSignal(SignalId, &val)",
+          "detail": "RTE chuyển tiếp sang AUTOSAR COM; Com thực hiện Signal Filter, chuyển Endianness (Intel/Motorola) và pack bit vào I-PDU Buffer."
+        },
+        {
+          "from": "Com",
+          "to": "PduR",
+          "api": "PduR_ComTransmit(TxPduId, &PduInfo)",
+          "detail": "Khi Triggered hoặc chu kỳ Mixed/Periodic đến hạn, Com gọi PduR để định tuyến I-PDU theo bảng Routing Table."
+        },
+        {
+          "from": "PduR",
+          "to": "CanIf",
+          "api": "CanIf_Transmit(CanTxPduId, &PduInfo)",
+          "detail": "PduR chuyển PDU xuống CanIf; CanIf ánh xạ L-PDU ID thành CAN ID chuẩn/mở rộng và chọn Hardware Transmit Handle (HTH)."
+        },
+        {
+          "from": "CanIf",
+          "to": "Can",
+          "api": "Can_Write(Hth, &CanPduInfo)",
+          "detail": "CAN Driver ghi CAN ID, DLC và 8/64 byte payload vào thanh ghi Mailbox phần cứng của CAN Controller."
+        },
+        {
+          "from": "Can",
+          "to": "ECU_HW",
+          "api": "CAN-FD Frame Tx → Bus",
+          "detail": "Phần cứng CAN Controller truyền khung dữ liệu ra đường truyền vật lý thông qua CanTrcv và phát ngắt TxConfirmation ngược lên tầng trên."
+        }
+      ]
+    },
+    {
+      "id": "F3_NM_WAKEUP",
+      "name": "F3: Đánh Thức & Quản Lý Mạng CAN (CanTrcv → EcuM → ComM → CanSM & Nm/CanNm)",
+      "description": "Luồng phối hợp đánh thức ECU và mở kênh truyền thông FULL_COMMUNICATION giữa CanTrcv, EcuM, ComM, CanSM, Nm, CanNm và BswM.",
+      "steps": [
+        {
+          "from": "ECU_HW",
+          "to": "CanTrcv",
+          "api": "Bus Wakeup Pattern Detected",
+          "detail": "Khung tin đánh thức trên bus CAN tác động vào bộ thu phát CanTrcv (hỗ trợ Selective Wakeup / WUF)."
+        },
+        {
+          "from": "CanTrcv",
+          "to": "EcuM",
+          "api": "EcuM_SetWakeupEvent(ECUM_WKSOURCE_CAN)",
+          "detail": "EcuM xác nhận nguồn Wakeup hợp lệ và kích hoạt chế độ sẵn sàng truyền thông cho kênh tương ứng."
+        },
+        {
+          "from": "SWC_ModeReq",
+          "to": "ComM",
+          "api": "ComM_RequestComMode(User, FULL_COM)",
+          "detail": "SW-C hoặc EcuM yêu cầu ComM chuyển kênh sang trạng thái FULL_COMMUNICATION."
+        },
+        {
+          "from": "ComM",
+          "to": "CanSM",
+          "api": "CanSM_RequestComMode(Net, FULL_COM)",
+          "detail": "CanSM ra lệnh cho CanIf đưa CanTrcv và CAN Controller vào chế độ STARTED/NORMAL và kiểm soát phục hồi Bus-Off."
+        },
+        {
+          "from": "ComM",
+          "to": "Nm",
+          "api": "Nm_NetworkRequest() → CanNm_NetworkRequest()",
+          "detail": "Nm điều phối gọi CanNm chuyển từ Bus-Sleep vào Repeat Message State, bắt đầu phát chu kỳ gói NM PDU giữ cả mạng thức."
+        },
+        {
+          "from": "CanSM",
+          "to": "BswM",
+          "api": "BswM_CanSM_CurrentState(FULL_COM)",
+          "detail": "CanSM thông báo BUS đã sẵn sàng; BswM kích hoạt ActionList mở Com_IpduGroupStart cho các gói tin ứng dụng."
+        }
+      ]
+    },
+    {
+      "id": "F4_DIAG_UDS",
+      "name": "F4: Chẩn Đoán UDS & Ức Chế Chức Năng (CanTp/DoCAN → PduR → Dcm ↔ Dem ↔ FiM)",
+      "description": "Xử lý bản tin chẩn đoán UDS qua ISO-TP (DoCAN), định tuyến PduR vào Dcm và tương tác kho lỗi Dem cùng cơ chế ức chế chức năng FiM.",
+      "steps": [
+        {
+          "from": "Can",
+          "to": "CanIf",
+          "api": "CanIf_RxIndication(RxPdu)",
+          "detail": "CAN Driver nhận khung UDS Physical/Functional từ máy chẩn đoán và chuyển giao cho CanIf."
+        },
+        {
+          "from": "CanIf",
+          "to": "CanTp",
+          "api": "CanTp_RxIndication() [ISO 15765-2]",
+          "detail": "CanTp (DoCAN) thực hiện giải mã Single Frame hoặc điều phối First Frame / Flow Control / Consecutive Frame."
+        },
+        {
+          "from": "CanTp",
+          "to": "PduR",
+          "api": "PduR_CanTpCopyRxData() & RxIndication()",
+          "detail": "CanTp bơm dữ liệu vào buffer của Dcm thông qua API TP định tuyến của PduR."
+        },
+        {
+          "from": "PduR",
+          "to": "Dcm",
+          "api": "Dcm_RxIndication() [DSL → DSD → DSP]",
+          "detail": "Dcm kiểm tra P2/S3 Timers tại DSL, xác thực Session/Security tại DSD và gọi dịch vụ tại DSP (vd: 0x19 ReadDTC / 0x14 ClearDTC)."
+        },
+        {
+          "from": "Dcm",
+          "to": "Dem",
+          "api": "Dem_GetNextFilteredDTC() / Dem_ClearDTC()",
+          "detail": "Dcm truy xuất hoặc xóa thông tin DTC, Snapshot và Extended Data Record được lưu trữ trong Dem / NvM."
+        },
+        {
+          "from": "Dem",
+          "to": "FiM",
+          "api": "FiM_DemTriggerOnEventStatus()",
+          "detail": "Mỗi khi Event Status thay đổi, Dem thông báo ngay cho FiM tính lại Permission của các FID để SWC_DiagApp qua RTE kịp thời hạ cấp an toàn."
+        }
+      ]
+    },
+    {
+      "id": "F5_WDGM_SAFETY",
+      "name": "F5: Giám Sát Watchdog & Phản Ứng An Toàn (RTE → WdgM → WdgIf → Wdg & BswM)",
+      "description": "Giám sát Alive/Deadline/Logical cho Runnables qua WdgM, cấp xung phần cứng qua WdgIf/Wdg và xử lý sự cố qua Dem/BswM.",
+      "steps": [
+        {
+          "from": "SWC_DiagApp",
+          "to": "RTE",
+          "api": "Rte_Call_WdgM_CheckpointReached(SE, CP)",
+          "detail": "SW-C báo cáo đã đi qua Checkpoint hợp lệ trong chu kỳ thực thi."
+        },
+        {
+          "from": "RTE",
+          "to": "WdgM",
+          "api": "WdgM_CheckpointReached() & MainFunction()",
+          "detail": "WdgM kiểm tra Alive Counter, thời gian Deadline giữa 2 checkpoints và đồ thị chuyển trạng thái Logical."
+        },
+        {
+          "from": "WdgM",
+          "to": "WdgIf",
+          "api": "WdgIf_SetTriggerCondition(timeout)",
+          "detail": "Nếu Global Supervision Status = OK/EXPIRED (trong dung sai), WdgM nạp lại giá trị timeout cho tầng WdgIf."
+        },
+        {
+          "from": "WdgIf",
+          "to": "Wdg",
+          "api": "Wdg_SetTriggerCondition(timeout)",
+          "detail": "Wdg Driver thực hiện kích phần cứng Watchdog nội bộ hoặc Watchdog SBC gắn ngoài."
+        },
+        {
+          "from": "WdgM",
+          "to": "Dem",
+          "api": "Dem_SetEventStatus(WDGM_E_MONITORING, FAILED)",
+          "detail": "Khi Supervised Entity vượt ngưỡng lỗi, WdgM ghi nhận lỗi chẩn đoán vào Dem."
+        },
+        {
+          "from": "WdgM",
+          "to": "BswM",
+          "api": "BswM_WdgM_RequestPartitionReset()",
+          "detail": "Nếu trạng thái toàn cục chuyển STOPPED, WdgM ngừng trigger Watchdog hoặc báo BswM cắt tải / Reset ECU an toàn."
+        }
+      ]
+    },
+    {
+      "id": "F6_SECOC",
+      "name": "F6: Bảo Mật Thông Điệp SecOC (Com → PduR → SecOC ↔ Csm ↔ CryIf ↔ Crypto)",
+      "description": "Luồng đóng gói Authentic I-PDU qua SecOC để sinh Truncated CMAC và ghép Freshness Value trước khi đẩy xuống CanIf.",
+      "steps": [
+        {
+          "from": "Com",
+          "to": "PduR",
+          "api": "PduR_ComTransmit(AuthenticPduId)",
+          "detail": "COM xuất Authentic I-PDU chưa có mã xác thực xuống PduR để định tuyến tới SecOC."
+        },
+        {
+          "from": "PduR",
+          "to": "SecOC",
+          "api": "SecOC_IfTransmit(TxPduId, &AuthenticPdu)",
+          "detail": "SecOC nhận dữ liệu gốc và truy vấn bộ đếm Freshness Value mới nhất từ FVM / StbM."
+        },
+        {
+          "from": "SecOC",
+          "to": "Csm",
+          "api": "Csm_MacGenerate(JobId, Data+FV, MAC)",
+          "detail": "SecOC đóng gói DataID + Authentic Payload + Full Freshness Value gửi tới Crypto Service Manager."
+        },
+        {
+          "from": "Csm",
+          "to": "CryIf",
+          "api": "CryIf_ProcessJob() → Crypto_ProcessJob()",
+          "detail": "CryIf định tuyến Job xuống Crypto Driver (HSM/SHE) để tính toán AES-CMAC bằng khóa bí mật phần cứng."
+        },
+        {
+          "from": "SecOC",
+          "to": "PduR",
+          "api": "PduR_SecOCIfTransmit(SecuredPdu)",
+          "detail": "SecOC ghép [Authentic Payload | Truncated FV | Truncated MAC] thành Secured I-PDU và trả lại cho PduR."
+        },
+        {
+          "from": "PduR",
+          "to": "CanIf",
+          "api": "CanIf_Transmit() → Can_Write()",
+          "detail": "Secured I-PDU được truyền an toàn ra bus CAN; phía nhận sẽ lặp lại chuỗi xác thực ngược trước khi giao cho Com."
+        }
+      ]
+    }
+  ]
+}
