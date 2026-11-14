@@ -66,6 +66,9 @@
     body.light .badge.ok { color: #047857; }
     .badge.vio { background: rgba(192,132,252,.13); color: #c084fc; border-color: rgba(192,132,252,.35); }
     body.light .badge.vio { color: #7e22ce; }
+    .badge.indigo { background: rgba(129,140,248,.14); color: #818cf8; border-color: rgba(129,140,248,.38); }
+    body.light .badge.indigo { color: #4338ca; }
+    .badge.xs { padding: 1px 6px; font-size: 9.5px; border-radius: 5px; }
     .lbl { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); margin-right: 2px; }
     .ctrl { display: flex; align-items: center; gap: 5px; background: var(--panel2); border: 1px solid var(--border); padding: 4px 6px; border-radius: 9px; flex-wrap: wrap; }
     .vtabs { display: flex; gap: 4px; }
@@ -144,8 +147,34 @@
     .panel-t { font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--accent); }
     .panel-b { padding: 10px 12px; }
     .sticky-r { position: sticky; top: 116px; max-height: calc(100vh - 128px); display: flex; flex-direction: column; }
-    .sticky-r .panel-b { overflow: auto; }
-    @media (max-width: 1480px) { .sticky-r { position: static; max-height: none; } }
+    .sticky-r > .panel { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+    .sticky-r .panel-b { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+    .trace-title { color: #34d399; }
+    body.light .trace-title { color: #047857; }
+    .trace-hdr { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+    .trace-tools { display: flex; align-items: center; gap: 5px; margin-left: auto; }
+    .trace-tools select { width: auto; min-width: 118px; padding: 3px 6px; font-size: 10.5px; border-radius: 5px; }
+    .trace-list { display: flex; flex-direction: column; gap: 5px; max-height: calc(100vh - 255px); overflow-y: auto; padding-right: 2px; }
+    .trace-item {
+      background: var(--code); border: 1px solid var(--border); border-left: 3px solid var(--accent);
+      border-radius: 7px; padding: 6px 8px; font-size: 11px; transition: border-color .15s;
+    }
+    .trace-item.bus { border-left-color: #818cf8; }
+    .trace-item.state { border-left-color: #fbbf24; }
+    .trace-item.pn { border-left-color: #c084fc; }
+    .trace-item.alert { border-left-color: #f87171; }
+    .trace-item.init { border-left-color: #34d399; }
+    .trace-top { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 3px; }
+    .trace-meta { display: flex; align-items: center; gap: 5px; min-width: 0; overflow: hidden; }
+    .trace-route { font-family: "JetBrains Mono", Consolas, monospace; font-size: 10px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .trace-time { font-family: "JetBrains Mono", Consolas, monospace; font-size: 10px; color: var(--dim); white-space: nowrap; flex: none; }
+    .trace-api { font-family: "JetBrains Mono", Consolas, monospace; font-weight: 700; font-size: 11px; color: var(--lab-text); word-break: break-word; line-height: 1.35; }
+    .trace-desc { font-size: 10.8px; color: var(--muted); line-height: 1.38; margin-top: 2px; }
+    @media (max-width: 1480px) {
+      .sticky-r { position: static; max-height: none; }
+      .sticky-r > .panel { flex: none; overflow: visible; }
+      .trace-list { max-height: 460px; }
+    }
     .muted { color: var(--muted); } .dim { color: var(--dim); } .small { font-size: 11px; } .mt8 { margin-top: 8px; } .mt4 { margin-top: 4px; }
     .hidden { display: none !important; }
 
@@ -188,29 +217,72 @@
     .bit-name { font-size: 9.5px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--muted); }
     .bit-box.on .bit-name { color: var(--text); }
 
+    /* ===================== LIVE TIMERS & STATE MACHINE LAYOUT ===================== */
+    .tm-sm-grid { display: grid; grid-template-columns: minmax(305px, 0.78fr) minmax(0, 1.32fr); gap: 12px; align-items: stretch; }
+    @media (max-width: 1180px) { .tm-sm-grid { grid-template-columns: 1fr; } }
+    .tm-col { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+    .sm-col { display: flex; flex-direction: column; min-width: 0; }
+    .sec-subhdr { font-family: "JetBrains Mono", Consolas, monospace; font-weight: 700; font-size: 11px; margin-bottom: 5px; display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+
     /* ===================== LIVE TIMERS & PROGRESS BARS ===================== */
     .timer-card { background: var(--panel2); border: 1px solid var(--border); border-radius: 8px; padding: 7px 9px; margin-bottom: 6px; }
-    .timer-h { display: flex; align-items: center; justify-content: space-between; font-size: 11px; margin-bottom: 4px; }
+    .timer-card.compact { padding: 4px 8px; margin-bottom: 4px; border-radius: 7px; }
+    .timer-card.compact:last-child { margin-bottom: 0; }
+    .timer-card.compact .timer-h { font-size: 10.5px; margin-bottom: 3px; }
+    .timer-card.compact .timer-track { height: 4px; }
+    .timer-h { display: flex; align-items: center; justify-content: space-between; font-size: 11px; margin-bottom: 4px; gap: 6px; }
     .timer-track { width: 100%; height: 6px; background: var(--code); border-radius: 4px; overflow: hidden; border: 1px solid var(--border); }
     .timer-bar { height: 100%; border-radius: 4px; transition: width .15s ease-out; }
+    .tbl.compact td { padding: 4px 6px; font-size: 11px; }
 
-    /* ===================== STATE MACHINE NODES ===================== */
+    /* ===================== EXPANDED STATE MACHINE NODES ===================== */
+    .sm-wrap { display: flex; flex-direction: column; gap: 7px; flex: 1; justify-content: space-between; }
     .sm-diagram { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 6px; }
     .sm-node {
       border: 1px solid var(--border2); border-radius: 9px; background: var(--panel2);
-      padding: 8px 10px; transition: all .2s; position: relative;
+      padding: 9px 11px; transition: all .2s; position: relative;
     }
     .sm-node.active {
       border-color: #38bdf8; background: rgba(56, 189, 248, 0.12);
-      box-shadow: 0 0 14px rgba(56, 189, 248, 0.4);
+      box-shadow: 0 0 14px rgba(56, 189, 248, 0.38);
     }
+    .sm-mode-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+    .sm-subgrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; margin-top: 8px; }
+    @media (max-width: 720px) { .sm-subgrid { grid-template-columns: 1fr; } }
     .sm-subnode {
-      border: 1px solid var(--border); border-radius: 6px; background: var(--code);
-      padding: 4px 6px; font-size: 10.5px; margin-top: 4px; font-family: "JetBrains Mono", monospace;
+      border: 1px solid var(--border); border-radius: 7px; background: var(--code);
+      padding: 6px 8px; font-size: 10.5px; margin-top: 4px; font-family: "JetBrains Mono", monospace;
+      transition: all .2s;
     }
+    .sm-subgrid .sm-subnode { margin-top: 0; display: flex; flex-direction: column; gap: 3px; }
+    .sm-subnode .sm-subtitle { font-weight: 700; font-size: 10.5px; color: var(--text); }
+    .sm-subnode .sm-subdesc { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 9.8px; color: var(--muted); font-weight: 400; line-height: 1.3; }
     .sm-subnode.active {
       border-color: #fbbf24; background: rgba(251, 191, 36, 0.15); color: #fbbf24; font-weight: 700;
     }
+    .sm-subnode.active .sm-subtitle { color: #fbbf24; }
+    body.light .sm-subnode.active, body.light .sm-subnode.active .sm-subtitle { color: #b45309; }
+    .sm-subfooter {
+      margin-top: 7px; padding-top: 5px; border-top: 1px dashed var(--border);
+      display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;
+      font-size: 10px; color: var(--muted); font-family: "JetBrains Mono", monospace;
+    }
+    .sm-flow-strip {
+      display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 6px;
+      padding: 1px 4px; font-size: 10px; font-family: "JetBrains Mono", monospace;
+    }
+    .sm-flow-tag {
+      display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+      padding: 2px 8px; border-radius: 99px; font-weight: 700; border: 1px solid var(--border);
+      background: var(--code); color: var(--muted); white-space: nowrap;
+    }
+    .sm-flow-tag.ok { color: var(--ok); border-color: rgba(52,211,153,.35); background: rgba(52,211,153,.08); }
+    .sm-flow-tag.err { color: var(--err); border-color: rgba(248,113,113,.35); background: rgba(248,113,113,.08); }
+    .sm-flow-tag.vio { color: var(--vio); border-color: rgba(192,132,252,.35); background: rgba(192,132,252,.08); }
+    body.light .sm-flow-tag.ok { color: #047857; } body.light .sm-flow-tag.err { color: #b91c1c; } body.light .sm-flow-tag.vio { color: #7e22ce; }
+    .sm-sleep-row { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 8px; align-items: stretch; }
+    @media (max-width: 720px) { .sm-sleep-row { grid-template-columns: 1fr; } }
+    .sm-sleep-arrow { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
 
     /* ===================== FLOATING CONFIG TOOLTIP (>1s HOVER DELAY) ===================== */
     #cfgTooltipPopup {
@@ -306,6 +378,67 @@
     .modal-b { padding: 14px 16px; overflow: auto; flex: 1; }
     .modal-f { padding: 10px 16px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 8px; background: var(--panel2); }
 
+    /* ===================== MULTI-ECU BUS SIMULATION TAB ===================== */
+    #viewMulti { max-width: 1980px; margin: 0 auto; width: 100%; padding: 10px 14px; display: flex; flex-direction: column; gap: 10px; }
+    .multi-presets {
+      display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+      padding: 7px 12px; border-top: 1px solid var(--border); background: var(--panel2);
+    }
+    .multi-arena { display: grid; gap: 10px; align-items: stretch; }
+    .multi-arena.mode-2 { grid-template-columns: minmax(0, 1fr) 235px minmax(0, 1fr); }
+    .multi-arena.mode-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .multi-arena.mode-3 .multi-bus-col { grid-column: 1 / -1; }
+    @media (max-width: 1280px) {
+      .multi-arena.mode-2 { grid-template-columns: 1fr; }
+      .multi-arena.mode-3 { grid-template-columns: 1fr; }
+    }
+    .multi-ecu-panel { display: flex; flex-direction: column; min-width: 0; }
+    .multi-ecu-panel .panel-h { background: rgba(56, 189, 248, 0.05); }
+    .multi-ecu-panel.ecu-b .panel-h { background: rgba(129, 140, 248, 0.06); }
+    .multi-ecu-panel.ecu-c .panel-h { background: rgba(192, 132, 252, 0.06); }
+    .multi-ctrl-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 5px; margin-bottom: 8px; }
+    .multi-arena.mode-3 .multi-ctrl-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    @media (max-width: 1580px) { .multi-ctrl-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+    @media (max-width: 720px) { .multi-ctrl-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    .multi-ctrl-grid .btn { padding: 5px 6px; font-size: 11px; }
+    .multi-btn-on { box-shadow: 0 0 0 1px currentColor inset; filter: brightness(1.08); }
+    .multi-cfg-drawer {
+      background: var(--code); border: 1px solid var(--border); border-radius: 8px;
+      padding: 7px 9px; margin-bottom: 8px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px;
+    }
+    .multi-cfg-drawer label { font-size: 10px; color: var(--muted); display: flex; flex-direction: column; gap: 2px; font-weight: 600; }
+    .multi-cfg-drawer input[type=number] { padding: 3px 5px; font-size: 11px; }
+    .multi-timers-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; margin-top: 8px; }
+    .multi-bus-col { display: flex; flex-direction: column; min-width: 0; }
+    .multi-bus-bridge {
+      flex: 1; display: flex; flex-direction: column; justify-content: space-between; gap: 8px;
+      background: var(--panel); border: 1px solid var(--border2); border-radius: 12px; padding: 10px; box-shadow: var(--shadow);
+    }
+    .multi-bus-wire {
+      background: var(--code); border: 1px solid var(--border); border-radius: 9px; padding: 8px;
+      display: flex; flex-direction: column; gap: 6px; align-items: center; text-align: center;
+    }
+    .multi-bus-wire.active-tx { border-color: #38bdf8; box-shadow: 0 0 16px rgba(56, 189, 248, 0.25); }
+    .multi-dir-pill {
+      display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 99px;
+      font-family: "JetBrains Mono", monospace; font-size: 10.5px; font-weight: 800;
+      background: rgba(56, 189, 248, 0.14); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4);
+    }
+    body.light .multi-dir-pill { color: #0284c7; }
+    .multi-frame-box {
+      width: 100%; background: var(--panel2); border: 1px solid var(--border); border-radius: 8px;
+      padding: 7px 8px; font-family: "JetBrains Mono", monospace; font-size: 10.5px; text-align: left;
+    }
+    .multi-stat-row {
+      display: flex; align-items: center; justify-content: space-between; gap: 8px;
+      padding: 4px 7px; background: var(--panel2); border: 1px solid var(--border); border-radius: 6px; font-size: 10.5px;
+    }
+    .multi-meta-bar {
+      margin-top: 7px; padding: 5px 8px; background: var(--code); border: 1px solid var(--border); border-radius: 7px;
+      display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px;
+      font-family: "JetBrains Mono", monospace; font-size: 10.5px;
+    }
+
     /* Animations */
     @keyframes pulseGlow {
       0%, 100% { box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.4), 0 0 14px rgba(56, 189, 248, 0.3); }
@@ -342,8 +475,11 @@
           <button class="vtab active" id="btnViewSim" onclick="switchMainView('sim')">
             🎛️ 1. Trình Mô Phỏng (Workspace)
           </button>
+          <button class="vtab" id="btnViewMulti" onclick="switchMainView('multi')">
+            🌐 2. Giao Tiếp Đa ECU (Multi-ECU Bus)
+          </button>
           <button class="vtab" id="btnViewHb" onclick="switchMainView('hb')">
-            📖 2. Sổ Tay Kỹ Thuật & Thuật Ngữ
+            📖 3. Sổ Tay Kỹ Thuật & Thuật Ngữ
           </button>
         </div>
 
@@ -362,7 +498,7 @@
       </div>
 
       <!-- Row 2 (Sticky Control Bar): Scenario Selector, Stepper Controls, Clock & State Badge -->
-      <div class="hdr-row2">
+      <div class="hdr-row2" id="simControlRow">
         <!-- Scenario Dropdown & Stepper Controls -->
         <div class="row wrap" style="flex:1">
           <span class="lbl">Kịch Bản:</span>
@@ -810,95 +946,135 @@
           <span class="muted small">Live Network Timers &amp; Operational Modes</span>
         </div>
         <div class="panel-b">
-          <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px">
-            <!-- Left: 5 Live Timers Progress Bars -->
-            <div>
-              <div class="mono" style="font-weight:700; font-size:11px; color:#38bdf8; margin-bottom:6px">⏱ BỘ ĐẾM THỜI GIAN ĐỒNG BỘ MẠNG</div>
-              <div id="timersContainer">
-                <!-- RepeatMessageTimer -->
-                <div class="timer-card">
-                  <div class="timer-h">
-                    <span class="mono">RepeatMessageTimer</span>
-                    <span class="mono" id="valRptMsgTimer" style="font-weight:700; color:#fbbf24">0 / 1500 ms</span>
-                  </div>
-                  <div class="timer-track"><div class="timer-bar" id="barRptMsgTimer" style="width:0%; background:#fbbf24"></div></div>
+          <div class="tm-sm-grid">
+            <!-- Left Column: Section 1 (Compact Live Timers) + Section 2 (Live Variables) below -->
+            <div class="tm-col">
+              <!-- Mục 1: Compact Timers -->
+              <div>
+                <div class="sec-subhdr" style="color:#38bdf8">
+                  <span>⏱ BỘ ĐẾM THỜI GIAN ĐỒNG BỘ MẠNG</span>
                 </div>
+                <div id="timersContainer">
+                  <!-- RepeatMessageTimer -->
+                  <div class="timer-card compact">
+                    <div class="timer-h">
+                      <span class="mono">RepeatMessageTimer</span>
+                      <span class="mono" id="valRptMsgTimer" style="font-weight:700; color:#fbbf24">0 / 1500 ms</span>
+                    </div>
+                    <div class="timer-track"><div class="timer-bar" id="barRptMsgTimer" style="width:0%; background:#fbbf24"></div></div>
+                  </div>
 
-                <!-- NM-Timeout Timer -->
-                <div class="timer-card">
-                  <div class="timer-h">
-                    <span class="mono">NM-Timeout Timer (TimeoutTime)</span>
-                    <span class="mono" id="valTimeoutTimer" style="font-weight:700; color:#38bdf8">0 / 2000 ms</span>
+                  <!-- NM-Timeout Timer -->
+                  <div class="timer-card compact">
+                    <div class="timer-h">
+                      <span class="mono" title="CanNmTimeoutTime">NM-Timeout Timer</span>
+                      <span class="mono" id="valTimeoutTimer" style="font-weight:700; color:#38bdf8">0 / 2000 ms</span>
+                    </div>
+                    <div class="timer-track"><div class="timer-bar" id="barTimeoutTimer" style="width:0%; background:#38bdf8"></div></div>
                   </div>
-                  <div class="timer-track"><div class="timer-bar" id="barTimeoutTimer" style="width:0%; background:#38bdf8"></div></div>
-                </div>
 
-                <!-- WaitBusSleepTimer -->
-                <div class="timer-card">
-                  <div class="timer-h">
-                    <span class="mono">WaitBusSleepTimer</span>
-                    <span class="mono" id="valWaitSleepTimer" style="font-weight:700; color:#f87171">0 / 1500 ms</span>
+                  <!-- WaitBusSleepTimer -->
+                  <div class="timer-card compact">
+                    <div class="timer-h">
+                      <span class="mono">WaitBusSleepTimer</span>
+                      <span class="mono" id="valWaitSleepTimer" style="font-weight:700; color:#f87171">0 / 1500 ms</span>
+                    </div>
+                    <div class="timer-track"><div class="timer-bar" id="barWaitSleepTimer" style="width:0%; background:#f87171"></div></div>
                   </div>
-                  <div class="timer-track"><div class="timer-bar" id="barWaitSleepTimer" style="width:0%; background:#f87171"></div></div>
-                </div>
 
-                <!-- MsgCycle / Offset / Reduced Timer -->
-                <div class="timer-card">
-                  <div class="timer-h">
-                    <span class="mono" id="lblMsgCycleType">MsgCycleTimer (Tx Period)</span>
-                    <span class="mono" id="valMsgCycleTimer" style="font-weight:700; color:#34d399">0 / 1000 ms</span>
+                  <!-- MsgCycle / Offset / Reduced Timer -->
+                  <div class="timer-card compact">
+                    <div class="timer-h">
+                      <span class="mono" id="lblMsgCycleType">MsgCycleTimer (Tx Period)</span>
+                      <span class="mono" id="valMsgCycleTimer" style="font-weight:700; color:#34d399">0 / 1000 ms</span>
+                    </div>
+                    <div class="timer-track"><div class="timer-bar" id="barMsgCycleTimer" style="width:0%; background:#34d399"></div></div>
                   </div>
-                  <div class="timer-track"><div class="timer-bar" id="barMsgCycleTimer" style="width:0%; background:#34d399"></div></div>
-                </div>
 
-                <!-- Immediate Burst Tx / PnResetTimer -->
-                <div class="timer-card">
-                  <div class="timer-h">
-                    <span class="mono" id="lblExtraTimerTitle">Immediate Burst Tx</span>
-                    <span class="mono" id="valExtraTimer" style="font-weight:700; color:#c084fc">0 / 3 Frames</span>
+                  <!-- Immediate Burst Tx / PnResetTimer -->
+                  <div class="timer-card compact">
+                    <div class="timer-h">
+                      <span class="mono" id="lblExtraTimerTitle">Bộ Đếm Phụ (Burst/PN)</span>
+                      <span class="mono" id="valExtraTimer" style="font-weight:700; color:#c084fc">IDLE</span>
+                    </div>
+                    <div class="timer-track"><div class="timer-bar" id="barExtraTimer" style="width:0%; background:#c084fc"></div></div>
                   </div>
-                  <div class="timer-track"><div class="timer-bar" id="barExtraTimer" style="width:0%; background:#c084fc"></div></div>
                 </div>
+              </div>
+
+              <!-- Mục 2: Moved to Left Column below Mục 1 -->
+              <div style="background:var(--code); border:1px solid var(--border); border-radius:8px; padding:5px 8px">
+                <table class="tbl compact">
+                  <tr><td>Nguồn đánh thức</td><td class="mono" id="varWakeupSource" style="color:#38bdf8">None</td></tr>
+                  <tr><td>Last Bus Activity</td><td class="mono" id="varLastBusActivity" style="color:#fbbf24; word-break:break-word">Chưa có</td></tr>
+                  <tr><td>PNC Active Mask (EIRA)</td><td class="mono" id="varPncEira" style="color:#c084fc">0x0000</td></tr>
+                  <tr><td style="border-bottom:none">ComM Channel Mode</td><td class="mono" id="varComMMode" style="border-bottom:none">COMM_NO_COMMUNICATION</td></tr>
+                </table>
               </div>
             </div>
 
-            <!-- Right: State Machine 3 Modes & Sub-states -->
-            <div>
-              <div class="mono" style="font-weight:700; font-size:11px; color:#fbbf24; margin-bottom:6px">🔄 MÁY TRẠNG THÁI CANNM (3 MODES &amp; 3 SUB-STATES)</div>
-              <div class="sm-diagram">
-                <!-- Mode 1: Bus-Sleep Mode -->
-                <div class="sm-node" id="smNodeBusSleep">
-                  <div style="font-weight:800; font-size:11px; color:#94a3b8">1. BUS-SLEEP</div>
-                  <div class="muted small" style="margin-top:2px">Phần cứng ngủ, không truyền thông</div>
-                  <div class="sm-subnode">Sleep Mode</div>
-                </div>
-
-                <!-- Mode 2: Prepare Bus-Sleep Mode -->
-                <div class="sm-node" id="smNodePrepSleep">
-                  <div style="font-weight:800; font-size:11px; color:#f87171">2. PREPARE BUS-SLEEP</div>
-                  <div class="muted small" style="margin-top:2px">Đệm chờ WaitBusSleepTime</div>
-                  <div class="sm-subnode">Prepare Sleep</div>
-                </div>
-
-                <!-- Mode 3: Network Mode -->
-                <div class="sm-node" id="smNodeNetwork" style="grid-column: span 1">
-                  <div style="font-weight:800; font-size:11px; color:#38bdf8">3. NETWORK MODE</div>
-                  <div class="muted small" style="margin-top:2px">Mạng thức, chạy NM-Timeout Timer</div>
-                  <!-- Sub-states -->
-                  <div class="sm-subnode" id="smSubRepeat">REPEAT_MESSAGE (RMS)</div>
-                  <div class="sm-subnode" id="smSubNormal">NORMAL_OPERATION (NOS)</div>
-                  <div class="sm-subnode" id="smSubReady">READY_SLEEP (RSS)</div>
-                </div>
+            <!-- Right Column: Section 3 (Expanded State Machine Diagram) -->
+            <div class="sm-col">
+              <div class="sec-subhdr" style="color:#fbbf24">
+                <span>🔄 MÁY TRẠNG THÁI CANNM (3 MODES &amp; 3 SUB-STATES)</span>
+                <span class="hint" style="font-family:inherit; text-transform:none">Tự động Highlight theo trạng thái thực</span>
               </div>
+              <div class="sm-wrap">
+                <!-- Mode 3: Network Mode (Expanded top container with 3 side-by-side sub-states) -->
+                <div class="sm-node" id="smNodeNetwork">
+                  <div class="sm-mode-head">
+                    <span style="font-weight:800; font-size:12px; color:#38bdf8">3. NETWORK MODE (NM_MODE_NETWORK)</span>
+                    <span class="badge xs">Mạng thức • Giao tiếp &amp; Reload NM-Timeout Timer</span>
+                  </div>
+                  <div class="sm-subgrid">
+                    <div class="sm-subnode" id="smSubRepeat">
+                      <span class="sm-subtitle">REPEAT_MESSAGE (RMS)</span>
+                      <span class="sm-subdesc">Bắt buộc vào đầu • RepeatMsgTimer • Burst Tx</span>
+                    </div>
+                    <div class="sm-subnode" id="smSubNormal">
+                      <span class="sm-subtitle">NORMAL_OPERATION (NOS)</span>
+                      <span class="sm-subdesc">App cần mạng (NetReq=1) • Phát định kỳ MsgCycle</span>
+                    </div>
+                    <div class="sm-subnode" id="smSubReady">
+                      <span class="sm-subtitle">READY_SLEEP (RSS)</span>
+                      <span class="sm-subdesc">App nhả (NetReq=0) • Dừng Tx, đếm TimeoutTime</span>
+                    </div>
+                  </div>
+                  <div class="sm-subfooter">
+                    <span>RMS ➔ NOS / RSS (Hết RepeatMessageTime)</span>
+                    <span>NOS ⇄ RSS (NetworkRelease / NetworkRequest)</span>
+                  </div>
+                </div>
 
-              <!-- Live Variables Mini-Table -->
-              <div style="margin-top:8px; background:var(--code); border:1px solid var(--border); border-radius:8px; padding:6px 8px">
-                <table class="tbl">
-                  <tr><td>Nguồn đánh thức</td><td class="mono" id="varWakeupSource" style="color:#38bdf8">None</td></tr>
-                  <tr><td>Last Bus Activity</td><td class="mono" id="varLastBusActivity" style="color:#fbbf24">Chưa có</td></tr>
-                  <tr><td>PNC Active Mask (EIRA)</td><td class="mono" id="varPncEira" style="color:#c084fc">0x0000</td></tr>
-                  <tr><td>ComM Channel Mode</td><td class="mono" id="varComMMode">COMM_NO_COMMUNICATION</td></tr>
-                </table>
+                <!-- Transition Arrows Strip -->
+                <div class="sm-flow-strip">
+                  <div style="text-align:left"><span class="sm-flow-tag ok">⬆ Wakeup / NetReq / PassiveStartUp</span></div>
+                  <div style="text-align:center"><span class="sm-flow-tag vio">⟲ Immediate Restart</span></div>
+                  <div style="text-align:right"><span class="sm-flow-tag err">⬇ CanNmTimeoutTime = 0ms</span></div>
+                </div>
+
+                <!-- Bottom Sleep Modes Row: Mode 1 (Left) <- Mode 2 (Right) -->
+                <div class="sm-sleep-row">
+                  <!-- Mode 1: Bus-Sleep Mode -->
+                  <div class="sm-node" id="smNodeBusSleep">
+                    <div style="font-weight:800; font-size:11.5px; color:#94a3b8">1. BUS-SLEEP MODE</div>
+                    <div class="muted small" style="margin-top:3px">Phần cứng ngủ sâu (Controller SLEEP, Trcv STANDBY), không truyền thông.</div>
+                    <div class="sm-subnode" style="margin-top:6px">Sleep Mode (NM_MODE_BUS_SLEEP)</div>
+                  </div>
+
+                  <!-- Arrow WaitBusSleepTime=0 from PBSM -> BSM -->
+                  <div class="sm-sleep-arrow">
+                    <span class="sm-flow-tag err" title="CanNmWaitBusSleepTime hết hạn">⬅ 0ms</span>
+                    <span class="hint" style="font-size:9px; white-space:nowrap">WaitSleep=0</span>
+                  </div>
+
+                  <!-- Mode 2: Prepare Bus-Sleep Mode -->
+                  <div class="sm-node" id="smNodePrepSleep">
+                    <div style="font-weight:800; font-size:11.5px; color:#f87171">2. PREPARE BUS-SLEEP MODE</div>
+                    <div class="muted small" style="margin-top:3px">Đệm chờ WaitBusSleepTime, phần cứng còn mở để nghe bus đánh thức lại.</div>
+                    <div class="sm-subnode" style="margin-top:6px">Prepare Sleep (NM_MODE_PREPARE_BUS_SLEEP)</div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -953,16 +1129,29 @@
               <span class="mono" id="codeFunctionTitle" style="font-weight:700; color:#38bdf8">CanNm_MainFunction()</span>
               <span class="badge">AUTOSAR SWS C</span>
             </div>
-            <pre class="code" id="codeViewerBox" style="background:var(--code); border:1px solid var(--border); padding:10px; border-radius:8px; font-size:11.5px; overflow:auto; max-height:480px; color:#e2e8f0; line-height:1.45"></pre>
+            <pre class="code" id="codeViewerBox" style="background:var(--code); border:1px solid var(--border); padding:10px; border-radius:8px; font-size:11.5px; overflow:auto; margin:0; color:var(--text); line-height:1.45"></pre>
           </div>
 
-          <!-- Sub-tab 3: API Call Trace Log -->
+          <!-- Sub-tab 3: API Call & CAN Bus Trace Log -->
           <div class="insp-tab-pane hidden" id="inspPane3">
-            <div class="row" style="justify-content:space-between; margin-bottom:6px">
-              <span class="mono" style="font-weight:700; color:#34d399">Lịch Sử Gọi Hàm AUTOSAR</span>
-              <button class="btn xs" onclick="clearTraceLog()">Xóa Log</button>
+            <div class="trace-hdr">
+              <div class="row" style="gap:6px">
+                <span class="mono trace-title" style="font-weight:700">Lịch Sử Gọi Hàm</span>
+                <span class="badge xs ok" id="traceCountBadge">0 sự kiện</span>
+              </div>
+              <div class="trace-tools">
+                <select id="traceFilter" onchange="renderTraceLog()" title="Lọc sự kiện Trace Log">
+                  <option value="ALL">Tất cả sự kiện</option>
+                  <option value="API">API AUTOSAR</option>
+                  <option value="BUS">CAN Bus (PDU)</option>
+                  <option value="STATE">Chuyển State</option>
+                  <option value="PN">Partial Network</option>
+                  <option value="ALERT">DET / Cảnh báo</option>
+                </select>
+                <button class="btn xs red" onclick="clearTraceLog()" title="Xóa lịch sử log">Xóa Log</button>
+              </div>
             </div>
-            <div id="traceLogContainer" style="display:flex; flex-direction:column; gap:4px; max-height:500px; overflow-y:auto">
+            <div id="traceLogContainer" class="trace-list">
               <!-- Dynamically populated trace logs -->
             </div>
           </div>
@@ -973,7 +1162,77 @@
 
   </main>
 
-  <!-- ==================== VIEW 2: SỔ TAY KỸ THUẬT ĐA TẦNG & TỪ ĐIỂN THUẬT NGỮ ==================== -->
+  <!-- ==================== VIEW 2: MÔ PHỎNG GIAO TIẾP ĐA ECU (MULTI-ECU CAN BUS) ==================== -->
+  <section id="viewMulti" class="hidden">
+    <!-- Top Multi-ECU Bus Control & Presets Panel -->
+    <div class="panel">
+      <div class="panel-h">
+        <div class="row wrap" style="gap:8px">
+          <span class="panel-t">🌐 Mô Phỏng Giao Tiếp Mạng Phân Tán Đa ECU (Virtual CAN Bus)</span>
+          <div class="ctrl" style="padding:2px 4px">
+            <button class="btn xs primary" id="btnMulti2Ecu" onclick="setMultiEcuCount(2)">🔀 2 ECU (Trái ↔ Phải)</button>
+            <button class="btn xs" id="btnMulti3Ecu" onclick="setMultiEcuCount(3)">🔺 3 ECU (Mạng 3 Node)</button>
+          </div>
+          <label class="row" style="cursor:pointer; font-size:11px; color:var(--muted)" title="Khi bật: ECU ở Bus-Sleep nhận khung NM sẽ báo ComM_Nm_NetworkStartIndication() và gọi CanNm_PassiveStartUp()">
+            <input type="checkbox" id="chkMultiAutoWakeup" checked onchange="setMultiAutoWakeup(this.checked)">
+            <span>Auto PassiveStartUp khi Rx ở Bus-Sleep</span>
+          </label>
+        </div>
+
+        <div class="row wrap">
+          <div class="ctrl">
+            <span class="mono" id="lblMultiClock" style="font-weight:800; color:#34d399; padding:0 5px">t = 0 ms</span>
+            <button class="btn xs" onclick="stepMultiClockTick(100)" title="Tiến 1 chu kỳ MainFunction cho tất cả ECU (+100ms)">+100ms</button>
+            <button class="btn xs sky" onclick="advanceMultiTime(500)" title="Tiến nhanh 500ms (5 tick x 100ms) cho tất cả ECU">+500ms</button>
+            <button class="btn xs green" id="btnMultiClock" onclick="toggleMultiClock()" title="Tự động chạy xung nhịp đồng thời cho các ECU (2x)">▶ Auto Clock</button>
+          </div>
+          <button class="btn sm red" onclick="resetMultiEcuSim()" title="Đặt lại toàn bộ ECU về BUS-SLEEP MODE">↺ Reset Tất Cả ECU</button>
+        </div>
+      </div>
+
+      <div class="multi-presets">
+        <span class="lbl">🎯 Kịch bản nhanh:</span>
+        <button class="btn xs green" onclick="applyMultiPreset('active_wake')">1. ECU 1 Active Wakeup ➔ Đánh thức ECU 2</button>
+        <button class="btn xs sky" onclick="applyMultiPreset('keep_vs_rel')">2. ECU 1 giữ mạng vs ECU 2 nhả (Ready Sleep)</button>
+        <button class="btn xs amber" onclick="applyMultiPreset('consensus_sleep')">3. Cả 2 cùng nhả ➔ Đồng thuận ngủ</button>
+        <button class="btn xs vio" onclick="applyMultiPreset('rmr_check')">4. ECU 2 bắn RepeatMsgReq (RMR=1) điểm danh</button>
+      </div>
+    </div>
+
+    <!-- Arena: 2 ECUs on Left & Right around Center Bus (or 3 ECUs under Full-Width Bus) -->
+    <div id="multiArena" class="multi-arena mode-2">
+      <!-- Populated dynamically by part7_multi_ecu.js -->
+    </div>
+
+    <!-- Bottom Synchronized Multi-ECU Trace Console -->
+    <div class="panel">
+      <div class="panel-h">
+        <div class="row" style="gap:6px">
+          <span class="panel-t trace-title">📜 Nhật Ký Giao Tiếp Bus &amp; Chuyển Trạng Thái Đa ECU</span>
+          <span class="badge xs ok" id="multiTraceCountBadge">0 sự kiện</span>
+        </div>
+        <div class="trace-tools">
+          <select id="multiTraceFilter" onchange="renderMultiTraceLogs()" title="Lọc log theo ECU hoặc loại sự kiện">
+            <option value="ALL">Tất cả sự kiện</option>
+            <option value="BUS">CAN Bus Frame (Tx/Rx)</option>
+            <option value="STATE">Chuyển Trạng Thái</option>
+            <option value="API">API Calls</option>
+            <option value="ECU1">Chỉ ECU #1</option>
+            <option value="ECU2">Chỉ ECU #2</option>
+            <option value="ECU3">Chỉ ECU #3</option>
+          </select>
+          <button class="btn xs red" onclick="clearMultiTraceLogs()">Xóa Log</button>
+        </div>
+      </div>
+      <div class="panel-b">
+        <div id="multiTraceContainer" class="trace-list" style="max-height:240px">
+          <!-- Dynamically populated by part7_multi_ecu.js -->
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== VIEW 3: SỔ TAY KỸ THUẬT ĐA TẦNG & TỪ ĐIỂN THUẬT NGỮ ==================== -->
   <section id="viewHb" class="hidden" style="max-width:1600px; margin:0 auto; width:100%; padding:14px">
     <div class="panel">
       <div class="panel-h">
@@ -3466,6 +3725,9 @@ Std_ReturnType CanNm_NetworkRequest(NetworkHandleType nmChannelHandle)
     }
     return E_OK;
 }`;
+  } else if (activeInspectorTab === 3) {
+    // Sub-tab 3: API Call Trace Log
+    renderTraceLog();
   }
 }
 
@@ -3486,29 +3748,61 @@ function renderTraceLog() {
   const container = document.getElementById("traceLogContainer");
   if (!container) return;
 
-  if (simState.traceLogs.length === 0) {
-    container.innerHTML = `<p class="muted small" style="padding:10px 0; text-align:center">Chưa có bản ghi API nào.</p>`;
+  const filterEl = document.getElementById("traceFilter");
+  const filterVal = filterEl ? filterEl.value : "ALL";
+  const allLogs = simState.traceLogs || [];
+  const filtered = allLogs.filter(l => {
+    if (filterVal === "ALL") return true;
+    if (filterVal === "ALERT") return l.type === "DET" || l.type === "WARN";
+    return l.type === filterVal;
+  });
+
+  const countBadge = document.getElementById("traceCountBadge");
+  if (countBadge) {
+    countBadge.innerText = filterVal === "ALL"
+      ? `${allLogs.length} sự kiện`
+      : `${filtered.length}/${allLogs.length} sự kiện`;
+  }
+
+  if (filtered.length === 0) {
+    const msg = allLogs.length === 0
+      ? `Chưa có sự kiện nào. Hãy bấm <b>Tiếp Theo</b> hoặc kích hoạt API thủ công.`
+      : `Không có bản ghi nào khớp bộ lọc <code>${escapeHtml(filterVal)}</code>.`;
+    container.innerHTML = `<p class="muted small" style="padding:14px 6px; text-align:center">${msg}</p>`;
     return;
   }
 
+  const styleMap = {
+    BUS: { badge: "indigo", item: "bus", label: "CAN PDU" },
+    STATE: { badge: "amb", item: "state", label: "STATE" },
+    PN: { badge: "vio", item: "pn", label: "PN" },
+    DET: { badge: "err", item: "alert", label: "DET" },
+    WARN: { badge: "err", item: "alert", label: "WARN" },
+    INIT: { badge: "ok", item: "init", label: "INIT" },
+    SCENARIO: { badge: "ok", item: "init", label: "DONE" },
+    USER: { badge: "", item: "", label: "USER" },
+    API: { badge: "", item: "", label: "API CALL" }
+  };
+
   let html = "";
-  simState.traceLogs.forEach(l => {
-    let typeClass = "sky";
-    if (l.type === "BUS") typeClass = "indigo";
-    else if (l.type === "STATE") typeClass = "amb";
-    else if (l.type === "PN") typeClass = "vio";
-    else if (l.type === "DET" || l.type === "WARN") typeClass = "err";
+  filtered.forEach(l => {
+    const st = styleMap[l.type] || { badge: "", item: "", label: l.type || "LOG" };
+    const sender = escapeHtml(String(l.sender ?? ""));
+    const apiName = escapeHtml(String(l.apiName ?? ""));
+    const desc = escapeHtml(String(l.desc ?? ""));
+    const time = escapeHtml(String(l.time ?? ""));
 
     html += `
-      <div style="background:var(--code); border:1px solid var(--border); border-radius:6px; padding:5px 7px; font-size:11px">
-        <div class="row" style="justify-content:space-between; margin-bottom:2px">
-          <div class="row" style="gap:4px">
-            <span class="badge xs ${typeClass}">${l.type}</span>
-            <span class="mono" style="font-weight:700; color:var(--text)">${l.apiName}</span>
+      <div class="trace-item ${st.item}">
+        <div class="trace-top">
+          <div class="trace-meta">
+            <span class="badge xs ${st.badge}">${escapeHtml(st.label)}</span>
+            <span class="trace-route" title="${sender}">${sender}</span>
           </div>
-          <span class="mono muted" style="font-size:10px">${l.time}</span>
+          <span class="trace-time">${time}</span>
         </div>
-        <div class="muted small" style="font-size:10.5px">${l.sender}: ${l.desc}</div>
+        <div class="trace-api">${apiName}</div>
+        <div class="trace-desc">${desc}</div>
       </div>
     `;
   });
@@ -3856,21 +4150,33 @@ function toggleAutoClock() {
 
 // 9. VIEW SWITCHER & SUB-TABS
 function switchMainView(view) {
-  const simSec = document.getElementById("viewSim");
-  const hbSec = document.getElementById("viewHb");
-  const btnSim = document.getElementById("btnViewSim");
-  const btnHb = document.getElementById("btnViewHb");
+  const views = {
+    sim: { sec: "viewSim", btn: "btnViewSim" },
+    multi: { sec: "viewMulti", btn: "btnViewMulti" },
+    hb: { sec: "viewHb", btn: "btnViewHb" }
+  };
 
-  if (view === "sim") {
-    if (simSec) simSec.classList.remove("hidden");
-    if (hbSec) hbSec.classList.add("hidden");
-    if (btnSim) btnSim.classList.add("active");
-    if (btnHb) btnHb.classList.remove("active");
-  } else {
-    if (simSec) simSec.classList.add("hidden");
-    if (hbSec) hbSec.classList.remove("hidden");
-    if (btnSim) btnSim.classList.remove("active");
-    if (btnHb) btnHb.classList.add("active");
+  Object.keys(views).forEach(k => {
+    const sec = document.getElementById(views[k].sec);
+    const btn = document.getElementById(views[k].btn);
+    if (sec) sec.classList.toggle("hidden", k !== view);
+    if (btn) btn.classList.toggle("active", k === view);
+  });
+
+  const ctrlRow = document.getElementById("simControlRow");
+  if (ctrlRow) ctrlRow.classList.toggle("hidden", view !== "sim");
+
+  if (view !== "sim") {
+    stopScenarioAutoPlay();
+    stopAutoClock();
+  }
+  if (view !== "multi" && typeof stopMultiClock === "function") {
+    stopMultiClock();
+  }
+
+  if (view === "multi" && typeof renderMultiEcuView === "function") {
+    renderMultiEcuView();
+  } else if (view === "hb") {
     if (typeof renderCurrentHandbookView === "function") {
       renderCurrentHandbookView();
     } else if (typeof switchHbTab1 === "function") {
@@ -3909,6 +4215,7 @@ function toggleTheme() {
     if (lbl) lbl.innerText = "Sáng";
   }
   renderAll();
+  if (typeof renderMultiEcuView === "function") renderMultiEcuView();
 }
 
 // 10. FLOATING CONFIG HOVER TOOLTIP (>1000ms HOVER DELAY)
@@ -4185,6 +4492,7 @@ function renderAll() {
   renderStateMachine();
   renderSvgArchitecture();
   renderInspector();
+  renderTraceLog();
 }
 
 
@@ -5760,6 +6068,826 @@ window.addEventListener("DOMContentLoaded", () => {
   renderAll();
   renderCurrentHandbookView(); // Render Handbook Tabs & Sub-nav pills immediately!
   console.log("AUTOSAR CanNM Simulator initialized successfully.");
+});
+
+
+/*************************************************************************
+ * PART 7: MULTI-ECU CAN NM BUS COMMUNICATION SIMULATOR
+ * Decentralized Direct NM between 2+ ECUs on Virtual CAN Bus (R22-11)
+ *************************************************************************/
+
+function createMultiEcuNode(id, name, shortRole, nodeId, offsetMs, roleClass) {
+  return {
+    id,
+    name,
+    shortRole,
+    roleClass,
+    mode: "NM_MODE_BUS_SLEEP",
+    subState: "NM_STATE_REPEAT_MESSAGE",
+    netRequest: false,
+    commEnabled: true,
+    immBurstActive: false,
+    burstLeft: 0,
+    cfgOpen: false,
+    cbv: { rmr: false, csr: false, awb: false, pni: false },
+    timers: { repeatMsg: 0, timeout: 0, waitBusSleep: 0, msgCycle: 0 },
+    wakeupSource: "None",
+    lastActivity: "Chưa có",
+    userDataHex: id === "ECU1" ? "11 22 33 44 55 66" : (id === "ECU2" ? "A1 B2 C3 D4 E5 F6" : "CA FE BA BE 00 01"),
+    cfg: {
+      CanNmNodeId: nodeId,
+      CanNmBaseCanId: 0x500,
+      CanNmRepeatMessageTime: 1500,
+      CanNmTimeoutTime: 2000,
+      CanNmWaitBusSleepTime: 1500,
+      CanNmMsgCycleTime: 1000,
+      CanNmMsgCycleOffset: offsetMs,
+      CanNmImmediateNmTransmissions: 3,
+      CanNmImmediateNmCycleTime: 100,
+      CanNmPassiveModeEnabled: false,
+      CanNmImmediateRestartEnabled: true,
+      CanNmNodeDetectionEnabled: true,
+      CanNmActiveWakeupBitEnabled: true
+    }
+  };
+}
+
+let multiState = {
+  ecuCount: 2,
+  autoWakeupOnRx: true,
+  clockMs: 0,
+  autoClockTimer: null,
+  lastFrame: null,
+  traceLogs: [],
+  ecus: [
+    createMultiEcuNode("ECU1", "ECU #1", "VCU / BCM", 0x1A, 100, ""),
+    createMultiEcuNode("ECU2", "ECU #2", "IPC / Cluster", 0x2B, 200, "ecu-b"),
+    createMultiEcuNode("ECU3", "ECU #3", "BMS / Gateway", 0x3C, 300, "ecu-c")
+  ]
+};
+
+function multiGetCbvByte(ecu) {
+  let val = 0;
+  if (ecu.cbv.rmr) val |= (1 << 0);
+  if (ecu.cbv.csr) val |= (1 << 3);
+  if (ecu.cbv.awb) val |= (1 << 4);
+  if (ecu.cbv.pni) val |= (1 << 6);
+  return val & 0xFF;
+}
+
+function multiFormatPduBytes(ecu) {
+  const userBytes = ecu.userDataHex.split(/[\s,]+/).slice(0, 6).map(h => {
+    const n = parseInt(h, 16);
+    return isNaN(n) ? 0 : (n & 0xFF);
+  });
+  while (userBytes.length < 6) userBytes.push(0);
+  return [ecu.cfg.CanNmNodeId & 0xFF, multiGetCbvByte(ecu), ...userBytes];
+}
+
+function addMultiTraceLog(type, srcTag, route, title, desc) {
+  multiState.traceLogs.unshift({
+    time: `t=${multiState.clockMs}ms`,
+    type,
+    srcTag,
+    route,
+    title,
+    desc
+  });
+  if (multiState.traceLogs.length > 100) multiState.traceLogs.pop();
+}
+
+function deliverFrameToEcu(rxEcu, frame) {
+  const cbvHex = "0x" + frame.cbvByte.toString(16).toUpperCase().padStart(2, "0");
+  rxEcu.lastActivity = `Rx ${frame.canIdHex} từ ${frame.srcName} (CBV=${cbvHex})`;
+
+  if (rxEcu.mode === "NM_MODE_BUS_SLEEP") {
+    addMultiTraceLog(
+      "API",
+      rxEcu.id,
+      `${rxEcu.name} ⬅ CAN Bus`,
+      `Nm_NetworkStartIndication() (Nhận ${frame.canIdHex})`,
+      multiState.autoWakeupOnRx
+        ? `[SWS_CanNm_00127] ${rxEcu.name} ở BUS-SLEEP nhận gói NM từ ${frame.srcName} ➔ ComM tự động gọi PassiveStartUp().`
+        : `[SWS_CanNm_00336] ${rxEcu.name} ở BUS-SLEEP nhận gói NM bất ngờ (Auto PassiveStartUp đang TẮT).`
+    );
+    if (multiState.autoWakeupOnRx) {
+      rxEcu.wakeupSource = `Rx từ ${frame.srcName}`;
+      rxEcu.mode = "NM_MODE_NETWORK";
+      rxEcu.subState = "NM_STATE_REPEAT_MESSAGE";
+      rxEcu.cbv.awb = false;
+      rxEcu.cbv.rmr = false;
+      rxEcu.netRequest = false;
+      rxEcu.timers.waitBusSleep = 0;
+      rxEcu.timers.repeatMsg = rxEcu.cfg.CanNmRepeatMessageTime;
+      rxEcu.timers.timeout = rxEcu.cfg.CanNmTimeoutTime;
+      rxEcu.timers.msgCycle = rxEcu.cfg.CanNmMsgCycleOffset;
+      addMultiTraceLog(
+        "STATE",
+        rxEcu.id,
+        `${rxEcu.name} State Machine`,
+        `BUS_SLEEP ➔ NETWORK: REPEAT_MESSAGE (AWB=0)`,
+        `Đánh thức thụ động do ${frame.srcName}; Tx đầu tiên sau offset ${rxEcu.cfg.CanNmMsgCycleOffset}ms.`
+      );
+    }
+    return;
+  }
+
+  if (rxEcu.mode === "NM_MODE_PREPARE_BUS_SLEEP") {
+    rxEcu.wakeupSource = `Rx từ ${frame.srcName}`;
+    rxEcu.mode = "NM_MODE_NETWORK";
+    rxEcu.subState = "NM_STATE_REPEAT_MESSAGE";
+    rxEcu.cbv.awb = false;
+    rxEcu.timers.waitBusSleep = 0;
+    rxEcu.timers.repeatMsg = rxEcu.cfg.CanNmRepeatMessageTime;
+    rxEcu.timers.timeout = rxEcu.cfg.CanNmTimeoutTime;
+    rxEcu.timers.msgCycle = rxEcu.cfg.CanNmMsgCycleOffset;
+    addMultiTraceLog(
+      "STATE",
+      rxEcu.id,
+      `${rxEcu.name} State Machine`,
+      `PREPARE_BUS_SLEEP ➔ REPEAT_MESSAGE (AWB=0)`,
+      `[SWS_CanNm_00124] ${rxEcu.name} nhận NM PDU từ ${frame.srcName} khi đang chuẩn bị ngủ ➔ quay lại Network Mode.`
+    );
+    return;
+  }
+
+  if (rxEcu.mode === "NM_MODE_NETWORK") {
+    if (rxEcu.commEnabled) {
+      rxEcu.timers.timeout = rxEcu.cfg.CanNmTimeoutTime;
+    }
+
+    if (
+      frame.rmr &&
+      rxEcu.cfg.CanNmNodeDetectionEnabled &&
+      (rxEcu.subState === "NM_STATE_NORMAL_OPERATION" || rxEcu.subState === "NM_STATE_READY_SLEEP")
+    ) {
+      const prevSub = rxEcu.subState.replace("NM_STATE_", "");
+      rxEcu.subState = "NM_STATE_REPEAT_MESSAGE";
+      rxEcu.timers.repeatMsg = rxEcu.cfg.CanNmRepeatMessageTime;
+      rxEcu.timers.msgCycle = rxEcu.cfg.CanNmMsgCycleOffset;
+      addMultiTraceLog(
+        "STATE",
+        rxEcu.id,
+        `${rxEcu.name} State Machine`,
+        `${prevSub} ➔ REPEAT_MESSAGE (Nhận RMR=1 từ ${frame.srcName})`,
+        `[SWS_CanNm_00119] ${rxEcu.name} hưởng ứng yêu cầu điểm danh, báo Nm_RepeatMessageIndication() và nạp RepeatMsgTimer=${rxEcu.cfg.CanNmRepeatMessageTime}ms.`
+      );
+    }
+  }
+}
+
+function transmitMultiEcuFrame(ecu, reasonLabel) {
+  if (ecu.cfg.CanNmPassiveModeEnabled) {
+    addMultiTraceLog("WARN", ecu.id, ecu.name, "Bỏ qua Tx (PassiveMode = TRUE)", `${ecu.name} chỉ nghe bus.`);
+    return;
+  }
+  if (!ecu.commEnabled) {
+    addMultiTraceLog("WARN", ecu.id, ecu.name, "Tx bị khóa (UDS 0x28 DisableComm)", `${ecu.name} đang tắt truyền thông.`);
+    return;
+  }
+
+  const bytes = multiFormatPduBytes(ecu);
+  const hexArr = bytes.map(b => b.toString(16).toUpperCase().padStart(2, "0"));
+  const canIdHex = "0x" + (ecu.cfg.CanNmBaseCanId + ecu.cfg.CanNmNodeId).toString(16).toUpperCase();
+  const cbvByte = bytes[1];
+
+  ecu.timers.timeout = ecu.cfg.CanNmTimeoutTime;
+  ecu.lastActivity = `Tx ${canIdHex} [${hexArr[0]} ${hexArr[1]} ...]`;
+
+  const frame = {
+    srcId: ecu.id,
+    srcName: ecu.name,
+    srcNodeId: ecu.cfg.CanNmNodeId,
+    canIdHex,
+    hexArr,
+    cbvByte,
+    awb: ecu.cbv.awb,
+    rmr: ecu.cbv.rmr,
+    pni: ecu.cbv.pni,
+    timeMs: multiState.clockMs,
+    reason: reasonLabel
+  };
+  multiState.lastFrame = frame;
+
+  addMultiTraceLog(
+    "BUS",
+    ecu.id,
+    `${ecu.name} ➔ CAN Bus`,
+    `CanIf_Transmit(ID=${canIdHex}, Data=[${hexArr.join(" ")}])`,
+    `${reasonLabel} | AWB=${ecu.cbv.awb ? 1 : 0}, RMR=${ecu.cbv.rmr ? 1 : 0} | Reset Timeout(${ecu.name})=${ecu.cfg.CanNmTimeoutTime}ms`
+  );
+
+  for (let i = 0; i < multiState.ecuCount; i++) {
+    const other = multiState.ecus[i];
+    if (other && other.id !== ecu.id) {
+      deliverFrameToEcu(other, frame);
+    }
+  }
+}
+
+function multiEcuAction(idx, actionType) {
+  const ecu = multiState.ecus[idx];
+  if (!ecu) return;
+
+  if (actionType === "netReq") {
+    if (ecu.cfg.CanNmPassiveModeEnabled) {
+      addMultiTraceLog("WARN", ecu.id, ecu.name, "CanNm_NetworkRequest() -> E_NOT_OK", "[SWS_CanNm_00130] Passive Mode không hỗ trợ NetworkRequest.");
+      renderMultiEcuView();
+      return;
+    }
+    ecu.netRequest = true;
+    ecu.wakeupSource = "Active SWC Request";
+    addMultiTraceLog("API", ecu.id, `SWC ➔ ${ecu.name}`, "CanNm_NetworkRequest()", `[SWS_CanNm_00104] ${ecu.name} yêu cầu giữ mạng (FULL_COM).`);
+
+    if (ecu.mode === "NM_MODE_BUS_SLEEP") {
+      ecu.mode = "NM_MODE_NETWORK";
+      ecu.subState = "NM_STATE_REPEAT_MESSAGE";
+      ecu.cbv.awb = !!ecu.cfg.CanNmActiveWakeupBitEnabled;
+      ecu.timers.waitBusSleep = 0;
+      ecu.timers.repeatMsg = ecu.cfg.CanNmRepeatMessageTime;
+      ecu.timers.timeout = ecu.cfg.CanNmTimeoutTime;
+
+      addMultiTraceLog("STATE", ecu.id, `${ecu.name} State Machine`, "BUS_SLEEP ➔ REPEAT_MESSAGE (AWB=" + (ecu.cbv.awb ? 1 : 0) + ")", `[SWS_CanNm_00129] ${ecu.name} Active Wakeup!`);
+
+      if (ecu.cfg.CanNmImmediateNmTransmissions > 0 && ecu.commEnabled) {
+        ecu.immBurstActive = true;
+        ecu.burstLeft = ecu.cfg.CanNmImmediateNmTransmissions - 1;
+        ecu.timers.msgCycle = ecu.cfg.CanNmImmediateNmCycleTime;
+        transmitMultiEcuFrame(ecu, `Burst Tx #1/${ecu.cfg.CanNmImmediateNmTransmissions}`);
+      } else {
+        ecu.immBurstActive = false;
+        ecu.burstLeft = 0;
+        ecu.timers.msgCycle = ecu.cfg.CanNmMsgCycleOffset;
+      }
+    } else if (ecu.mode === "NM_MODE_PREPARE_BUS_SLEEP") {
+      ecu.mode = "NM_MODE_NETWORK";
+      ecu.subState = "NM_STATE_REPEAT_MESSAGE";
+      ecu.cbv.awb = !!ecu.cfg.CanNmActiveWakeupBitEnabled;
+      ecu.timers.waitBusSleep = 0;
+      ecu.timers.repeatMsg = ecu.cfg.CanNmRepeatMessageTime;
+      ecu.timers.timeout = ecu.cfg.CanNmTimeoutTime;
+
+      addMultiTraceLog("STATE", ecu.id, `${ecu.name} State Machine`, "PREPARE_BUS_SLEEP ➔ REPEAT_MESSAGE", `[SWS_CanNm_00123] ${ecu.name} đánh thức lại trước khi ngủ!`);
+
+      if (ecu.cfg.CanNmImmediateRestartEnabled && ecu.commEnabled) {
+        ecu.timers.msgCycle = ecu.cfg.CanNmMsgCycleTime;
+        transmitMultiEcuFrame(ecu, "Immediate Restart Tx");
+      } else {
+        ecu.timers.msgCycle = ecu.cfg.CanNmMsgCycleTime;
+      }
+    } else if (ecu.mode === "NM_MODE_NETWORK") {
+      if (ecu.subState === "NM_STATE_READY_SLEEP") {
+        ecu.subState = "NM_STATE_NORMAL_OPERATION";
+        ecu.timers.msgCycle = ecu.cfg.CanNmMsgCycleTime;
+        addMultiTraceLog("STATE", ecu.id, `${ecu.name} State Machine`, "READY_SLEEP ➔ NORMAL_OPERATION", `[SWS_CanNm_00110] ${ecu.name} mở lại phát định kỳ MsgCycleTime=${ecu.cfg.CanNmMsgCycleTime}ms.`);
+      }
+    }
+  } else if (actionType === "netRel") {
+    ecu.netRequest = false;
+    addMultiTraceLog("API", ecu.id, `SWC ➔ ${ecu.name}`, "CanNm_NetworkRelease()", `[SWS_CanNm_00105] ${ecu.name} báo hết nhu cầu dùng mạng.`);
+    if (ecu.mode === "NM_MODE_NETWORK" && ecu.subState === "NM_STATE_NORMAL_OPERATION") {
+      ecu.subState = "NM_STATE_READY_SLEEP";
+      ecu.immBurstActive = false;
+      ecu.burstLeft = 0;
+      addMultiTraceLog("STATE", ecu.id, `${ecu.name} State Machine`, "NORMAL_OPERATION ➔ READY_SLEEP", `[SWS_CanNm_00118] ${ecu.name} ngưng phát Tx định kỳ, chỉ nghe bus chờ NM-Timeout.`);
+    }
+  } else if (actionType === "passive") {
+    ecu.wakeupSource = "Passive StartUp";
+    addMultiTraceLog("API", ecu.id, `EcuM/ComM ➔ ${ecu.name}`, "CanNm_PassiveStartUp()", `[SWS_CanNm_00128] Đánh thức thụ động ${ecu.name}.`);
+    if (ecu.mode === "NM_MODE_BUS_SLEEP" || ecu.mode === "NM_MODE_PREPARE_BUS_SLEEP") {
+      const fromLbl = ecu.mode.replace("NM_MODE_", "");
+      ecu.mode = "NM_MODE_NETWORK";
+      ecu.subState = "NM_STATE_REPEAT_MESSAGE";
+      ecu.cbv.awb = false;
+      ecu.netRequest = false;
+      ecu.timers.waitBusSleep = 0;
+      ecu.timers.repeatMsg = ecu.cfg.CanNmRepeatMessageTime;
+      ecu.timers.timeout = ecu.cfg.CanNmTimeoutTime;
+      ecu.timers.msgCycle = ecu.cfg.CanNmMsgCycleOffset;
+      addMultiTraceLog("STATE", ecu.id, `${ecu.name} State Machine`, `${fromLbl} ➔ REPEAT_MESSAGE (AWB=0)`, `[SWS_CanNm_00128] ${ecu.name} thức thụ động, chờ offset ${ecu.cfg.CanNmMsgCycleOffset}ms rồi phát.`);
+    } else {
+      addMultiTraceLog("API", ecu.id, ecu.name, "PassiveStartUp bỏ qua (Đã ở NETWORK_MODE)", `${ecu.name} đang hoạt động.`);
+    }
+  } else if (actionType === "rmr") {
+    if (!ecu.cfg.CanNmNodeDetectionEnabled || ecu.cfg.CanNmPassiveModeEnabled) {
+      addMultiTraceLog("WARN", ecu.id, ecu.name, "CanNm_RepeatMessageRequest() -> E_NOT_OK", `${ecu.name} chưa bật NodeDetection hoặc đang PassiveMode.`);
+      renderMultiEcuView();
+      return;
+    }
+    if (ecu.mode !== "NM_MODE_NETWORK") {
+      addMultiTraceLog("WARN", ecu.id, ecu.name, "CanNm_RepeatMessageRequest() -> E_NOT_OK", `[SWS_CanNm_00137] ${ecu.name} phải đang ở NETWORK_MODE mới gọi được RepeatMessageRequest().`);
+      renderMultiEcuView();
+      return;
+    }
+    ecu.cbv.rmr = true;
+    ecu.subState = "NM_STATE_REPEAT_MESSAGE";
+    ecu.timers.repeatMsg = ecu.cfg.CanNmRepeatMessageTime;
+    ecu.timers.timeout = ecu.cfg.CanNmTimeoutTime;
+    addMultiTraceLog("STATE", ecu.id, `${ecu.name} State Machine`, "➔ REPEAT_MESSAGE (Bật RMR=1)", `[SWS_CanNm_00121] ${ecu.name} phát khung có RMR=1 ép toàn mạng điểm danh!`);
+    transmitMultiEcuFrame(ecu, "Repeat Message Request (RMR=1)");
+  } else if (actionType === "toggleComm") {
+    ecu.commEnabled = !ecu.commEnabled;
+    if (!ecu.commEnabled) {
+      addMultiTraceLog("API", ecu.id, `Dcm ➔ ${ecu.name}`, "CanNm_DisableCommunication()", `[SWS_CanNm_00170] Khóa Tx & đóng băng NM-TimeoutTimer trên ${ecu.name}.`);
+    } else {
+      ecu.timers.msgCycle = ecu.cfg.CanNmMsgCycleOffset;
+      addMultiTraceLog("API", ecu.id, `Dcm ➔ ${ecu.name}`, "CanNm_EnableCommunication()", `[SWS_CanNm_00176] Mở lại truyền thông trên ${ecu.name}.`);
+    }
+  } else if (actionType === "reset") {
+    const keptOpen = ecu.cfgOpen;
+    const fresh = createMultiEcuNode(ecu.id, ecu.name, ecu.shortRole, ecu.cfg.CanNmNodeId, ecu.cfg.CanNmMsgCycleOffset, ecu.roleClass);
+    fresh.cfg = JSON.parse(JSON.stringify(ecu.cfg));
+    fresh.cfgOpen = keptOpen;
+    multiState.ecus[idx] = fresh;
+    addMultiTraceLog("STATE", ecu.id, ecu.name, `Reset ${ecu.name} về BUS_SLEEP`, "Khởi tạo lại trạng thái CanNM về trạng thái ngủ ban đầu.");
+  }
+
+  renderMultiEcuView();
+}
+
+function stepMultiClockTick(deltaMs, skipRender) {
+  multiState.clockMs += deltaMs;
+  const txDue = [];
+
+  for (let i = 0; i < multiState.ecuCount; i++) {
+    const ecu = multiState.ecus[i];
+
+    // 1. NM-Timeout Timer in NETWORK_MODE
+    if (ecu.mode === "NM_MODE_NETWORK" && ecu.commEnabled && ecu.timers.timeout > 0) {
+      ecu.timers.timeout = Math.max(0, ecu.timers.timeout - deltaMs);
+      if (ecu.timers.timeout === 0 && ecu.subState === "NM_STATE_READY_SLEEP") {
+        ecu.mode = "NM_MODE_PREPARE_BUS_SLEEP";
+        ecu.cbv.awb = false;
+        ecu.timers.waitBusSleep = ecu.cfg.CanNmWaitBusSleepTime;
+        addMultiTraceLog("STATE", ecu.id, `${ecu.name} State Machine`, "READY_SLEEP ➔ PREPARE_BUS_SLEEP", `[SWS_CanNm_00115] Hết NM-Timeout (0ms) ➔ Xóa AWB=0, bắt đầu đếm WaitBusSleepTimer=${ecu.cfg.CanNmWaitBusSleepTime}ms.`);
+      }
+    }
+
+    // 2. RepeatMessageTimer in REPEAT_MESSAGE
+    if (ecu.mode === "NM_MODE_NETWORK" && ecu.subState === "NM_STATE_REPEAT_MESSAGE" && ecu.timers.repeatMsg > 0) {
+      ecu.timers.repeatMsg = Math.max(0, ecu.timers.repeatMsg - deltaMs);
+      if (ecu.timers.repeatMsg === 0) {
+        ecu.cbv.rmr = false;
+        if (ecu.netRequest) {
+          ecu.subState = "NM_STATE_NORMAL_OPERATION";
+          ecu.timers.msgCycle = ecu.cfg.CanNmMsgCycleTime;
+          addMultiTraceLog("STATE", ecu.id, `${ecu.name} State Machine`, "REPEAT_MESSAGE ➔ NORMAL_OPERATION", `[SWS_CanNm_00103] Hết RepeatMessageTime & NetReq=1 ➔ Normal Operation.`);
+        } else {
+          ecu.subState = "NM_STATE_READY_SLEEP";
+          addMultiTraceLog("STATE", ecu.id, `${ecu.name} State Machine`, "REPEAT_MESSAGE ➔ READY_SLEEP", `[SWS_CanNm_00106] Hết RepeatMessageTime & NetReq=0 ➔ Ready Sleep (ngưng Tx).`);
+        }
+      }
+    }
+
+    // 3. WaitBusSleepTimer in PREPARE_BUS_SLEEP
+    if (ecu.mode === "NM_MODE_PREPARE_BUS_SLEEP" && ecu.timers.waitBusSleep > 0) {
+      ecu.timers.waitBusSleep = Math.max(0, ecu.timers.waitBusSleep - deltaMs);
+      if (ecu.timers.waitBusSleep === 0) {
+        ecu.mode = "NM_MODE_BUS_SLEEP";
+        ecu.wakeupSource = "None";
+        addMultiTraceLog("STATE", ecu.id, `${ecu.name} State Machine`, "PREPARE_BUS_SLEEP ➔ BUS_SLEEP", `[SWS_CanNm_00117] Hết WaitBusSleepTime (0ms) ➔ Tắt Controller & Transceiver.`);
+      }
+    }
+
+    // 4. Periodic MsgCycle & Immediate Burst Tx
+    if (
+      ecu.mode === "NM_MODE_NETWORK" &&
+      ecu.commEnabled &&
+      !ecu.cfg.CanNmPassiveModeEnabled &&
+      (ecu.subState === "NM_STATE_REPEAT_MESSAGE" || ecu.subState === "NM_STATE_NORMAL_OPERATION") &&
+      ecu.timers.msgCycle > 0
+    ) {
+      ecu.timers.msgCycle = Math.max(0, ecu.timers.msgCycle - deltaMs);
+      if (ecu.timers.msgCycle === 0) {
+        txDue.push(ecu);
+      }
+    }
+  }
+
+  // Execute queued CAN Bus Transmissions and broadcast to peers
+  txDue.forEach(ecu => {
+    if (ecu.immBurstActive && ecu.burstLeft > 0) {
+      const idxFrame = ecu.cfg.CanNmImmediateNmTransmissions - ecu.burstLeft + 1;
+      ecu.burstLeft--;
+      if (ecu.burstLeft > 0) {
+        ecu.timers.msgCycle = ecu.cfg.CanNmImmediateNmCycleTime;
+      } else {
+        ecu.immBurstActive = false;
+        ecu.timers.msgCycle = ecu.cfg.CanNmMsgCycleTime;
+      }
+      transmitMultiEcuFrame(ecu, `Burst Tx #${idxFrame}/${ecu.cfg.CanNmImmediateNmTransmissions}`);
+    } else {
+      ecu.timers.msgCycle = ecu.cfg.CanNmMsgCycleTime;
+      transmitMultiEcuFrame(ecu, "Periodic NM Tx");
+    }
+  });
+
+  if (!skipRender) renderMultiEcuView();
+}
+
+function advanceMultiTime(totalMs) {
+  const step = 100;
+  const ticks = Math.max(1, Math.round(totalMs / step));
+  for (let t = 0; t < ticks; t++) {
+    stepMultiClockTick(step, t < ticks - 1);
+  }
+}
+
+function stopMultiClock() {
+  if (multiState.autoClockTimer) {
+    clearInterval(multiState.autoClockTimer);
+    multiState.autoClockTimer = null;
+  }
+  const btn = document.getElementById("btnMultiClock");
+  if (btn) {
+    btn.innerText = "▶ Auto Clock";
+    btn.classList.remove("amber");
+    btn.classList.add("green");
+  }
+}
+
+function toggleMultiClock() {
+  if (multiState.autoClockTimer) {
+    stopMultiClock();
+  } else {
+    const btn = document.getElementById("btnMultiClock");
+    if (btn) {
+      btn.innerText = "⏸ Dừng Clock (2x)";
+      btn.classList.remove("green");
+      btn.classList.add("amber");
+    }
+    multiState.autoClockTimer = setInterval(() => {
+      stepMultiClockTick(100);
+    }, 500);
+  }
+}
+
+function setMultiEcuCount(n) {
+  multiState.ecuCount = n === 3 ? 3 : 2;
+  const b2 = document.getElementById("btnMulti2Ecu");
+  const b3 = document.getElementById("btnMulti3Ecu");
+  if (b2) b2.classList.toggle("primary", multiState.ecuCount === 2);
+  if (b3) b3.classList.toggle("primary", multiState.ecuCount === 3);
+  addMultiTraceLog("API", "BUS", "Bus Topology", `Chuyển mô hình sang ${multiState.ecuCount} ECU trên cùng CAN Bus`, "Tất cả node dùng chung Virtual CAN Bus.");
+  renderMultiEcuView();
+}
+
+function setMultiAutoWakeup(checked) {
+  multiState.autoWakeupOnRx = !!checked;
+}
+
+function toggleMultiEcuCfg(idx) {
+  const ecu = multiState.ecus[idx];
+  if (!ecu) return;
+  ecu.cfgOpen = !ecu.cfgOpen;
+  renderMultiEcuView();
+}
+
+function updateMultiEcuCfg(idx, key, val) {
+  const ecu = multiState.ecus[idx];
+  if (!ecu) return;
+  if (typeof val === "boolean") {
+    ecu.cfg[key] = val;
+  } else {
+    const parsed = parseInt(val, 10);
+    if (!isNaN(parsed)) ecu.cfg[key] = Math.max(key === "CanNmImmediateNmTransmissions" || key === "CanNmMsgCycleOffset" ? 0 : 100, parsed);
+  }
+  renderMultiEcuView();
+}
+
+function resetMultiEcuSim(keepLogs) {
+  stopMultiClock();
+  multiState.clockMs = 0;
+  multiState.lastFrame = null;
+  if (!keepLogs) multiState.traceLogs = [];
+  multiState.ecus = [
+    createMultiEcuNode("ECU1", "ECU #1", "VCU / BCM", 0x1A, 100, ""),
+    createMultiEcuNode("ECU2", "ECU #2", "IPC / Cluster", 0x2B, 200, "ecu-b"),
+    createMultiEcuNode("ECU3", "ECU #3", "BMS / Gateway", 0x3C, 300, "ecu-c")
+  ];
+  renderMultiEcuView();
+}
+
+function applyMultiPreset(preset) {
+  resetMultiEcuSim(false);
+  multiState.autoWakeupOnRx = true;
+  const chk = document.getElementById("chkMultiAutoWakeup");
+  if (chk) chk.checked = true;
+
+  if (preset === "active_wake") {
+    multiEcuAction(0, "netReq");
+  } else if (preset === "keep_vs_rel") {
+    multiEcuAction(0, "netReq");
+    advanceMultiTime(1500); // Simulate 15x100ms ticks -> ECU1 Normal Op, ECU2 Ready Sleep
+    addMultiTraceLog("API", "BUS", "Preset Hint", "ECU #1 đang ở NORMAL_OPERATION (giữ mạng), ECU #2 ở READY_SLEEP", "Thử bấm +500ms / Auto Clock: ECU #1 vẫn phát định kỳ nên Timeout của ECU #2 liên tục được reload!");
+    renderMultiEcuView();
+  } else if (preset === "consensus_sleep") {
+    multiEcuAction(0, "netReq");
+    multiEcuAction(1, "netReq");
+    if (multiState.ecuCount === 3) multiEcuAction(2, "netReq");
+    advanceMultiTime(1500); // Enter Normal Operation
+    for (let i = 0; i < multiState.ecuCount; i++) multiEcuAction(i, "netRel");
+    addMultiTraceLog("API", "BUS", "Preset Hint", "Tất cả ECU đã NetworkRelease ➔ cùng ở READY_SLEEP", "Bấm +500ms để xem TimeoutTimer chạm 0ms đồng thời ➔ PREPARE_BUS_SLEEP ➔ BUS_SLEEP!");
+    renderMultiEcuView();
+  } else if (preset === "rmr_check") {
+    multiEcuAction(0, "netReq");
+    advanceMultiTime(1500);
+    multiEcuAction(1, "rmr");
+  }
+}
+
+function getMultiEcuStateBadge(ecu) {
+  if (ecu.mode === "NM_MODE_BUS_SLEEP") return { text: "BUS-SLEEP MODE", cls: "ok" };
+  if (ecu.mode === "NM_MODE_PREPARE_BUS_SLEEP") return { text: "PREPARE BUS-SLEEP", cls: "err" };
+  return { text: `NETWORK: ${ecu.subState.replace("NM_STATE_", "")}`, cls: "sky" };
+}
+
+function renderMultiTimerBox(label, curVal, maxVal, color) {
+  const safeMax = Math.max(1, maxVal);
+  const pct = Math.min(100, Math.round((curVal / safeMax) * 100));
+  return `
+    <div class="timer-card compact" style="margin-bottom:0">
+      <div class="timer-h">
+        <span class="mono">${escapeHtml(label)}</span>
+        <span class="mono" style="font-weight:700; color:${color}">${curVal} / ${maxVal} ms</span>
+      </div>
+      <div class="timer-track"><div class="timer-bar" style="width:${pct}%; background:${color}"></div></div>
+    </div>
+  `;
+}
+
+function renderMultiEcuCard(ecu, idx) {
+  const stBadge = getMultiEcuStateBadge(ecu);
+  const canIdHex = "0x" + (ecu.cfg.CanNmBaseCanId + ecu.cfg.CanNmNodeId).toString(16).toUpperCase();
+  const cbvHex = "0x" + multiGetCbvByte(ecu).toString(16).toUpperCase().padStart(2, "0");
+
+  const isBusSleep = ecu.mode === "NM_MODE_BUS_SLEEP";
+  const isPrepSleep = ecu.mode === "NM_MODE_PREPARE_BUS_SLEEP";
+  const isNet = ecu.mode === "NM_MODE_NETWORK";
+  const isRms = isNet && ecu.subState === "NM_STATE_REPEAT_MESSAGE";
+  const isNos = isNet && ecu.subState === "NM_STATE_NORMAL_OPERATION";
+  const isRss = isNet && ecu.subState === "NM_STATE_READY_SLEEP";
+
+  const cfgDrawer = ecu.cfgOpen ? `
+    <div class="multi-cfg-drawer">
+      <label>RepeatMsgTime (ms)<input type="number" min="200" step="100" value="${ecu.cfg.CanNmRepeatMessageTime}" onchange="updateMultiEcuCfg(${idx}, 'CanNmRepeatMessageTime', this.value)"></label>
+      <label>TimeoutTime (ms)<input type="number" min="200" step="100" value="${ecu.cfg.CanNmTimeoutTime}" onchange="updateMultiEcuCfg(${idx}, 'CanNmTimeoutTime', this.value)"></label>
+      <label>WaitBusSleep (ms)<input type="number" min="200" step="100" value="${ecu.cfg.CanNmWaitBusSleepTime}" onchange="updateMultiEcuCfg(${idx}, 'CanNmWaitBusSleepTime', this.value)"></label>
+      <label>MsgCycleTime (ms)<input type="number" min="200" step="100" value="${ecu.cfg.CanNmMsgCycleTime}" onchange="updateMultiEcuCfg(${idx}, 'CanNmMsgCycleTime', this.value)"></label>
+      <label>CycleOffset (ms)<input type="number" min="0" step="50" value="${ecu.cfg.CanNmMsgCycleOffset}" onchange="updateMultiEcuCfg(${idx}, 'CanNmMsgCycleOffset', this.value)"></label>
+      <label>Burst Frames<input type="number" min="0" max="10" step="1" value="${ecu.cfg.CanNmImmediateNmTransmissions}" onchange="updateMultiEcuCfg(${idx}, 'CanNmImmediateNmTransmissions', this.value)"></label>
+      <label class="row" style="flex-direction:row; gap:5px; cursor:pointer"><input type="checkbox" ${ecu.cfg.CanNmPassiveModeEnabled ? "checked" : ""} onchange="updateMultiEcuCfg(${idx}, 'CanNmPassiveModeEnabled', this.checked)"> Passive Mode</label>
+      <label class="row" style="flex-direction:row; gap:5px; cursor:pointer"><input type="checkbox" ${ecu.cfg.CanNmImmediateRestartEnabled ? "checked" : ""} onchange="updateMultiEcuCfg(${idx}, 'CanNmImmediateRestartEnabled', this.checked)"> Imm Restart</label>
+      <label class="row" style="flex-direction:row; gap:5px; cursor:pointer"><input type="checkbox" ${ecu.cfg.CanNmNodeDetectionEnabled ? "checked" : ""} onchange="updateMultiEcuCfg(${idx}, 'CanNmNodeDetectionEnabled', this.checked)"> Node Detection</label>
+    </div>
+  ` : "";
+
+  return `
+    <div class="panel multi-ecu-panel ${ecu.roleClass}" id="multiEcuCard_${idx}">
+      <div class="panel-h">
+        <div class="row wrap" style="gap:6px">
+          <span class="panel-t" style="font-size:12px">${escapeHtml(ecu.name)} • ${escapeHtml(ecu.shortRole)}</span>
+          <span class="badge xs">Node 0x${ecu.cfg.CanNmNodeId.toString(16).toUpperCase()} | Tx ${canIdHex}</span>
+          ${ecu.cfg.CanNmPassiveModeEnabled ? `<span class="badge xs vio">PASSIVE</span>` : ""}
+          ${!ecu.commEnabled ? `<span class="badge xs err">TX BLOCKED</span>` : ""}
+        </div>
+        <div class="row" style="gap:5px">
+          <span class="badge ${stBadge.cls}" id="multiEcuBadge_${idx}">${stBadge.text}</span>
+          <button class="btn xs ${ecu.cfgOpen ? "primary" : ""}" onclick="toggleMultiEcuCfg(${idx})" title="Chỉnh thông số timer / ECUC cho ${escapeHtml(ecu.name)}">⚙</button>
+          <button class="btn xs" onclick="multiEcuAction(${idx}, 'reset')" title="Reset riêng ${escapeHtml(ecu.name)} về BUS-SLEEP">↺</button>
+        </div>
+      </div>
+
+      <div class="panel-b">
+        <!-- Event Controls for this ECU -->
+        <div class="multi-ctrl-grid">
+          <button class="btn sm green ${ecu.netRequest ? "multi-btn-on" : ""}" id="btnMultiReq_${idx}" onclick="multiEcuAction(${idx}, 'netReq')" title="CanNm_NetworkRequest()">🟢 Nw Request</button>
+          <button class="btn sm amber ${!ecu.netRequest ? "" : "multi-btn-on"}" id="btnMultiRel_${idx}" onclick="multiEcuAction(${idx}, 'netRel')" title="CanNm_NetworkRelease()">🟡 Release</button>
+          <button class="btn sm sky" id="btnMultiPas_${idx}" onclick="multiEcuAction(${idx}, 'passive')" title="CanNm_PassiveStartUp()">🔵 PassiveStart</button>
+          <button class="btn sm vio ${ecu.cbv.rmr ? "multi-btn-on" : ""}" id="btnMultiRmr_${idx}" onclick="multiEcuAction(${idx}, 'rmr')" title="CanNm_RepeatMessageRequest() (RMR=1)">🟣 Repeat Msg</button>
+          <button class="btn sm ${ecu.commEnabled ? "" : "red multi-btn-on"}" id="btnMultiComm_${idx}" onclick="multiEcuAction(${idx}, 'toggleComm')" title="CanNm_DisableCommunication / EnableCommunication">${ecu.commEnabled ? "🔇 Dis. Comm" : "🔊 En. Comm"}</button>
+        </div>
+
+        ${cfgDrawer}
+
+        <!-- Identical Expanded State Machine Block as Main Tab -->
+        <div class="sm-wrap">
+          <div class="sm-node ${isNet ? "active pulse-glow" : ""}">
+            <div class="sm-mode-head">
+              <span style="font-weight:800; font-size:11.5px; color:#38bdf8">3. NETWORK MODE (NM_MODE_NETWORK)</span>
+              <span class="badge xs">NetReq=${ecu.netRequest ? 1 : 0} • CBV=${cbvHex}</span>
+            </div>
+            <div class="sm-subgrid">
+              <div class="sm-subnode ${isRms ? "active" : ""}">
+                <span class="sm-subtitle">REPEAT_MESSAGE (RMS)</span>
+                <span class="sm-subdesc">RepeatMsgTimer • Burst/RMR</span>
+              </div>
+              <div class="sm-subnode ${isNos ? "active" : ""}">
+                <span class="sm-subtitle">NORMAL_OPERATION (NOS)</span>
+                <span class="sm-subdesc">NetReq=1 • Phát MsgCycle</span>
+              </div>
+              <div class="sm-subnode ${isRss ? "active" : ""}">
+                <span class="sm-subtitle">READY_SLEEP (RSS)</span>
+                <span class="sm-subdesc">NetReq=0 • Đếm Timeout</span>
+              </div>
+            </div>
+            <div class="sm-subfooter">
+              <span>RMS ➔ NOS / RSS (Hết RepeatMsgTime)</span>
+              <span>NOS ⇄ RSS (Release / Request)</span>
+            </div>
+          </div>
+
+          <div class="sm-flow-strip">
+            <div style="text-align:left"><span class="sm-flow-tag ok">⬆ Wakeup / NetReq</span></div>
+            <div style="text-align:center"><span class="sm-flow-tag vio">⟲ Imm Restart</span></div>
+            <div style="text-align:right"><span class="sm-flow-tag err">⬇ Timeout = 0ms</span></div>
+          </div>
+
+          <div class="sm-sleep-row">
+            <div class="sm-node ${isBusSleep ? "active pulse-glow" : ""}">
+              <div style="font-weight:800; font-size:11px; color:#94a3b8">1. BUS-SLEEP MODE</div>
+              <div class="muted small" style="margin-top:2px; font-size:10px">Controller SLEEP, không Tx/Rx.</div>
+              <div class="sm-subnode" style="margin-top:5px">Sleep Mode (BUS_SLEEP)</div>
+            </div>
+
+            <div class="sm-sleep-arrow">
+              <span class="sm-flow-tag err">⬅ 0ms</span>
+              <span class="hint" style="font-size:9px; white-space:nowrap">WaitSleep=0</span>
+            </div>
+
+            <div class="sm-node ${isPrepSleep ? "active pulse-glow" : ""}">
+              <div style="font-weight:800; font-size:11px; color:#f87171">2. PREPARE BUS-SLEEP</div>
+              <div class="muted small" style="margin-top:2px; font-size:10px">Đếm WaitBusSleep, còn nghe bus.</div>
+              <div class="sm-subnode" style="margin-top:5px">Prepare Sleep</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Compact Timers Grid -->
+        <div class="multi-timers-grid">
+          ${renderMultiTimerBox("RepeatMsgTimer", ecu.timers.repeatMsg, ecu.cfg.CanNmRepeatMessageTime, "#fbbf24")}
+          ${renderMultiTimerBox("NM-TimeoutTimer", ecu.timers.timeout, ecu.cfg.CanNmTimeoutTime, "#38bdf8")}
+          ${renderMultiTimerBox("WaitBusSleepTimer", ecu.timers.waitBusSleep, ecu.cfg.CanNmWaitBusSleepTime, "#f87171")}
+          ${renderMultiTimerBox(
+            ecu.immBurstActive ? `Burst Tx (${ecu.burstLeft} left)` : "MsgCycleTimer",
+            ecu.timers.msgCycle,
+            ecu.immBurstActive ? Math.max(100, ecu.cfg.CanNmImmediateNmCycleTime) : ecu.cfg.CanNmMsgCycleTime,
+            ecu.immBurstActive ? "#c084fc" : "#34d399"
+          )}
+        </div>
+
+        <!-- Status Meta Strip -->
+        <div class="multi-meta-bar">
+          <span>Wakeup: <b style="color:var(--accent)">${escapeHtml(ecu.wakeupSource)}</b></span>
+          <span>AWB=<b>${ecu.cbv.awb ? 1 : 0}</b> RMR=<b>${ecu.cbv.rmr ? 1 : 0}</b></span>
+          <span class="muted" style="max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">${escapeHtml(ecu.lastActivity)}</span>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderMultiBusBridge() {
+  const f = multiState.lastFrame;
+  const activeEcus = multiState.ecus.slice(0, multiState.ecuCount);
+  const netCount = activeEcus.filter(e => e.mode === "NM_MODE_NETWORK").length;
+  const reqCount = activeEcus.filter(e => e.netRequest).length;
+
+  let dirLabel = "Bus Đang Rỗi (IDLE)";
+  if (f) {
+    if (multiState.ecuCount === 2) {
+      dirLabel = f.srcId === "ECU1" ? "ECU #1 ➔ CAN Bus ➔ ECU #2" : "ECU #2 ➔ CAN Bus ➔ ECU #1";
+    } else {
+      dirLabel = `${f.srcName} ➔ Broadcast CAN Bus`;
+    }
+  }
+
+  return `
+    <div class="multi-bus-col">
+      <div class="multi-bus-bridge">
+        <div class="row" style="justify-content:space-between">
+          <span class="panel-t" style="font-size:11px">🚌 VIRTUAL CAN BUS</span>
+          <span class="badge xs ${f ? "sky" : ""}">${f ? "ACTIVE" : "IDLE"}</span>
+        </div>
+
+        <div class="multi-bus-wire ${f ? "active-tx" : ""}">
+          <span class="multi-dir-pill">${escapeHtml(dirLabel)}</span>
+          ${f ? `
+            <div class="multi-frame-box">
+              <div class="row" style="justify-content:space-between; margin-bottom:3px">
+                <span style="font-weight:800; color:#fbbf24">ID ${escapeHtml(f.canIdHex)}</span>
+                <span class="dim">t=${f.timeMs}ms</span>
+              </div>
+              <div style="font-weight:700; color:var(--text); word-break:break-all; margin-bottom:3px">[${f.hexArr.join(" ")}]</div>
+              <div class="muted" style="font-size:10px">${escapeHtml(f.reason)}</div>
+              <div style="margin-top:3px; color:#38bdf8; font-size:10px">CBV=0x${f.cbvByte.toString(16).toUpperCase().padStart(2, "0")} (AWB=${f.awb ? 1 : 0}, RMR=${f.rmr ? 1 : 0})</div>
+            </div>
+          ` : `
+            <div class="muted small" style="padding:8px 4px">Chưa có bản tin NM nào trên bus.<br>Hãy bấm <b>Nw Request</b> trên một ECU!</div>
+          `}
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:5px">
+          <div class="multi-stat-row">
+            <span class="muted">ECU đang Network Mode:</span>
+            <span class="mono" style="font-weight:800; color:#38bdf8">${netCount} / ${multiState.ecuCount}</span>
+          </div>
+          <div class="multi-stat-row">
+            <span class="muted">ECU đang giữ mạng (NetReq):</span>
+            <span class="mono" style="font-weight:800; color:#34d399">${reqCount} / ${multiState.ecuCount}</span>
+          </div>
+          <div class="multi-stat-row">
+            <span class="muted">Điều kiện ngủ chung:</span>
+            <span class="mono" style="font-weight:700; color:${reqCount === 0 ? "#34d399" : "#fbbf24"}">${reqCount === 0 ? "Sẵn sàng đồng thuận" : "Chưa (Có ECU giữ)"}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderMultiTraceLogs() {
+  const container = document.getElementById("multiTraceContainer");
+  if (!container) return;
+
+  const filterEl = document.getElementById("multiTraceFilter");
+  const filterVal = filterEl ? filterEl.value : "ALL";
+  const allLogs = multiState.traceLogs || [];
+  const filtered = allLogs.filter(l => {
+    if (filterVal === "ALL") return true;
+    if (filterVal === "ECU1" || filterVal === "ECU2" || filterVal === "ECU3") return l.srcTag === filterVal;
+    return l.type === filterVal;
+  });
+
+  const badge = document.getElementById("multiTraceCountBadge");
+  if (badge) {
+    badge.innerText = filterVal === "ALL"
+      ? `${allLogs.length} sự kiện`
+      : `${filtered.length}/${allLogs.length} sự kiện`;
+  }
+
+  if (filtered.length === 0) {
+    container.innerHTML = `<p class="muted small" style="padding:12px 6px; text-align:center">Chưa có sự kiện nào trên bus đa ECU. Hãy nhấn nút điều khiển trên ECU #1 / ECU #2 hoặc chọn Kịch bản nhanh ở trên.</p>`;
+    return;
+  }
+
+  const styleMap = {
+    BUS: { badge: "indigo", item: "bus", label: "CAN BUS" },
+    STATE: { badge: "amb", item: "state", label: "STATE" },
+    WARN: { badge: "err", item: "alert", label: "WARN" },
+    API: { badge: "", item: "", label: "API" }
+  };
+
+  container.innerHTML = filtered.map(l => {
+    const st = styleMap[l.type] || { badge: "", item: "", label: l.type };
+    return `
+      <div class="trace-item ${st.item}">
+        <div class="trace-top">
+          <div class="trace-meta">
+            <span class="badge xs ${st.badge}">${escapeHtml(st.label)}</span>
+            <span class="trace-route">${escapeHtml(l.route)}</span>
+          </div>
+          <span class="trace-time">${escapeHtml(l.time)}</span>
+        </div>
+        <div class="trace-api">${escapeHtml(l.title)}</div>
+        <div class="trace-desc">${escapeHtml(l.desc)}</div>
+      </div>
+    `;
+  }).join("");
+}
+
+function clearMultiTraceLogs() {
+  multiState.traceLogs = [];
+  renderMultiTraceLogs();
+}
+
+function renderMultiEcuView() {
+  const clk = document.getElementById("lblMultiClock");
+  if (clk) clk.innerText = `t = ${multiState.clockMs} ms`;
+
+  const arena = document.getElementById("multiArena");
+  if (!arena) return;
+
+  if (multiState.ecuCount === 2) {
+    arena.className = "multi-arena mode-2";
+    arena.innerHTML =
+      renderMultiEcuCard(multiState.ecus[0], 0) +
+      renderMultiBusBridge() +
+      renderMultiEcuCard(multiState.ecus[1], 1);
+  } else {
+    arena.className = "multi-arena mode-3";
+    arena.innerHTML =
+      renderMultiBusBridge() +
+      renderMultiEcuCard(multiState.ecus[0], 0) +
+      renderMultiEcuCard(multiState.ecus[1], 1) +
+      renderMultiEcuCard(multiState.ecus[2], 2);
+  }
+
+  renderMultiTraceLogs();
+}
+
+window.addEventListener("DOMContentLoaded", () => {
+  renderMultiEcuView();
 });
 
 </script>

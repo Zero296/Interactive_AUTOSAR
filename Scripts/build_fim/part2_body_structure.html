@@ -1,0 +1,580 @@
+<!-- ================= STICKY UNIFIED HEADER ================= -->
+<header class="hdr">
+  <div class="hdr-row">
+    <div class="brand">
+      <span class="brand-badge">AUTOSAR Classic R23-11</span>
+      <div>
+        <div class="brand-title">FiM Interactive Simulator &amp; Technical Handbook</div>
+        <div class="brand-sub">Function Inhibition Manager · 4 Bitwise Masks · Many-to-Many Matrix · DemComponent &amp; Cascading Fault Suppression</div>
+      </div>
+    </div>
+
+    <div class="view-switch" role="tablist">
+      <button id="btnViewSim" class="view-btn active" onclick="switchMainView('sim')">🎛️ Trình Mô Phỏng FiM</button>
+      <button id="btnViewHb" class="view-btn" onclick="switchMainView('hb')">📖 Sổ Tay Kỹ Thuật &amp; Thuật Ngữ</button>
+    </div>
+
+    <div class="hdr-actions">
+      <button class="btn btn-pri" onclick="openExportModal()">📦 Xuất ARXML / Cfg / C</button>
+      <button class="btn btn-ok" onclick="downloadStandaloneHTML()">💾 Tải File .HTML</button>
+      <button id="btnTheme" class="btn" onclick="toggleTheme()">☀️ Light Mode</button>
+    </div>
+  </div>
+
+  <div class="hdr-row">
+    <div class="scen-bar">
+      <label for="scenSelect" style="font-weight:700;font-size:11.5px;color:var(--mut)">Kịch bản:</label>
+      <select id="scenSelect" class="scen-select" onchange="onScenarioSelectChange()">
+        <optgroup label="Nhóm 1: 4 Mặt Nạ Ức Chế Chuẩn (FiMInhInhibitionMask)">
+          <option value="S1">S1: Mặt Nạ FIM_LAST_FAILED — Khóa Tức Thời ACC &amp; AEB Khi Radar Lỗi (TF=1)</option>
+          <option value="S2">S2: Mặt Nạ FIM_NOT_TESTED — Khóa Khi Mới Bật IG ON (TNCTOC=1) Chờ Tự Kiểm Tra</option>
+          <option value="S3">S3: Mặt Nạ FIM_TESTED — Khóa Bài Kiểm Tra Sau Lần Chạy Đầu Tiên (Once-Per-Trip)</option>
+          <option value="S4">S4: FIM_TESTED_AND_FAILED vs FIM_LAST_FAILED — Phân Biệt Lỗi Cũ (0x6D) &amp; Mới (0x2F)</option>
+        </optgroup>
+        <optgroup label="Nhóm 2: Push Mode vs Cyclic Polling &amp; Dem_ClearDTC">
+          <option value="S5">S5: Đối Chiếu Event-Driven Push (DEM) vs Cyclic Polling (FiM_MainFunction)</option>
+          <option value="S6">S6: Trình Tự Khởi Tạo FiM_Init ➔ Dem_Init ➔ FiM_DemInit &amp; Khôi Phục NvM</option>
+          <option value="S7">S7: Tác Động Kép UDS 0x14 (Dem_ClearDTC): Mở LAST_FAILED &amp; Khóa NOT_TESTED</option>
+        </optgroup>
+        <optgroup label="Nhóm 3: Summary Event, DemComponent &amp; Chống Lỗi Dây Chuyền">
+          <option value="S8">S8: Gom Nhóm Nhiều Lỗi Với FiMSummaryEvent (Sum_01 ➔ Đa FID)</option>
+          <option value="S9">S9: Đồ Thị Phụ Thuộc Phần Cứng DemComponent (FiM_DemTriggerOnComponentStatus)</option>
+          <option value="S10">S10: Chặn Lỗi Dây Chuyền (Cascading Faults): Nguồn 5V Khóa Radar Monitor</option>
+        </optgroup>
+        <optgroup label="Nhóm 4: Tính Khả Dụng Động &amp; Báo Cáo Lỗi DET">
+          <option value="S11">S11: Điều Khiển Tính Khả Dụng Động FiM_SetFunctionAvailable() (SWS_FiM_00105)</option>
+          <option value="S12">S12: Kiểm Thử Bảo Vệ Tham Số &amp; Bẫy Lỗi DET (UNINIT, OUT_OF_RANGE, NULL_PTR)</option>
+        </optgroup>
+      </select>
+
+      <button class="btn btn-sm" onclick="resetCurrentScenario()">⟲ Reset Kịch Bản</button>
+      <button id="btnPrevStep" class="btn btn-sm" onclick="prevScenarioStep()" disabled>◀ Lùi</button>
+      <span id="stepIndicator" class="step-pill">Bước 0 / 0</span>
+      <button id="btnNextStep" class="btn btn-sm btn-pri" onclick="nextScenarioStep()">Bước Tiếp ▶</button>
+      <button id="btnAutoPlay" class="btn btn-sm btn-pur" onclick="toggleScenarioAutoPlay()">▶ Tự Động Kịch Bản</button>
+
+      <div class="clock-box">
+        <span style="font-size:10.5px;color:var(--mut);font-weight:700">Clock:</span>
+        <span id="clockVal" class="clock-val mono">0 ms</span>
+        <button class="btn btn-sm btn-ok" onclick="stepClockTick(20)" title="Chạy FiM_MainFunction() +20ms">+20ms Tick</button>
+        <button id="btnAutoClock" class="btn btn-sm" onclick="toggleAutoClock()">⏱ Auto Clock</button>
+      </div>
+    </div>
+
+    <div class="hdr-badges">
+      <span id="hdrBadgeFim" class="state-badge sb-init">FiM: INIT</span>
+      <span id="hdrBadgeFid0" class="state-badge sb-perm">FID_0 ACC: TRUE</span>
+      <span id="hdrBadgeFid1" class="state-badge sb-perm">FID_1 AEB: TRUE</span>
+      <span id="hdrBadgeFid2" class="state-badge sb-perm">FID_2 DiagMon: TRUE</span>
+    </div>
+  </div>
+</header>
+
+<!-- ================= VIEW 1: INTERACTIVE SIMULATOR (ZERO-SCROLL 3 COLUMNS) ================= -->
+<main id="viewSim" class="workspace">
+
+  <!-- LEFT COLUMN: QUICK ACTIONS + SCENARIO WHAT-IF + 5 ECUC CONFIG TABS -->
+  <aside class="col-left">
+    <!-- CARD 1: QUICK ACTION BAR -->
+    <section class="panel">
+      <div class="panel-hdr">
+        <span class="panel-title">⚡ Thao Tác Nhanh (Quick Runtime Actions)</span>
+        <span class="panel-sub">Tác động tức thì</span>
+      </div>
+      <div class="panel-body">
+        <div class="qa-row">
+          <select id="qaEventSelect" class="qa-sel" onchange="onQaSelectorChange()">
+            <option value="0">Evt_01: RadarSignalErr</option>
+            <option value="1">Evt_02: SensorSupply5V</option>
+            <option value="2">Evt_03: BatteryOverVolt</option>
+          </select>
+          <select id="qaFidSelect" class="qa-sel" onchange="onQaSelectorChange()">
+            <option value="0">FID_0: AdaptiveCruise</option>
+            <option value="1">FID_1: AutoEmergBrk</option>
+            <option value="2">FID_2: RadarDiagMon</option>
+          </select>
+        </div>
+        <div class="qa-grid">
+          <button id="qaBtnEvtFail" class="qa-btn qa-err" onclick="qaReportEventFailed()">
+            <span>🔴 Event FAILED</span><span class="mono">0x2F</span>
+          </button>
+          <button id="qaBtnEvtPass" class="qa-btn" onclick="qaReportEventPassed()">
+            <span>🟢 Event PASSED</span><span class="mono">0x00</span>
+          </button>
+          <button id="qaBtnOpCycle" class="qa-btn qa-warn" onclick="qaStartNewOpCycle()">
+            <span>🔄 Chu Kỳ Mới</span><span class="mono">TNCTOC=1</span>
+          </button>
+          <button id="qaBtnClearDtc" class="qa-btn" onclick="qaClearDtc()">
+            <span>🧹 UDS 0x14 Clear</span><span class="mono">0x50</span>
+          </button>
+          <button id="qaBtnCompFail" class="qa-btn qa-err" onclick="qaToggleCompFailed()">
+            <span>🧩 Comp_01 Fail</span><span id="qaTxtCompFail" class="mono">FALSE</span>
+          </button>
+          <button id="qaBtnFidAvail" class="qa-btn qa-warn" onclick="qaToggleFidAvailable()">
+            <span>🎚️ FID Available</span><span id="qaTxtFidAvail" class="mono">TRUE</span>
+          </button>
+          <button id="qaBtnGetPerm" class="qa-btn" onclick="qaQueryPermission()">
+            <span>🔍 GetPermission</span><span id="qaTxtPermRes" class="mono">TRUE</span>
+          </button>
+          <button class="qa-btn" onclick="stepClockTick(20)">
+            <span>⏱ +20ms MainFn</span><span class="mono">Poll</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- CARD 2: CURRENT SCENARIO SUMMARY & 3 WHAT-IF BUTTONS -->
+    <section class="panel">
+      <div class="panel-hdr">
+        <span class="panel-title">🎬 Kịch Bản Đang Chạy &amp; Thử Nghiệm Nhanh</span>
+        <span id="scenIdBadge" class="panel-sub mono">S1</span>
+      </div>
+      <div class="panel-body">
+        <div id="scenSummaryBox" class="scen-desc-box"></div>
+        <div style="font-size:10.5px;font-weight:700;color:var(--pur);margin-bottom:4px">🧪 Thử Nghiệm Nhanh (1-Click What-If):</div>
+        <div id="whatIfContainer" class="whatif-grid"></div>
+      </div>
+    </section>
+
+    <!-- CARD 3: 5-TAB ECUC CONFIG PANEL (29 CONTROLS + >1S TOOLTIP) -->
+    <section class="panel">
+      <div class="panel-hdr">
+        <span class="panel-title">⚙️ Cấu Hình ECUC FiM (Hover &gt;1s Xem SWS)</span>
+        <span class="panel-sub">29 ECUC Controls</span>
+      </div>
+      <div class="cfg-tabs">
+        <button id="cfgTabBtn0" class="cfg-tab active" onclick="switchCfgTab(0)">1. General</button>
+        <button id="cfgTabBtn1" class="cfg-tab" onclick="switchCfgTab(1)">2. FID &amp; Avail</button>
+        <button id="cfgTabBtn2" class="cfg-tab" onclick="switchCfgTab(2)">3. Masks &amp; Evt</button>
+        <button id="cfgTabBtn3" class="cfg-tab" onclick="switchCfgTab(3)">4. Sum &amp; Comp</button>
+        <button id="cfgTabBtn4" class="cfg-tab" onclick="switchCfgTab(4)">5. DEM &amp; DET</button>
+      </div>
+
+      <!-- TAB 0: GENERAL (7) -->
+      <div id="cfgPane0" class="cfg-pane">
+        <div class="cfg-row" data-cfg-key="FiMInitialized">
+          <label class="cfg-lbl" for="cfg_FiMInitialized"><span class="cfg-i">ⓘ</span><span class="cfg-name">FiMInitialized (Init + DemInit)</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_FiMInitialized" checked onchange="onConfigInputChanged('FiMInitialized')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="FiMDevErrorDetect">
+          <label class="cfg-lbl" for="cfg_FiMDevErrorDetect"><span class="cfg-i">ⓘ</span><span class="cfg-name">FiMDevErrorDetect</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_FiMDevErrorDetect" checked onchange="onConfigInputChanged('FiMDevErrorDetect')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="FiMVersionInfoApi">
+          <label class="cfg-lbl" for="cfg_FiMVersionInfoApi"><span class="cfg-i">ⓘ</span><span class="cfg-name">FiMVersionInfoApi</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_FiMVersionInfoApi" onchange="onConfigInputChanged('FiMVersionInfoApi')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="FiMEventUpdateTriggeredByDem">
+          <label class="cfg-lbl" for="cfg_FiMEventUpdateTriggeredByDem"><span class="cfg-i">ⓘ</span><span class="cfg-name">FiMEventUpdateTriggeredByDem</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_FiMEventUpdateTriggeredByDem" checked onchange="onConfigInputChanged('FiMEventUpdateTriggeredByDem')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="FiMAvailabilitySupport">
+          <label class="cfg-lbl" for="cfg_FiMAvailabilitySupport"><span class="cfg-i">ⓘ</span><span class="cfg-name">FiMAvailabilitySupport</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_FiMAvailabilitySupport" checked onchange="onConfigInputChanged('FiMAvailabilitySupport')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="FiMMainFunctionPeriod">
+          <label class="cfg-lbl" for="cfg_FiMMainFunctionPeriod"><span class="cfg-i">ⓘ</span><span class="cfg-name">FiMMainFunctionPeriod</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_FiMMainFunctionPeriod" min="1" max="100" step="5" value="20" onchange="onConfigInputChanged('FiMMainFunctionPeriod')" /><span style="font-size:10px;color:var(--mut)">ms</span></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="FiMMaxHandledFidEventLinksPerSchedulableStep">
+          <label class="cfg-lbl" for="cfg_FiMMaxHandledFidEventLinksPerSchedulableStep"><span class="cfg-i">ⓘ</span><span class="cfg-name">MaxHandledFidLinksPerStep</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_FiMMaxHandledFidEventLinksPerSchedulableStep" min="1" max="128" value="64" onchange="onConfigInputChanged('FiMMaxHandledFidEventLinksPerSchedulableStep')" /></div>
+        </div>
+      </div>
+
+      <!-- TAB 1: FID & AVAILABILITY (6) -->
+      <div id="cfgPane1" class="cfg-pane hidden">
+        <div class="cfg-row" data-cfg-key="FID0_Name">
+          <label class="cfg-lbl" for="cfg_FID0_Name"><span class="cfg-i">ⓘ</span><span class="cfg-name">FID0_Name (ID=0)</span></label>
+          <div class="cfg-ctrl"><input type="text" id="cfg_FID0_Name" value="FID_0_AdaptiveCruiseControl" onchange="onConfigInputChanged('FID0_Name')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="FID0_Available">
+          <label class="cfg-lbl" for="cfg_FID0_Available"><span class="cfg-i">ⓘ</span><span class="cfg-name">FID0_Available (SetAvail)</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_FID0_Available" checked onchange="onConfigInputChanged('FID0_Available')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="FID1_Name">
+          <label class="cfg-lbl" for="cfg_FID1_Name"><span class="cfg-i">ⓘ</span><span class="cfg-name">FID1_Name (ID=1)</span></label>
+          <div class="cfg-ctrl"><input type="text" id="cfg_FID1_Name" value="FID_1_AutoEmergencyBraking" onchange="onConfigInputChanged('FID1_Name')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="FID1_Available">
+          <label class="cfg-lbl" for="cfg_FID1_Available"><span class="cfg-i">ⓘ</span><span class="cfg-name">FID1_Available (SetAvail)</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_FID1_Available" checked onchange="onConfigInputChanged('FID1_Available')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="FID2_Name">
+          <label class="cfg-lbl" for="cfg_FID2_Name"><span class="cfg-i">ⓘ</span><span class="cfg-name">FID2_Name (ID=2)</span></label>
+          <div class="cfg-ctrl"><input type="text" id="cfg_FID2_Name" value="FID_2_RadarDiagMonitor" onchange="onConfigInputChanged('FID2_Name')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="FID2_Available">
+          <label class="cfg-lbl" for="cfg_FID2_Available"><span class="cfg-i">ⓘ</span><span class="cfg-name">FID2_Available (SetAvail)</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_FID2_Available" checked onchange="onConfigInputChanged('FID2_Available')" /></div>
+        </div>
+      </div>
+
+      <!-- TAB 2: INHIBIT CONFIG & MASKS (6) -->
+      <div id="cfgPane2" class="cfg-pane hidden">
+        <div class="cfg-row" data-cfg-key="InhCfg0_Mask">
+          <label class="cfg-lbl" for="cfg_InhCfg0_Mask"><span class="cfg-i">ⓘ</span><span class="cfg-name">InhCfg0_Mask (Evt01→FID0,1)</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_InhCfg0_Mask" onchange="onConfigInputChanged('InhCfg0_Mask')">
+              <option value="FIM_LAST_FAILED">FIM_LAST_FAILED</option>
+              <option value="FIM_NOT_TESTED">FIM_NOT_TESTED</option>
+              <option value="FIM_TESTED">FIM_TESTED</option>
+              <option value="FIM_TESTED_AND_FAILED">FIM_TESTED_AND_FAILED</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="Evt01_UdsStatusHex">
+          <label class="cfg-lbl" for="cfg_Evt01_UdsStatusHex"><span class="cfg-i">ⓘ</span><span class="cfg-name">Evt01_UdsStatusHex (Radar)</span></label>
+          <div class="cfg-ctrl"><input type="text" id="cfg_Evt01_UdsStatusHex" class="mono" value="0x00" style="width:68px;text-align:center" onchange="onConfigInputChanged('Evt01_UdsStatusHex')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="InhCfg1_Mask">
+          <label class="cfg-lbl" for="cfg_InhCfg1_Mask"><span class="cfg-i">ⓘ</span><span class="cfg-name">InhCfg1_Mask (Evt02→FID2)</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_InhCfg1_Mask" onchange="onConfigInputChanged('InhCfg1_Mask')">
+              <option value="FIM_LAST_FAILED">FIM_LAST_FAILED</option>
+              <option value="FIM_NOT_TESTED" selected>FIM_NOT_TESTED</option>
+              <option value="FIM_TESTED">FIM_TESTED</option>
+              <option value="FIM_TESTED_AND_FAILED">FIM_TESTED_AND_FAILED</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="Evt02_UdsStatusHex">
+          <label class="cfg-lbl" for="cfg_Evt02_UdsStatusHex"><span class="cfg-i">ⓘ</span><span class="cfg-name">Evt02_UdsStatusHex (5V Sup)</span></label>
+          <div class="cfg-ctrl"><input type="text" id="cfg_Evt02_UdsStatusHex" class="mono" value="0x50" style="width:68px;text-align:center" onchange="onConfigInputChanged('Evt02_UdsStatusHex')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="InhCfg2_Mask">
+          <label class="cfg-lbl" for="cfg_InhCfg2_Mask"><span class="cfg-i">ⓘ</span><span class="cfg-name">InhCfg2_Mask (Sum01→FID0)</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_InhCfg2_Mask" onchange="onConfigInputChanged('InhCfg2_Mask')">
+              <option value="FIM_LAST_FAILED">FIM_LAST_FAILED</option>
+              <option value="FIM_NOT_TESTED">FIM_NOT_TESTED</option>
+              <option value="FIM_TESTED">FIM_TESTED</option>
+              <option value="FIM_TESTED_AND_FAILED" selected>FIM_TESTED_AND_FAILED</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="Evt03_UdsStatusHex">
+          <label class="cfg-lbl" for="cfg_Evt03_UdsStatusHex"><span class="cfg-i">ⓘ</span><span class="cfg-name">Evt03_UdsStatusHex (OverVolt)</span></label>
+          <div class="cfg-ctrl"><input type="text" id="cfg_Evt03_UdsStatusHex" class="mono" value="0x00" style="width:68px;text-align:center" onchange="onConfigInputChanged('Evt03_UdsStatusHex')" /></div>
+        </div>
+      </div>
+
+      <!-- TAB 3: SUMMARY & COMPONENT (5) -->
+      <div id="cfgPane3" class="cfg-pane hidden">
+        <div class="cfg-row" data-cfg-key="SummaryEvent_Sum01_Enabled">
+          <label class="cfg-lbl" for="cfg_SummaryEvent_Sum01_Enabled"><span class="cfg-i">ⓘ</span><span class="cfg-name">SummaryEvent Sum01 Enabled</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_SummaryEvent_Sum01_Enabled" onchange="onConfigInputChanged('SummaryEvent_Sum01_Enabled')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="ComponentInhibition_Enabled">
+          <label class="cfg-lbl" for="cfg_ComponentInhibition_Enabled"><span class="cfg-i">ⓘ</span><span class="cfg-name">ComponentInhibition Enabled</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_ComponentInhibition_Enabled" onchange="onConfigInputChanged('ComponentInhibition_Enabled')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="Comp01_FailedStatus">
+          <label class="cfg-lbl" for="cfg_Comp01_FailedStatus"><span class="cfg-i">ⓘ</span><span class="cfg-name">Comp01_FailedStatus (HW)</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_Comp01_FailedStatus" onchange="onConfigInputChanged('Comp01_FailedStatus')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="FiMMaxSummaryEvents">
+          <label class="cfg-lbl" for="cfg_FiMMaxSummaryEvents"><span class="cfg-i">ⓘ</span><span class="cfg-name">FiMMaxSummaryEvents</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_FiMMaxSummaryEvents" min="1" max="256" value="16" onchange="onConfigInputChanged('FiMMaxSummaryEvents')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="FiMMaxEventsPerFidInhibitionConfiguration">
+          <label class="cfg-lbl" for="cfg_FiMMaxEventsPerFidInhibitionConfiguration"><span class="cfg-i">ⓘ</span><span class="cfg-name">MaxEventsPerFidInhCfg</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_FiMMaxEventsPerFidInhibitionConfiguration" min="1" max="256" value="16" onchange="onConfigInputChanged('FiMMaxEventsPerFidInhibitionConfiguration')" /></div>
+        </div>
+      </div>
+
+      <!-- TAB 4: DEM SYNC & DET (5) -->
+      <div id="cfgPane4" class="cfg-pane hidden">
+        <div class="cfg-row" data-cfg-key="CascadingFaultSuppressionEnabled">
+          <label class="cfg-lbl" for="cfg_CascadingFaultSuppressionEnabled"><span class="cfg-i">ⓘ</span><span class="cfg-name">CascadingFaultSuppression</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_CascadingFaultSuppressionEnabled" onchange="onConfigInputChanged('CascadingFaultSuppressionEnabled')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="ConfigVariantType">
+          <label class="cfg-lbl" for="cfg_ConfigVariantType"><span class="cfg-i">ⓘ</span><span class="cfg-name">ConfigVariantType</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_ConfigVariantType" onchange="onConfigInputChanged('ConfigVariantType')">
+              <option value="POST_BUILD_LOADABLE">POST_BUILD_LOADABLE</option>
+              <option value="PRE_COMPILE">PRE_COMPILE</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="FiMDataFixed">
+          <label class="cfg-lbl" for="cfg_FiMDataFixed"><span class="cfg-i">ⓘ</span><span class="cfg-name">FiMDataFixed (ROM Lock)</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_FiMDataFixed" checked onchange="onConfigInputChanged('FiMDataFixed')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="ObdIumprInhibitionSupport">
+          <label class="cfg-lbl" for="cfg_ObdIumprInhibitionSupport"><span class="cfg-i">ⓘ</span><span class="cfg-name">ObdIumprInhibitionSupport</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_ObdIumprInhibitionSupport" onchange="onConfigInputChanged('ObdIumprInhibitionSupport')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="SimulateDetFaultType">
+          <label class="cfg-lbl" for="cfg_SimulateDetFaultType"><span class="cfg-i">ⓘ</span><span class="cfg-name">SimulateDetFaultType</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_SimulateDetFaultType" onchange="onConfigInputChanged('SimulateDetFaultType')">
+              <option value="NONE">NONE (No Error)</option>
+              <option value="UNINIT">0x01: FIM_E_UNINIT</option>
+              <option value="FID_OUT_OF_RANGE">0x02: FID_OUT_OF_RANGE</option>
+              <option value="EVENTID_OUT_OF_RANGE">0x03: EVENTID_OUT_OF_RANGE</option>
+              <option value="PARAM_POINTER">0x04: FIM_E_PARAM_POINTER</option>
+              <option value="INIT_FAILED">0x05: FIM_E_INIT_FAILED</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div id="cfgValidationBox" style="padding:0 10px 8px"></div>
+    </section>
+  </aside>
+
+  <!-- CENTER COLUMN: MANY-TO-MANY MATRIX, DUAL 8-BIT REGISTERS, BITWISE EVALUATOR, DUAL SM, SVG ARCHITECTURE -->
+  <section class="col-center">
+    <!-- PANEL 1: 2-TIER BIT & MANY-TO-MANY MATRIX MONITORING -->
+    <section class="panel">
+      <div class="panel-hdr">
+        <span class="panel-title">🧬 Ma Trận Ức Chế Đa-Đa (Events / Sum / Comp ➔ Masks ➔ FIDs) &amp; 2 Thanh Ghi 8-Bit</span>
+        <span id="panel1SummaryMeta" class="panel-sub mono">Push Mode · Avail: TRUE</span>
+      </div>
+      <div class="panel-body tier-split">
+        <!-- TIER 1A: RULES TABLE + FID PERMISSION CARDS -->
+        <div class="matrix-wrap">
+          <div class="matrix-hdr">
+            <span style="font-weight:700;font-size:11.5px;color:var(--cyan)">1. Quy Tắc Ánh Xạ (FiMInhibitionConfiguration) — Click hàng để soi Bit trên Thanh A</span>
+            <span id="matrixRuleCountBadge" class="mono" style="font-size:10.5px;color:var(--mut)">4 Rules Active</span>
+          </div>
+          <div style="overflow-x:auto">
+            <table class="matrix-tbl">
+              <thead>
+                <tr>
+                  <th>Rule</th>
+                  <th>Nguồn (Event / Sum / Comp)</th>
+                  <th>Status</th>
+                  <th>Mặt Nạ</th>
+                  <th>Công Thức Bitwise</th>
+                  <th>Đích FID</th>
+                  <th>Kết Quả</th>
+                </tr>
+              </thead>
+              <tbody id="inhRulesBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div id="fidCardsBox" class="fid-cards-grid"></div>
+
+        <!-- TIER 1B: DUAL 8-BIT INTERACTIVE REGISTERS -->
+        <div class="reg-grid">
+          <div class="reg-card">
+            <div class="reg-top">
+              <span id="regATitle" class="reg-name">Thanh A: UDS Status Byte (Evt_01)</span>
+              <span id="regAHex" class="reg-hex mono">0x00</span>
+            </div>
+            <div id="regABitwiseSub" class="reg-subbar mono"></div>
+            <div id="regABits" class="bit-row"></div>
+          </div>
+
+          <div class="reg-card">
+            <div class="reg-top">
+              <span id="regBTitle" class="reg-name">Thanh B: FiM_EngineStatusByte (FID_0)</span>
+              <span id="regBHex" class="reg-hex mono">0xE3</span>
+            </div>
+            <div id="regBSubbar" class="reg-subbar mono"></div>
+            <div id="regBBits" class="bit-row"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PANEL 2: BITWISE 4-MASK EVALUATOR & DUAL STATE MACHINES -->
+    <section class="panel">
+      <div class="panel-hdr">
+        <span class="panel-title">🔬 Bộ Giải Mã 4 Mặt Nạ Bitwise &amp; 2 Máy Trạng Thái Vòng Đời FiM / FID</span>
+        <span id="panel2EvalBadge" class="panel-sub mono">Inspected: Evt_01 (0x00) · FID_0</span>
+      </div>
+      <div class="panel-body">
+        <div id="maskEvalGrid" class="mask-eval-grid"></div>
+
+        <div class="sm-dual">
+          <div class="sm-box">
+            <div class="sm-title">
+              <span>⚙️ FiM Lifecycle &amp; Update Mode (SWS_FiM_00059)</span>
+              <span id="smLifecycleLbl" class="mono">READY</span>
+            </div>
+            <div id="fimLifecycleSm" class="sm-states"></div>
+          </div>
+
+          <div class="sm-box">
+            <div class="sm-title">
+              <span>🛡️ FID Permission &amp; Fail-Safe State (Selected FID)</span>
+              <span id="smFidSelLbl" class="mono">FID_0</span>
+            </div>
+            <div id="fidPermissionSm" class="fid-sm-grid"></div>
+            <div id="fidSummaryMini" style="margin-top:6px;padding:5px 7px;border-radius:6px;background:var(--panel);border:1px solid var(--bdr);font-size:10.5px"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PANEL 3: INTERACTIVE END-TO-END AUTOSAR SVG ARCHITECTURE -->
+    <section class="panel">
+      <div class="panel-hdr">
+        <span class="panel-title">🏗️ Kiến Trúc Tương Tác End-to-End Module FiM Trong AUTOSAR Classic</span>
+        <span class="panel-sub">Click bất kỳ Module nào để xem Input / Output &amp; API ở Inspector bên phải</span>
+      </div>
+      <div class="panel-body">
+        <div class="arch-wrap">
+          <svg id="fimArchSvg" class="arch-svg" viewBox="0 0 820 345" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <marker id="arrEnd" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                <path d="M 0 1 L 10 5 L 0 9 z" fill="currentColor" />
+              </marker>
+            </defs>
+
+            <!-- ARROWS LAYER -->
+            <path id="arr_swc_mon_fim" class="flow-arrow" d="M 105 80 L 105 118" marker-end="url(#arrEnd)" />
+            <path id="arr_swc_mon_dem" class="flow-arrow" d="M 55 80 L 55 292 L 265 292" marker-end="url(#arrEnd)" />
+            <path id="arr_swc_ctrl_rte" class="flow-arrow" d="M 295 80 L 245 118" marker-end="url(#arrEnd)" />
+            <path id="arr_rte_fim" class="flow-arrow" d="M 210 156 L 270 156" marker-end="url(#arrEnd)" />
+            <path id="arr_ecum_fim" class="flow-arrow" d="M 515 80 L 470 112" marker-end="url(#arrEnd)" />
+            <path id="arr_ecum_dem" class="flow-arrow" d="M 555 80 L 555 275 L 535 275" marker-end="url(#arrEnd)" />
+            <path id="arr_dcm_dem" class="flow-arrow" d="M 710 80 L 710 296 L 535 296" marker-end="url(#arrEnd)" />
+            <path id="arr_fim_obd" class="flow-arrow" d="M 545 138 L 620 75" marker-end="url(#arrEnd)" />
+            <path id="arr_fim_det" class="flow-arrow" d="M 545 162 L 605 162" marker-end="url(#arrEnd)" />
+            <path id="arr_dem_fim_push" class="flow-arrow" d="M 375 256 L 375 212" marker-end="url(#arrEnd)" />
+            <path id="arr_fim_dem_poll" class="flow-arrow" d="M 440 212 L 440 256" marker-end="url(#arrEnd)" />
+
+            <!-- TOP ROW: APPLICATION & SYSTEM/DIAG -->
+            <g id="node_MOD_SWC_MON" class="mod-node" onclick="selectModule('MOD_SWC_MON')">
+              <rect class="mod-rect" x="15" y="18" width="175" height="62" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="102" y="38" text-anchor="middle" fill="var(--cyan)" font-weight="700" font-size="11.5">SWC_DiagMonitor</text>
+              <text id="svgSub_MOD_SWC_MON" x="102" y="54" text-anchor="middle" fill="var(--mut)" font-size="9.5">Gate FID_2: PERMITTED</text>
+              <text x="102" y="69" text-anchor="middle" fill="var(--txt-soft)" font-size="9">SetEventStatus / GetPerm</text>
+            </g>
+
+            <g id="node_MOD_SWC_CTRL" class="mod-node" onclick="selectModule('MOD_SWC_CTRL')">
+              <rect class="mod-rect" x="208" y="18" width="180" height="62" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="298" y="38" text-anchor="middle" fill="var(--ok)" font-weight="700" font-size="11.5">SWC_Controller (ACC/AEB)</text>
+              <text id="svgSub_MOD_SWC_CTRL" x="298" y="54" text-anchor="middle" fill="var(--mut)" font-size="9.5">FID_0: NORMAL | FID_1: NORMAL</text>
+              <text x="298" y="69" text-anchor="middle" fill="var(--txt-soft)" font-size="9">GetFunctionPermission()</text>
+            </g>
+
+            <g id="node_MOD_ECUM" class="mod-node" onclick="selectModule('MOD_ECUM')">
+              <rect class="mod-rect" x="406" y="18" width="188" height="62" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="500" y="38" text-anchor="middle" fill="var(--pri)" font-weight="700" font-size="11.5">EcuM &amp; BswM</text>
+              <text id="svgSub_MOD_ECUM" x="500" y="54" text-anchor="middle" fill="var(--mut)" font-size="9.5">Init: READY | Variant: PB</text>
+              <text x="500" y="69" text-anchor="middle" fill="var(--txt-soft)" font-size="9">FiM_Init / SetAvailable</text>
+            </g>
+
+            <g id="node_MOD_DCM" class="mod-node" onclick="selectModule('MOD_DCM')">
+              <rect class="mod-rect" x="612" y="18" width="192" height="62" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="708" y="38" text-anchor="middle" fill="var(--warn)" font-weight="700" font-size="11.5">DCM &amp; OBD (IUMPR)</text>
+              <text id="svgSub_MOD_DCM" x="708" y="54" text-anchor="middle" fill="var(--mut)" font-size="9.5">0x14 ClearDTC | IUMPR: OFF</text>
+              <text x="708" y="69" text-anchor="middle" fill="var(--txt-soft)" font-size="9">Dem_ClearDTC / OBD $06/$09</text>
+            </g>
+
+            <!-- MIDDLE ROW: RTE, FIM CORE, DET -->
+            <g id="node_MOD_RTE" class="mod-node" onclick="selectModule('MOD_RTE')">
+              <rect class="mod-rect" x="30" y="122" width="180" height="66" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="120" y="143" text-anchor="middle" fill="var(--acc)" font-weight="700" font-size="12">RTE &amp; SchM</text>
+              <text id="svgSub_MOD_RTE" x="120" y="160" text-anchor="middle" fill="var(--mut)" font-size="9.5">Period: 20 ms | MaxLinks: 64</text>
+              <text x="120" y="175" text-anchor="middle" fill="var(--txt-soft)" font-size="9">PortDefinedArg / MainFn()</text>
+            </g>
+
+            <g id="node_MOD_FIM" class="mod-node selected" onclick="selectModule('MOD_FIM')">
+              <rect class="mod-rect" x="270" y="112" width="275" height="100" rx="10" fill="var(--pri-bg)" stroke="var(--pri)" stroke-width="2.2"/>
+              <text x="407" y="133" text-anchor="middle" fill="var(--pri)" font-weight="800" font-size="13.5">FiM Core Engine (SWS_FiM)</text>
+              <text id="svgSub_MOD_FIM1" x="407" y="151" text-anchor="middle" fill="var(--txt)" font-weight="700" font-size="10.5">State: INITIALIZED | Mode: PUSH</text>
+              <text id="svgSub_MOD_FIM2" x="407" y="168" text-anchor="middle" fill="var(--cyan)" font-weight="700" font-size="10">FID0: TRUE | FID1: TRUE | FID2: FALSE</text>
+              <text id="svgSub_MOD_FIM3" x="407" y="185" text-anchor="middle" fill="var(--mut)" font-size="9.5">4 Masks · SummaryEvent · Comp · Avail</text>
+              <text x="407" y="201" text-anchor="middle" fill="var(--mut)" font-size="9">FiM_GetFunctionPermission() = O(1)</text>
+            </g>
+
+            <g id="node_MOD_DET" class="mod-node" onclick="selectModule('MOD_DET')">
+              <rect class="mod-rect" x="605" y="128" width="198" height="66" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="704" y="149" text-anchor="middle" fill="var(--err)" font-weight="700" font-size="12">DET (ModuleId = 11)</text>
+              <text id="svgSub_MOD_DET" x="704" y="166" text-anchor="middle" fill="var(--mut)" font-size="10">Faults Logged: 0 (OK)</text>
+              <text x="704" y="181" text-anchor="middle" fill="var(--txt-soft)" font-size="9">Det_ReportError(11, 0, Api, Err)</text>
+            </g>
+
+            <!-- BOTTOM ROW: DEM -->
+            <g id="node_MOD_DEM" class="mod-node" onclick="selectModule('MOD_DEM')">
+              <rect class="mod-rect" x="265" y="256" width="270" height="76" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="400" y="277" text-anchor="middle" fill="var(--pur)" font-weight="700" font-size="12.5">DEM (Diagnostic Event Manager)</text>
+              <text id="svgSub_MOD_DEM1" x="400" y="294" text-anchor="middle" fill="var(--mut)" font-size="10">E1:0x00 | E2:0x50 | E3:0x00 | Comp1:OK</text>
+              <text id="svgSub_MOD_DEM2" x="400" y="311" text-anchor="middle" fill="var(--txt-soft)" font-size="9.5">FiM_DemTriggerOnEventStatus / Dem_GetEventUdsStatus</text>
+              <text x="400" y="324" text-anchor="middle" fill="var(--mut)" font-size="9">NvM Persistent Storage · DemComponent Graph</text>
+            </g>
+          </svg>
+        </div>
+      </div>
+    </section>
+  </section>
+
+  <!-- RIGHT COLUMN: STICKY 4-TAB INSPECTOR -->
+  <aside class="col-right">
+    <section class="panel insp-panel">
+      <div class="insp-tabs">
+        <button id="inspTabBtn0" class="insp-tab active" onclick="switchInspTab(0)">🔍 Bước Hiện Tại</button>
+        <button id="inspTabBtn1" class="insp-tab" onclick="switchInspTab(1)">🧩 Module</button>
+        <button id="inspTabBtn2" class="insp-tab" onclick="switchInspTab(2)">📄 Code C</button>
+        <button id="inspTabBtn3" class="insp-tab" onclick="switchInspTab(3)">📜 API Trace</button>
+      </div>
+      <div id="inspBody" class="insp-body"></div>
+    </section>
+  </aside>
+</main>
+
+<!-- ================= VIEW 2: MULTI-LEVEL HANDBOOK & ABBREVIATION TABLE ================= -->
+<main id="viewHb" class="hb-wrap hidden">
+  <div class="hb-nav1">
+    <button id="hbTab1_0" class="hb-tab1 active" onclick="switchHbTab1(0)">1. Kiến Trúc &amp; I/O Module</button>
+    <button id="hbTab1_1" class="hb-tab1" onclick="switchHbTab1(1)">2. 4 Mặt Nạ &amp; Bitwise</button>
+    <button id="hbTab1_2" class="hb-tab1" onclick="switchHbTab1(2)">3. Push vs Polling &amp; Sync</button>
+    <button id="hbTab1_3" class="hb-tab1" onclick="switchHbTab1(3)">4. Summary, Component &amp; Avail</button>
+    <button id="hbTab1_4" class="hb-tab1" onclick="switchHbTab1(4)">5. Chặn Lỗi Dây Chuyền &amp; OBD</button>
+    <button id="hbTab1_5" class="hb-tab1" onclick="switchHbTab1(5)">6. Từ Điển API, DET &amp; ECUC</button>
+    <button id="hbTab1_6" class="hb-tab1" onclick="switchHbTab1(6)">7. Bảng Thuật Ngữ &amp; Search</button>
+  </div>
+
+  <div id="hbNav2" class="hb-nav2"></div>
+
+  <div id="hbAbbrFilterBox" class="abbr-toolbar hidden">
+    <input id="abbrSearchInput" class="abbr-search" type="text" placeholder="🔍 Tìm kiếm thuật ngữ AUTOSAR FiM (VD: FID, TNCTOC, FIM_NOT_TESTED, DemComponent, Cascading, SWS_FiM...)" oninput="filterAbbreviationTable()" />
+    <div class="cat-pills">
+      <button id="catPill_ALL" class="cat-pill active" onclick="setAbbrCategory('ALL')">Tất cả (48)</button>
+      <button id="catPill_CORE" class="cat-pill" onclick="setAbbrCategory('CORE')">🎛️ FiM Core &amp; FID</button>
+      <button id="catPill_MASK" class="cat-pill" onclick="setAbbrCategory('MASK')">🎭 Masks &amp; Bits</button>
+      <button id="catPill_DEM" class="cat-pill" onclick="setAbbrCategory('DEM')">🧩 DEM &amp; Component</button>
+      <button id="catPill_SAFETY" class="cat-pill" onclick="setAbbrCategory('SAFETY')">🛡️ Safety &amp; OBD</button>
+      <button id="catPill_STACK" class="cat-pill" onclick="setAbbrCategory('STACK')">⚙️ AUTOSAR Stack</button>
+    </div>
+    <span id="abbrCountBadge" class="step-pill">48 thuật ngữ</span>
+  </div>
+
+  <div id="hbContentArea"></div>
+</main>
+
+<!-- ================= EXPORT ARXML / C / JSON MODAL ================= -->
+<div id="exportModal" class="modal-overlay hidden" onclick="if(event.target===this) closeExportModal()">
+  <div class="modal-box">
+    <div class="modal-hdr">
+      <strong style="font-size:13.5px;color:var(--pri)">📦 Xuất Cấu Hình FiM AUTOSAR (ARXML · FiM_Cfg.h · FiM_Lcfg.c · JSON)</strong>
+      <button class="btn btn-sm" onclick="closeExportModal()">✖ Đóng</button>
+    </div>
+    <div class="modal-tabs">
+      <button id="expTab0" class="btn btn-sm btn-pri" onclick="switchExportTab(0)">FiM.arxml</button>
+      <button id="expTab1" class="btn btn-sm" onclick="switchExportTab(1)">FiM_Cfg.h</button>
+      <button id="expTab2" class="btn btn-sm" onclick="switchExportTab(2)">FiM_Lcfg.c</button>
+      <button id="expTab3" class="btn btn-sm" onclick="switchExportTab(3)">FiM_Config.json</button>
+    </div>
+    <div class="modal-body">
+      <pre id="exportCodeArea" class="code-block"></pre>
+    </div>
+    <div class="modal-ftr">
+      <button class="btn" onclick="copyExportCode()">📋 Copy Clipboard</button>
+      <button class="btn btn-ok" onclick="downloadExportCode()">⬇ Tải File Hiện Tại</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= FLOATING TOOLTIP POPUP (>1S HOVER ON ECUC FIELDS) ================= -->
+<div id="cfgTooltipPopup" role="tooltip"></div>
+<script>

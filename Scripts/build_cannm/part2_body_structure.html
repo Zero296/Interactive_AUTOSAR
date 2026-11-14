@@ -1,0 +1,880 @@
+<body>
+
+  <!-- ==================== HEADER BAR ==================== -->
+  <header class="hdr">
+    <div class="hdr-in">
+      <!-- Row 1: Brand, View Navigation, Export & Theme Tools -->
+      <div class="hdr-row">
+        <!-- Brand & Logo -->
+        <div class="brand">
+          <div class="logo">NM</div>
+          <div>
+            <div class="row">
+              <h1>Trình Mô Phỏng & Sổ Tay AUTOSAR CanNM</h1>
+              <span class="badge">R22-11 / R23-11</span>
+              <span class="badge ok">100% Offline</span>
+            </div>
+            <div class="sub">Decentralized Direct Network Management • CBV Byte • Partial Networking (PN) • Timers</div>
+          </div>
+        </div>
+
+        <!-- View Switcher Tabs -->
+        <div class="vtabs">
+          <button class="vtab active" id="btnViewSim" onclick="switchMainView('sim')">
+            🎛️ 1. Trình Mô Phỏng (Workspace)
+          </button>
+          <button class="vtab" id="btnViewMulti" onclick="switchMainView('multi')">
+            🌐 2. Giao Tiếp Đa ECU (Multi-ECU Bus)
+          </button>
+          <button class="vtab" id="btnViewHb" onclick="switchMainView('hb')">
+            📖 3. Sổ Tay Kỹ Thuật & Thuật Ngữ
+          </button>
+        </div>
+
+        <!-- Export & Settings Tools -->
+        <div class="row">
+          <button class="btn sm indigo" onclick="openExportModal()" title="Xuất file cấu hình ARXML, CanNm_Cfg.h, CanNm_Lcfg.c, JSON">
+            🧾 Xuất Mã & Cấu Hình
+          </button>
+          <button class="btn sm green" onclick="downloadStandaloneHTML()" title="Tải xuống 1 file HTML duy nhất để lưu trữ hoặc chia sẻ">
+            💾 Tải .HTML
+          </button>
+          <button class="btn sm" id="btnThemeToggle" onclick="toggleTheme()" title="Đổi giao diện Sáng / Tối">
+            🌗 <span id="lblThemeText">Sáng</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Row 2 (Sticky Control Bar): Scenario Selector, Stepper Controls, Clock & State Badge -->
+      <div class="hdr-row2" id="simControlRow">
+        <!-- Scenario Dropdown & Stepper Controls -->
+        <div class="row wrap" style="flex:1">
+          <span class="lbl">Kịch Bản:</span>
+          <select id="selScenario" onchange="loadScenario(parseInt(this.value))" style="max-width:380px; font-weight:700">
+            <optgroup label="Nhóm 1: Khởi Động & Chu Trình Ngủ 4 Pha">
+              <option value="1">S1: Active Wakeup (AWB=1, Burst Tx & Normal Operation)</option>
+              <option value="2">S2: Passive Startup (AWB=0, MsgCycleOffset & Ready Sleep)</option>
+              <option value="3">S3: Chu trình Ngủ Mạng Chuẩn (Normal ➔ Ready ➔ Prepare ➔ Sleep)</option>
+              <option value="4">S4: Đánh thức khẩn cấp tại Prepare Bus-Sleep (Immediate Restart)</option>
+            </optgroup>
+            <optgroup label="Nhóm 2: Node Detection, Burst & Bus Load">
+              <option value="5">S5: Điểm danh toàn mạng (Repeat Message Request RMR=1)</option>
+              <option value="6">S6: Giảm tải đường truyền CAN (CanNmBusLoadReductionEnabled)</option>
+              <option value="7">S7: Linh hoạt vị trí SNI/CBV & Đọc định danh Node (GetNodeId)</option>
+            </optgroup>
+            <optgroup label="Nhóm 3: Partial Networking (PN) & Car Wakeup">
+              <option value="8">S8: Lọc cụm mạng con Partial Networking (PN Filter Mask)</option>
+              <option value="9">S9: Quản lý ERA / EIRA & Đồng bộ tắt PNC (Sync PNC Shutdown)</option>
+              <option value="10">S10: Đánh thức toàn xe qua Car Wakeup Bit (CSR=1)</option>
+            </optgroup>
+            <optgroup label="Nhóm 4: COM User Data, Diag & Fault Handling">
+              <option value="11">S11: Kéo User Data tự động qua COM (TriggerTransmit)</option>
+              <option value="12">S12: Dịch vụ chẩn đoán UDS 0x28 (Disable/Enable Comm)</option>
+              <option value="13">S13: Giám sát ngủ từ xa cho Gateway (Remote Sleep Indication)</option>
+              <option value="14">S14: Xử lý lỗi TxTimeoutException & Phối hợp CanSM Bus-Off</option>
+            </optgroup>
+          </select>
+
+          <!-- Stepper Buttons -->
+          <div class="ctrl">
+            <button class="btn sm" id="btnResetScenario" onclick="resetScenario()" title="Khởi động lại và chuẩn bị kịch bản (Bước 0)">↺ Reset</button>
+            <button class="btn sm" id="btnPrevStep" onclick="prevScenarioStep()" title="Lùi lại bước trước" disabled>◀ Lùi</button>
+            <button class="btn sm primary" id="btnNextStep" onclick="nextScenarioStep()" title="Thực thi bước tiếp theo">Tiếp Theo ▶</button>
+            <button class="btn sm indigo" id="btnAutoScenario" onclick="toggleScenarioAutoPlay()" title="Tự động chạy từng bước">▶ Tự Chạy</button>
+          </div>
+          <span class="badge warn" id="lblStepCounter">Bước 0 / 4 (Sẵn sàng)</span>
+        </div>
+
+        <!-- Clock Display & Controls & Live State Badge -->
+        <div class="row">
+          <div class="ctrl">
+            <span class="mono" id="lblSimClock" style="font-weight:800; color:#34d399; padding:0 4px">t = 0 ms</span>
+            <button class="btn xs" onclick="stepClockTick(100)" title="Tiến đồng hồ 1 chu kỳ MainFunction (100ms)">+100ms</button>
+            <button class="btn xs green" id="btnAutoClock" onclick="toggleAutoClock()" title="Bật/Tắt tự động chạy xung nhịp mô phỏng (Tốc độ 2x: 500ms/tick)">▶ Clock</button>
+          </div>
+
+          <!-- CanNM State Badge -->
+          <div class="row" style="background:var(--panel2); border:1px solid var(--border); border-radius:8px; padding:3px 8px">
+            <span class="muted small">Trạng thái CanNM:</span>
+            <span class="badge ok" id="lblHeaderStateBadge" style="font-size:11px">BUS-SLEEP MODE</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ==================== VIEW 1: TRÌNH MÔ PHỎNG WORKSPACE ==================== -->
+  <main id="viewSim">
+
+    <!-- ================= COLUMN 1: TRÁI (375px) - TÁC ĐỘNG NHANH, KỊCH BẢN & CẤU HÌNH ================= -->
+    <section class="col">
+
+      <!-- Card 1 (ĐẶT TRÊN CÙNG - ZERO SCROLL): Quick Action Bar (8 nút thao tác nhanh) -->
+      <div class="panel" style="border-color:#38bdf8">
+        <div class="panel-h" style="background:rgba(56, 189, 248, 0.06)">
+          <span class="panel-t">⚡ Bảng Điều Khiển Sự Kiện Thủ Công</span>
+          <span class="badge sky">Zero-Scroll</span>
+        </div>
+        <div class="panel-b">
+          <p class="hint" style="margin-top:0; margin-bottom:6px">Kích hoạt trực tiếp các API chuẩn AUTOSAR CanNM:</p>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-bottom:8px">
+            <button class="btn green sm" onclick="apiNetworkRequest()" title="Yêu cầu mạng từ SWC -> ComM -> Nm -> CanNm">
+              🟢 NetworkRequest
+            </button>
+            <button class="btn amber sm" onclick="apiNetworkRelease()" title="Nhả mạng từ SWC -> ComM -> Nm -> CanNm">
+              🟡 NetworkRelease
+            </button>
+            <button class="btn sky sm" onclick="apiPassiveStartUp()" title="Đánh thức thụ động từ EcuM/ComM (AWB=0)">
+              🔵 PassiveStartUp
+            </button>
+            <button class="btn vio sm" onclick="apiRepeatMessageRequest()" title="Bật Bit RMR=1 yêu cầu toàn mạng điểm danh">
+              🟣 RepeatMsgReq
+            </button>
+          </div>
+
+          <!-- Giả lập gói tin Rx từ Node #2 (Node 0x2B) -->
+          <div style="background:var(--panel2); border:1px solid var(--border); border-radius:8px; padding:7px; margin-bottom:8px">
+            <div class="row" style="justify-content:space-between; margin-bottom:4px">
+              <span class="mono" style="font-weight:700; color:#818cf8; font-size:11px">📡 Giả lập ECU #2 gửi gói NM (Rx)</span>
+              <span class="badge xs">Node 0x2B</span>
+            </div>
+            <div class="row wrap" style="gap:6px; font-size:11px; margin-bottom:6px">
+              <label class="row" style="cursor:pointer"><input type="checkbox" id="simRxRmr"> <span>RMR=1</span></label>
+              <label class="row" style="cursor:pointer"><input type="checkbox" id="simRxAwb" checked> <span>AWB=1</span></label>
+              <label class="row" style="cursor:pointer"><input type="checkbox" id="simRxPni"> <span>PNI=1</span></label>
+              <label class="row" style="cursor:pointer"><input type="checkbox" id="simRxCsr"> <span>CSR=1</span></label>
+            </div>
+            <div class="row" style="gap:5px; margin-bottom:6px">
+              <span class="muted small">PNI Bytes (Hex):</span>
+              <input type="text" id="simRxPniHex" value="05 00" style="padding:2px 6px; font-size:11px" placeholder="VD: 05 00 (PNC #16,#18)">
+            </div>
+            <button class="btn indigo sm w100" onclick="apiSimulatedRxIndication()" title="Bắn CanIf_RxIndication() từ Remote Node #2 vào CanNM">
+              🚀 Bắn CanNm_RxIndication()
+            </button>
+          </div>
+
+          <!-- Bottom Action Buttons -->
+          <div class="row wrap" style="justify-content:space-between">
+            <button class="btn xs" onclick="stepClockTick(100)" title="Tiến thêm 100ms SchM MainFunction">⏱ +1 Tick MainFunction</button>
+            <button class="btn xs" id="btnToggleComm" onclick="apiToggleCommunication()" title="UDS 0x28 Communication Control">🔇 Toggle Comm</button>
+            <button class="btn xs red" onclick="resetDefaultConfig()" title="Khôi phục cấu hình mặc định">↺ Reset Cfg</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 2: Tóm tắt Kịch bản & 3 Nút "Thử Nghiệm Nhanh (1-Click What-If)" -->
+      <div class="panel">
+        <div class="panel-h">
+          <span class="panel-t" id="scenBoxTitle">Kịch Bản 1: Active Wakeup</span>
+          <span class="badge" id="scenApiBadge">Sẵn sàng</span>
+        </div>
+        <div class="panel-b">
+          <div id="scenIoPill" class="mono small muted" style="margin-bottom:6px">Chưa có hành động</div>
+          <div id="scenStepDesc" style="font-size:11.8px; line-height:1.45; margin-bottom:8px; color:var(--text)">
+            Bấm <b>"Tiếp Theo ▶"</b> để quan sát cách CanNM xử lý từng bước theo chuẩn AUTOSAR R22-11/R23-11.
+          </div>
+          <!-- 3 Nút Thử Nghiệm Nhanh (What-If) -->
+          <div class="sub-t">💡 3 Nút Thử Nghiệm Nhanh (1-Click What-If):</div>
+          <div id="whatIfBtnsContainer" style="display:flex; flex-direction:column; gap:4px">
+            <!-- Dynamically populated per scenario -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 3: Cấu Hình ECUC CanNM (6 Sub-tabs Gọn Gàng + Hover Tooltip >1s) -->
+      <div class="panel">
+        <div class="panel-h">
+          <span class="panel-t">⚙️ Cấu Hình ECUC CanNM</span>
+          <span class="hint">Rê chuột &gt;1s để xem Tooltip</span>
+        </div>
+        <div class="panel-b">
+          <!-- 6 Sub-tabs Buttons -->
+          <div class="tabs" id="cfgTabs" style="margin-bottom:8px">
+            <button class="tab active" onclick="switchCfgTab(0)">1. General</button>
+            <button class="tab" onclick="switchCfgTab(1)">2. Timers</button>
+            <button class="tab" onclick="switchCfgTab(2)">3. PDU/CBV</button>
+            <button class="tab" onclick="switchCfgTab(3)">4. Burst</button>
+            <button class="tab" onclick="switchCfgTab(4)">5. PN/Mask</button>
+            <button class="tab" onclick="switchCfgTab(5)">6. UserData</button>
+          </div>
+
+          <!-- Alert Box: Timing Rule Validation -->
+          <div id="cfgAlertBox" class="hidden" style="background:rgba(251,191,36,.12); border:1px solid rgba(251,191,36,.38); border-radius:7px; padding:6px 8px; margin-bottom:8px; font-size:11px; color:var(--amber-text)">
+            ⚠️ <b>Cảnh báo Timing AUTOSAR:</b> <span id="cfgAlertText"></span>
+          </div>
+
+          <!-- Tab Pane 0: General/Mode -->
+          <div class="cfg-pane" id="cfgPane0">
+            <label class="ck" data-cfg-key="CanNmInitialized">
+              <input type="checkbox" id="cfg_CanNmInitialized" checked onchange="onConfigChange('CanNmInitialized')">
+              <div><span class="nm">CanNmInitialized</span><span class="ds">Trạng thái khởi tạo module CanNm_Init()</span></div>
+            </label>
+            <label class="ck" data-cfg-key="CanNmDevErrorDetect">
+              <input type="checkbox" id="cfg_CanNmDevErrorDetect" checked onchange="onConfigChange('CanNmDevErrorDetect')">
+              <div><span class="nm">CanNmDevErrorDetect</span><span class="ds">Bật phát hiện và báo lỗi qua Det_ReportError</span></div>
+            </label>
+            <label class="ck" data-cfg-key="CanNmPassiveModeEnabled">
+              <input type="checkbox" id="cfg_CanNmPassiveModeEnabled" onchange="onConfigChange('CanNmPassiveModeEnabled')">
+              <div><span class="nm">CanNmPassiveModeEnabled</span><span class="ds">Chế độ thụ động: khóa phát mọi bản tin NM</span></div>
+            </label>
+            <label class="ck" data-cfg-key="CanNmActiveWakeupBitEnabled">
+              <input type="checkbox" id="cfg_CanNmActiveWakeupBitEnabled" checked onchange="onConfigChange('CanNmActiveWakeupBitEnabled')">
+              <div><span class="nm">CanNmActiveWakeupBitEnabled</span><span class="ds">Bật Bit 4 (AWB=1) khi thức dậy chủ động</span></div>
+            </label>
+            <label class="ck" data-cfg-key="CanNmStateChangeIndEnabled">
+              <input type="checkbox" id="cfg_CanNmStateChangeIndEnabled" checked onchange="onConfigChange('CanNmStateChangeIndEnabled')">
+              <div><span class="nm">CanNmStateChangeIndEnabled</span><span class="ds">Gọi Nm_StateChangeNotification khi đổi Mode/State</span></div>
+            </label>
+            <label class="ck" data-cfg-key="CanNmComControlEnabled">
+              <input type="checkbox" id="cfg_CanNmComControlEnabled" checked onchange="onConfigChange('CanNmComControlEnabled')">
+              <div><span class="nm">CanNmComControlEnabled</span><span class="ds">Hỗ trợ CanNm_DisableCommunication() (UDS 0x28)</span></div>
+            </label>
+          </div>
+
+          <!-- Tab Pane 1: Timers/Cycle -->
+          <div class="cfg-pane hidden" id="cfgPane1">
+            <div class="g2">
+              <div class="f" data-cfg-key="CanNmMainFunctionPeriod">
+                <label>MainFunctionPeriod (ms)</label>
+                <input type="number" id="cfg_CanNmMainFunctionPeriod" value="100" min="10" step="10" onchange="onConfigChange('CanNmMainFunctionPeriod')">
+              </div>
+              <div class="f" data-cfg-key="CanNmMsgCycleTime">
+                <label>MsgCycleTime (ms)</label>
+                <input type="number" id="cfg_CanNmMsgCycleTime" value="1000" min="100" step="100" onchange="onConfigChange('CanNmMsgCycleTime')">
+              </div>
+            </div>
+            <div class="g2">
+              <div class="f" data-cfg-key="CanNmMsgCycleOffset">
+                <label>MsgCycleOffset (ms)</label>
+                <input type="number" id="cfg_CanNmMsgCycleOffset" value="100" min="0" step="50" onchange="onConfigChange('CanNmMsgCycleOffset')">
+              </div>
+              <div class="f" data-cfg-key="CanNmRepeatMessageTime">
+                <label>RepeatMessageTime (ms)</label>
+                <input type="number" id="cfg_CanNmRepeatMessageTime" value="1500" min="200" step="100" onchange="onConfigChange('CanNmRepeatMessageTime')">
+              </div>
+            </div>
+            <div class="g2">
+              <div class="f" data-cfg-key="CanNmTimeoutTime">
+                <label>CanNmTimeoutTime (ms)</label>
+                <input type="number" id="cfg_CanNmTimeoutTime" value="2000" min="200" step="100" onchange="onConfigChange('CanNmTimeoutTime')">
+              </div>
+              <div class="f" data-cfg-key="CanNmWaitBusSleepTime">
+                <label>WaitBusSleepTime (ms)</label>
+                <input type="number" id="cfg_CanNmWaitBusSleepTime" value="1500" min="100" step="100" onchange="onConfigChange('CanNmWaitBusSleepTime')">
+              </div>
+            </div>
+            <div class="f" data-cfg-key="CanNmMsgTimeoutTime">
+              <label>CanNmMsgTimeoutTime (ms)</label>
+              <input type="number" id="cfg_CanNmMsgTimeoutTime" value="500" min="50" step="50" onchange="onConfigChange('CanNmMsgTimeoutTime')">
+            </div>
+          </div>
+
+          <!-- Tab Pane 2: PDU/CBV/NID -->
+          <div class="cfg-pane hidden" id="cfgPane2">
+            <div class="g2">
+              <div class="f" data-cfg-key="CanNmNodeId">
+                <label>Node ID (Hex)</label>
+                <input type="text" id="cfg_CanNmNodeId" value="0x1A" onchange="onConfigChange('CanNmNodeId')">
+              </div>
+              <div class="f" data-cfg-key="CanNmBaseCanId">
+                <label>Base CAN ID (Hex)</label>
+                <input type="text" id="cfg_CanNmBaseCanId" value="0x500" onchange="onConfigChange('CanNmBaseCanId')">
+              </div>
+            </div>
+            <div class="g2">
+              <div class="f" data-cfg-key="CanNmPduNidPosition">
+                <label>PduNidPosition</label>
+                <select id="cfg_CanNmPduNidPosition" onchange="onConfigChange('CanNmPduNidPosition')">
+                  <option value="BYTE_0">CANNM_PDU_BYTE_0</option>
+                  <option value="BYTE_1">CANNM_PDU_BYTE_1</option>
+                  <option value="OFF">CANNM_PDU_OFF</option>
+                </select>
+              </div>
+              <div class="f" data-cfg-key="CanNmPduCbvPosition">
+                <label>PduCbvPosition</label>
+                <select id="cfg_CanNmPduCbvPosition" onchange="onConfigChange('CanNmPduCbvPosition')">
+                  <option value="BYTE_1">CANNM_PDU_BYTE_1</option>
+                  <option value="BYTE_0">CANNM_PDU_BYTE_0</option>
+                  <option value="OFF">CANNM_PDU_OFF</option>
+                </select>
+              </div>
+            </div>
+            <label class="ck" data-cfg-key="CanNmNodeIdEnabled">
+              <input type="checkbox" id="cfg_CanNmNodeIdEnabled" checked onchange="onConfigChange('CanNmNodeIdEnabled')">
+              <div><span class="nm">CanNmNodeIdEnabled</span><span class="ds">Cho phép đọc NodeId qua CanNm_GetNodeIdentifier()</span></div>
+            </label>
+            <label class="ck" data-cfg-key="CanNmNodeDetectionEnabled">
+              <input type="checkbox" id="cfg_CanNmNodeDetectionEnabled" checked onchange="onConfigChange('CanNmNodeDetectionEnabled')">
+              <div><span class="nm">CanNmNodeDetectionEnabled</span><span class="ds">Cho phép điểm danh toàn mạng qua Bit 0 RMR=1</span></div>
+            </label>
+            <label class="ck" data-cfg-key="CanNmRepeatMsgIndEnabled">
+              <input type="checkbox" id="cfg_CanNmRepeatMsgIndEnabled" checked onchange="onConfigChange('CanNmRepeatMsgIndEnabled')">
+              <div><span class="nm">CanNmRepeatMsgIndEnabled</span><span class="ds">Gọi Nm_RepeatMessageIndication khi nhận RMR=1</span></div>
+            </label>
+          </div>
+
+          <!-- Tab Pane 3: Burst/Restart -->
+          <div class="cfg-pane hidden" id="cfgPane3">
+            <div class="g2">
+              <div class="f" data-cfg-key="CanNmImmediateNmTransmissions">
+                <label>Immediate Burst Count</label>
+                <input type="number" id="cfg_CanNmImmediateNmTransmissions" value="3" min="0" max="10" onchange="onConfigChange('CanNmImmediateNmTransmissions')">
+              </div>
+              <div class="f" data-cfg-key="CanNmImmediateNmCycleTime">
+                <label>Immediate Cycle (ms)</label>
+                <input type="number" id="cfg_CanNmImmediateNmCycleTime" value="100" min="20" step="20" onchange="onConfigChange('CanNmImmediateNmCycleTime')">
+              </div>
+            </div>
+            <label class="ck" data-cfg-key="CanNmImmediateRestartEnabled">
+              <input type="checkbox" id="cfg_CanNmImmediateRestartEnabled" checked onchange="onConfigChange('CanNmImmediateRestartEnabled')">
+              <div><span class="nm">CanNmImmediateRestartEnabled</span><span class="ds">Bắn ngay NM PDU tại t=0ms khi thức dậy tại Prepare Bus-Sleep</span></div>
+            </label>
+            <label class="ck" data-cfg-key="CanNmBusLoadReductionEnabled">
+              <input type="checkbox" id="cfg_CanNmBusLoadReductionEnabled" onchange="onConfigChange('CanNmBusLoadReductionEnabled')">
+              <div><span class="nm">CanNmBusLoadReductionEnabled</span><span class="ds">Giảm tải đường truyền CAN trong Normal Operation</span></div>
+            </label>
+            <div class="f" data-cfg-key="CanNmMsgReducedTime">
+              <label>CanNmMsgReducedTime (ms)</label>
+              <input type="number" id="cfg_CanNmMsgReducedTime" value="500" min="100" step="50" onchange="onConfigChange('CanNmMsgReducedTime')">
+            </div>
+          </div>
+
+          <!-- Tab Pane 4: PN/Mask -->
+          <div class="cfg-pane hidden" id="cfgPane4">
+            <label class="ck" data-cfg-key="CanNmPnEnabled">
+              <input type="checkbox" id="cfg_CanNmPnEnabled" onchange="onConfigChange('CanNmPnEnabled')">
+              <div><span class="nm">CanNmPnEnabled</span><span class="ds">Kích hoạt Partial Networking (bật Bit 6 PNI=1 & bộ lọc PN)</span></div>
+            </label>
+            <label class="ck" data-cfg-key="CanNmAllNmMessagesKeepAwake">
+              <input type="checkbox" id="cfg_CanNmAllNmMessagesKeepAwake" onchange="onConfigChange('CanNmAllNmMessagesKeepAwake')">
+              <div><span class="nm">CanNmAllNmMessagesKeepAwake</span><span class="ds">Mọi gói NM đều giữ ECU thức bất kể trùng PNC</span></div>
+            </label>
+            <div class="g2">
+              <div class="f" data-cfg-key="CanNmPnInfoOffset">
+                <label>PnInfoOffset (Byte)</label>
+                <input type="number" id="cfg_CanNmPnInfoOffset" value="2" min="1" max="6" onchange="onConfigChange('CanNmPnInfoOffset')">
+              </div>
+              <div class="f" data-cfg-key="CanNmPnInfoLength">
+                <label>PnInfoLength (Bytes)</label>
+                <input type="number" id="cfg_CanNmPnInfoLength" value="2" min="1" max="6" onchange="onConfigChange('CanNmPnInfoLength')">
+              </div>
+            </div>
+            <div class="f" data-cfg-key="CanNmPnFilterMaskByte">
+              <label>PnFilterMaskByte (Hex Array)</label>
+              <input type="text" id="cfg_CanNmPnFilterMaskByte" value="05 00" onchange="onConfigChange('CanNmPnFilterMaskByte')">
+            </div>
+            <div class="g2">
+              <label class="ck" data-cfg-key="CanNmPnEiraCalcEnabled">
+                <input type="checkbox" id="cfg_CanNmPnEiraCalcEnabled" checked onchange="onConfigChange('CanNmPnEiraCalcEnabled')">
+                <div><span class="nm">EIRA Calc</span><span class="ds">Tính toán EIRA</span></div>
+              </label>
+              <label class="ck" data-cfg-key="CanNmPnEraCalcEnabled">
+                <input type="checkbox" id="cfg_CanNmPnEraCalcEnabled" onchange="onConfigChange('CanNmPnEraCalcEnabled')">
+                <div><span class="nm">ERA Calc</span><span class="ds">Tính toán ERA</span></div>
+              </label>
+            </div>
+            <div class="f" data-cfg-key="CanNmPnResetTime">
+              <label>PnResetTime (ms)</label>
+              <input type="number" id="cfg_CanNmPnResetTime" value="1500" min="200" step="100" onchange="onConfigChange('CanNmPnResetTime')">
+            </div>
+            <label class="ck" data-cfg-key="CanNmSynchronizedPncShutdownEnabled">
+              <input type="checkbox" id="cfg_CanNmSynchronizedPncShutdownEnabled" onchange="onConfigChange('CanNmSynchronizedPncShutdownEnabled')">
+              <div><span class="nm">SyncPncShutdown</span><span class="ds">Đồng bộ tắt PNC qua NM_STATE_SYNCHRONIZE</span></div>
+            </label>
+          </div>
+
+          <!-- Tab Pane 5: UserData/Diag -->
+          <div class="cfg-pane hidden" id="cfgPane5">
+            <label class="ck" data-cfg-key="CanNmUserDataEnabled">
+              <input type="checkbox" id="cfg_CanNmUserDataEnabled" checked onchange="onConfigChange('CanNmUserDataEnabled')">
+              <div><span class="nm">CanNmUserDataEnabled</span><span class="ds">Cho phép truyền User Data trong các byte còn lại của NM PDU</span></div>
+            </label>
+            <label class="ck" data-cfg-key="CanNmComUserDataSupport">
+              <input type="checkbox" id="cfg_CanNmComUserDataSupport" onchange="onConfigChange('CanNmComUserDataSupport')">
+              <div><span class="nm">CanNmComUserDataSupport</span><span class="ds">Lấy User Data tự động qua PduR_CanNmTriggerTransmit()</span></div>
+            </label>
+            <div class="f" data-cfg-key="UserDataBytesHex">
+              <label>UserData Bytes (Hex)</label>
+              <input type="text" id="cfg_UserDataBytesHex" value="11 22 33 44 55 66" onchange="onConfigChange('UserDataBytesHex')">
+            </div>
+            <div class="g2">
+              <label class="ck" data-cfg-key="CanNmCarWakeUpRxEnabled">
+                <input type="checkbox" id="cfg_CanNmCarWakeUpRxEnabled" checked onchange="onConfigChange('CanNmCarWakeUpRxEnabled')">
+                <div><span class="nm">CarWakeUpRx</span><span class="ds">Nhận Bit CSR=1</span></div>
+              </label>
+              <label class="ck" data-cfg-key="CanNmCarWakeUpFilterEnabled">
+                <input type="checkbox" id="cfg_CanNmCarWakeUpFilterEnabled" onchange="onConfigChange('CanNmCarWakeUpFilterEnabled')">
+                <div><span class="nm">CWU Filter</span><span class="ds">Lọc NodeId CSR</span></div>
+              </label>
+            </div>
+            <div class="g2">
+              <div class="f" data-cfg-key="CanNmCarWakeUpFilterNodeId">
+                <label>CWU Filter NodeId</label>
+                <input type="text" id="cfg_CanNmCarWakeUpFilterNodeId" value="0x2B" onchange="onConfigChange('CanNmCarWakeUpFilterNodeId')">
+              </div>
+              <div class="f" data-cfg-key="CanNmRemoteSleepIndTime">
+                <label>RemoteSleepTime (ms)</label>
+                <input type="number" id="cfg_CanNmRemoteSleepIndTime" value="1500" min="200" step="100" onchange="onConfigChange('CanNmRemoteSleepIndTime')">
+              </div>
+            </div>
+            <label class="ck" data-cfg-key="CanNmRemoteSleepIndEnabled">
+              <input type="checkbox" id="cfg_CanNmRemoteSleepIndEnabled" onchange="onConfigChange('CanNmRemoteSleepIndEnabled')">
+              <div><span class="nm">CanNmRemoteSleepIndEnabled</span><span class="ds">Báo Nm_RemoteSleepIndication cho Gateway</span></div>
+            </label>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= COLUMN 2: GIỮA (Linh hoạt) - KHUNG PDU, 2 THANH GHI 8-BIT, TIMERS & SVG ================= -->
+    <section class="col">
+
+      <!-- Panel 1 (ĐẶT TRÊN CÙNG CỘT GIỮA): Giải Phẫu Khung 8-Byte NM PDU & 2 Thanh Ghi 8-Bit Tương Tác -->
+      <div class="panel" style="border-color:#38bdf8; box-shadow:0 0 16px var(--glow)">
+        <div class="panel-h" style="background:rgba(56, 189, 248, 0.05)">
+          <div class="row wrap">
+            <span class="panel-t">🧬 Giải Phẫu Khung 8-Byte NM PDU &amp; Bảng Giám Sát Bitfield 8-Bit</span>
+            <span class="badge sky" id="lblCanIdBadge">CAN ID: 0x51A</span>
+            <span class="badge amb" id="lblCbvByteHex">CBV: 0x10</span>
+            <span class="badge ok" id="lblEngineByteHex">Engine: 0xB1</span>
+          </div>
+          <span class="hint">Click vào từng ô Bit hoặc Byte để kiểm tra</span>
+        </div>
+        <div class="panel-b">
+
+          <!-- 1A: Thanh Khung 8-Byte NM PDU Frame Slicer -->
+          <div style="margin-bottom:12px">
+            <div class="row" style="justify-content:space-between; margin-bottom:3px">
+              <span class="mono" style="font-weight:700; color:#38bdf8; font-size:11px">
+                1A. KHUNG BẢN TIN 8-BYTE CANNM PDU TRÊN CAN BUS (DLC = 8 Bytes):
+              </span>
+              <span class="small muted" id="lblPduLayoutNote">NidPos: BYTE_0 | CbvPos: BYTE_1 | PN Offset: 2</span>
+            </div>
+            <div class="pdu-frame-grid" id="pduFrameGrid">
+              <!-- Rendered dynamically by part5_ui.js -->
+            </div>
+          </div>
+
+          <!-- 1B: Dual 8-Bit Interactive Registers -->
+          <div style="display:grid; grid-template-columns:1fr; gap:10px">
+            <!-- Thanh A: Control Bit Vector (CBV Byte) -->
+            <div>
+              <div class="row wrap" style="justify-content:space-between; margin-bottom:2px">
+                <span class="mono" style="font-weight:700; color:#fbbf24; font-size:11px">
+                  A. THANH GHI 8-BIT CONTROL BIT VECTOR (`CBV Byte` — SWS_CanNm_00045): <b id="lblCbvBin" style="color:var(--text)">0001 0000b</b>
+                </span>
+                <span class="small muted" id="lblCbvSummary">AWB=1 (Active Wakeup) | RMR=0 | PNI=0 | CSR=0</span>
+              </div>
+              <div class="bit-row" id="bitRowCbv">
+                <!-- Rendered dynamically by part5_ui.js -->
+              </div>
+            </div>
+
+            <!-- Thanh B: CanNM Engine & Timers Status Byte -->
+            <div>
+              <div class="row wrap" style="justify-content:space-between; margin-bottom:2px">
+                <span class="mono" style="font-weight:700; color:#34d399; font-size:11px">
+                  B. THANH GHI 8-BIT TRẠNG THÁI ĐỘNG CƠ CANNM (`CanNm_EngineStatusByte`): <b id="lblEngineBin" style="color:var(--text)">1011 0001b</b>
+                </span>
+                <span class="small muted" id="lblEngineSummary">Network Mode | Repeat Message State | Init=1 | Tx=1</span>
+              </div>
+              <div class="bit-row" id="bitRowEngine">
+                <!-- Rendered dynamically by part5_ui.js -->
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Panel 2: Live Timers & State Machine -->
+      <div class="panel">
+        <div class="panel-h">
+          <span class="panel-t">⏱️ Bảng Giám Sát Bộ Đếm Thời Gian &amp; Máy Trạng Thái CanNM</span>
+          <span class="muted small">Live Network Timers &amp; Operational Modes</span>
+        </div>
+        <div class="panel-b">
+          <div class="tm-sm-grid">
+            <!-- Left Column: Section 1 (Compact Live Timers) + Section 2 (Live Variables) below -->
+            <div class="tm-col">
+              <!-- Mục 1: Compact Timers -->
+              <div>
+                <div class="sec-subhdr" style="color:#38bdf8">
+                  <span>⏱ BỘ ĐẾM THỜI GIAN ĐỒNG BỘ MẠNG</span>
+                </div>
+                <div id="timersContainer">
+                  <!-- RepeatMessageTimer -->
+                  <div class="timer-card compact">
+                    <div class="timer-h">
+                      <span class="mono">RepeatMessageTimer</span>
+                      <span class="mono" id="valRptMsgTimer" style="font-weight:700; color:#fbbf24">0 / 1500 ms</span>
+                    </div>
+                    <div class="timer-track"><div class="timer-bar" id="barRptMsgTimer" style="width:0%; background:#fbbf24"></div></div>
+                  </div>
+
+                  <!-- NM-Timeout Timer -->
+                  <div class="timer-card compact">
+                    <div class="timer-h">
+                      <span class="mono" title="CanNmTimeoutTime">NM-Timeout Timer</span>
+                      <span class="mono" id="valTimeoutTimer" style="font-weight:700; color:#38bdf8">0 / 2000 ms</span>
+                    </div>
+                    <div class="timer-track"><div class="timer-bar" id="barTimeoutTimer" style="width:0%; background:#38bdf8"></div></div>
+                  </div>
+
+                  <!-- WaitBusSleepTimer -->
+                  <div class="timer-card compact">
+                    <div class="timer-h">
+                      <span class="mono">WaitBusSleepTimer</span>
+                      <span class="mono" id="valWaitSleepTimer" style="font-weight:700; color:#f87171">0 / 1500 ms</span>
+                    </div>
+                    <div class="timer-track"><div class="timer-bar" id="barWaitSleepTimer" style="width:0%; background:#f87171"></div></div>
+                  </div>
+
+                  <!-- MsgCycle / Offset / Reduced Timer -->
+                  <div class="timer-card compact">
+                    <div class="timer-h">
+                      <span class="mono" id="lblMsgCycleType">MsgCycleTimer (Tx Period)</span>
+                      <span class="mono" id="valMsgCycleTimer" style="font-weight:700; color:#34d399">0 / 1000 ms</span>
+                    </div>
+                    <div class="timer-track"><div class="timer-bar" id="barMsgCycleTimer" style="width:0%; background:#34d399"></div></div>
+                  </div>
+
+                  <!-- Immediate Burst Tx / PnResetTimer -->
+                  <div class="timer-card compact">
+                    <div class="timer-h">
+                      <span class="mono" id="lblExtraTimerTitle">Bộ Đếm Phụ (Burst/PN)</span>
+                      <span class="mono" id="valExtraTimer" style="font-weight:700; color:#c084fc">IDLE</span>
+                    </div>
+                    <div class="timer-track"><div class="timer-bar" id="barExtraTimer" style="width:0%; background:#c084fc"></div></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Mục 2: Moved to Left Column below Mục 1 -->
+              <div style="background:var(--code); border:1px solid var(--border); border-radius:8px; padding:5px 8px">
+                <table class="tbl compact">
+                  <tr><td>Nguồn đánh thức</td><td class="mono" id="varWakeupSource" style="color:#38bdf8">None</td></tr>
+                  <tr><td>Last Bus Activity</td><td class="mono" id="varLastBusActivity" style="color:#fbbf24; word-break:break-word">Chưa có</td></tr>
+                  <tr><td>PNC Active Mask (EIRA)</td><td class="mono" id="varPncEira" style="color:#c084fc">0x0000</td></tr>
+                  <tr><td style="border-bottom:none">ComM Channel Mode</td><td class="mono" id="varComMMode" style="border-bottom:none">COMM_NO_COMMUNICATION</td></tr>
+                </table>
+              </div>
+            </div>
+
+            <!-- Right Column: Section 3 (Expanded State Machine Diagram) -->
+            <div class="sm-col">
+              <div class="sec-subhdr" style="color:#fbbf24">
+                <span>🔄 MÁY TRẠNG THÁI CANNM (3 MODES &amp; 3 SUB-STATES)</span>
+                <span class="hint" style="font-family:inherit; text-transform:none">Tự động Highlight theo trạng thái thực</span>
+              </div>
+              <div class="sm-wrap">
+                <!-- Mode 3: Network Mode (Expanded top container with 3 side-by-side sub-states) -->
+                <div class="sm-node" id="smNodeNetwork">
+                  <div class="sm-mode-head">
+                    <span style="font-weight:800; font-size:12px; color:#38bdf8">3. NETWORK MODE (NM_MODE_NETWORK)</span>
+                    <span class="badge xs">Mạng thức • Giao tiếp &amp; Reload NM-Timeout Timer</span>
+                  </div>
+                  <div class="sm-subgrid">
+                    <div class="sm-subnode" id="smSubRepeat">
+                      <span class="sm-subtitle">REPEAT_MESSAGE (RMS)</span>
+                      <span class="sm-subdesc">Bắt buộc vào đầu • RepeatMsgTimer • Burst Tx</span>
+                    </div>
+                    <div class="sm-subnode" id="smSubNormal">
+                      <span class="sm-subtitle">NORMAL_OPERATION (NOS)</span>
+                      <span class="sm-subdesc">App cần mạng (NetReq=1) • Phát định kỳ MsgCycle</span>
+                    </div>
+                    <div class="sm-subnode" id="smSubReady">
+                      <span class="sm-subtitle">READY_SLEEP (RSS)</span>
+                      <span class="sm-subdesc">App nhả (NetReq=0) • Dừng Tx, đếm TimeoutTime</span>
+                    </div>
+                  </div>
+                  <div class="sm-subfooter">
+                    <span>RMS ➔ NOS / RSS (Hết RepeatMessageTime)</span>
+                    <span>NOS ⇄ RSS (NetworkRelease / NetworkRequest)</span>
+                  </div>
+                </div>
+
+                <!-- Transition Arrows Strip -->
+                <div class="sm-flow-strip">
+                  <div style="text-align:left"><span class="sm-flow-tag ok">⬆ Wakeup / NetReq / PassiveStartUp</span></div>
+                  <div style="text-align:center"><span class="sm-flow-tag vio">⟲ Immediate Restart</span></div>
+                  <div style="text-align:right"><span class="sm-flow-tag err">⬇ CanNmTimeoutTime = 0ms</span></div>
+                </div>
+
+                <!-- Bottom Sleep Modes Row: Mode 1 (Left) <- Mode 2 (Right) -->
+                <div class="sm-sleep-row">
+                  <!-- Mode 1: Bus-Sleep Mode -->
+                  <div class="sm-node" id="smNodeBusSleep">
+                    <div style="font-weight:800; font-size:11.5px; color:#94a3b8">1. BUS-SLEEP MODE</div>
+                    <div class="muted small" style="margin-top:3px">Phần cứng ngủ sâu (Controller SLEEP, Trcv STANDBY), không truyền thông.</div>
+                    <div class="sm-subnode" style="margin-top:6px">Sleep Mode (NM_MODE_BUS_SLEEP)</div>
+                  </div>
+
+                  <!-- Arrow WaitBusSleepTime=0 from PBSM -> BSM -->
+                  <div class="sm-sleep-arrow">
+                    <span class="sm-flow-tag err" title="CanNmWaitBusSleepTime hết hạn">⬅ 0ms</span>
+                    <span class="hint" style="font-size:9px; white-space:nowrap">WaitSleep=0</span>
+                  </div>
+
+                  <!-- Mode 2: Prepare Bus-Sleep Mode -->
+                  <div class="sm-node" id="smNodePrepSleep">
+                    <div style="font-weight:800; font-size:11.5px; color:#f87171">2. PREPARE BUS-SLEEP MODE</div>
+                    <div class="muted small" style="margin-top:3px">Đệm chờ WaitBusSleepTime, phần cứng còn mở để nghe bus đánh thức lại.</div>
+                    <div class="sm-subnode" style="margin-top:6px">Prepare Sleep (NM_MODE_PREPARE_BUS_SLEEP)</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Panel 3: Sơ Đồ Kiến Trúc Tương Tác SVG -->
+      <div class="panel">
+        <div class="panel-h">
+          <span class="panel-t">🧩 Sơ Đồ Kiến Trúc Hệ Sinh Thái CanNM &amp; Luồng Đi Bản Tin</span>
+          <span class="hint">Click vào khối bất kỳ để xem I/O ở Cột Phải</span>
+        </div>
+        <div class="panel-b" style="padding:4px">
+          <div id="svgArchitectureContainer" style="width:100%; overflow:hidden">
+            <!-- Dynamically rendered SVG Architecture by part5_ui.js -->
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ================= COLUMN 3: PHẢI (440px, STICKY INSPECTOR) ================= -->
+    <section class="col sticky-r">
+      <div class="panel" style="flex:1; display:flex; flex-direction:column">
+        <div class="panel-h">
+          <div class="tabs" id="inspTabs" style="flex:1">
+            <button class="tab active" onclick="switchInspTab(0)">🔍 Bước Hiện Tại</button>
+            <button class="tab" onclick="switchInspTab(1)">🧩 Module</button>
+            <button class="tab" onclick="switchInspTab(2)">📄 Code C</button>
+            <button class="tab" onclick="switchInspTab(3)">📜 API Trace</button>
+          </div>
+        </div>
+        <div class="panel-b" style="flex:1">
+
+          <!-- Sub-tab 0: Bước Hiện Tại -->
+          <div class="insp-tab-pane" id="inspPane0">
+            <div id="stepDetailBox">
+              <!-- Dynamically populated step info: Input -> Processing -> Output -->
+            </div>
+          </div>
+
+          <!-- Sub-tab 1: Module Info -->
+          <div class="insp-tab-pane hidden" id="inspPane1">
+            <div id="moduleDetailBox">
+              <!-- Dynamically populated module info -->
+            </div>
+          </div>
+
+          <!-- Sub-tab 2: Code C Thực Thi -->
+          <div class="insp-tab-pane hidden" id="inspPane2">
+            <div class="row" style="justify-content:space-between; margin-bottom:6px">
+              <span class="mono" id="codeFunctionTitle" style="font-weight:700; color:#38bdf8">CanNm_MainFunction()</span>
+              <span class="badge">AUTOSAR SWS C</span>
+            </div>
+            <pre class="code" id="codeViewerBox" style="background:var(--code); border:1px solid var(--border); padding:10px; border-radius:8px; font-size:11.5px; overflow:auto; margin:0; color:var(--text); line-height:1.45"></pre>
+          </div>
+
+          <!-- Sub-tab 3: API Call & CAN Bus Trace Log -->
+          <div class="insp-tab-pane hidden" id="inspPane3">
+            <div class="trace-hdr">
+              <div class="row" style="gap:6px">
+                <span class="mono trace-title" style="font-weight:700">Lịch Sử Gọi Hàm</span>
+                <span class="badge xs ok" id="traceCountBadge">0 sự kiện</span>
+              </div>
+              <div class="trace-tools">
+                <select id="traceFilter" onchange="renderTraceLog()" title="Lọc sự kiện Trace Log">
+                  <option value="ALL">Tất cả sự kiện</option>
+                  <option value="API">API AUTOSAR</option>
+                  <option value="BUS">CAN Bus (PDU)</option>
+                  <option value="STATE">Chuyển State</option>
+                  <option value="PN">Partial Network</option>
+                  <option value="ALERT">DET / Cảnh báo</option>
+                </select>
+                <button class="btn xs red" onclick="clearTraceLog()" title="Xóa lịch sử log">Xóa Log</button>
+              </div>
+            </div>
+            <div id="traceLogContainer" class="trace-list">
+              <!-- Dynamically populated trace logs -->
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ==================== VIEW 2: MÔ PHỎNG GIAO TIẾP ĐA ECU (MULTI-ECU CAN BUS) ==================== -->
+  <section id="viewMulti" class="hidden">
+    <!-- Top Multi-ECU Bus Control & Presets Panel -->
+    <div class="panel">
+      <div class="panel-h">
+        <div class="row wrap" style="gap:8px">
+          <span class="panel-t">🌐 Mô Phỏng Giao Tiếp Mạng Phân Tán Đa ECU (Virtual CAN Bus)</span>
+          <div class="ctrl" style="padding:2px 4px">
+            <button class="btn xs primary" id="btnMulti2Ecu" onclick="setMultiEcuCount(2)">🔀 2 ECU (Trái ↔ Phải)</button>
+            <button class="btn xs" id="btnMulti3Ecu" onclick="setMultiEcuCount(3)">🔺 3 ECU (Mạng 3 Node)</button>
+          </div>
+          <label class="row" style="cursor:pointer; font-size:11px; color:var(--muted)" title="Khi bật: ECU ở Bus-Sleep nhận khung NM sẽ báo ComM_Nm_NetworkStartIndication() và gọi CanNm_PassiveStartUp()">
+            <input type="checkbox" id="chkMultiAutoWakeup" checked onchange="setMultiAutoWakeup(this.checked)">
+            <span>Auto PassiveStartUp khi Rx ở Bus-Sleep</span>
+          </label>
+        </div>
+
+        <div class="row wrap">
+          <div class="ctrl">
+            <span class="mono" id="lblMultiClock" style="font-weight:800; color:#34d399; padding:0 5px">t = 0 ms</span>
+            <button class="btn xs" onclick="stepMultiClockTick(100)" title="Tiến 1 chu kỳ MainFunction cho tất cả ECU (+100ms)">+100ms</button>
+            <button class="btn xs sky" onclick="advanceMultiTime(500)" title="Tiến nhanh 500ms (5 tick x 100ms) cho tất cả ECU">+500ms</button>
+            <button class="btn xs green" id="btnMultiClock" onclick="toggleMultiClock()" title="Tự động chạy xung nhịp đồng thời cho các ECU (2x)">▶ Auto Clock</button>
+          </div>
+          <button class="btn sm red" onclick="resetMultiEcuSim()" title="Đặt lại toàn bộ ECU về BUS-SLEEP MODE">↺ Reset Tất Cả ECU</button>
+        </div>
+      </div>
+
+      <div class="multi-presets">
+        <span class="lbl">🎯 Kịch bản nhanh:</span>
+        <button class="btn xs green" onclick="applyMultiPreset('active_wake')">1. ECU 1 Active Wakeup ➔ Đánh thức ECU 2</button>
+        <button class="btn xs sky" onclick="applyMultiPreset('keep_vs_rel')">2. ECU 1 giữ mạng vs ECU 2 nhả (Ready Sleep)</button>
+        <button class="btn xs amber" onclick="applyMultiPreset('consensus_sleep')">3. Cả 2 cùng nhả ➔ Đồng thuận ngủ</button>
+        <button class="btn xs vio" onclick="applyMultiPreset('rmr_check')">4. ECU 2 bắn RepeatMsgReq (RMR=1) điểm danh</button>
+      </div>
+    </div>
+
+    <!-- Arena: 2 ECUs on Left & Right around Center Bus (or 3 ECUs under Full-Width Bus) -->
+    <div id="multiArena" class="multi-arena mode-2">
+      <!-- Populated dynamically by part7_multi_ecu.js -->
+    </div>
+
+    <!-- Bottom Synchronized Multi-ECU Trace Console -->
+    <div class="panel">
+      <div class="panel-h">
+        <div class="row" style="gap:6px">
+          <span class="panel-t trace-title">📜 Nhật Ký Giao Tiếp Bus &amp; Chuyển Trạng Thái Đa ECU</span>
+          <span class="badge xs ok" id="multiTraceCountBadge">0 sự kiện</span>
+        </div>
+        <div class="trace-tools">
+          <select id="multiTraceFilter" onchange="renderMultiTraceLogs()" title="Lọc log theo ECU hoặc loại sự kiện">
+            <option value="ALL">Tất cả sự kiện</option>
+            <option value="BUS">CAN Bus Frame (Tx/Rx)</option>
+            <option value="STATE">Chuyển Trạng Thái</option>
+            <option value="API">API Calls</option>
+            <option value="ECU1">Chỉ ECU #1</option>
+            <option value="ECU2">Chỉ ECU #2</option>
+            <option value="ECU3">Chỉ ECU #3</option>
+          </select>
+          <button class="btn xs red" onclick="clearMultiTraceLogs()">Xóa Log</button>
+        </div>
+      </div>
+      <div class="panel-b">
+        <div id="multiTraceContainer" class="trace-list" style="max-height:240px">
+          <!-- Dynamically populated by part7_multi_ecu.js -->
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== VIEW 3: SỔ TAY KỸ THUẬT ĐA TẦNG & TỪ ĐIỂN THUẬT NGỮ ==================== -->
+  <section id="viewHb" class="hidden" style="max-width:1600px; margin:0 auto; width:100%; padding:14px">
+    <div class="panel">
+      <div class="panel-h">
+        <div class="row wrap">
+          <span class="panel-t">📖 Sổ Tay Kỹ Thuật CanNM &amp; Bảng Thuật Ngữ Đa Tầng</span>
+          <span class="badge ok">6 Main Tabs × Đa Tầng Sub-topics + Tab 7 Abbreviation (48 Thuật Ngữ)</span>
+        </div>
+      </div>
+      <div class="panel-b">
+
+        <!-- Level 1 Navigation Tabs (7 Main Tabs) -->
+        <div class="hb-nav1" id="hbNav1">
+          <button class="hb-tab1 active" onclick="switchHbTab1(0)">1. Kiến Trúc &amp; Hệ Sinh Thái</button>
+          <button class="hb-tab1" onclick="switchHbTab1(1)">2. Máy Trạng Thái CanNM</button>
+          <button class="hb-tab1" onclick="switchHbTab1(2)">3. Giải Phẫu PDU &amp; CBV</button>
+          <button class="hb-tab1" onclick="switchHbTab1(3)">4. Thuật Toán Fig 7-1 &amp; Timers</button>
+          <button class="hb-tab1" onclick="switchHbTab1(4)">5. Partial Networking (PN)</button>
+          <button class="hb-tab1" onclick="switchHbTab1(5)">6. Từ Điển API &amp; ECUC</button>
+          <button class="hb-tab1" onclick="switchHbTab1(6)" style="color:#fbbf24">🔤 7. Thuật Ngữ (Abbreviation)</button>
+        </div>
+
+        <!-- Level 2 Sub-topics Pills (Tabs 0..5 only) -->
+        <div class="hb-nav2" id="hbNav2">
+          <button class="hb-pill active" onclick="switchHbSubTab(0)">1.1. Nguyên Lý Quản Lý Mạng Phân Tán</button>
+          <button class="hb-pill" onclick="switchHbSubTab(1)">1.2. Chuỗi Tương Tác SWC ↔ RTE ↔ ComM ↔ Nm ↔ CanNm ↔ CanSM</button>
+          <button class="hb-pill" onclick="switchHbSubTab(2)">1.3. Bảng Phân Tích I/O Chi Tiết 10 Module Liên Quan</button>
+          <button class="hb-pill" onclick="switchHbSubTab(3)">1.4. Phân Biệt Vai Trò Của ComM vs CanSM vs CanNm</button>
+        </div>
+
+        <!-- Search Box & Filter Chips for Tab 7 Abbreviation -->
+        <div id="hbAbbrFilterBox" class="hidden" style="margin:10px 0; background:var(--panel2); border:1px solid var(--border); border-radius:10px; padding:10px">
+          <div class="row" style="margin-bottom:8px">
+            <span class="lbl">🔍 Tìm Kiếm:</span>
+            <input type="text" id="abbrSearchInput" oninput="filterAbbreviationTable()" placeholder="Nhập từ viết tắt, tên tiếng Anh, tiếng Việt, mã SWS... (VD: CBV, AWB, RMR, EIRA, PN)" style="flex:1">
+            <span class="badge" id="lblAbbrMatchCount">Đang hiện: 48 / 48 mục</span>
+          </div>
+          <div class="row wrap" style="gap:5px">
+            <span class="muted small">Lọc theo nhóm:</span>
+            <button class="btn xs active" id="btnFilterAll" onclick="setAbbrCategoryFilter('ALL')">Tất cả (48)</button>
+            <button class="btn xs" onclick="setAbbrCategoryFilter('CORE')">🎛️ CanNM Core &amp; States (14)</button>
+            <button class="btn xs" onclick="setAbbrCategoryFilter('CBV')">🔢 CBV Bits &amp; Timers (12)</button>
+            <button class="btn xs" onclick="setAbbrCategoryFilter('PN')">🌐 Partial Net (10)</button>
+            <button class="btn xs" onclick="setAbbrCategoryFilter('STACK')">🧩 AUTOSAR Stack (12)</button>
+          </div>
+        </div>
+
+        <!-- Handbook Content Display Area -->
+        <div class="hb-content" id="hbContentArea">
+          <!-- Dynamically populated by part6_handbook.js -->
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== MODAL EXPORT CODE / ARXML ==================== -->
+  <div class="modal-overlay hidden" id="exportModal">
+    <div class="modal-box">
+      <div class="modal-h">
+        <div class="row">
+          <span style="font-weight:800; font-size:14px; color:var(--accent)">🧾 Xuất Mã &amp; Cấu Hình CanNM</span>
+          <span class="badge">AUTOSAR Classic R22-11</span>
+        </div>
+        <button class="btn xs red" onclick="closeExportModal()">✕ Đóng</button>
+      </div>
+      <div class="modal-b">
+        <div class="tabs" style="margin-bottom:10px">
+          <button class="tab active" onclick="switchExportTab('arxml')">CanNm.arxml</button>
+          <button class="tab" onclick="switchExportTab('cfg_h')">CanNm_Cfg.h</button>
+          <button class="tab" onclick="switchExportTab('lcfg_c')">CanNm_Lcfg.c</button>
+          <button class="tab" onclick="switchExportTab('json')">CanNm_Config.json</button>
+        </div>
+        <pre class="code" id="exportCodeView" style="background:var(--code); border:1px solid var(--border); padding:12px; border-radius:8px; font-size:11.5px; overflow:auto; max-height:420px; line-height:1.45"></pre>
+      </div>
+      <div class="modal-f">
+        <button class="btn sm" onclick="copyExportCode()">📋 Sao Chép Mã</button>
+        <button class="btn sm indigo" onclick="downloadExportFile()">💾 Tải Tệp Về Máy</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== FLOATING CONFIG TOOLTIP (>1s HOVER DELAY) ==================== -->
+  <div id="cfgTooltipPopup" class="hidden">
+    <div class="tt-h">
+      <div>
+        <div class="tt-t" id="ttParamName">Tên Tham Số</div>
+        <div class="tt-p" id="ttParamPath">Đường Dẫn Container ECUC</div>
+      </div>
+      <span class="tt-sws" id="ttSwsCode">SWS_CanNm_xxxxx</span>
+    </div>
+    <div class="tt-d" id="ttDesc">Mô tả chi tiết của tham số cấu hình.</div>
+    <div class="tt-meta">
+      <div><b>Dải giá trị:</b> <span id="ttRange">Boolean / uint32</span></div>
+      <div><b>Typical:</b> <span id="ttTypical">TRUE / 1000ms</span></div>
+    </div>
+    <div class="tt-note" id="ttTechNote">Lưu ý kỹ thuật và ràng buộc chuẩn AUTOSAR.</div>
+  </div>

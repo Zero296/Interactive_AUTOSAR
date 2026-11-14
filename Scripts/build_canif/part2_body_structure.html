@@ -1,0 +1,666 @@
+<!-- ================= STICKY UNIFIED HEADER ================= -->
+<header class="hdr">
+  <div class="hdr-row">
+    <div class="brand">
+      <span class="brand-badge">AUTOSAR Classic R23-11</span>
+      <div>
+        <div class="brand-title">CanIf Interactive Simulator &amp; Technical Handbook</div>
+        <div class="brand-sub">CAN Interface · FullCAN vs BasicCAN HOH · CanIfTxBuffer Priority Queue · Rx Software Filter &amp; DLC · PduMode &amp; PN</div>
+      </div>
+    </div>
+
+    <div class="view-switch" role="tablist">
+      <button id="btnViewSim" class="view-btn active" onclick="switchMainView('sim')">🎛️ Trình Mô Phỏng CanIf</button>
+      <button id="btnViewHb" class="view-btn" onclick="switchMainView('hb')">📖 Sổ Tay Đa Tầng &amp; Thuật Ngữ</button>
+    </div>
+
+    <div class="hdr-actions">
+      <button class="btn btn-pri" onclick="openExportModal()">📦 Xuất ARXML / Cfg / C</button>
+      <button class="btn btn-ok" onclick="downloadStandaloneHTML()">💾 Tải File .HTML</button>
+      <button id="btnTheme" class="btn" onclick="toggleTheme()">☀️ Light Mode</button>
+    </div>
+  </div>
+
+  <div class="hdr-row">
+    <div class="scen-bar">
+      <label for="scenSelect" style="font-weight:700;font-size:11.5px;color:var(--mut)">Kịch bản:</label>
+      <select id="scenSelect" class="scen-select" onchange="onScenarioSelectChange()">
+        <optgroup label="Nhóm 1: Truyền L-PDU, FullCAN vs BasicCAN &amp; CanIfTxBuffer">
+          <option value="S1">S1: Truyền Chuẩn Qua FullCAN &amp; BasicCAN HTH (SWC → Com → PduR → CanIf → CanDrv)</option>
+          <option value="S2">S2: Tranh Chấp BasicCAN HTH (CAN_BUSY) → Xếp Hàng Ưu Tiên CanIfTxBuffer &amp; Xả Trong TxConfirm</option>
+          <option value="S3">S3: Kéo Dữ Liệu Tức Thời CanIf_TriggerTransmit() &amp; Đổi ID Động CanIf_SetDynamicTxId()</option>
+        </optgroup>
+        <optgroup label="Nhóm 2: Nhận L-PDU, Lọc Phần Mềm, DLC Check, CAN FD &amp; Multi-UL">
+          <option value="S4">S4: Luồng Nhận CanIf_RxIndication(): Lọc Phần Mềm BasicCAN HRH &amp; Bắt Lỗi DLC Check (0x32)</option>
+          <option value="S5">S5: Khung CAN FD 64B + BRS (Giải Mã Bit 31 EXT &amp; Bit 30 FD) &amp; CanIfTxPduTruncation</option>
+          <option value="S6">S6: Điều Phối Đa Tầng Trên (PduR, CanTp, CanNm, CanTSyn) &amp; Đọc Polling ReadRxPduData()</option>
+        </optgroup>
+        <optgroup label="Nhóm 3: ControllerMode, Cổng PduMode &amp; Partial Networking">
+          <option value="S7">S7: Điều Phối Chuyển Đổi ControllerMode (STOPPED → STARTED → SLEEP) &amp; TransceiverMode</option>
+          <option value="S8">S8: Giải Phẫu 4 Chế Độ PduMode: OFFLINE, TX_OFFLINE, ONLINE &amp; Giả Lập TX_OFFLINE_ACTIVE</option>
+          <option value="S9">S9: Bộ Lọc Truyền Partial Networking (CanIfPnFilter) &amp; Mở Khóa Khi ConfirmPnAvailability()</option>
+        </optgroup>
+        <optgroup label="Nhóm 4: Bus-Off, Wakeup Validation, SetBaudrate &amp; Hàng Rào DET">
+          <option value="S10">S10: Xử Lý Ngắt Bus-Off: Về STOPPED, Khóa TX_OFFLINE, Xóa Sạch TxBuffer &amp; Báo CanSM</option>
+          <option value="S11">S11: Chu Trình Đánh Thức &amp; Xác Thực Chống Nhiễu EcuM (CheckWakeup → RxInd → CheckValidation)</option>
+          <option value="S12">S12: Đổi Tốc Độ CanIf_SetBaudrate(), Kiểm Thử Hàng Rào Lỗi DET &amp; Cảnh Báo An Ninh IdsM</option>
+        </optgroup>
+      </select>
+
+      <button class="btn btn-sm" onclick="resetCurrentScenario()">⟲ Reset</button>
+      <button id="btnPrevStep" class="btn btn-sm" onclick="prevScenarioStep()" disabled>◀ Lùi</button>
+      <span id="stepIndicator" class="step-pill">Bước 0 / 0</span>
+      <button id="btnNextStep" class="btn btn-sm btn-pri" onclick="nextScenarioStep()">Tiếp ▶</button>
+      <button id="btnAutoPlay" class="btn btn-sm btn-pur" onclick="toggleScenarioAutoPlay()">▶ Tự Chạy</button>
+
+      <div class="clock-box">
+        <span style="font-size:10.5px;color:var(--mut);font-weight:700">HW ISR:</span>
+        <span id="clockVal" class="clock-val mono">0 ms</span>
+        <button class="btn btn-sm btn-ok" onclick="hwTriggerTxConfirm()" title="Phát ngắt phần cứng CanIf_TxConfirmation() từ CanDrv">📤 HW TxConfirm</button>
+        <button class="btn btn-sm btn-cyan" onclick="hwTriggerRxIndication()" title="Bơm khung CAN từ bus qua ngắt CanIf_RxIndication()">📥 HW RxInd</button>
+        <button class="btn btn-sm btn-err" onclick="hwTriggerBusOff()" title="Kích hoạt ngắt lỗi phần cứng CanIf_ControllerBusOff()">⚡ HW BusOff</button>
+        <button class="btn btn-sm btn-pur" onclick="hwTriggerWakeup()" title="Phát xung đánh thức &amp; gọi CanIf_CheckWakeup()">🔔 Wakeup</button>
+      </div>
+    </div>
+
+    <div class="hdr-badges">
+      <span id="hdrBadgeCtrl" class="state-badge sb-ok">Ctrl0: STARTED</span>
+      <span id="hdrBadgePduMode" class="state-badge sb-ok">PduMode: ONLINE</span>
+      <span id="hdrBadgeTxBuf" class="state-badge sb-cyan">TxBuf: 0/4</span>
+      <span id="hdrBadgePn" class="state-badge sb-deact">PN Filter: OFF</span>
+    </div>
+  </div>
+</header>
+
+<!-- ================= VIEW 1: INTERACTIVE SIMULATOR (ZERO-SCROLL 3 COLUMNS) ================= -->
+<main id="viewSim" class="workspace">
+
+  <!-- LEFT COLUMN: QUICK ACTIONS + SCENARIO WHAT-IF + 6 ECUC CONFIG TABS -->
+  <aside class="col-left">
+    <!-- CARD 1: QUICK ACTION BAR -->
+    <section class="panel">
+      <div class="panel-hdr">
+        <span class="panel-title">⚡ Điều Khiển API CanIf Thủ Công (Quick Actions)</span>
+        <span class="panel-sub">SWS_CanIf R23-11</span>
+      </div>
+      <div class="panel-body">
+        <div class="qa-row">
+          <span style="font-size:10.5px;font-weight:700;color:var(--mut);min-width:44px">TxPdu:</span>
+          <select id="qaTxPduSelect" onchange="onQaTargetChanged('tx')" style="flex:1;background:var(--panel-3);border:1px solid var(--bdr);border-radius:5px;padding:3px 6px;font-size:11px;font-weight:600">
+            <option value="0">TxPdu_0: 0x500 Std 8B (FullCAN HTH_0, CanNm, PN)</option>
+            <option value="1" selected>TxPdu_1: 0x100 Std 8B (BasicCAN HTH_1, PduR/COM)</option>
+            <option value="2">TxPdu_2: 0x40000120 Std FD 32B (BasicCAN HTH_1, PduR)</option>
+            <option value="3">TxPdu_3: 0x7E8 Std 8B (BasicCAN HTH_1, CanTp Diag)</option>
+            <option value="4">TxPdu_4: 0x800018FF Ext 8B (BasicCAN HTH_1, DynamicTxId)</option>
+            <option value="5">TxPdu_5: 0x280 Std 8B (BasicCAN HTH_1, TriggerTransmit)</option>
+          </select>
+        </div>
+        <div class="qa-row">
+          <span style="font-size:10.5px;font-weight:700;color:var(--mut);min-width:44px">RxFrm:</span>
+          <select id="qaRxProfileSelect" onchange="onQaTargetChanged('rx')" style="flex:1;background:var(--panel-3);border:1px solid var(--bdr);border-radius:5px;padding:3px 6px;font-size:11px;font-weight:600">
+            <option value="FRAME_A">Frame A: 0x120 (Std FD 32B) @ BasicCAN ➔ PduR</option>
+            <option value="FRAME_B">Frame B: 0x7E0 (Std CAN 8B) @ BasicCAN ➔ CanTp</option>
+            <option value="FRAME_C">Frame C: 0x501 (Std CAN 8B) @ FullCAN ➔ CanNm</option>
+            <option value="FRAME_D">Frame D: 0x190 (Std CAN 8B) @ BasicCAN ➔ CanTSyn</option>
+            <option value="FRAME_E">Frame E: 0x3FF (Unknown ID) @ BasicCAN ➔ Filter Drop</option>
+            <option value="FRAME_F">Frame F: 0x120 (Short DLC 4B &lt; 16B) ➔ Lỗi DLC 0x32</option>
+          </select>
+        </div>
+        <div class="qa-grid">
+          <button class="qa-btn qa-ok" onclick="qaCanIfTransmit()">
+            <span>📤 1. Transmit</span><span class="mono">0x49</span>
+          </button>
+          <button class="qa-btn qa-cyan" onclick="qaCanIfTxConfirmation()">
+            <span>✅ 2. TxConfirm</span><span class="mono">0x13</span>
+          </button>
+          <button class="qa-btn qa-pur" onclick="qaCanIfRxIndication()">
+            <span>📥 3. RxIndication</span><span class="mono">0x14</span>
+          </button>
+          <button class="qa-btn" onclick="qaCycleControllerMode()">
+            <span>🎛️ 4. SetCtrlMode</span><span id="qaTxtCtrlMode" class="mono">STARTED</span>
+          </button>
+          <button class="qa-btn" onclick="qaCyclePduMode()">
+            <span>🚦 5. SetPduMode</span><span id="qaTxtPduMode" class="mono">ONLINE</span>
+          </button>
+          <button class="qa-btn" onclick="qaSetDynamicTxId()">
+            <span>🏷️ 6. SetDynTxId</span><span class="mono">0x0C</span>
+          </button>
+          <button class="qa-btn qa-warn" onclick="qaWakeupAndValidate()">
+            <span>🔔 7. Wakeup/Val</span><span class="mono">0x11/12</span>
+          </button>
+          <button class="qa-btn qa-err" onclick="qaInjectFaultAction()">
+            <span>💥 8. Thực Thi Bơm</span><span id="qaTxtFaultKind" class="mono">BUSY</span>
+          </button>
+        </div>
+        <div class="qa-row" style="margin-top:6px;margin-bottom:0">
+          <span style="font-size:10.5px;font-weight:700;color:var(--mut)">Chế độ bơm:</span>
+          <select id="qaFaultKind" onchange="onFaultKindChange()" style="flex:1;background:var(--panel-3);border:1px solid var(--bdr);border-radius:5px;padding:2px 6px;font-size:11px;font-weight:600">
+            <option value="TOGGLE_HTH_BUSY">Đảo trạng thái HTH_1 Mailbox (FREE ↔ BUSY)</option>
+            <option value="BUS_OFF">Kích hoạt ngắt CanIf_ControllerBusOff()</option>
+            <option value="SHORT_DLC">Bơm khung ngắn DLC=4B (&lt;16B) test lỗi 0x32</option>
+            <option value="TOGGLE_PN_FILT">Bật/Tắt bộ lọc truyền Partial Networking (PN)</option>
+            <option value="DET_TEST">Test lỗi DET TxPduId=999 / CtrlId=99</option>
+            <option value="VER_INFO">Gọi CanIf_GetVersionInfo() (Module 60)</option>
+          </select>
+        </div>
+      </div>
+    </section>
+
+    <!-- CARD 2: CURRENT SCENARIO SUMMARY & 3 WHAT-IF BUTTONS -->
+    <section class="panel">
+      <div class="panel-hdr">
+        <span class="panel-title">🎬 Kịch Bản Đang Chạy &amp; Thử Nghiệm Nhanh</span>
+        <span id="scenIdBadge" class="panel-sub mono">S1</span>
+      </div>
+      <div class="panel-body">
+        <div id="scenSummaryBox" class="scen-desc-box"></div>
+        <div style="font-size:10.5px;font-weight:700;color:var(--pur);margin-bottom:4px">🧪 Thử Nghiệm Nhanh (1-Click What-If):</div>
+        <div id="whatIfContainer" class="whatif-grid"></div>
+      </div>
+    </section>
+
+    <!-- CARD 3: 6-TAB ECUC CONFIG PANEL (36 PARAMETERS + >1S TOOLTIP) -->
+    <section class="panel">
+      <div class="panel-hdr">
+        <span class="panel-title">⚙️ Cấu Hình ECUC CanIf Stack (Hover &gt;1s Xem SWS)</span>
+        <span class="panel-sub">36 Parameters</span>
+      </div>
+      <div class="cfg-tabs">
+        <button id="cfgTabBtn0" class="cfg-tab active" onclick="switchCfgTab(0)">1. Pub/Priv</button>
+        <button id="cfgTabBtn1" class="cfg-tab" onclick="switchCfgTab(1)">2. Ctrl/Pdu</button>
+        <button id="cfgTabBtn2" class="cfg-tab" onclick="switchCfgTab(2)">3. TxPdu/Buf</button>
+        <button id="cfgTabBtn3" class="cfg-tab" onclick="switchCfgTab(3)">4. Rx/Filter</button>
+        <button id="cfgTabBtn4" class="cfg-tab" onclick="switchCfgTab(4)">5. HOH &amp; FD</button>
+        <button id="cfgTabBtn5" class="cfg-tab" onclick="switchCfgTab(5)">6. PN/Wk/DET</button>
+      </div>
+
+      <!-- TAB 0: CANIF PUBLIC & PRIVATE CFG -->
+      <div id="cfgPane0" class="cfg-pane">
+        <div class="cfg-row" data-cfg-key="CanIfDevErrorDetect">
+          <label class="cfg-lbl" for="cfg_CanIfDevErrorDetect"><span class="cfg-i">ⓘ</span><span class="cfg-name">CanIfDevErrorDetect</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_CanIfDevErrorDetect" checked onchange="onConfigInputChanged('CanIfDevErrorDetect')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="CanIfPublicTxBuffering">
+          <label class="cfg-lbl" for="cfg_CanIfPublicTxBuffering"><span class="cfg-i">ⓘ</span><span class="cfg-name">CanIfPublicTxBuffering</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_CanIfPublicTxBuffering" checked onchange="onConfigInputChanged('CanIfPublicTxBuffering')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="CanIfPrivateDlcCheck">
+          <label class="cfg-lbl" for="cfg_CanIfPrivateDlcCheck"><span class="cfg-i">ⓘ</span><span class="cfg-name">CanIfPrivateDlcCheck</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_CanIfPrivateDlcCheck" checked onchange="onConfigInputChanged('CanIfPrivateDlcCheck')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="CanIfPrivateSoftwareFilterType">
+          <label class="cfg-lbl" for="cfg_CanIfPrivateSoftwareFilterType"><span class="cfg-i">ⓘ</span><span class="cfg-name">SoftwareFilterType</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_CanIfPrivateSoftwareFilterType" onchange="onConfigInputChanged('CanIfPrivateSoftwareFilterType')">
+              <option value="MASK">MASK (Bitwise)</option>
+              <option value="BINARY_SEARCH">BINARY_SEARCH</option>
+              <option value="LINEAR">LINEAR</option>
+              <option value="TABLE">TABLE</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="CanIfSetDynamicTxIdApi">
+          <label class="cfg-lbl" for="cfg_CanIfSetDynamicTxIdApi"><span class="cfg-i">ⓘ</span><span class="cfg-name">CanIfSetDynamicTxIdApi</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_CanIfSetDynamicTxIdApi" checked onchange="onConfigInputChanged('CanIfSetDynamicTxIdApi')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="CanIfTriggerTransmitSupport">
+          <label class="cfg-lbl" for="cfg_CanIfTriggerTransmitSupport"><span class="cfg-i">ⓘ</span><span class="cfg-name">TriggerTransmitSupport</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_CanIfTriggerTransmitSupport" checked onchange="onConfigInputChanged('CanIfTriggerTransmitSupport')" /></div>
+        </div>
+      </div>
+
+      <!-- TAB 1: CTRL & PDUMODE -->
+      <div id="cfgPane1" class="cfg-pane hidden">
+        <div class="cfg-row" data-cfg-key="SelectedControllerId">
+          <label class="cfg-lbl" for="cfg_SelectedControllerId"><span class="cfg-i">ⓘ</span><span class="cfg-name">SelectedControllerId</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_SelectedControllerId" onchange="onConfigInputChanged('SelectedControllerId')">
+              <option value="0">0 - Chassis_CAN_FD</option>
+              <option value="1">1 - Body_CAN_HS</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="ActiveControllerMode">
+          <label class="cfg-lbl" for="cfg_ActiveControllerMode"><span class="cfg-i">ⓘ</span><span class="cfg-name">ActiveControllerMode</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_ActiveControllerMode" onchange="onConfigInputChanged('ActiveControllerMode')">
+              <option value="CAN_CS_UNINIT">CAN_CS_UNINIT (0)</option>
+              <option value="CAN_CS_STOPPED">CAN_CS_STOPPED (1)</option>
+              <option value="CAN_CS_STARTED" selected>CAN_CS_STARTED (2)</option>
+              <option value="CAN_CS_SLEEP">CAN_CS_SLEEP (3)</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="ActivePduMode">
+          <label class="cfg-lbl" for="cfg_ActivePduMode"><span class="cfg-i">ⓘ</span><span class="cfg-name">ActivePduMode</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_ActivePduMode" onchange="onConfigInputChanged('ActivePduMode')">
+              <option value="CANIF_OFFLINE">CANIF_OFFLINE (0)</option>
+              <option value="CANIF_TX_OFFLINE">CANIF_TX_OFFLINE (1)</option>
+              <option value="CANIF_TX_OFFLINE_ACTIVE">TX_OFFLINE_ACTIVE (2)</option>
+              <option value="CANIF_ONLINE" selected>CANIF_ONLINE (3)</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="CanIfCtrlWakeupSupport">
+          <label class="cfg-lbl" for="cfg_CanIfCtrlWakeupSupport"><span class="cfg-i">ⓘ</span><span class="cfg-name">CanIfCtrlWakeupSupport</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_CanIfCtrlWakeupSupport" checked onchange="onConfigInputChanged('CanIfCtrlWakeupSupport')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="CanIfPnFilterEnabled">
+          <label class="cfg-lbl" for="cfg_CanIfPnFilterEnabled"><span class="cfg-i">ⓘ</span><span class="cfg-name">CanIfPnFilterEnabled</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_CanIfPnFilterEnabled" onchange="onConfigInputChanged('CanIfPnFilterEnabled')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="ActiveBaudRateConfigID">
+          <label class="cfg-lbl" for="cfg_ActiveBaudRateConfigID"><span class="cfg-i">ⓘ</span><span class="cfg-name">BaudRateConfigID</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_ActiveBaudRateConfigID" min="0" max="3" value="0" onchange="onConfigInputChanged('ActiveBaudRateConfigID')" /></div>
+        </div>
+      </div>
+
+      <!-- TAB 2: TXPDU & TXBUFFER -->
+      <div id="cfgPane2" class="cfg-pane hidden">
+        <div class="cfg-row" data-cfg-key="SelectedTxPduId">
+          <label class="cfg-lbl" for="cfg_SelectedTxPduId"><span class="cfg-i">ⓘ</span><span class="cfg-name">SelectedTxPduId</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_SelectedTxPduId" onchange="onConfigInputChanged('SelectedTxPduId')">
+              <option value="0">0: TxPdu_0 (0x500 NM)</option>
+              <option value="1" selected>1: TxPdu_1 (0x100 COM)</option>
+              <option value="2">2: TxPdu_2 (0x120 FD)</option>
+              <option value="3">3: TxPdu_3 (0x7E8 TP)</option>
+              <option value="4">4: TxPdu_4 (0x18FF Dyn)</option>
+              <option value="5">5: TxPdu_5 (0x280 Trig)</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="CanIfTxPduCanIdType">
+          <label class="cfg-lbl" for="cfg_CanIfTxPduCanIdType"><span class="cfg-i">ⓘ</span><span class="cfg-name">CanIfTxPduCanIdType</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_CanIfTxPduCanIdType" onchange="onConfigInputChanged('CanIfTxPduCanIdType')">
+              <option value="STANDARD_CAN" selected>STANDARD_CAN (11b)</option>
+              <option value="STANDARD_FD_CAN">STANDARD_FD_CAN (Bit30)</option>
+              <option value="EXTENDED_CAN">EXTENDED_CAN (Bit31)</option>
+              <option value="EXTENDED_FD_CAN">EXTENDED_FD_CAN (B31+30)</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="CustomDynamicCanIdHex">
+          <label class="cfg-lbl" for="cfg_CustomDynamicCanIdHex"><span class="cfg-i">ⓘ</span><span class="cfg-name">CustomDynamicCanIdHex</span></label>
+          <div class="cfg-ctrl"><input type="text" id="cfg_CustomDynamicCanIdHex" class="mono" value="0x18FEF100" style="width:110px" onchange="onConfigInputChanged('CustomDynamicCanIdHex')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="CanIfTxBufferSize">
+          <label class="cfg-lbl" for="cfg_CanIfTxBufferSize"><span class="cfg-i">ⓘ</span><span class="cfg-name">CanIfTxBufferSize</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_CanIfTxBufferSize" min="0" max="16" value="4" onchange="onConfigInputChanged('CanIfTxBufferSize')" /><span style="font-size:10px;color:var(--mut)">slot</span></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="CanIfTxPduPnFilterPdu">
+          <label class="cfg-lbl" for="cfg_CanIfTxPduPnFilterPdu"><span class="cfg-i">ⓘ</span><span class="cfg-name">CanIfTxPduPnFilterPdu</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_CanIfTxPduPnFilterPdu" onchange="onConfigInputChanged('CanIfTxPduPnFilterPdu')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="CanIfTxPduTruncation">
+          <label class="cfg-lbl" for="cfg_CanIfTxPduTruncation"><span class="cfg-i">ⓘ</span><span class="cfg-name">CanIfTxPduTruncation</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_CanIfTxPduTruncation" checked onchange="onConfigInputChanged('CanIfTxPduTruncation')" /></div>
+        </div>
+      </div>
+
+      <!-- TAB 3: RXPDU & SOFTWARE FILTER -->
+      <div id="cfgPane3" class="cfg-pane hidden">
+        <div class="cfg-row" data-cfg-key="SelectedRxPduProfile">
+          <label class="cfg-lbl" for="cfg_SelectedRxPduProfile"><span class="cfg-i">ⓘ</span><span class="cfg-name">SelectedRxPduProfile</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_SelectedRxPduProfile" onchange="onConfigInputChanged('SelectedRxPduProfile')">
+              <option value="FRAME_A" selected>Frame A (0x120 FD ➔ PduR)</option>
+              <option value="FRAME_B">Frame B (0x7E0 ➔ CanTp)</option>
+              <option value="FRAME_C">Frame C (0x501 ➔ CanNm)</option>
+              <option value="FRAME_D">Frame D (0x190 ➔ CanTSyn)</option>
+              <option value="FRAME_E">Frame E (0x3FF Unknown)</option>
+              <option value="FRAME_F">Frame F (0x120 Short DLC)</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="CanIfRxPduCanIdMaskHex">
+          <label class="cfg-lbl" for="cfg_CanIfRxPduCanIdMaskHex"><span class="cfg-i">ⓘ</span><span class="cfg-name">RxPduCanIdMaskHex</span></label>
+          <div class="cfg-ctrl"><input type="text" id="cfg_CanIfRxPduCanIdMaskHex" class="mono" value="0x7FF" style="width:94px" onchange="onConfigInputChanged('CanIfRxPduCanIdMaskHex')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="CanIfRxPduDataLength">
+          <label class="cfg-lbl" for="cfg_CanIfRxPduDataLength"><span class="cfg-i">ⓘ</span><span class="cfg-name">RxPduDataLength (Min)</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_CanIfRxPduDataLength" min="0" max="64" value="16" onchange="onConfigInputChanged('CanIfRxPduDataLength')" /><span style="font-size:10px;color:var(--mut)">B</span></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="InjectedRxDlcLength">
+          <label class="cfg-lbl" for="cfg_InjectedRxDlcLength"><span class="cfg-i">ⓘ</span><span class="cfg-name">InjectedRxDlcLength</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_InjectedRxDlcLength" min="0" max="64" value="32" onchange="onConfigInputChanged('InjectedRxDlcLength')" /><span style="font-size:10px;color:var(--mut)">B</span></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="CanIfRxPduUserRxIndicationUL">
+          <label class="cfg-lbl" for="cfg_CanIfRxPduUserRxIndicationUL"><span class="cfg-i">ⓘ</span><span class="cfg-name">RxUserRxIndicationUL</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_CanIfRxPduUserRxIndicationUL" onchange="onConfigInputChanged('CanIfRxPduUserRxIndicationUL')">
+              <option value="PDUR" selected>PDUR (Com/SecOC)</option>
+              <option value="CANTP">CANTP (Diag ISO-TP)</option>
+              <option value="CANNM">CANNM (Network Mgmt)</option>
+              <option value="CAN_TSYN">CAN_TSYN (TimeSync)</option>
+              <option value="CDD">CDD (Complex Drv)</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="CanIfRxPduReadDataAndNotif">
+          <label class="cfg-lbl" for="cfg_CanIfRxPduReadDataAndNotif"><span class="cfg-i">ⓘ</span><span class="cfg-name">RxReadData &amp; Notif (Poll)</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_CanIfRxPduReadDataAndNotif" onchange="onConfigInputChanged('CanIfRxPduReadDataAndNotif')" /></div>
+        </div>
+      </div>
+
+      <!-- TAB 4: HOH (HTH/HRH) & CAN FD -->
+      <div id="cfgPane4" class="cfg-pane hidden">
+        <div class="cfg-row" data-cfg-key="CanIfHthHandleType">
+          <label class="cfg-lbl" for="cfg_CanIfHthHandleType"><span class="cfg-i">ⓘ</span><span class="cfg-name">CanIfHthHandleType</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_CanIfHthHandleType" onchange="onConfigInputChanged('CanIfHthHandleType')">
+              <option value="BASIC" selected>BASIC (Multiplex + Buf)</option>
+              <option value="FULL">FULL (Dedicated 1:1)</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="SimulateHthMailboxBusy">
+          <label class="cfg-lbl" for="cfg_SimulateHthMailboxBusy"><span class="cfg-i">ⓘ</span><span class="cfg-name">SimulateHthMailboxBusy</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_SimulateHthMailboxBusy" onchange="onConfigInputChanged('SimulateHthMailboxBusy')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="CanIfHrhHandleType">
+          <label class="cfg-lbl" for="cfg_CanIfHrhHandleType"><span class="cfg-i">ⓘ</span><span class="cfg-name">CanIfHrhHandleType</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_CanIfHrhHandleType" onchange="onConfigInputChanged('CanIfHrhHandleType')">
+              <option value="BASIC" selected>BASIC (SwFilter Req)</option>
+              <option value="FULL">FULL (HW 1:1 Match)</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="CanIfHrhSoftwareFilter">
+          <label class="cfg-lbl" for="cfg_CanIfHrhSoftwareFilter"><span class="cfg-i">ⓘ</span><span class="cfg-name">CanIfHrhSoftwareFilter</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_CanIfHrhSoftwareFilter" checked onchange="onConfigInputChanged('CanIfHrhSoftwareFilter')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="TxRxPayloadPreviewHex">
+          <label class="cfg-lbl" for="cfg_TxRxPayloadPreviewHex"><span class="cfg-i">ⓘ</span><span class="cfg-name">TxRxPayloadPreviewHex</span></label>
+          <div class="cfg-ctrl"><input type="text" id="cfg_TxRxPayloadPreviewHex" class="mono" value="11 22 33 44 55 66 77 88" style="width:136px" onchange="onConfigInputChanged('TxRxPayloadPreviewHex')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="CanFdBitRateSwitchBrs">
+          <label class="cfg-lbl" for="cfg_CanFdBitRateSwitchBrs"><span class="cfg-i">ⓘ</span><span class="cfg-name">CanFdBitRateSwitchBrs</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_CanFdBitRateSwitchBrs" checked onchange="onConfigInputChanged('CanFdBitRateSwitchBrs')" /></div>
+        </div>
+      </div>
+
+      <!-- TAB 5: PN, WAKEUP & DET/IDSM -->
+      <div id="cfgPane5" class="cfg-pane hidden">
+        <div class="cfg-row" data-cfg-key="ActiveTransceiverMode">
+          <label class="cfg-lbl" for="cfg_ActiveTransceiverMode"><span class="cfg-i">ⓘ</span><span class="cfg-name">ActiveTransceiverMode</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_ActiveTransceiverMode" onchange="onConfigInputChanged('ActiveTransceiverMode')">
+              <option value="CANTRCV_TRCVMODE_NORMAL" selected>NORMAL (0x00)</option>
+              <option value="CANTRCV_TRCVMODE_SLEEP">SLEEP (0x01)</option>
+              <option value="CANTRCV_TRCVMODE_STANDBY">STANDBY (0x02)</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="CanIfPublicPnSupport">
+          <label class="cfg-lbl" for="cfg_CanIfPublicPnSupport"><span class="cfg-i">ⓘ</span><span class="cfg-name">CanIfPublicPnSupport</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_CanIfPublicPnSupport" checked onchange="onConfigInputChanged('CanIfPublicPnSupport')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="CanIfPublicWakeupCheckValidSupport">
+          <label class="cfg-lbl" for="cfg_CanIfPublicWakeupCheckValidSupport"><span class="cfg-i">ⓘ</span><span class="cfg-name">WakeupCheckValidSupport</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_CanIfPublicWakeupCheckValidSupport" checked onchange="onConfigInputChanged('CanIfPublicWakeupCheckValidSupport')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="CanIfWakeupCheckValidByNM">
+          <label class="cfg-lbl" for="cfg_CanIfWakeupCheckValidByNM"><span class="cfg-i">ⓘ</span><span class="cfg-name">WakeupCheckValidByNM</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_CanIfWakeupCheckValidByNM" onchange="onConfigInputChanged('CanIfWakeupCheckValidByNM')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="PassInvalidPduOrCanIdTest">
+          <label class="cfg-lbl" for="cfg_PassInvalidPduOrCanIdTest"><span class="cfg-i">ⓘ</span><span class="cfg-name">InjectInvalidDetTest</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_PassInvalidPduOrCanIdTest" onchange="onConfigInputChanged('PassInvalidPduOrCanIdTest')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="EnableIdsMSecurityEvents">
+          <label class="cfg-lbl" for="cfg_EnableIdsMSecurityEvents"><span class="cfg-i">ⓘ</span><span class="cfg-name">EnableIdsMSecurityEvents</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_EnableIdsMSecurityEvents" onchange="onConfigInputChanged('EnableIdsMSecurityEvents')" /></div>
+        </div>
+      </div>
+
+      <div id="cfgValidationBox" style="padding:0 10px 8px"></div>
+    </section>
+  </aside>
+
+  <!-- CENTER COLUMN: CAN_IDTYPE ANATOMY, HOH/TXBUFFER/RXFILTER, DUAL 8-BIT, STATE MACHINES, SVG -->
+  <section class="col-center">
+    <!-- PANEL 1: HOH, CANIFTXBUFFER, RX SOFTWARE FILTER, CAN_IDTYPE & DUAL 8-BIT -->
+    <section class="panel">
+      <div class="panel-hdr">
+        <span class="panel-title">🔀 Giải Phẫu HOH (FullCAN / BasicCAN), CanIfTxBuffer, Lọc Rx &amp; 2 Thanh Ghi 8-Bit</span>
+        <div style="display:flex;align-items:center;gap:6px">
+          <button id="btnToggleHthBusy" class="btn btn-sm btn-cyan" onclick="toggleHthMailboxBusyQuick()" title="Đảo trạng thái bận của HTH_1 BasicCAN Mailbox để test hàng đợi CanIfTxBuffer">HTH_1: FREE</button>
+        </div>
+      </div>
+      <div class="panel-body tier-split">
+        <!-- TIER 1A: CAN_IDTYPE 32-BIT STRIP + TX HTH/BUFFER & RX HRH/SW-FILTER -->
+        <div id="canIdAnatomyBox" class="canid-strip"></div>
+        <div class="hoh-split-grid">
+          <div id="txHthBufferBox" class="hoh-card"></div>
+          <div id="rxFilterBox" class="hoh-card"></div>
+        </div>
+
+        <!-- TIER 1B: DUAL 8-BIT REGISTERS -->
+        <div class="reg-grid">
+          <div class="reg-card">
+            <div class="reg-top">
+              <span id="regATitle" class="reg-name">Thanh A: CanIf_CtrlPduStatusByte (Ctrl/PduMode/PN/Wk)</span>
+              <span id="regAHex" class="reg-hex mono">0xA0</span>
+            </div>
+            <div id="regABits" class="bit-row"></div>
+          </div>
+
+          <div class="reg-card">
+            <div class="reg-top">
+              <span id="regBTitle" class="reg-name">Thanh B: CanIf_FrameBufferByte (Ext/FD/HOH/Buf/Flt/DLC)</span>
+              <span id="regBHex" class="reg-hex mono">0x20</span>
+            </div>
+            <div id="regBBits" class="bit-row"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PANEL 2: LIVE COUNTERS & DUAL STATE MACHINES -->
+    <section class="panel">
+      <div class="panel-hdr">
+        <span class="panel-title">🚦 Giám Sát Luồng &amp; 2 Máy Trạng Thái Song Song (`Can_ControllerStateType` &amp; `CanIf_PduModeType`)</span>
+        <span id="canifPanel2Badge" class="panel-sub mono">Ctrl0: CAN_CS_STARTED | PduMode: CANIF_ONLINE</span>
+      </div>
+      <div class="panel-body">
+        <div id="timersGrid" class="timer-grid"></div>
+        <div class="sm-dual">
+          <div class="sm-box">
+            <div class="sm-title">
+              <span>🎛️ Can_ControllerStateType (SWS_CanIf_00308)</span>
+              <span id="smCtrlLbl" class="mono">CAN_CS_STARTED</span>
+            </div>
+            <div id="ctrlSmDiagram" class="sm-states"></div>
+          </div>
+
+          <div class="sm-box">
+            <div class="sm-title">
+              <span>🚧 CanIf_PduModeType (SWS_CanIf_00008 / 00072)</span>
+              <span id="smPduLbl" class="mono">CANIF_ONLINE</span>
+            </div>
+            <div id="pduSmDiagram" class="sm-states-grid2"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PANEL 3: INTERACTIVE END-TO-END AUTOSAR CAN STACK SVG -->
+    <section class="panel">
+      <div class="panel-hdr">
+        <span class="panel-title">🏗️ Kiến Trúc Tương Tác End-to-End Full CAN Stack (AUTOSAR Classic R23-11)</span>
+        <span class="panel-sub">Click bất kỳ Module nào để xem Input / Output &amp; API ở Inspector bên phải</span>
+      </div>
+      <div class="panel-body">
+        <div class="arch-wrap">
+          <svg id="canifArchSvg" class="arch-svg" viewBox="0 0 820 415" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <marker id="arrEnd" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                <path d="M 0 1 L 10 5 L 0 9 z" fill="currentColor" />
+              </marker>
+            </defs>
+
+            <!-- ARROWS LAYER -->
+            <path id="arr_swc_rte" class="flow-arrow" d="M 130 72 L 130 98" marker-end="url(#arrEnd)" />
+            <path id="arr_rte_ul" class="flow-arrow" d="M 240 129 L 275 129" marker-end="url(#arrEnd)" />
+            <path id="arr_rte_cansm" class="flow-arrow" d="M 240 108 C 330 78, 460 72, 575 56" marker-end="url(#arrEnd)" />
+            <path id="arr_ecum_canif" class="flow-arrow" d="M 410 72 C 470 96, 515 158, 470 198" marker-end="url(#arrEnd)" />
+            <path id="arr_cansm_canif" class="flow-arrow" d="M 685 72 C 620 112, 560 158, 520 202" marker-end="url(#arrEnd)" />
+            <path id="arr_ul_canif" class="flow-arrow" d="M 380 162 L 380 196" marker-end="url(#arrEnd)" />
+            <path id="arr_canif_ul" class="flow-arrow" d="M 435 196 L 435 162" marker-end="url(#arrEnd)" />
+            <!-- Virtual TxConfirmation in CANIF_TX_OFFLINE_ACTIVE (Passive Mode) -->
+            <path id="arr_canif_passive_cbk" class="flow-arrow" stroke-dasharray="4 3" d="M 315 196 C 288 180, 288 168, 315 162" marker-end="url(#arrEnd)" />
+            <path id="arr_canif_det" class="flow-arrow" d="M 545 228 L 605 228" marker-end="url(#arrEnd)" />
+            <path id="arr_canif_candrv" class="flow-arrow" d="M 325 262 L 245 304" marker-end="url(#arrEnd)" />
+            <path id="arr_candrv_canif" class="flow-arrow" d="M 285 304 L 365 262" marker-end="url(#arrEnd)" />
+            <path id="arr_canif_cantrcv" class="flow-arrow" d="M 485 262 L 585 304" marker-end="url(#arrEnd)" />
+            <path id="arr_drv_bus" class="flow-arrow" d="M 355 344 L 465 344" marker-end="url(#arrEnd)" />
+
+            <!-- ROW 1: SWC_APP, ECUM, CANSM/COMM/BSWM -->
+            <g id="node_MOD_SWC" class="mod-node" onclick="selectModule('MOD_SWC')">
+              <rect class="mod-rect" x="20" y="14" width="220" height="58" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="130" y="34" text-anchor="middle" fill="var(--pri)" font-weight="700" font-size="11.5">SWC_App &amp; SWC_Diag</text>
+              <text id="svgSub_MOD_SWC" x="130" y="49" text-anchor="middle" fill="var(--mut)" font-size="9.5">Signals &amp; UDS | No Direct CanIf Call</text>
+              <text x="130" y="63" text-anchor="middle" fill="var(--txt-soft)" font-size="9">Rte_Write() / Rte_Call_ComM()</text>
+            </g>
+
+            <g id="node_MOD_ECUM" class="mod-node" onclick="selectModule('MOD_ECUM')">
+              <rect class="mod-rect" x="295" y="14" width="230" height="58" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="410" y="34" text-anchor="middle" fill="var(--pur)" font-weight="700" font-size="11.5">EcuM (Wakeup Manager)</text>
+              <text id="svgSub_MOD_ECUM" x="410" y="49" text-anchor="middle" fill="var(--mut)" font-size="9.5">WakeupValid: Pending | No Glitch</text>
+              <text x="410" y="63" text-anchor="middle" fill="var(--txt-soft)" font-size="9">CanIf_CheckWakeup / CheckValidation()</text>
+            </g>
+
+            <g id="node_MOD_CANSM" class="mod-node" onclick="selectModule('MOD_CANSM')">
+              <rect class="mod-rect" x="575" y="14" width="225" height="58" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="687" y="34" text-anchor="middle" fill="var(--ok)" font-weight="700" font-size="11.5">CanSM / ComM / BswM</text>
+              <text id="svgSub_MOD_CANSM" x="687" y="49" text-anchor="middle" fill="var(--mut)" font-size="9.5">Ctrl0: STARTED | PduMode: ONLINE</text>
+              <text x="687" y="63" text-anchor="middle" fill="var(--txt-soft)" font-size="9">SetControllerMode / SetPduMode / BOR</text>
+            </g>
+
+            <!-- ROW 2: RTE/SCHM, UPPER LAYER DATA MODULES, DET/IDSM -->
+            <g id="node_MOD_RTE" class="mod-node" onclick="selectModule('MOD_RTE')">
+              <rect class="mod-rect" x="20" y="98" width="220" height="62" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="130" y="118" text-anchor="middle" fill="var(--acc)" font-weight="700" font-size="11.5">RTE &amp; SchM ExclusiveArea</text>
+              <text id="svgSub_MOD_RTE" x="130" y="134" text-anchor="middle" fill="var(--mut)" font-size="9.5">Protect CanIfTxBuffer vs CAN ISR</text>
+              <text x="130" y="149" text-anchor="middle" fill="var(--txt-soft)" font-size="9">SchM_Enter_CanIf_EXCLUSIVE_AREA_0</text>
+            </g>
+
+            <g id="node_MOD_UL_DATA" class="mod-node" onclick="selectModule('MOD_UL_DATA')">
+              <rect class="mod-rect" x="275" y="96" width="270" height="66" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="410" y="115" text-anchor="middle" fill="var(--cyan)" font-weight="800" font-size="11.5">Upper Layers (PduR/Com · CanTp · CanNm)</text>
+              <text id="svgSub_MOD_UL1" x="410" y="131" text-anchor="middle" fill="var(--mut)" font-size="9.5">CanTSyn · SecOC · CDD Dispatcher</text>
+              <text id="svgSub_MOD_UL2" x="410" y="148" text-anchor="middle" fill="var(--txt-soft)" font-size="9">Transmit() | &lt;User&gt;_RxInd / TxConfirm</text>
+            </g>
+
+            <g id="node_MOD_DET" class="mod-node" onclick="selectModule('MOD_DET')">
+              <rect class="mod-rect" x="605" y="196" width="195" height="62" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="702" y="216" text-anchor="middle" fill="var(--err)" font-weight="700" font-size="11.5">DET &amp; IdsM (Mod 60)</text>
+              <text id="svgSub_MOD_DET" x="702" y="232" text-anchor="middle" fill="var(--mut)" font-size="9.5">DET: 0 | Runtime DLC: 0 | IdsM: 0</text>
+              <text x="702" y="247" text-anchor="middle" fill="var(--txt-soft)" font-size="9">E_INVALID_DATA_LENGTH (0x32)</text>
+            </g>
+
+            <!-- ROW 3: CANIF CORE -->
+            <g id="node_MOD_CANIF" class="mod-node selected" onclick="selectModule('MOD_CANIF')">
+              <rect class="mod-rect" x="275" y="196" width="270" height="66" rx="10" fill="var(--pri-bg)" stroke="var(--pri)" stroke-width="2.2"/>
+              <text x="410" y="215" text-anchor="middle" fill="var(--pri)" font-weight="800" font-size="13">CanIf (SWS_CanIf — Mod 60)</text>
+              <text id="svgSub_MOD_CANIF1" x="410" y="232" text-anchor="middle" fill="var(--txt)" font-weight="700" font-size="10">TxBuf: 0/4 | SwFilter: MASK | DLC: ON</text>
+              <text id="svgSub_MOD_CANIF2" x="410" y="248" text-anchor="middle" fill="var(--mut)" font-size="9.5">HOH Map | Priority Queue | PduMode Gate</text>
+            </g>
+
+            <!-- ROW 4: CANDRV & CANTRCV -->
+            <g id="node_MOD_CANDRV" class="mod-node" onclick="selectModule('MOD_CANDRV')">
+              <rect class="mod-rect" x="35" y="304" width="320" height="68" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="195" y="324" text-anchor="middle" fill="var(--ok)" font-weight="700" font-size="11.5">CanDrv (MCAL Ctrl 0/1 · HTH &amp; HRH)</text>
+              <text id="svgSub_MOD_CANDRV1" x="195" y="340" text-anchor="middle" fill="var(--mut)" font-size="9.5">HTH_0 FullCAN: FREE | HTH_1 BasicCAN: FREE</text>
+              <text id="svgSub_MOD_CANDRV2" x="195" y="356" text-anchor="middle" fill="var(--txt-soft)" font-size="9">Can_Write() | RxInd / TxConfirm / BusOff ISR</text>
+            </g>
+
+            <g id="node_MOD_CANTRCV" class="mod-node" onclick="selectModule('MOD_CANTRCV')">
+              <rect class="mod-rect" x="465" y="304" width="320" height="68" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="625" y="324" text-anchor="middle" fill="var(--cyan)" font-weight="700" font-size="11.5">CanTrcv (CAN Transceiver · TJA1145 PN)</text>
+              <text id="svgSub_MOD_CANTRCV1" x="625" y="340" text-anchor="middle" fill="var(--mut)" font-size="9.5">Mode: NORMAL | WUF Flag: Clear | PN: Ready</text>
+              <text id="svgSub_MOD_CANTRCV2" x="625" y="356" text-anchor="middle" fill="var(--txt-soft)" font-size="9">CanTrcv_SetOpMode / CheckWakeup / WUF</text>
+            </g>
+
+            <rect x="220" y="384" width="380" height="22" rx="11" fill="var(--panel-3)" stroke="var(--bdr)" stroke-width="1.2"/>
+            <text id="svgBusLineTxt" x="410" y="399" text-anchor="middle" fill="var(--pri)" font-weight="800" font-size="10">CAN / CAN-FD Physical Bus (CAN_H / CAN_L · 500 kbps / 2 Mbps BRS)</text>
+          </svg>
+        </div>
+      </div>
+    </section>
+  </section>
+
+  <!-- RIGHT COLUMN: STICKY 4-TAB INSPECTOR -->
+  <aside class="col-right">
+    <section class="panel insp-panel">
+      <div class="insp-tabs">
+        <button id="inspTabBtn0" class="insp-tab active" onclick="switchInspTab(0)">🔍 Bước Hiện Tại</button>
+        <button id="inspTabBtn1" class="insp-tab" onclick="switchInspTab(1)">🧩 Module</button>
+        <button id="inspTabBtn2" class="insp-tab" onclick="switchInspTab(2)">📄 Code C</button>
+        <button id="inspTabBtn3" class="insp-tab" onclick="switchInspTab(3)">📜 API Trace</button>
+      </div>
+      <div id="inspBody" class="insp-body"></div>
+    </section>
+  </aside>
+</main>
+
+<!-- ================= VIEW 2: MULTI-LEVEL HANDBOOK & ABBREVIATION TABLE ================= -->
+<main id="viewHb" class="hb-wrap hidden">
+  <div class="hb-nav1">
+    <button id="hbTab1_0" class="hb-tab1 active" onclick="switchHbTab1(0)">1. Kiến Trúc CAN Stack &amp; CanIf</button>
+    <button id="hbTab1_1" class="hb-tab1" onclick="switchHbTab1(1)">2. HOH, CanIfTxBuffer &amp; TriggerTx</button>
+    <button id="hbTab1_2" class="hb-tab1" onclick="switchHbTab1(2)">3. Rx Filter, DLC Check &amp; CAN-FD</button>
+    <button id="hbTab1_3" class="hb-tab1" onclick="switchHbTab1(3)">4. Controller/PduMode, PN &amp; Bus-Off</button>
+    <button id="hbTab1_4" class="hb-tab1" onclick="switchHbTab1(4)">5. Wakeup Validation &amp; CanTrcv</button>
+    <button id="hbTab1_5" class="hb-tab1" onclick="switchHbTab1(5)">6. API R23-11, ECUC, DET &amp; Thực Chiến</button>
+    <button id="hbTab1_6" class="hb-tab1" onclick="switchHbTab1(6)">7. Bảng Thuật Ngữ &amp; Search</button>
+  </div>
+
+  <div id="hbNav2" class="hb-nav2"></div>
+
+  <div id="hbAbbrFilterBox" class="abbr-toolbar hidden">
+    <input id="abbrSearchInput" class="abbr-search" type="text" placeholder="🔍 Tìm kiếm thuật ngữ AUTOSAR CanIf (VD: HOH, HTH, FullCAN, BasicCAN, TxBuffer, OFFLINE_ACTIVE, DLC, WUF...)" oninput="filterAbbreviationTable()" />
+    <div class="cat-pills">
+      <button id="catPill_ALL" class="cat-pill active" onclick="setAbbrCategory('ALL')">Tất cả (58)</button>
+      <button id="catPill_CORE" class="cat-pill" onclick="setAbbrCategory('CORE')">🔀 CanIf Core &amp; HOH</button>
+      <button id="catPill_TX" class="cat-pill" onclick="setAbbrCategory('TX')">📤 Tx Buffer &amp; PduMode</button>
+      <button id="catPill_RX" class="cat-pill" onclick="setAbbrCategory('RX')">📥 Rx Filter &amp; CAN-FD</button>
+      <button id="catPill_MODE" class="cat-pill" onclick="setAbbrCategory('MODE')">⚡ Mode, Bus-Off, PN &amp; Wakeup</button>
+      <button id="catPill_API" class="cat-pill" onclick="setAbbrCategory('API')">📜 APIs, ECUC &amp; DET</button>
+    </div>
+    <span id="abbrCountBadge" class="step-pill">58 thuật ngữ</span>
+  </div>
+
+  <div id="hbContentArea"></div>
+</main>
+
+<!-- ================= EXPORT ARXML / C / JSON MODAL ================= -->
+<div id="exportModal" class="modal-overlay hidden" onclick="onExportModalBackdrop(event)">
+  <div class="modal-box">
+    <div class="modal-hdr">
+      <strong style="font-size:13.5px;color:var(--pri)">📦 Xuất Cấu Hình CanIf AUTOSAR (ARXML · CanIf_Cfg.h · CanIf_Lcfg.c · JSON)</strong>
+      <button class="btn btn-sm" onclick="closeExportModal()">✖ Đóng</button>
+    </div>
+    <div class="modal-tabs">
+      <button id="expTab0" class="btn btn-sm btn-pri" onclick="switchExportTab(0)">CanIf.arxml</button>
+      <button id="expTab1" class="btn btn-sm" onclick="switchExportTab(1)">CanIf_Cfg.h</button>
+      <button id="expTab2" class="btn btn-sm" onclick="switchExportTab(2)">CanIf_Lcfg.c</button>
+      <button id="expTab3" class="btn btn-sm" onclick="switchExportTab(3)">CanIf_Config.json</button>
+    </div>
+    <div class="modal-body">
+      <pre id="exportCodeArea" class="code-block"></pre>
+    </div>
+    <div class="modal-ftr">
+      <button class="btn" onclick="copyExportCode()">📋 Copy Clipboard</button>
+      <button class="btn btn-ok" onclick="downloadExportCode()">⬇ Tải File Hiện Tại</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= FLOATING TOOLTIP POPUP (>1S HOVER ON ECUC FIELDS) ================= -->
+<div id="cfgTooltipPopup" role="tooltip"></div>
+<script>

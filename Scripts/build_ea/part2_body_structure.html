@@ -1,0 +1,642 @@
+<!-- ================= STICKY UNIFIED HEADER ================= -->
+<header class="hdr">
+  <div class="hdr-row">
+    <div class="brand">
+      <span class="brand-badge">AUTOSAR Classic R23-11</span>
+      <div>
+        <div class="brand-title">Ea Interactive Simulator &amp; Technical Handbook</div>
+        <div class="brand-sub">EEPROM Abstraction (Mod 40) · Logical-to-Physical Mapping · VirtualPage Alignment · Wear-Leveling · Immediate Data</div>
+      </div>
+    </div>
+
+    <div class="view-switch" role="tablist">
+      <button id="btnViewSim" class="view-btn active" onclick="switchMainView('sim')">🎛️ Trình Mô Phỏng Ea</button>
+      <button id="btnViewHb" class="view-btn" onclick="switchMainView('hb')">📖 Sổ Tay Đa Tầng &amp; Thuật Ngữ</button>
+    </div>
+
+    <div class="hdr-actions">
+      <button class="btn btn-pri" onclick="openExportModal()">📦 Xuất ARXML / Cfg / C</button>
+      <button class="btn btn-ok" onclick="downloadStandaloneHTML()">💾 Tải File .HTML</button>
+      <button id="btnTheme" class="btn" onclick="toggleTheme()">☀️ Light Mode</button>
+    </div>
+  </div>
+
+  <div class="hdr-row">
+    <div class="scen-bar">
+      <label for="scenSelect" style="font-weight:700;font-size:11.5px;color:var(--mut)">Kịch bản:</label>
+      <select id="scenSelect" class="scen-select" onchange="onScenarioSelectChange()">
+        <optgroup label="Nhóm 1: Khởi Tạo, Ghi/Đọc Chuẩn &amp; Căn Chỉnh Trang Ảo">
+          <option value="S1">S1: Khởi Tạo Ea_Init(NULL_PTR) &amp; Tính Bản Đồ Địa Chỉ Logical → Physical</option>
+          <option value="S2">S2: Luồng Ghi Chuẩn SWC → RTE → NvM → MemIf → Ea_Write(Blk #1) 3 Bước An Toàn</option>
+          <option value="S3">S3: Luồng Đọc Có Offset/Length (Ea_Read Blk #1, Ofs=4, Len=6) &amp; Kiểm Tra Hdr/Ftr</option>
+          <option value="S4">S4: Ánh Xạ Khối Dataset NvM (Blk #2 vs #3) &amp; Căn Chỉnh EaVirtualPageSize</option>
+        </optgroup>
+        <optgroup label="Nhóm 2: Toàn Vẹn Khối, Vô Hiệu Hóa &amp; Chia Tải Wear-Leveling">
+          <option value="S5">S5: Sập Nguồn Giữa Lúc Ghi (Power-Loss) → Ea_Read Phát Hiện MEMIF_BLOCK_INCONSISTENT</option>
+          <option value="S6">S6: Vô Hiệu Hóa Khối Bằng Ea_InvalidateBlock(0x0000) → MEMIF_BLOCK_INVALID</option>
+          <option value="S7">S7: Chia Tải Chu Kỳ Ghi (Wear-Leveling 400k Cycles → Luân Chuyển 4 Slots Vật Lý)</option>
+          <option value="S8">S8: Quét Tìm Slot Hợp Lệ Mới Nhất Khi Khởi Động &amp; Chống Tràn CycleCounter</option>
+        </optgroup>
+        <optgroup label="Nhóm 3: Dữ Liệu Khẩn Cấp (Immediate), SetMode &amp; Polling">
+          <option value="S9">S9: Dữ Liệu Khẩn Cấp EaImmediateData: Xóa Sẵn Ea_EraseImmediateBlock → Ghi Tức Thì</option>
+          <option value="S10">S10: Chuyển Đổi Tốc Độ Ea_SetMode(MEMIF_MODE_FAST vs SLOW) Khi NvM_ReadAll/WriteAll</option>
+          <option value="S11">S11: Đối Chiếu Callback Mode (Ea_JobEndNotification) vs Polling (EaPollingMode)</option>
+        </optgroup>
+        <optgroup label="Nhóm 4: Hủy Lệnh (Cancel), Lỗi Phần Cứng &amp; Kiểm Thử DET">
+          <option value="S12">S12: Hủy Lệnh Giữa Chừng Bằng Ea_Cancel() → Eep_Cancel() → MEMIF_JOB_CANCELED</option>
+          <option value="S13">S13: Lỗi Phần Cứng Eep → Ea_JobErrorNotification() → MEMIF_JOB_FAILED &amp; Dem</option>
+          <option value="S14">S14: Kiểm Thử Toàn Diện DET (0x01..0x05) &amp; Runtime Errors R23-11 (EA_E_BUSY / CANCEL)</option>
+        </optgroup>
+      </select>
+
+      <button class="btn btn-sm" onclick="resetCurrentScenario()">⟲ Reset Kịch Bản</button>
+      <button id="btnPrevStep" class="btn btn-sm" onclick="prevScenarioStep()" disabled>◀ Lùi</button>
+      <span id="stepIndicator" class="step-pill">Bước 0 / 0</span>
+      <button id="btnNextStep" class="btn btn-sm btn-pri" onclick="nextScenarioStep()">Bước Tiếp ▶</button>
+      <button id="btnAutoPlay" class="btn btn-sm btn-pur" onclick="toggleScenarioAutoPlay()">▶ Tự Động Kịch Bản</button>
+
+      <div class="clock-box">
+        <span style="font-size:10.5px;color:var(--mut);font-weight:700">Clock:</span>
+        <span id="clockVal" class="clock-val mono">0 ms</span>
+        <button class="btn btn-sm btn-ok" onclick="stepClockTick()" title="Chạy 1 chu kỳ Ea_MainFunction() &amp; Eep_MainFunction()">+5ms MainFn</button>
+        <button id="btnAutoClock" class="btn btn-sm" onclick="toggleAutoClock()">⏱ Auto Clock</button>
+      </div>
+    </div>
+
+    <div class="hdr-badges">
+      <span id="hdrBadgeStatus" class="state-badge sb-ok">Status: MEMIF_IDLE</span>
+      <span id="hdrBadgeResult" class="state-badge sb-ok">Result: MEMIF_JOB_OK</span>
+      <span id="hdrBadgeMode" class="state-badge sb-cyan">Mode: SLOW</span>
+      <span id="hdrBadgeBlk" class="state-badge sb-pri">Blk #1 (VALID)</span>
+    </div>
+  </div>
+</header>
+
+<!-- ================= VIEW 1: INTERACTIVE SIMULATOR (ZERO-SCROLL 3 COLUMNS) ================= -->
+<main id="viewSim" class="workspace">
+
+  <!-- LEFT COLUMN: QUICK ACTIONS + SCENARIO WHAT-IF + 6 ECUC CONFIG TABS -->
+  <aside class="col-left">
+    <!-- CARD 1: QUICK ACTION BAR -->
+    <section class="panel">
+      <div class="panel-hdr">
+        <span class="panel-title">⚡ Thao Tác Nhanh API Ea (Quick Actions)</span>
+        <span class="panel-sub">Đóng vai NvM / MemIf</span>
+      </div>
+      <div class="panel-body">
+        <div class="qa-row">
+          <span style="font-size:10.5px;font-weight:700;color:var(--mut);min-width:42px">Block:</span>
+          <select id="qaBlockSelect" class="qa-input" style="flex:1" onchange="onQaBlockSelectChange()">
+            <option value="BLK1">#1 (0x0001) Blk_Calibration (12B)</option>
+            <option value="BLK2_0">#2 (0x0002) Blk_Dataset[0] (8B)</option>
+            <option value="BLK2_1">#2 (0x0003) Blk_Dataset[1] (8B)</option>
+            <option value="BLK3">#3 (0x0004) Blk_Odometer_Wear (4B × 4 Slots)</option>
+            <option value="BLK4">#4 (0x0005) Blk_Crash_ImmData (10B, Imm!)</option>
+          </select>
+        </div>
+        <div class="qa-row">
+          <span style="font-size:10.5px;font-weight:700;color:var(--mut)">Ofs:</span>
+          <input id="qaOffsetInput" class="qa-input mono" type="number" min="0" max="63" value="0" style="width:46px;text-align:right" />
+          <span style="font-size:10.5px;font-weight:700;color:var(--mut)">Len:</span>
+          <input id="qaLengthInput" class="qa-input mono" type="number" min="1" max="64" value="12" style="width:46px;text-align:right" />
+          <input id="qaHexInput" class="qa-input mono" type="text" value="DE AD BE EF 20 26 AA 55 11 22 33 44" style="flex:1;min-width:105px" title="Dữ liệu Hex RAM truyền vào Ea_Write" />
+        </div>
+        <div class="qa-grid">
+          <button class="qa-btn" onclick="qaEaWrite()">
+            <span>✍️ 1. Ea_Write</span><span class="mono">0x03</span>
+          </button>
+          <button class="qa-btn qa-ok" onclick="qaEaRead()">
+            <span>📖 2. Ea_Read</span><span class="mono">0x02</span>
+          </button>
+          <button class="qa-btn qa-warn" onclick="qaEaInvalidate()">
+            <span>🚫 3. Invalidate</span><span class="mono">0x07</span>
+          </button>
+          <button class="qa-btn qa-pur" onclick="qaEaEraseImmediate()">
+            <span>🧹 4. EraseImmed</span><span class="mono">0x09</span>
+          </button>
+          <button id="qaBtnFaultToggle" class="qa-btn qa-err" onclick="qaTogglePowerLoss()">
+            <span>⚡ 5. Sập Nguồn</span><span id="qaTxtFault" class="mono">OFF</span>
+          </button>
+          <button id="qaBtnCancelOrMode" class="qa-btn qa-cyan" onclick="qaCancelOrSetMode()">
+            <span>🛑 6. <span id="qaTxtCancelLbl">SetMode</span></span><span id="qaTxtMode" class="mono">SLOW</span>
+          </button>
+          <button class="qa-btn" onclick="stepClockTick()">
+            <span>⏱ 7. +5ms MainFn</span><span class="mono">Tick</span>
+          </button>
+          <button class="qa-btn" onclick="qaResetEaInit()">
+            <span>🔄 8. Reset Ea_Init</span><span class="mono">0x00</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- CARD 2: CURRENT SCENARIO SUMMARY & 3 WHAT-IF BUTTONS -->
+    <section class="panel">
+      <div class="panel-hdr">
+        <span class="panel-title">🎬 Kịch Bản Đang Chạy &amp; Thử Nghiệm Nhanh</span>
+        <span id="scenIdBadge" class="panel-sub mono">S1</span>
+      </div>
+      <div class="panel-body">
+        <div id="scenSummaryBox" class="scen-desc-box"></div>
+        <div style="font-size:10.5px;font-weight:700;color:var(--pur);margin-bottom:4px">🧪 Thử Nghiệm Nhanh (1-Click What-If):</div>
+        <div id="whatIfContainer" class="whatif-grid"></div>
+      </div>
+    </section>
+
+    <!-- CARD 3: 6-TAB ECUC CONFIG PANEL (36 PARAMETERS + >1S TOOLTIP) -->
+    <section class="panel">
+      <div class="panel-hdr">
+        <span class="panel-title">⚙️ Cấu Hình ECUC Ea (Hover &gt;1s Xem SWS)</span>
+        <span class="panel-sub">36 Parameters</span>
+      </div>
+      <div class="cfg-tabs">
+        <button id="cfgTabBtn0" class="cfg-tab active" onclick="switchCfgTab(0)">1. EaGeneral</button>
+        <button id="cfgTabBtn1" class="cfg-tab" onclick="switchCfgTab(1)">2. Cbk &amp; Mode</button>
+        <button id="cfgTabBtn2" class="cfg-tab" onclick="switchCfgTab(2)">3. Blk #1 &amp; #2</button>
+        <button id="cfgTabBtn3" class="cfg-tab" onclick="switchCfgTab(3)">4. Blk #3 &amp; #4</button>
+        <button id="cfgTabBtn4" class="cfg-tab" onclick="switchCfgTab(4)">5. Overhead/Eep</button>
+        <button id="cfgTabBtn5" class="cfg-tab" onclick="switchCfgTab(5)">6. Fault Inject</button>
+      </div>
+
+      <!-- TAB 0: EA GENERAL (8 PARAMS) -->
+      <div id="cfgPane0" class="cfg-pane">
+        <div class="cfg-row" data-cfg-key="EaInitialized">
+          <label class="cfg-lbl" for="cfg_EaInitialized"><span class="cfg-i">ⓘ</span><span class="cfg-name">EaInitialized (Ea_Init)</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_EaInitialized" checked onchange="onConfigInputChanged('EaInitialized')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="EaDevErrorDetect">
+          <label class="cfg-lbl" for="cfg_EaDevErrorDetect"><span class="cfg-i">ⓘ</span><span class="cfg-name">EaDevErrorDetect</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_EaDevErrorDetect" checked onchange="onConfigInputChanged('EaDevErrorDetect')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="EaVersionInfoApi">
+          <label class="cfg-lbl" for="cfg_EaVersionInfoApi"><span class="cfg-i">ⓘ</span><span class="cfg-name">EaVersionInfoApi</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_EaVersionInfoApi" checked onchange="onConfigInputChanged('EaVersionInfoApi')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="EaPollingMode">
+          <label class="cfg-lbl" for="cfg_EaPollingMode"><span class="cfg-i">ⓘ</span><span class="cfg-name">EaPollingMode</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_EaPollingMode" onchange="onConfigInputChanged('EaPollingMode')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="EaSetModeSupported">
+          <label class="cfg-lbl" for="cfg_EaSetModeSupported"><span class="cfg-i">ⓘ</span><span class="cfg-name">EaSetModeSupported</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_EaSetModeSupported" checked onchange="onConfigInputChanged('EaSetModeSupported')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="EaVirtualPageSize">
+          <label class="cfg-lbl" for="cfg_EaVirtualPageSize"><span class="cfg-i">ⓘ</span><span class="cfg-name">EaVirtualPageSize</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_EaVirtualPageSize" onchange="onConfigInputChanged('EaVirtualPageSize')">
+              <option value="1">1 Byte</option>
+              <option value="4">4 Bytes</option>
+              <option value="8" selected>8 Bytes (Typ)</option>
+              <option value="16">16 Bytes</option>
+              <option value="32">32 Bytes</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="EaIndex">
+          <label class="cfg-lbl" for="cfg_EaIndex"><span class="cfg-i">ⓘ</span><span class="cfg-name">EaIndex (DeviceIdx)</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_EaIndex" min="0" max="15" value="0" onchange="onConfigInputChanged('EaIndex')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="EaMainFunctionPeriod">
+          <label class="cfg-lbl" for="cfg_EaMainFunctionPeriod"><span class="cfg-i">ⓘ</span><span class="cfg-name">EaMainFunctionPeriod</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_EaMainFunctionPeriod" min="1" max="50" value="5" onchange="onConfigInputChanged('EaMainFunctionPeriod')" /><span style="font-size:10px;color:var(--mut)">ms</span></div>
+        </div>
+      </div>
+
+      <!-- TAB 1: CALLBACKS & MODE (6 PARAMS) -->
+      <div id="cfgPane1" class="cfg-pane hidden">
+        <div class="cfg-row" data-cfg-key="EaNvmJobEndNotificationEnabled">
+          <label class="cfg-lbl" for="cfg_EaNvmJobEndNotificationEnabled"><span class="cfg-i">ⓘ</span><span class="cfg-name">NvmJobEndNotif Enabled</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_EaNvmJobEndNotificationEnabled" checked onchange="onConfigInputChanged('EaNvmJobEndNotificationEnabled')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="EaNvmJobEndNotification">
+          <label class="cfg-lbl" for="cfg_EaNvmJobEndNotification"><span class="cfg-i">ⓘ</span><span class="cfg-name">EaNvmJobEndNotification</span></label>
+          <div class="cfg-ctrl"><input type="text" id="cfg_EaNvmJobEndNotification" class="mono" value="NvM_JobEndNotification" style="width:142px" onchange="onConfigInputChanged('EaNvmJobEndNotification')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="EaNvmJobErrorNotificationEnabled">
+          <label class="cfg-lbl" for="cfg_EaNvmJobErrorNotificationEnabled"><span class="cfg-i">ⓘ</span><span class="cfg-name">NvmJobErrorNotif Enabled</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_EaNvmJobErrorNotificationEnabled" checked onchange="onConfigInputChanged('EaNvmJobErrorNotificationEnabled')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="EaNvmJobErrorNotification">
+          <label class="cfg-lbl" for="cfg_EaNvmJobErrorNotification"><span class="cfg-i">ⓘ</span><span class="cfg-name">EaNvmJobErrorNotification</span></label>
+          <div class="cfg-ctrl"><input type="text" id="cfg_EaNvmJobErrorNotification" class="mono" value="NvM_JobErrorNotification" style="width:142px" onchange="onConfigInputChanged('EaNvmJobErrorNotification')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="CurrentMemIfMode">
+          <label class="cfg-lbl" for="cfg_CurrentMemIfMode"><span class="cfg-i">ⓘ</span><span class="cfg-name">CurrentMemIfMode</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_CurrentMemIfMode" onchange="onConfigInputChanged('CurrentMemIfMode')">
+              <option value="MEMIF_MODE_SLOW">MEMIF_MODE_SLOW</option>
+              <option value="MEMIF_MODE_FAST">MEMIF_MODE_FAST</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="EaBufferAlignmentValue">
+          <label class="cfg-lbl" for="cfg_EaBufferAlignmentValue"><span class="cfg-i">ⓘ</span><span class="cfg-name">EaBufferAlignmentValue</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_EaBufferAlignmentValue" onchange="onConfigInputChanged('EaBufferAlignmentValue')">
+              <option value="1">1 Byte</option>
+              <option value="2">2 Bytes</option>
+              <option value="4" selected>4 Bytes</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 2: BLOCK #1 & #2 (6 PARAMS) -->
+      <div id="cfgPane2" class="cfg-pane hidden">
+        <div class="cfg-row" data-cfg-key="Blk1_BlockNumber">
+          <label class="cfg-lbl" for="cfg_Blk1_BlockNumber"><span class="cfg-i">ⓘ</span><span class="cfg-name">Blk1_BlockNumber</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_Blk1_BlockNumber" min="1" max="65534" value="1" onchange="onConfigInputChanged('Blk1_BlockNumber')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="Blk1_BlockSize">
+          <label class="cfg-lbl" for="cfg_Blk1_BlockSize"><span class="cfg-i">ⓘ</span><span class="cfg-name">Blk1_BlockSize (Calib)</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_Blk1_BlockSize" min="2" max="32" value="12" onchange="onConfigInputChanged('Blk1_BlockSize')" /><span style="font-size:10px;color:var(--mut)">B</span></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="Blk1_ImmediateData">
+          <label class="cfg-lbl" for="cfg_Blk1_ImmediateData"><span class="cfg-i">ⓘ</span><span class="cfg-name">Blk1_ImmediateData</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_Blk1_ImmediateData" onchange="onConfigInputChanged('Blk1_ImmediateData')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="Blk2_BaseBlockNumber">
+          <label class="cfg-lbl" for="cfg_Blk2_BaseBlockNumber"><span class="cfg-i">ⓘ</span><span class="cfg-name">Blk2_BaseBlockNumber</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_Blk2_BaseBlockNumber" min="2" max="65530" value="2" onchange="onConfigInputChanged('Blk2_BaseBlockNumber')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="Blk2_BlockSize">
+          <label class="cfg-lbl" for="cfg_Blk2_BlockSize"><span class="cfg-i">ⓘ</span><span class="cfg-name">Blk2_BlockSize (Dataset)</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_Blk2_BlockSize" min="2" max="24" value="8" onchange="onConfigInputChanged('Blk2_BlockSize')" /><span style="font-size:10px;color:var(--mut)">B</span></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="Blk2_SelectedDatasetIndex">
+          <label class="cfg-lbl" for="cfg_Blk2_SelectedDatasetIndex"><span class="cfg-i">ⓘ</span><span class="cfg-name">Blk2_DatasetIndex</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_Blk2_SelectedDatasetIndex" onchange="onConfigInputChanged('Blk2_SelectedDatasetIndex')">
+              <option value="0">0 → Block #2 (VALID)</option>
+              <option value="1">1 → Block #3 (INVALID)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 3: BLOCK #3 & #4 (6 PARAMS) -->
+      <div id="cfgPane3" class="cfg-pane hidden">
+        <div class="cfg-row" data-cfg-key="Blk3_BlockNumber">
+          <label class="cfg-lbl" for="cfg_Blk3_BlockNumber"><span class="cfg-i">ⓘ</span><span class="cfg-name">Blk3_BlockNumber</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_Blk3_BlockNumber" min="1" max="65534" value="4" onchange="onConfigInputChanged('Blk3_BlockNumber')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="Blk3_BlockSize">
+          <label class="cfg-lbl" for="cfg_Blk3_BlockSize"><span class="cfg-i">ⓘ</span><span class="cfg-name">Blk3_BlockSize (Odo)</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_Blk3_BlockSize" min="2" max="16" value="4" onchange="onConfigInputChanged('Blk3_BlockSize')" /><span style="font-size:10px;color:var(--mut)">B</span></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="Blk3_NumberOfWriteCycles">
+          <label class="cfg-lbl" for="cfg_Blk3_NumberOfWriteCycles"><span class="cfg-i">ⓘ</span><span class="cfg-name">Blk3_NumberOfWriteCycles</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_Blk3_NumberOfWriteCycles" min="50000" max="800000" step="50000" value="400000" onchange="onConfigInputChanged('Blk3_NumberOfWriteCycles')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="Blk4_BlockNumber">
+          <label class="cfg-lbl" for="cfg_Blk4_BlockNumber"><span class="cfg-i">ⓘ</span><span class="cfg-name">Blk4_BlockNumber</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_Blk4_BlockNumber" min="1" max="65534" value="5" onchange="onConfigInputChanged('Blk4_BlockNumber')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="Blk4_BlockSize">
+          <label class="cfg-lbl" for="cfg_Blk4_BlockSize"><span class="cfg-i">ⓘ</span><span class="cfg-name">Blk4_BlockSize (Crash)</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_Blk4_BlockSize" min="2" max="24" value="10" onchange="onConfigInputChanged('Blk4_BlockSize')" /><span style="font-size:10px;color:var(--mut)">B</span></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="Blk4_ImmediateData">
+          <label class="cfg-lbl" for="cfg_Blk4_ImmediateData"><span class="cfg-i">ⓘ</span><span class="cfg-name">Blk4_ImmediateData</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_Blk4_ImmediateData" checked onchange="onConfigInputChanged('Blk4_ImmediateData')" /></div>
+        </div>
+      </div>
+
+      <!-- TAB 4: OVERHEAD & EEP (5 PARAMS) -->
+      <div id="cfgPane4" class="cfg-pane hidden">
+        <div class="cfg-row" data-cfg-key="EaBlockOverhead">
+          <label class="cfg-lbl" for="cfg_EaBlockOverhead"><span class="cfg-i">ⓘ</span><span class="cfg-name">EaBlockOverhead</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_EaBlockOverhead" min="4" max="8" step="2" value="4" onchange="onConfigInputChanged('EaBlockOverhead')" /><span style="font-size:10px;color:var(--mut)">B</span></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="EaPageOverhead">
+          <label class="cfg-lbl" for="cfg_EaPageOverhead"><span class="cfg-i">ⓘ</span><span class="cfg-name">EaPageOverhead</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_EaPageOverhead" min="0" max="4" value="0" onchange="onConfigInputChanged('EaPageOverhead')" /><span style="font-size:10px;color:var(--mut)">B</span></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="EepAllowedWriteCycles">
+          <label class="cfg-lbl" for="cfg_EepAllowedWriteCycles"><span class="cfg-i">ⓘ</span><span class="cfg-name">EepAllowedWriteCycles</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_EepAllowedWriteCycles" min="50000" max="500000" step="50000" value="100000" onchange="onConfigInputChanged('EepAllowedWriteCycles')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="EepBaseAddress">
+          <label class="cfg-lbl" for="cfg_EepBaseAddress"><span class="cfg-i">ⓘ</span><span class="cfg-name">EepBaseAddress</span></label>
+          <div class="cfg-ctrl"><input type="text" id="cfg_EepBaseAddress" class="mono" value="0x0000" style="width:90px;text-align:right" onchange="onConfigInputChanged('EepBaseAddress')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="EepChunkSizeMode">
+          <label class="cfg-lbl" for="cfg_EepChunkSizeMode"><span class="cfg-i">ⓘ</span><span class="cfg-name">EepChunkSize (Slow/Fast)</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_EepChunkSizeMode" onchange="onConfigInputChanged('EepChunkSizeMode')">
+              <option value="8_32" selected>8B (Slow) / 32B (Fast)</option>
+              <option value="4_16">4B (Slow) / 16B (Fast)</option>
+              <option value="16_64">16B (Slow) / 64B (Fast)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 5: FAULT INJECTION (5 PARAMS) -->
+      <div id="cfgPane5" class="cfg-pane hidden">
+        <div class="cfg-row" data-cfg-key="SimulatePowerLossMidWrite">
+          <label class="cfg-lbl" for="cfg_SimulatePowerLossMidWrite"><span class="cfg-i">ⓘ</span><span class="cfg-name">SimulatePowerLossMidWrite</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_SimulatePowerLossMidWrite" onchange="onConfigInputChanged('SimulatePowerLossMidWrite')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="InjectEepHardwareError">
+          <label class="cfg-lbl" for="cfg_InjectEepHardwareError"><span class="cfg-i">ⓘ</span><span class="cfg-name">InjectEepHardwareError</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_InjectEepHardwareError" onchange="onConfigInputChanged('InjectEepHardwareError')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="AutoVerifyAfterWrite">
+          <label class="cfg-lbl" for="cfg_AutoVerifyAfterWrite"><span class="cfg-i">ⓘ</span><span class="cfg-name">AutoVerifyAfterWrite</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_AutoVerifyAfterWrite" onchange="onConfigInputChanged('AutoVerifyAfterWrite')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="StrictImmediateEraseCheck">
+          <label class="cfg-lbl" for="cfg_StrictImmediateEraseCheck"><span class="cfg-i">ⓘ</span><span class="cfg-name">StrictImmediateEraseCheck</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_StrictImmediateEraseCheck" onchange="onConfigInputChanged('StrictImmediateEraseCheck')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="TestInvalidParamMode">
+          <label class="cfg-lbl" for="cfg_TestInvalidParamMode"><span class="cfg-i">ⓘ</span><span class="cfg-name">TestInvalidParamMode</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_TestInvalidParamMode" onchange="onConfigInputChanged('TestInvalidParamMode')">
+              <option value="NONE">NONE (Hợp lệ)</option>
+              <option value="INVALID_BLOCK_NO">BlockNo = 0xFFFF (0x02)</option>
+              <option value="INVALID_OFFSET">BlockOffset &ge; Size (0x03)</option>
+              <option value="INVALID_LEN">Ofs+Len &gt; Size (0x05)</option>
+              <option value="NULL_PTR">DataBuffer = NULL (0x04)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div id="cfgValidationBox" style="padding:0 10px 8px"></div>
+    </section>
+  </aside>
+
+  <!-- CENTER COLUMN: LOGICAL->PHYSICAL EEPROM MAP, DUAL 8-BIT REGISTERS, SUB-JOB, STATE MACHINES & SVG -->
+  <section class="col-center">
+    <!-- PANEL 1: LOGICAL BLOCKS, PHYSICAL EEPROM HEX MAP & DUAL 8-BIT REGISTERS -->
+    <section class="panel">
+      <div class="panel-hdr">
+        <span class="panel-title">🗺️ Ánh Xạ Logical Block ➔ Physical EEPROM Memory Map &amp; 2 Thanh Ghi 8-Bit</span>
+        <span id="eaMapBadge" class="panel-sub mono">VP: 8B | Overhead: 4B | Active: BLK1</span>
+      </div>
+      <div class="panel-body tier-split">
+        <!-- TIER 1A-0: LIVE ADDRESS TRANSLATION BANNER -->
+        <div id="eaMapSummaryBar" class="ea-summary-bar"></div>
+
+        <!-- TIER 1A-1: LOGICAL BLOCK TABLE -->
+        <div class="blk-tbl-wrap">
+          <table class="blk-tbl">
+            <thead>
+              <tr>
+                <th>Block #</th>
+                <th>Tên Logical Block</th>
+                <th>Size / +Ovrhd</th>
+                <th>Virtual Pages</th>
+                <th>WriteCycles (Slots)</th>
+                <th>Physical Addr</th>
+                <th>Trạng Thái</th>
+              </tr>
+            </thead>
+            <tbody id="logicalBlocksBody"></tbody>
+          </table>
+        </div>
+
+        <!-- TIER 1A-2: PHYSICAL EEPROM HEX MEMORY MAP -->
+        <div class="eep-map-wrap">
+          <div class="eep-map-hdr">
+            <span style="font-size:11px;font-weight:700;color:var(--txt)">🧩 Bản Đồ Ô Nhớ Vật Lý EEPROM (`Eep` Hex Layout — Click ô để kiểm tra/phá Footer)</span>
+            <div class="eep-legend">
+              <span class="eep-leg-item"><span class="eep-dot" style="background:var(--pri)"></span>HDR 0xA5</span>
+              <span class="eep-leg-item"><span class="eep-dot" style="background:var(--mut)"></span>DATA</span>
+              <span class="eep-leg-item"><span class="eep-dot" style="background:var(--ok)"></span>FTR 0x5A</span>
+              <span class="eep-leg-item"><span class="eep-dot" style="background:var(--warn)"></span>INV 0x00</span>
+              <span class="eep-leg-item"><span class="eep-dot" style="background:var(--err)"></span>INCONSIST</span>
+              <span class="eep-leg-item"><span class="eep-dot" style="background:var(--pur)"></span>ERASED 0xFF</span>
+            </div>
+          </div>
+          <div id="eepMemoryMap" class="eep-rows"></div>
+        </div>
+
+        <!-- TIER 1B: DUAL 8-BIT REGISTERS -->
+        <div class="reg-grid">
+          <div class="reg-card">
+            <div class="reg-top">
+              <span id="regATitle" class="reg-name">Thanh A: Ea_ModuleJobStatusByte</span>
+              <span id="regAHex" class="reg-hex mono">0x88</span>
+            </div>
+            <div id="regABits" class="bit-row"></div>
+          </div>
+
+          <div class="reg-card">
+            <div class="reg-top">
+              <span id="regBTitle" class="reg-name">Thanh B: Ea_BlockHeaderControlByte</span>
+              <span id="regBHex" class="reg-hex mono">0xC0</span>
+            </div>
+            <div id="regBBits" class="bit-row"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PANEL 2: SUB-JOB PROGRESS & DUAL STATE MACHINES -->
+    <section class="panel">
+      <div class="panel-hdr">
+        <span class="panel-title">⏳ Tiến Trình Sub-Job Bất Đồng Bộ &amp; 2 Máy Trạng Thái Song Song</span>
+        <span id="eaExecBadge" class="panel-sub mono">MainFn: 5ms | Notify: Callback | SubPhase: IDLE</span>
+      </div>
+      <div class="panel-body">
+        <div id="timersGrid" class="timer-grid"></div>
+        <div class="sm-dual">
+          <div class="sm-box">
+            <div class="sm-title">
+              <span>🚦 Ea Module &amp; Job State Machine (SWS_Ea_00035)</span>
+              <span id="smEaStatusLbl" class="mono">MEMIF_IDLE</span>
+            </div>
+            <div id="eaStatusSmDiagram" class="sm-states"></div>
+          </div>
+
+          <div class="sm-box">
+            <div class="sm-title">
+              <span>🛡️ Block Integrity Lifecycle (Selected Block)</span>
+              <span id="smBlkIntegLbl" class="mono">VALID</span>
+            </div>
+            <div id="blkIntegSmDiagram" class="sm-states"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PANEL 3: INTERACTIVE END-TO-END AUTOSAR EA ARCHITECTURE SVG -->
+    <section class="panel">
+      <div class="panel-hdr">
+        <span class="panel-title">🏗️ Sơ Đồ Kiến Trúc Tương Tác End-to-End (SWC → RTE → NvM → MemIf → Ea → Eep → EEPROM HW)</span>
+        <span class="panel-sub">Click từng khối để xem Input / Output &amp; API</span>
+      </div>
+      <div class="panel-body">
+        <div class="arch-wrap">
+          <svg id="eaArchSvg" class="arch-svg" viewBox="0 0 820 400" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <marker id="arrEnd" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                <path d="M 0 1 L 10 5 L 0 9 z" fill="currentColor" />
+              </marker>
+            </defs>
+
+            <!-- ARROWS LAYER (Clean orthogonal channels, zero box overlaps) -->
+            <path id="arr_swc_rte" class="flow-arrow" d="M 135 68 L 135 96" marker-end="url(#arrEnd)" />
+            <path id="arr_rte_nvm" class="flow-arrow" d="M 250 122 L 295 122" marker-end="url(#arrEnd)" />
+            <path id="arr_ecum_nvm" class="flow-arrow" d="M 410 68 L 410 96" marker-end="url(#arrEnd)" />
+            <path id="arr_ecum_ea" class="flow-arrow" d="M 525 52 L 548 52 L 548 258" marker-end="url(#arrEnd)" />
+            <path id="arr_schm_ea" class="flow-arrow" d="M 800 40 L 810 40 L 810 302 L 575 302" marker-end="url(#arrEnd)" />
+            <path id="arr_nvm_memif" class="flow-arrow" d="M 410 152 L 410 180" marker-end="url(#arrEnd)" />
+            <path id="arr_memif_ea" class="flow-arrow" d="M 410 230 L 410 258" marker-end="url(#arrEnd)" />
+            <path id="arr_ea_nvm_cbk" class="flow-arrow" stroke-dasharray="4 3" d="M 245 278 L 272 278 L 272 138 L 295 138" marker-end="url(#arrEnd)" />
+            <path id="arr_ea_det" class="flow-arrow" d="M 575 274 L 635 274 L 635 152" marker-end="url(#arrEnd)" />
+            <path id="arr_ea_eep" class="flow-arrow" d="M 335 322 L 235 346" marker-end="url(#arrEnd)" />
+            <path id="arr_eep_ea_cbk" class="flow-arrow" stroke-dasharray="4 3" d="M 190 346 L 285 322" marker-end="url(#arrEnd)" />
+            <path id="arr_eep_hw" class="flow-arrow" d="M 380 369 L 440 369" marker-end="url(#arrEnd)" />
+            <path id="arr_eep_dem" class="flow-arrow" d="M 730 346 L 730 152" marker-end="url(#arrEnd)" />
+
+            <!-- ROW 1: SWC_APP, ECUM/BSWM, SCHM/OS -->
+            <g id="node_MOD_SWC" class="mod-node" onclick="selectModule('MOD_SWC')">
+              <rect class="mod-rect" x="20" y="12" width="230" height="56" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="135" y="30" text-anchor="middle" fill="var(--pri)" font-weight="700" font-size="11.5">SWC_App / SWC_Diag</text>
+              <text id="svgSub_MOD_SWC" x="135" y="45" text-anchor="middle" fill="var(--mut)" font-size="9.5">Blk #1 (12B) | RAM Buffer Ready</text>
+              <text x="135" y="59" text-anchor="middle" fill="var(--txt-soft)" font-size="9">Rte_Call_NvMService_Read/WriteBlock()</text>
+            </g>
+
+            <g id="node_MOD_ECUM" class="mod-node" onclick="selectModule('MOD_ECUM')">
+              <rect class="mod-rect" x="295" y="12" width="230" height="56" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="410" y="30" text-anchor="middle" fill="var(--ok)" font-weight="700" font-size="11.5">EcuM &amp; BswM (Lifecycle)</text>
+              <text id="svgSub_MOD_ECUM" x="410" y="45" text-anchor="middle" fill="var(--mut)" font-size="9.5">Ea_Init(NULL_PTR) | Mode: SLOW</text>
+              <text x="410" y="59" text-anchor="middle" fill="var(--txt-soft)" font-size="9">NvM_ReadAll() / Ea_SetMode(FAST/SLOW)</text>
+            </g>
+
+            <g id="node_MOD_SCHM" class="mod-node" onclick="selectModule('MOD_SCHM')">
+              <rect class="mod-rect" x="570" y="12" width="230" height="56" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="685" y="30" text-anchor="middle" fill="var(--cyan)" font-weight="700" font-size="11.5">SchM &amp; AUTOSAR OS</text>
+              <text id="svgSub_MOD_SCHM" x="685" y="45" text-anchor="middle" fill="var(--mut)" font-size="9.5">Tick: 5ms | Task_Bsw_Mem</text>
+              <text x="685" y="59" text-anchor="middle" fill="var(--txt-soft)" font-size="9">Ea_MainFunction() → Eep_MainFunction()</text>
+            </g>
+
+            <!-- ROW 2: RTE, NVM, DET & DEM -->
+            <g id="node_MOD_RTE" class="mod-node" onclick="selectModule('MOD_RTE')">
+              <rect class="mod-rect" x="20" y="96" width="230" height="56" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="135" y="114" text-anchor="middle" fill="var(--acc)" font-weight="700" font-size="11.5">RTE (Runtime Environment)</text>
+              <text id="svgSub_MOD_RTE" x="135" y="129" text-anchor="middle" fill="var(--mut)" font-size="9.5">C/S Port → NvM API Mapping</text>
+              <text x="135" y="143" text-anchor="middle" fill="var(--txt-soft)" font-size="9">(SWC không bao giờ gọi thẳng Ea!)</text>
+            </g>
+
+            <g id="node_MOD_NVM" class="mod-node" onclick="selectModule('MOD_NVM')">
+              <rect class="mod-rect" x="295" y="96" width="230" height="56" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="410" y="114" text-anchor="middle" fill="var(--pur)" font-weight="800" font-size="11.5">NvM (NVRAM Manager)</text>
+              <text id="svgSub_MOD_NVM" x="410" y="129" text-anchor="middle" fill="var(--mut)" font-size="9.5">Queue: Idle | DatasetIdx: 0</text>
+              <text x="410" y="143" text-anchor="middle" fill="var(--txt-soft)" font-size="9">BlockId → (DeviceIdx=0, EaBlockNo)</text>
+            </g>
+
+            <g id="node_MOD_DET" class="mod-node" onclick="selectModule('MOD_DET')">
+              <rect class="mod-rect" x="570" y="96" width="230" height="56" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="685" y="114" text-anchor="middle" fill="var(--err)" font-weight="700" font-size="11.5">DET (Mod 40) &amp; DEM (Eep HW)</text>
+              <text id="svgSub_MOD_DET" x="685" y="129" text-anchor="middle" fill="var(--mut)" font-size="9.5">DET Faults: 0 | DEM HW: OK</text>
+              <text x="685" y="143" text-anchor="middle" fill="var(--txt-soft)" font-size="9">EA_E_UNINIT / INVALID_BLOCK / BUSY</text>
+            </g>
+
+            <!-- ROW 3: MEMIF -->
+            <g id="node_MOD_MEMIF" class="mod-node" onclick="selectModule('MOD_MEMIF')">
+              <rect class="mod-rect" x="295" y="180" width="230" height="50" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="410" y="198" text-anchor="middle" fill="var(--warn)" font-weight="800" font-size="11.5">MemIf (Memory Interface)</text>
+              <text id="svgSub_MOD_MEMIF" x="410" y="213" text-anchor="middle" fill="var(--mut)" font-size="9.5">DeviceIndex=0 → Route to Ea_*</text>
+              <text x="410" y="225" text-anchor="middle" fill="var(--txt-soft)" font-size="9">Multiplexer (Ea vs Fee)</text>
+            </g>
+
+            <!-- ROW 4: EA CORE (FOCAL MODULE) -->
+            <g id="node_MOD_EA" class="mod-node selected" onclick="selectModule('MOD_EA')">
+              <rect class="mod-rect" x="245" y="258" width="330" height="64" rx="10" fill="var(--pri-bg)" stroke="var(--pri)" stroke-width="2.2"/>
+              <text x="410" y="277" text-anchor="middle" fill="var(--pri)" font-weight="800" font-size="13">Ea (EEPROM Abstraction — Mod 40)</text>
+              <text id="svgSub_MOD_EA1" x="410" y="294" text-anchor="middle" fill="var(--txt)" font-weight="700" font-size="10">Status: MEMIF_IDLE | Result: MEMIF_JOB_OK</text>
+              <text id="svgSub_MOD_EA2" x="410" y="310" text-anchor="middle" fill="var(--mut)" font-size="9.5">VP: 8B | Overhead: 4B (Hdr+Ftr) | Wear-Leveling</text>
+            </g>
+
+            <!-- ROW 5: EEP DRIVER & PHYSICAL EEPROM HW -->
+            <g id="node_MOD_EEP" class="mod-node" onclick="selectModule('MOD_EEP')">
+              <rect class="mod-rect" x="40" y="346" width="340" height="46" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="210" y="364" text-anchor="middle" fill="var(--ok)" font-weight="700" font-size="11.5">Eep Driver (MCAL · Physical Addr)</text>
+              <text id="svgSub_MOD_EEP" x="210" y="380" text-anchor="middle" fill="var(--mut)" font-size="9.5">MEMIF_MODE_SLOW (8B/tick) | IDLE</text>
+            </g>
+
+            <g id="node_MOD_SPI_HW" class="mod-node" onclick="selectModule('MOD_SPI_HW')">
+              <rect class="mod-rect" x="440" y="346" width="340" height="46" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="610" y="364" text-anchor="middle" fill="var(--cyan)" font-weight="700" font-size="11.5">Spi &amp; Physical EEPROM Hardware</text>
+              <text id="svgSub_MOD_SPI" x="610" y="380" text-anchor="middle" fill="var(--mut)" font-size="9.5">Allowed: 100k cycles | Power: OK | HW: OK</text>
+            </g>
+          </svg>
+        </div>
+      </div>
+    </section>
+  </section>
+
+  <!-- RIGHT COLUMN: STICKY 4-TAB INSPECTOR -->
+  <aside class="col-right">
+    <section class="panel insp-panel">
+      <div class="insp-tabs">
+        <button id="inspTabBtn0" class="insp-tab active" onclick="switchInspTab(0)">🔍 Bước Hiện Tại</button>
+        <button id="inspTabBtn1" class="insp-tab" onclick="switchInspTab(1)">🧩 Module</button>
+        <button id="inspTabBtn2" class="insp-tab" onclick="switchInspTab(2)">📄 Code C</button>
+        <button id="inspTabBtn3" class="insp-tab" onclick="switchInspTab(3)">📜 API Trace</button>
+      </div>
+      <div id="inspBody" class="insp-body"></div>
+    </section>
+  </aside>
+</main>
+
+<!-- ================= VIEW 2: MULTI-LEVEL HANDBOOK & ABBREVIATION TABLE ================= -->
+<main id="viewHb" class="hb-wrap hidden">
+  <div class="hb-nav1">
+    <button id="hbTab1_0" class="hb-tab1 active" onclick="switchHbTab1(0)">1. Kiến Trúc Memory Stack &amp; Ea</button>
+    <button id="hbTab1_1" class="hb-tab1" onclick="switchHbTab1(1)">2. Ánh Xạ, Virtual Page &amp; Wear-Level</button>
+    <button id="hbTab1_2" class="hb-tab1" onclick="switchHbTab1(2)">3. Header/Footer &amp; Chống Sập Nguồn</button>
+    <button id="hbTab1_3" class="hb-tab1" onclick="switchHbTab1(3)">4. Bất Đồng Bộ, Immediate &amp; Polling</button>
+    <button id="hbTab1_4" class="hb-tab1" onclick="switchHbTab1(4)">5. So Sánh Chuyên Sâu: Ea vs Fee</button>
+    <button id="hbTab1_5" class="hb-tab1" onclick="switchHbTab1(5)">6. API R23-11, Lỗi DET &amp; 36 ECUC</button>
+    <button id="hbTab1_6" class="hb-tab1" onclick="switchHbTab1(6)">7. Bảng Thuật Ngữ &amp; Search</button>
+  </div>
+
+  <div id="hbNav2" class="hb-nav2"></div>
+
+  <div id="hbAbbrFilterBox" class="abbr-toolbar hidden">
+    <input id="abbrSearchInput" class="abbr-search" type="text" placeholder="🔍 Nhập từ viết tắt, tên thuật ngữ hoặc mã SWS để tìm nhanh... (VD: Virtual Page, Inconsistent, Immediate, Wear-Leveling)" oninput="filterAbbreviationTable()" />
+    <div class="cat-pills">
+      <button id="catPill_ALL" class="cat-pill active" onclick="setAbbrCategory('ALL')">Tất cả (52)</button>
+      <button id="catPill_ADDR" class="cat-pill" onclick="setAbbrCategory('ADDR')">🗺️ Ea Core &amp; Addressing</button>
+      <button id="catPill_INTEG" class="cat-pill" onclick="setAbbrCategory('INTEG')">🛡️ Block Status &amp; Integrity</button>
+      <button id="catPill_STACK" class="cat-pill" onclick="setAbbrCategory('STACK')">📚 Memory Stack (NvM/MemIf/Fee)</button>
+      <button id="catPill_HW_ERR" class="cat-pill" onclick="setAbbrCategory('HW_ERR')">⚙️ Eep Driver, HW &amp; Errors</button>
+    </div>
+    <span id="abbrCountBadge" class="step-pill">52 thuật ngữ</span>
+  </div>
+
+  <div id="hbContentArea"></div>
+</main>
+
+<!-- ================= EXPORT ARXML / C / JSON MODAL ================= -->
+<div id="exportModal" class="modal-overlay hidden" onclick="onExportModalBackdrop(event)">
+  <div class="modal-box">
+    <div class="modal-hdr">
+      <strong style="font-size:13.5px;color:var(--pri)">📦 Xuất Cấu Hình Ea AUTOSAR (ARXML · Ea_Cfg.h · Ea_Lcfg.c · JSON)</strong>
+      <button class="btn btn-sm" onclick="closeExportModal()">✖ Đóng</button>
+    </div>
+    <div class="modal-tabs">
+      <button id="expTab0" class="btn btn-sm btn-pri" onclick="switchExportTab(0)">Ea.arxml</button>
+      <button id="expTab1" class="btn btn-sm" onclick="switchExportTab(1)">Ea_Cfg.h</button>
+      <button id="expTab2" class="btn btn-sm" onclick="switchExportTab(2)">Ea_Lcfg.c</button>
+      <button id="expTab3" class="btn btn-sm" onclick="switchExportTab(3)">Ea_Config.json</button>
+    </div>
+    <div class="modal-body">
+      <pre id="exportCodeArea" class="code-block"></pre>
+    </div>
+    <div class="modal-ftr">
+      <button class="btn" onclick="copyExportCode()">📋 Copy Clipboard</button>
+      <button class="btn btn-ok" onclick="downloadExportCode()">⬇ Tải File Hiện Tại</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= FLOATING TOOLTIP POPUP (>1S HOVER ON ECUC FIELDS) ================= -->
+<div id="cfgTooltipPopup" role="tooltip"></div>
+<script>
