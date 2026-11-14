@@ -684,14 +684,30 @@
     .field label { font-size: 11px; font-weight: 700; color: var(--mut); }
 
     /* ===================== HANDBOOK VIEW ===================== */
-    .hb-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 10px; }
+    .hb-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr)); gap: 10px; align-items: stretch; }
     .hb-card {
       background: var(--panel); border: 1px solid var(--bdr); border-radius: 11px; padding: 14px;
       box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 8px;
+      min-width: 0; overflow: hidden;
     }
     .hb-card h3 { font-size: 14px; color: var(--pri); font-weight: 800; }
     .hb-card p, .hb-card li { font-size: 12.5px; color: var(--txt-soft); line-height: 1.55; }
     .hb-card ul { padding-left: 18px; display: flex; flex-direction: column; gap: 4px; }
+    .hb-sim-scroll {
+      flex: 1; min-height: 140px; max-height: 300px;
+      overflow-y: auto; overflow-x: hidden; padding-right: 4px;
+    }
+    .hb-sim-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; }
+    .hb-sim-row {
+      text-decoration: none; color: var(--txt); min-width: 0; max-width: 100%; overflow: hidden;
+    }
+    .hb-sim-id { font-weight: 800; flex: none; }
+    .hb-sim-path {
+      font-family: "JetBrains Mono", Consolas, monospace; font-size: 11px; color: var(--ok);
+      min-width: 0; flex: 1; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .hb-flow-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 8px; margin-top: 8px; }
+    .hb-flow-card { align-items: flex-start; flex-direction: column; gap: 5px; min-width: 0; overflow: hidden; }
     pre.code-blk {
       background: var(--code); border: 1px solid var(--bdr); border-radius: 8px; padding: 10px;
       font-size: 11.5px; overflow-x: auto; line-height: 1.5; color: var(--txt-soft);
@@ -6790,26 +6806,28 @@
 
         <div class="hb-card">
           <h3>2. Danh Sách ${linked.length} Trình Mô Phỏng Đã Liên Kết</h3>
-          <p>Các file mô phỏng được phân loại theo từng layer bên trong thư mục <code>Simulation/</code>:</p>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
-            ${linked.map(m => `
-              <a class="quick-sim-row" style="text-decoration:none;color:var(--txt);" href="${escapeHtml(resolveSimUrl(m.htmlPath))}" target="_blank" rel="noopener noreferrer">
-                <span><b>${escapeHtml(m.id)}</b></span>
-                <span class="mono" style="font-size:10.5px;color:var(--ok);overflow:hidden;text-overflow:ellipsis;">${escapeHtml(m.htmlPath)} ↗</span>
-              </a>
-            `).join("")}
+          <p>Các file mô phỏng được phân loại theo từng layer bên trong thư mục <code>Simulation/</code> (cuộn để xem đầy đủ):</p>
+          <div class="hb-sim-scroll">
+            <div class="hb-sim-grid">
+              ${linked.map(m => `
+                <a class="quick-sim-row hb-sim-row" href="${escapeHtml(resolveSimUrl(m.htmlPath))}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(m.id + ": " + m.htmlPath)}">
+                  <span class="hb-sim-id">${escapeHtml(m.id)}</span>
+                  <span class="hb-sim-path">${escapeHtml(m.htmlPath)} ↗</span>
+                </a>
+              `).join("")}
+            </div>
           </div>
         </div>
 
         <div class="hb-card" style="grid-column: 1 / -1;">
           <h3>3. Bộ ${flows.length} Luồng Mô Phỏng AUTOSAR Tương Tác</h3>
           <p>Chọn bất kỳ luồng nào bên dưới để chạy trực tiếp từng bước kèm mũi tên động trên sơ đồ kiến trúc và giải thích API / ngữ cảnh thực thi / lý do thiết kế:</p>
-          <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(340px, 1fr));gap:8px;margin-top:8px;">
+          <div class="hb-flow-grid">
             ${flows.map(f => `
-              <div class="quick-sim-row" style="align-items:flex-start;flex-direction:column;gap:5px;">
-                <div style="display:flex;width:100%;align-items:center;justify-content:space-between;gap:6px;">
-                  <span style="font-weight:800;font-size:12px;color:var(--pri);">${escapeHtml(f.name)}</span>
-                  <button class="btn btn-xs btn-pri" onclick="launchFlowFromHandbook('${escapeHtml(f.id)}')">Mô phỏng (${(f.steps || []).length} bước) ▶</button>
+              <div class="quick-sim-row hb-flow-card">
+                <div style="display:flex;width:100%;align-items:flex-start;justify-content:space-between;gap:6px;">
+                  <span style="font-weight:800;font-size:12px;color:var(--pri);min-width:0;word-break:break-word;">${escapeHtml(f.name)}</span>
+                  <button class="btn btn-xs btn-pri" style="flex:none;" onclick="launchFlowFromHandbook('${escapeHtml(f.id)}')">Mô phỏng (${(f.steps || []).length} bước) ▶</button>
                 </div>
                 <span style="font-size:11.5px;color:var(--mut);line-height:1.45;">${escapeHtml(f.description || "")}</span>
               </div>
