@@ -1,0 +1,633 @@
+<!-- ================= STICKY UNIFIED HEADER ================= -->
+<header class="hdr">
+  <div class="hdr-row">
+    <div class="brand">
+      <span class="brand-badge">AUTOSAR Classic R23-11</span>
+      <div>
+        <div class="brand-title">ComM Interactive Simulator &amp; Technical Handbook</div>
+        <div class="brand-sub">Communication Manager · Channel Mode Arbitration · Mode Inhibition · Partial Networking (PNC &amp; GW)</div>
+      </div>
+    </div>
+
+    <div class="view-switch" role="tablist">
+      <button id="btnViewSim" class="view-btn active" onclick="switchMainView('sim')">🎛️ Trình Mô Phỏng ComM</button>
+      <button id="btnViewHb" class="view-btn" onclick="switchMainView('hb')">📖 Sổ Tay Kỹ Thuật &amp; Thuật Ngữ</button>
+    </div>
+
+    <div class="hdr-actions">
+      <button class="btn btn-pri" onclick="openExportModal()">📦 Xuất ARXML / Cfg / C</button>
+      <button class="btn btn-ok" onclick="downloadStandaloneHTML()">💾 Tải File .HTML</button>
+      <button id="btnTheme" class="btn" onclick="toggleTheme()">☀️ Light Mode</button>
+    </div>
+  </div>
+
+  <div class="hdr-row">
+    <div class="scen-bar">
+      <label for="scenSelect" style="font-weight:700;font-size:11.5px;color:var(--mut)">Kịch bản:</label>
+      <select id="scenSelect" class="scen-select" onchange="onScenarioSelectChange()">
+        <optgroup label="Nhóm 1: Khởi Động, Phân Xử Đa User &amp; Mode Transitions">
+          <option value="S1">S1: Boot-Up ECU, ComM_Init() &amp; Gatekeeper CommunicationAllowed</option>
+          <option value="S2">S2: Single User Request FULL_COM &amp; Bắt Tay BusSM / Nm (FULL)</option>
+          <option value="S3">S3: Multi-User Arbitration &amp; Ràng Buộc Thời Gian TMinFullComMode</option>
+          <option value="S4">S4: Release Toàn Bộ User — Graceful Shutdown (FULL_COM → SILENT → NO_COM)</option>
+        </optgroup>
+        <optgroup label="Nhóm 2: Biến Thể NM (LIGHT / PASSIVE) &amp; EcuM Wakeup">
+          <option value="S5">S5: Biến Thể ComMNmVariant = LIGHT &amp; Bộ Đếm NmLightTimeout</option>
+          <option value="S6">S6: Passive Wakeup (Rx Network Wakeup) &amp; ComMSynchronousWakeUp</option>
+          <option value="S7">S7: Passive Channel (ComMNmVariant = PASSIVE) Chỉ Nghe Mạng</option>
+        </optgroup>
+        <optgroup label="Nhóm 3: Mode Inhibition, InhibitCounter, NvM &amp; Quyền Tối Cao DCM">
+          <option value="S8">S8: Wake-Up Inhibition (NoWakeup) &amp; Bộ Đếm ComMInhibitCounter</option>
+          <option value="S9">S9: Limit Channel/ECU To NO_COM Mode &amp; Bảng Classification Bit</option>
+          <option value="S10">S10: DCM ActiveDiagnostic Override Bỏ Qua Mọi Mode Inhibition</option>
+        </optgroup>
+        <optgroup label="Nhóm 4: Partial Networking (PNC), EIRA/ERA, Gateway &amp; Error Handling">
+          <option value="S11">S11: PNC Request Internal User &amp; Truyền PNC Bit Vector Qua COM</option>
+          <option value="S12">S12: Nhận Rx EIRA Từ Bus &amp; Bộ Đếm PNC Prepare Sleep (10-Step Flow)</option>
+          <option value="S13">S13: PNC Gateway Routing (ACTIVE / PASSIVE GW) &amp; Synchronized Shutdown</option>
+          <option value="S14">S14: Bẫy DET Errors (UNINIT, BusSM Trễ, Timeout Lock, Sai Parameters)</option>
+        </optgroup>
+      </select>
+
+      <button class="btn btn-sm" onclick="resetCurrentScenario()">⟲ Reset Kịch Bản</button>
+      <button id="btnPrevStep" class="btn btn-sm" onclick="prevScenarioStep()" disabled>◀ Lùi</button>
+      <span id="stepIndicator" class="step-pill">Bước 0 / 0</span>
+      <button id="btnNextStep" class="btn btn-sm btn-pri" onclick="nextScenarioStep()">Bước Tiếp ▶</button>
+      <button id="btnAutoPlay" class="btn btn-sm btn-pur" onclick="toggleScenarioAutoPlay()">▶ Tự Động Kịch Bản</button>
+
+      <div class="clock-box">
+        <span style="font-size:10.5px;color:var(--mut);font-weight:700">Clock:</span>
+        <span id="clockVal" class="clock-val mono">0 ms</span>
+        <button class="btn btn-sm btn-ok" onclick="stepClockTick(20)" title="Chạy ComM_MainFunction_0() +20ms">+20ms Tick</button>
+        <button id="btnAutoClock" class="btn btn-sm" onclick="toggleAutoClock()">⏱ Auto Clock</button>
+      </div>
+    </div>
+
+    <div class="hdr-badges">
+      <span id="hdrBadgeCh0" class="state-badge sb-nocom">Ch0: COMM_NO_COMMUNICATION</span>
+      <span id="hdrBadgeSub" class="state-badge sb-nocom">Sub: NO_COM_NO_PENDING_REQUEST</span>
+      <span id="hdrBadgePnc" class="state-badge sb-nocom">PNC16: NO_COM</span>
+      <span id="hdrBadgeInhib" class="state-badge sb-nocom hidden">INHIBITED</span>
+    </div>
+  </div>
+</header>
+
+<!-- ================= VIEW 1: INTERACTIVE SIMULATOR (ZERO-SCROLL 3 COLUMNS) ================= -->
+<main id="viewSim" class="workspace">
+
+  <!-- LEFT COLUMN: QUICK ACTIONS + SCENARIO WHAT-IF + 6 ECUC CONFIG TABS -->
+  <aside class="col-left">
+    <!-- CARD 1: QUICK ACTION BAR -->
+    <section class="panel">
+      <div class="panel-hdr">
+        <span class="panel-title">⚡ Thao Tác Nhanh (Quick Runtime Actions)</span>
+        <span class="panel-sub">Tác động tức thì</span>
+      </div>
+      <div class="panel-body">
+        <div class="qa-row">
+          <span style="font-size:11px;font-weight:700;color:var(--mut)">User:</span>
+          <select id="qaUserSelect" style="flex:1;background:var(--panel-3);border:1px solid var(--bdr);border-radius:5px;padding:3px 6px;font-size:11.5px;font-weight:600">
+            <option value="0">User 0 (SWC_DiagApp → Ch0)</option>
+            <option value="1">User 1 (SWC_BodyCtrl → Ch0)</option>
+            <option value="2">User 2 (SWC_PncPower → PNC #16)</option>
+          </select>
+          <button class="btn btn-sm btn-ok" onclick="qaRequestUser(true)">▶ Req FULL</button>
+          <button class="btn btn-sm" onclick="qaRequestUser(false)">⏹ Req NO_COM</button>
+        </div>
+        <div class="qa-grid">
+          <button id="qaBtnCommAllow" class="qa-btn" onclick="qaToggleCommAllowed()">
+            <span>🟢 CommAllowed</span><span id="qaTxtCommAllow" class="mono">TRUE</span>
+          </button>
+          <button id="qaBtnWakeup" class="qa-btn" onclick="qaTriggerEcuMWakeup()">
+            <span>⚡ EcuM WakeUp</span><span class="mono">Ch0</span>
+          </button>
+          <button id="qaBtnDcm" class="qa-btn qa-warn" onclick="qaToggleDcmActive()">
+            <span>🩺 DCM ActiveDiag</span><span id="qaTxtDcm" class="mono">OFF</span>
+          </button>
+          <button id="qaBtnNoWakeup" class="qa-btn qa-warn" onclick="qaToggleNoWakeup()">
+            <span>🚫 PreventWakeUp</span><span id="qaTxtNoWakeup" class="mono">FALSE</span>
+          </button>
+          <button id="qaBtnLimitCh" class="qa-btn qa-err" onclick="qaToggleLimitChannel()">
+            <span>🛑 LimitToNoCom</span><span id="qaTxtLimitCh" class="mono">FALSE</span>
+          </button>
+          <button id="qaBtnRxEira" class="qa-btn" onclick="qaPulseRxEiraPnc16()">
+            <span>📡 Rx EIRA (PNC16)</span><span id="qaTxtRxEira" class="mono">0x00</span>
+          </button>
+          <button class="qa-btn" onclick="stepClockTick(20)">
+            <span>⏱ +20ms MainFn</span><span class="mono">Tick</span>
+          </button>
+          <button class="qa-btn" onclick="resetCurrentScenario()">
+            <span>⟲ Reset State</span><span class="mono">Init</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- CARD 2: CURRENT SCENARIO SUMMARY & 3 WHAT-IF BUTTONS -->
+    <section class="panel">
+      <div class="panel-hdr">
+        <span class="panel-title">🎬 Kịch Bản Đang Chạy &amp; Thử Nghiệm Nhanh</span>
+        <span id="scenIdBadge" class="panel-sub mono">S1</span>
+      </div>
+      <div class="panel-body">
+        <div id="scenSummaryBox" class="scen-desc-box"></div>
+        <div style="font-size:10.5px;font-weight:700;color:var(--pur);margin-bottom:4px">🧪 Thử Nghiệm Nhanh (1-Click What-If):</div>
+        <div id="whatIfContainer" class="whatif-grid"></div>
+      </div>
+    </section>
+
+    <!-- CARD 3: 6-TAB ECUC CONFIG PANEL (34 PARAMETERS + >1S TOOLTIP) -->
+    <section class="panel">
+      <div class="panel-hdr">
+        <span class="panel-title">⚙️ Cấu Hình ECUC ComM (Hover &gt;1s Xem SWS)</span>
+        <span class="panel-sub">34 Parameters</span>
+      </div>
+      <div class="cfg-tabs">
+        <button id="cfgTabBtn0" class="cfg-tab active" onclick="switchCfgTab(0)">1. General</button>
+        <button id="cfgTabBtn1" class="cfg-tab" onclick="switchCfgTab(1)">2. Channel &amp; NM</button>
+        <button id="cfgTabBtn2" class="cfg-tab" onclick="switchCfgTab(2)">3. Users &amp; Arb</button>
+        <button id="cfgTabBtn3" class="cfg-tab" onclick="switchCfgTab(3)">4. Inhib &amp; NvM</button>
+        <button id="cfgTabBtn4" class="cfg-tab" onclick="switchCfgTab(4)">5. Partial Net</button>
+        <button id="cfgTabBtn5" class="cfg-tab" onclick="switchCfgTab(5)">6. PNC GW/Err</button>
+      </div>
+
+      <!-- TAB 0: GENERAL -->
+      <div id="cfgPane0" class="cfg-pane">
+        <div class="cfg-row" data-cfg-key="ComMInitialized">
+          <label class="cfg-lbl" for="cfg_ComMInitialized"><span class="cfg-i">ⓘ</span><span class="cfg-name">ComMInitialized (State)</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_ComMInitialized" checked onchange="onConfigInputChanged('ComMInitialized')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="ComMDevErrorDetect">
+          <label class="cfg-lbl" for="cfg_ComMDevErrorDetect"><span class="cfg-i">ⓘ</span><span class="cfg-name">ComMDevErrorDetect</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_ComMDevErrorDetect" checked onchange="onConfigInputChanged('ComMDevErrorDetect')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="ComMVersionInfoApi">
+          <label class="cfg-lbl" for="cfg_ComMVersionInfoApi"><span class="cfg-i">ⓘ</span><span class="cfg-name">ComMVersionInfoApi</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_ComMVersionInfoApi" onchange="onConfigInputChanged('ComMVersionInfoApi')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="ComMModeLimitationEnabled">
+          <label class="cfg-lbl" for="cfg_ComMModeLimitationEnabled"><span class="cfg-i">ⓘ</span><span class="cfg-name">ComMModeLimitationEnabled</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_ComMModeLimitationEnabled" checked onchange="onConfigInputChanged('ComMModeLimitationEnabled')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="ComMWakeupInhibitionEnabled">
+          <label class="cfg-lbl" for="cfg_ComMWakeupInhibitionEnabled"><span class="cfg-i">ⓘ</span><span class="cfg-name">ComMWakeupInhibitionEnabled</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_ComMWakeupInhibitionEnabled" checked onchange="onConfigInputChanged('ComMWakeupInhibitionEnabled')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="ComMSynchronousWakeUp">
+          <label class="cfg-lbl" for="cfg_ComMSynchronousWakeUp"><span class="cfg-i">ⓘ</span><span class="cfg-name">ComMSynchronousWakeUp</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_ComMSynchronousWakeUp" checked onchange="onConfigInputChanged('ComMSynchronousWakeUp')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="ComMTMinFullComModeDuration">
+          <label class="cfg-lbl" for="cfg_ComMTMinFullComModeDuration"><span class="cfg-i">ⓘ</span><span class="cfg-name">ComMTMinFullComModeDuration</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_ComMTMinFullComModeDuration" min="0" max="65000" step="20" value="500" onchange="onConfigInputChanged('ComMTMinFullComModeDuration')" /><span style="font-size:10px;color:var(--mut)">ms</span></div>
+        </div>
+      </div>
+
+      <!-- TAB 1: CHANNEL & NM -->
+      <div id="cfgPane1" class="cfg-pane hidden">
+        <div class="cfg-row" data-cfg-key="ComMChannelId">
+          <label class="cfg-lbl" for="cfg_ComMChannelId"><span class="cfg-i">ⓘ</span><span class="cfg-name">ComMChannelId</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_ComMChannelId" onchange="onConfigInputChanged('ComMChannelId')">
+              <option value="0 - CanNetwork_Ch0">0 - CanNetwork_Ch0</option>
+              <option value="1 - CanNetwork_Ch1">1 - CanNetwork_Ch1</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="ComMBusType">
+          <label class="cfg-lbl" for="cfg_ComMBusType"><span class="cfg-i">ⓘ</span><span class="cfg-name">ComMBusType</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_ComMBusType" onchange="onConfigInputChanged('ComMBusType')">
+              <option value="COMM_BUS_TYPE_CAN">COMM_BUS_TYPE_CAN</option>
+              <option value="COMM_BUS_TYPE_ETH">COMM_BUS_TYPE_ETH</option>
+              <option value="COMM_BUS_TYPE_FR">COMM_BUS_TYPE_FR</option>
+              <option value="COMM_BUS_TYPE_LIN">COMM_BUS_TYPE_LIN</option>
+              <option value="COMM_BUS_TYPE_INTERNAL">COMM_BUS_TYPE_INTERNAL</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="ComMMainFunctionPeriod">
+          <label class="cfg-lbl" for="cfg_ComMMainFunctionPeriod"><span class="cfg-i">ⓘ</span><span class="cfg-name">ComMMainFunctionPeriod</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_ComMMainFunctionPeriod" min="5" max="100" step="5" value="20" onchange="onConfigInputChanged('ComMMainFunctionPeriod')" /><span style="font-size:10px;color:var(--mut)">ms</span></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="ComMNmVariant">
+          <label class="cfg-lbl" for="cfg_ComMNmVariant"><span class="cfg-i">ⓘ</span><span class="cfg-name">ComMNmVariant</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_ComMNmVariant" onchange="onConfigInputChanged('ComMNmVariant')">
+              <option value="FULL">FULL</option>
+              <option value="LIGHT">LIGHT</option>
+              <option value="PASSIVE">PASSIVE</option>
+              <option value="NONE">NONE</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="ComMNmLightTimeout">
+          <label class="cfg-lbl" for="cfg_ComMNmLightTimeout"><span class="cfg-i">ⓘ</span><span class="cfg-name">ComMNmLightTimeout</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_ComMNmLightTimeout" min="0" max="65000" step="20" value="1000" onchange="onConfigInputChanged('ComMNmLightTimeout')" /><span style="font-size:10px;color:var(--mut)">ms</span></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="ComMPncNmRequest">
+          <label class="cfg-lbl" for="cfg_ComMPncNmRequest"><span class="cfg-i">ⓘ</span><span class="cfg-name">ComMPncNmRequest</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_ComMPncNmRequest" onchange="onConfigInputChanged('ComMPncNmRequest')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="ComMFullCommRequestNotificationEnabled">
+          <label class="cfg-lbl" for="cfg_ComMFullCommRequestNotificationEnabled"><span class="cfg-i">ⓘ</span><span class="cfg-name">FullCommReqNotification</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_ComMFullCommRequestNotificationEnabled" checked onchange="onConfigInputChanged('ComMFullCommRequestNotificationEnabled')" /></div>
+        </div>
+      </div>
+
+      <!-- TAB 2: USERS & ARBITRATE -->
+      <div id="cfgPane2" class="cfg-pane hidden">
+        <div class="cfg-row" data-cfg-key="User0_RequestMode">
+          <label class="cfg-lbl" for="cfg_User0_RequestMode"><span class="cfg-i">ⓘ</span><span class="cfg-name">User0_RequestMode (Ch0)</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_User0_RequestMode" onchange="onConfigInputChanged('User0_RequestMode')">
+              <option value="COMM_NO_COMMUNICATION">NO_COM</option>
+              <option value="COMM_FULL_COMMUNICATION">FULL_COM</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="User1_RequestMode">
+          <label class="cfg-lbl" for="cfg_User1_RequestMode"><span class="cfg-i">ⓘ</span><span class="cfg-name">User1_RequestMode (Ch0)</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_User1_RequestMode" onchange="onConfigInputChanged('User1_RequestMode')">
+              <option value="COMM_NO_COMMUNICATION">NO_COM</option>
+              <option value="COMM_FULL_COMMUNICATION">FULL_COM</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="User2_Pnc16RequestMode">
+          <label class="cfg-lbl" for="cfg_User2_Pnc16RequestMode"><span class="cfg-i">ⓘ</span><span class="cfg-name">User2_Pnc16RequestMode</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_User2_Pnc16RequestMode" onchange="onConfigInputChanged('User2_Pnc16RequestMode')">
+              <option value="COMM_NO_COMMUNICATION">NO_COM</option>
+              <option value="COMM_FULL_COMMUNICATION">FULL_COM</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="ComMCommunicationAllowedFlag">
+          <label class="cfg-lbl" for="cfg_ComMCommunicationAllowedFlag"><span class="cfg-i">ⓘ</span><span class="cfg-name">CommunicationAllowed(Ch0)</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_ComMCommunicationAllowedFlag" checked onchange="onConfigInputChanged('ComMCommunicationAllowedFlag')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="ComMDcmDiagnosticActiveFlag">
+          <label class="cfg-lbl" for="cfg_ComMDcmDiagnosticActiveFlag"><span class="cfg-i">ⓘ</span><span class="cfg-name">DcmActiveDiagnostic(Ch0)</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_ComMDcmDiagnosticActiveFlag" onchange="onConfigInputChanged('ComMDcmDiagnosticActiveFlag')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="SimulateBusSmIndicationDelay">
+          <label class="cfg-lbl" for="cfg_SimulateBusSmIndicationDelay"><span class="cfg-i">ⓘ</span><span class="cfg-name">BusSM Indication Delay</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_SimulateBusSmIndicationDelay" min="0" max="5000" step="20" value="20" onchange="onConfigInputChanged('SimulateBusSmIndicationDelay')" /><span style="font-size:10px;color:var(--mut)">ms</span></div>
+        </div>
+      </div>
+
+      <!-- TAB 3: INHIBITION & NVM -->
+      <div id="cfgPane3" class="cfg-pane hidden">
+        <div class="cfg-row" data-cfg-key="ComMNoWakeup">
+          <label class="cfg-lbl" for="cfg_ComMNoWakeup"><span class="cfg-i">ⓘ</span><span class="cfg-name">ComMNoWakeup (PreventWakeUp)</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_ComMNoWakeup" onchange="onConfigInputChanged('ComMNoWakeup')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="ComMNoCom">
+          <label class="cfg-lbl" for="cfg_ComMNoCom"><span class="cfg-i">ⓘ</span><span class="cfg-name">ComMNoCom (LimitChannel)</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_ComMNoCom" onchange="onConfigInputChanged('ComMNoCom')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="GlobalLimitEcuToNoCom">
+          <label class="cfg-lbl" for="cfg_GlobalLimitEcuToNoCom"><span class="cfg-i">ⓘ</span><span class="cfg-name">GlobalLimitEcuToNoCom</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_GlobalLimitEcuToNoCom" onchange="onConfigInputChanged('GlobalLimitEcuToNoCom')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="ComMEcuGroupClassification">
+          <label class="cfg-lbl" for="cfg_ComMEcuGroupClassification"><span class="cfg-i">ⓘ</span><span class="cfg-name">ComMEcuGroupClassification</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_ComMEcuGroupClassification" onchange="onConfigInputChanged('ComMEcuGroupClassification')">
+              <option value="0x03">0x03 (Both Enabled)</option>
+              <option value="0x02">0x02 (LimitNoCom Only)</option>
+              <option value="0x01">0x01 (NoWakeup Only)</option>
+              <option value="0x00">0x00 (All Masked)</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="ComMInhibitCounterValue">
+          <label class="cfg-lbl" for="cfg_ComMInhibitCounterValue"><span class="cfg-i">ⓘ</span><span class="cfg-name">ComMInhibitCounterValue</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_ComMInhibitCounterValue" min="0" max="65535" value="0" onchange="onConfigInputChanged('ComMInhibitCounterValue')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="ComMNoWakeupNvMStorage">
+          <label class="cfg-lbl" for="cfg_ComMNoWakeupNvMStorage"><span class="cfg-i">ⓘ</span><span class="cfg-name">ComMNoWakeupNvMStorage</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_ComMNoWakeupNvMStorage" checked onchange="onConfigInputChanged('ComMNoWakeupNvMStorage')" /></div>
+        </div>
+      </div>
+
+      <!-- TAB 4: PARTIAL NETWORKING (PNC) -->
+      <div id="cfgPane4" class="cfg-pane hidden">
+        <div class="cfg-row" data-cfg-key="ComMPncSupport">
+          <label class="cfg-lbl" for="cfg_ComMPncSupport"><span class="cfg-i">ⓘ</span><span class="cfg-name">ComMPncSupport</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_ComMPncSupport" checked onchange="onConfigInputChanged('ComMPncSupport')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="ComMPncPrepareSleepTimer">
+          <label class="cfg-lbl" for="cfg_ComMPncPrepareSleepTimer"><span class="cfg-i">ⓘ</span><span class="cfg-name">ComMPncPrepareSleepTimer</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_ComMPncPrepareSleepTimer" min="0" max="10000" step="20" value="400" onchange="onConfigInputChanged('ComMPncPrepareSleepTimer')" /><span style="font-size:10px;color:var(--mut)">ms</span></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="Pnc16_Enabled_And_Mask">
+          <label class="cfg-lbl" for="cfg_Pnc16_Enabled_And_Mask"><span class="cfg-i">ⓘ</span><span class="cfg-name">PNC #16 (Byte2.Bit0) Active</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_Pnc16_Enabled_And_Mask" checked onchange="onConfigInputChanged('Pnc16_Enabled_And_Mask')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="Pnc18_Enabled_And_Mask">
+          <label class="cfg-lbl" for="cfg_Pnc18_Enabled_And_Mask"><span class="cfg-i">ⓘ</span><span class="cfg-name">PNC #18 (Byte2.Bit2) Active</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_Pnc18_Enabled_And_Mask" checked onchange="onConfigInputChanged('Pnc18_Enabled_And_Mask')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="RxEiraSignalHex">
+          <label class="cfg-lbl" for="cfg_RxEiraSignalHex"><span class="cfg-i">ⓘ</span><span class="cfg-name">RxEiraSignal (Byte2 Byte3)</span></label>
+          <div class="cfg-ctrl"><input type="text" id="cfg_RxEiraSignalHex" class="mono" value="00 00" style="width:72px;text-align:center" onchange="onConfigInputChanged('RxEiraSignalHex')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="ComMPncWakeupSleepRequestEnabled">
+          <label class="cfg-lbl" for="cfg_ComMPncWakeupSleepRequestEnabled"><span class="cfg-i">ⓘ</span><span class="cfg-name">PncWakeupSleepRequest</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_ComMPncWakeupSleepRequestEnabled" onchange="onConfigInputChanged('ComMPncWakeupSleepRequestEnabled')" /></div>
+        </div>
+      </div>
+
+      <!-- TAB 5: PNC GATEWAY & FAULTS -->
+      <div id="cfgPane5" class="cfg-pane hidden">
+        <div class="cfg-row" data-cfg-key="ComMPncGatewayEnabled">
+          <label class="cfg-lbl" for="cfg_ComMPncGatewayEnabled"><span class="cfg-i">ⓘ</span><span class="cfg-name">ComMPncGatewayEnabled</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_ComMPncGatewayEnabled" onchange="onConfigInputChanged('ComMPncGatewayEnabled')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="Ch0_GatewayType">
+          <label class="cfg-lbl" for="cfg_Ch0_GatewayType"><span class="cfg-i">ⓘ</span><span class="cfg-name">Ch0_GatewayType</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_Ch0_GatewayType" onchange="onConfigInputChanged('Ch0_GatewayType')">
+              <option value="COMM_GATEWAY_TYPE_ACTIVE">ACTIVE</option>
+              <option value="COMM_GATEWAY_TYPE_PASSIVE">PASSIVE</option>
+              <option value="COMM_GATEWAY_TYPE_NONE">NONE</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="Ch1_GatewayType">
+          <label class="cfg-lbl" for="cfg_Ch1_GatewayType"><span class="cfg-i">ⓘ</span><span class="cfg-name">Ch1_GatewayType</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_Ch1_GatewayType" onchange="onConfigInputChanged('Ch1_GatewayType')">
+              <option value="COMM_GATEWAY_TYPE_PASSIVE">PASSIVE</option>
+              <option value="COMM_GATEWAY_TYPE_ACTIVE">ACTIVE</option>
+              <option value="COMM_GATEWAY_TYPE_NONE">NONE</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="RxEraCh0Hex">
+          <label class="cfg-lbl" for="cfg_RxEraCh0Hex"><span class="cfg-i">ⓘ</span><span class="cfg-name">RxEraSignal_Ch0 (Hex)</span></label>
+          <div class="cfg-ctrl"><input type="text" id="cfg_RxEraCh0Hex" class="mono" value="00 00" style="width:72px;text-align:center" onchange="onConfigInputChanged('RxEraCh0Hex')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="RxEraCh1Hex">
+          <label class="cfg-lbl" for="cfg_RxEraCh1Hex"><span class="cfg-i">ⓘ</span><span class="cfg-name">RxEraSignal_Ch1 (Hex)</span></label>
+          <div class="cfg-ctrl"><input type="text" id="cfg_RxEraCh1Hex" class="mono" value="00 00" style="width:72px;text-align:center" onchange="onConfigInputChanged('RxEraCh1Hex')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="ComMSynchronizedPncShutdownEnabled">
+          <label class="cfg-lbl" for="cfg_ComMSynchronizedPncShutdownEnabled"><span class="cfg-i">ⓘ</span><span class="cfg-name">SynchronizedPncShutdown</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_ComMSynchronizedPncShutdownEnabled" onchange="onConfigInputChanged('ComMSynchronizedPncShutdownEnabled')" /></div>
+        </div>
+      </div>
+
+      <div id="cfgValidationBox" style="padding:0 10px 8px"></div>
+    </section>
+  </aside>
+
+  <!-- CENTER COLUMN: BIT MONITORING, TIMERS, DUAL STATE MACHINES, SVG ARCHITECTURE -->
+  <section class="col-center">
+    <!-- PANEL 1: 2-TIER BIT & PNC VECTOR MONITORING -->
+    <section class="panel">
+      <div class="panel-hdr">
+        <span class="panel-title">🔍 Giám Sát Phân Xử User, PNC Bit Vector &amp; 2 Thanh Ghi 8-Bit Trạng Thái ComM</span>
+        <span class="panel-sub">Click vào ô PNC hoặc Bit để đảo trạng thái trực tiếp</span>
+      </div>
+      <div class="panel-body tier-split">
+        <!-- TIER 1A: MULTI-USER ARBITRATION MATRIX + PNC BIT VECTOR -->
+        <div id="arbMatrixBox" class="arb-grid"></div>
+
+        <div class="pnc-vector-wrap">
+          <div class="pnc-vec-hdr">
+            <span style="font-weight:700;font-size:11.5px;color:var(--cyan)">🌐 Thanh Giải Phẫu PNC Bit Vector (ComMPncInfoOffset = Byte 2, Length = 2 Bytes → PNC #16..#23)</span>
+            <span id="pncVectorSummary" class="mono" style="font-size:11px;color:var(--mut)">TxSignal: 0x00 | EIRA: 0x00 | ERA_Ch0: 0x00</span>
+          </div>
+          <div id="pncVectorGrid" class="pnc-grid"></div>
+        </div>
+
+        <!-- TIER 1B: DUAL 8-BIT REGISTERS -->
+        <div class="reg-grid">
+          <div class="reg-card">
+            <div class="reg-top">
+              <span class="reg-name">Thanh A: ComM_ChannelStatusByte (Kênh đang chọn)</span>
+              <span id="regAHex" class="reg-hex mono">0x10</span>
+            </div>
+            <div id="regABits" class="bit-row"></div>
+          </div>
+
+          <div class="reg-card">
+            <div class="reg-top">
+              <span class="reg-name">Thanh B: ComM_InhibitionStatusByte (SWS_ComM_00669)</span>
+              <span id="regBHex" class="reg-hex mono">0x80</span>
+            </div>
+            <div id="regBBits" class="bit-row"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PANEL 2: TIMERS & DUAL STATE MACHINES -->
+    <section class="panel">
+      <div class="panel-hdr">
+        <span class="panel-title">⏳ Live Timers &amp; Máy Trạng Thái Kênh / PNC Song Song</span>
+        <span id="nmVariantBadge" class="panel-sub mono">Variant: FULL | Ch0 &amp; Ch1</span>
+      </div>
+      <div class="panel-body">
+        <div id="timersGrid" class="timer-grid"></div>
+        <div class="sm-dual">
+          <div class="sm-box">
+            <div class="sm-title">
+              <span>🚦 Channel Mode &amp; Sub-State Machine (SWS_ComM_00298)</span>
+              <span id="smChVariantLbl" class="mono">Ch0 (FULL)</span>
+            </div>
+            <div id="channelSmDiagram" class="sm-states"></div>
+          </div>
+
+          <div class="sm-box">
+            <div class="sm-title">
+              <span>🌐 PNC State Machine (SWS_ComM_00909)</span>
+              <span id="smPncStateLbl" class="mono">PNC#16 / PNC#18</span>
+            </div>
+            <div id="pncSmDiagram" class="pnc-sm-grid"></div>
+            <div id="ch1SummaryMini" style="margin-top:6px;padding:5px 7px;border-radius:6px;background:var(--panel);border:1px solid var(--bdr);font-size:10.5px"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PANEL 3: INTERACTIVE END-TO-END AUTOSAR SVG ARCHITECTURE -->
+    <section class="panel">
+      <div class="panel-hdr">
+        <span class="panel-title">🏗️ Kiến Trúc Tương Tác End-to-End Module ComM Trong AUTOSAR Classic</span>
+        <span class="panel-sub">Click bất kỳ Module nào để xem Input / Output &amp; API ở Inspector bên phải</span>
+      </div>
+      <div class="panel-body">
+        <div class="arch-wrap">
+          <svg id="commArchSvg" class="arch-svg" viewBox="0 0 820 355" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <marker id="arrEnd" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                <path d="M 0 1 L 10 5 L 0 9 z" fill="currentColor" />
+              </marker>
+            </defs>
+
+            <!-- ARROWS LAYER -->
+            <path id="arr_swc_rte" class="flow-arrow" d="M 120 80 L 120 108" marker-end="url(#arrEnd)" />
+            <path id="arr_rte_comm" class="flow-arrow" d="M 220 133 L 275 133" marker-end="url(#arrEnd)" />
+            <path id="arr_dcm_comm" class="flow-arrow" d="M 402 80 L 402 115" marker-end="url(#arrEnd)" />
+            <path id="arr_ecum_comm" class="flow-arrow" d="M 600 50 L 520 115" marker-end="url(#arrEnd)" />
+            <path id="arr_comm_bswm" class="flow-arrow" d="M 545 128 L 595 75" marker-end="url(#arrEnd)" />
+            <path id="arr_comm_nvm" class="flow-arrow" d="M 545 142 L 600 137" marker-end="url(#arrEnd)" />
+            <path id="arr_comm_det" class="flow-arrow" d="M 545 186 L 600 198" marker-end="url(#arrEnd)" />
+            <path id="arr_comm_com" class="flow-arrow" d="M 295 211 L 175 258" marker-end="url(#arrEnd)" />
+            <path id="arr_com_comm" class="flow-arrow" d="M 130 258 L 275 198" marker-end="url(#arrEnd)" />
+            <path id="arr_comm_nm" class="flow-arrow" d="M 380 211 L 380 258" marker-end="url(#arrEnd)" />
+            <path id="arr_nm_comm" class="flow-arrow" d="M 435 258 L 435 211" marker-end="url(#arrEnd)" />
+            <path id="arr_comm_sm" class="flow-arrow" d="M 510 211 L 635 258" marker-end="url(#arrEnd)" />
+            <path id="arr_sm_comm" class="flow-arrow" d="M 685 258 L 545 195" marker-end="url(#arrEnd)" />
+
+            <!-- MODULE BLOCKS -->
+            <g id="node_MOD_SWC" class="mod-node" onclick="selectModule('MOD_SWC')">
+              <rect class="mod-rect" x="20" y="20" width="200" height="60" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="120" y="40" text-anchor="middle" fill="var(--pri)" font-weight="700" font-size="12">SWC_App_0 / 1 / 2</text>
+              <text id="svgSub_MOD_SWC" x="120" y="56" text-anchor="middle" fill="var(--mut)" font-size="10">U0: NO | U1: NO | U2: NO</text>
+              <text x="120" y="70" text-anchor="middle" fill="var(--txt-soft)" font-size="9.5">ComM_RequestComMode()</text>
+            </g>
+
+            <g id="node_MOD_DCM" class="mod-node" onclick="selectModule('MOD_DCM')">
+              <rect class="mod-rect" x="310" y="20" width="185" height="60" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="402" y="40" text-anchor="middle" fill="var(--warn)" font-weight="700" font-size="12">DCM (Diagnostics)</text>
+              <text id="svgSub_MOD_DCM" x="402" y="56" text-anchor="middle" fill="var(--mut)" font-size="10">ActiveDiag: OFF</text>
+              <text x="402" y="70" text-anchor="middle" fill="var(--txt-soft)" font-size="9.5">ComM_DCM_ActiveDiagnostic()</text>
+            </g>
+
+            <g id="node_MOD_ECUM" class="mod-node" onclick="selectModule('MOD_ECUM')">
+              <rect class="mod-rect" x="595" y="20" width="205" height="60" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="697" y="40" text-anchor="middle" fill="var(--ok)" font-weight="700" font-size="12">EcuM &amp; BswM</text>
+              <text id="svgSub_MOD_ECUM" x="697" y="56" text-anchor="middle" fill="var(--mut)" font-size="10">CommAllow: TRUE | BswM: NO_COM</text>
+              <text x="697" y="70" text-anchor="middle" fill="var(--txt-soft)" font-size="9.5">WakeUpInd / BswM_ComM_Mode</text>
+            </g>
+
+            <g id="node_MOD_RTE" class="mod-node" onclick="selectModule('MOD_RTE')">
+              <rect class="mod-rect" x="20" y="108" width="200" height="52" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="120" y="128" text-anchor="middle" fill="var(--acc)" font-weight="700" font-size="12">RTE / SchM</text>
+              <text id="svgSub_MOD_RTE" x="120" y="144" text-anchor="middle" fill="var(--mut)" font-size="10">MainFn Period: 20 ms</text>
+              <text x="120" y="155" text-anchor="middle" fill="var(--txt-soft)" font-size="9">Rte_Switch_UM_currentMode</text>
+            </g>
+
+            <g id="node_MOD_COMM" class="mod-node selected" onclick="selectModule('MOD_COMM')">
+              <rect class="mod-rect" x="275" y="112" width="270" height="98" rx="10" fill="var(--pri-bg)" stroke="var(--pri)" stroke-width="2.2"/>
+              <text x="410" y="132" text-anchor="middle" fill="var(--pri)" font-weight="800" font-size="13.5">ComM Core (SWS_ComM)</text>
+              <text id="svgSub_MOD_COMM1" x="410" y="150" text-anchor="middle" fill="var(--txt)" font-weight="700" font-size="10.5">Ch0: NO_COM (NO_PENDING)</text>
+              <text id="svgSub_MOD_COMM2" x="410" y="166" text-anchor="middle" fill="var(--cyan)" font-weight="700" font-size="10">PNC16: NO_COM | PNC18: NO_COM</text>
+              <text id="svgSub_MOD_COMM3" x="410" y="182" text-anchor="middle" fill="var(--mut)" font-size="9.5">Arbitrator · Channel SM · PNC SM · Inhibition</text>
+              <text x="410" y="198" text-anchor="middle" fill="var(--mut)" font-size="9">ComM_MainFunction_0() &amp; _1()</text>
+            </g>
+
+            <g id="node_MOD_NVM" class="mod-node" onclick="selectModule('MOD_NVM')">
+              <rect class="mod-rect" x="600" y="110" width="200" height="54" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="700" y="130" text-anchor="middle" fill="var(--pur)" font-weight="700" font-size="12">NvM (Non-Volatile Mem)</text>
+              <text id="svgSub_MOD_NVM" x="700" y="146" text-anchor="middle" fill="var(--mut)" font-size="10">InhibitCnt: 0 | NoWakeup: 0</text>
+              <text x="700" y="158" text-anchor="middle" fill="var(--txt-soft)" font-size="9">NvM_SetRamBlockStatus(TRUE)</text>
+            </g>
+
+            <g id="node_MOD_DET" class="mod-node" onclick="selectModule('MOD_DET')">
+              <rect class="mod-rect" x="600" y="178" width="200" height="50" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="700" y="198" text-anchor="middle" fill="var(--err)" font-weight="700" font-size="12">DET (Error Tracer)</text>
+              <text id="svgSub_MOD_DET" x="700" y="215" text-anchor="middle" fill="var(--mut)" font-size="10">Faults Logged: 0 (OK)</text>
+            </g>
+
+            <g id="node_MOD_COM" class="mod-node" onclick="selectModule('MOD_COM')">
+              <rect class="mod-rect" x="20" y="258" width="220" height="76" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="130" y="279" text-anchor="middle" fill="var(--cyan)" font-weight="700" font-size="12">AUTOSAR COM / PduR</text>
+              <text id="svgSub_MOD_COM" x="130" y="296" text-anchor="middle" fill="var(--mut)" font-size="10">TxPNC: 0x00 | RxEIRA: 0x00</text>
+              <text x="130" y="313" text-anchor="middle" fill="var(--txt-soft)" font-size="9.5">Com_SendSignal() / ComM_COMCbk()</text>
+            </g>
+
+            <g id="node_MOD_NM" class="mod-node" onclick="selectModule('MOD_NM')">
+              <rect class="mod-rect" x="290" y="258" width="230" height="76" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="405" y="279" text-anchor="middle" fill="var(--acc)" font-weight="700" font-size="12">Nm / CanNm</text>
+              <text id="svgSub_MOD_NM" x="405" y="296" text-anchor="middle" fill="var(--mut)" font-size="10">State: BUS_SLEEP (FULL)</text>
+              <text x="405" y="313" text-anchor="middle" fill="var(--txt-soft)" font-size="9.5">Nm_NetworkRequest / ComM_Nm_ModeInd</text>
+            </g>
+
+            <g id="node_MOD_SM" class="mod-node" onclick="selectModule('MOD_SM')">
+              <rect class="mod-rect" x="570" y="258" width="230" height="76" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="685" y="279" text-anchor="middle" fill="var(--ok)" font-weight="700" font-size="12">CanSM / BusSM</text>
+              <text id="svgSub_MOD_SM" x="685" y="296" text-anchor="middle" fill="var(--mut)" font-size="10">ActualBusMode: NO_COM</text>
+              <text x="685" y="313" text-anchor="middle" fill="var(--txt-soft)" font-size="9.5">CanSM_RequestComMode / BusSM_Ind</text>
+            </g>
+          </svg>
+        </div>
+      </div>
+    </section>
+  </section>
+
+  <!-- RIGHT COLUMN: STICKY 4-TAB INSPECTOR -->
+  <aside class="col-right">
+    <section class="panel insp-panel">
+      <div class="insp-tabs">
+        <button id="inspTabBtn0" class="insp-tab active" onclick="switchInspTab(0)">🔍 Bước Hiện Tại</button>
+        <button id="inspTabBtn1" class="insp-tab" onclick="switchInspTab(1)">🧩 Module</button>
+        <button id="inspTabBtn2" class="insp-tab" onclick="switchInspTab(2)">📄 Code C</button>
+        <button id="inspTabBtn3" class="insp-tab" onclick="switchInspTab(3)">📜 API Trace</button>
+      </div>
+      <div id="inspBody" class="insp-body"></div>
+    </section>
+  </aside>
+</main>
+
+<!-- ================= VIEW 2: MULTI-LEVEL HANDBOOK & ABBREVIATION TABLE ================= -->
+<main id="viewHb" class="hb-wrap hidden">
+  <div class="hb-nav1">
+    <button id="hbTab1_0" class="hb-tab1 active" onclick="switchHbTab1(0)">1. Kiến Trúc &amp; Arbitration</button>
+    <button id="hbTab1_1" class="hb-tab1" onclick="switchHbTab1(1)">2. Máy Trạng Thái &amp; NM Variants</button>
+    <button id="hbTab1_2" class="hb-tab1" onclick="switchHbTab1(2)">3. Mode Inhibition, NvM &amp; DCM</button>
+    <button id="hbTab1_3" class="hb-tab1" onclick="switchHbTab1(3)">4. Partial Networking (PNC &amp; GW)</button>
+    <button id="hbTab1_4" class="hb-tab1" onclick="switchHbTab1(4)">5. Cấu Hình ECUC &amp; Chuẩn API</button>
+    <button id="hbTab1_5" class="hb-tab1" onclick="switchHbTab1(5)">6. Lỗi Thực Tế, DET &amp; Debug</button>
+    <button id="hbTab1_6" class="hb-tab1" onclick="switchHbTab1(6)">7. Bảng Thuật Ngữ &amp; Search</button>
+  </div>
+
+  <div id="hbNav2" class="hb-nav2"></div>
+
+  <div id="hbAbbrFilterBox" class="abbr-toolbar hidden">
+    <input id="abbrSearchInput" class="abbr-search" type="text" placeholder="🔍 Tìm kiếm thuật ngữ AUTOSAR ComM (VD: EIRA, ERA, DCM, NoWakeup, TMin, SWS_ComM...)" oninput="filterAbbreviationTable()" />
+    <div class="cat-pills">
+      <button id="catPill_ALL" class="cat-pill active" onclick="setAbbrCategory('ALL')">Tất cả (48+)</button>
+      <button id="catPill_CORE" class="cat-pill" onclick="setAbbrCategory('CORE')">🎛️ Core &amp; Modes</button>
+      <button id="catPill_INHIB" class="cat-pill" onclick="setAbbrCategory('INHIB')">🚫 Inhibition &amp; DCM</button>
+      <button id="catPill_PN" class="cat-pill" onclick="setAbbrCategory('PN')">🌐 Partial Net &amp; PNC</button>
+      <button id="catPill_STACK" class="cat-pill" onclick="setAbbrCategory('STACK')">🧩 AUTOSAR Stack</button>
+    </div>
+    <span id="abbrCountBadge" class="step-pill">48 thuật ngữ</span>
+  </div>
+
+  <div id="hbContentArea"></div>
+</main>
+
+<!-- ================= EXPORT ARXML / C / JSON MODAL ================= -->
+<div id="exportModal" class="modal-overlay hidden" onclick="if(event.target===this) closeExportModal()">
+  <div class="modal-box">
+    <div class="modal-hdr">
+      <strong style="font-size:13.5px;color:var(--pri)">📦 Xuất Cấu Hình ComM AUTOSAR (ARXML · ComM_Cfg.h · ComM_Lcfg.c · JSON)</strong>
+      <button class="btn btn-sm" onclick="closeExportModal()">✖ Đóng</button>
+    </div>
+    <div class="modal-tabs">
+      <button id="expTab0" class="btn btn-sm btn-pri" onclick="switchExportTab(0)">ComM.arxml</button>
+      <button id="expTab1" class="btn btn-sm" onclick="switchExportTab(1)">ComM_Cfg.h</button>
+      <button id="expTab2" class="btn btn-sm" onclick="switchExportTab(2)">ComM_Lcfg.c</button>
+      <button id="expTab3" class="btn btn-sm" onclick="switchExportTab(3)">ComM_Config.json</button>
+    </div>
+    <div class="modal-body">
+      <pre id="exportCodeArea" class="code-block"></pre>
+    </div>
+    <div class="modal-ftr">
+      <button class="btn" onclick="copyExportCode()">📋 Copy Clipboard</button>
+      <button class="btn btn-ok" onclick="downloadExportCode()">⬇ Tải File Hiện Tại</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= FLOATING TOOLTIP POPUP (>1S HOVER ON ECUC FIELDS) ================= -->
+<div id="cfgTooltipPopup" role="tooltip"></div>
+<script>

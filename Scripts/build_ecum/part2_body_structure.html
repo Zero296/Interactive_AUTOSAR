@@ -1,0 +1,609 @@
+<!-- ================= STICKY UNIFIED HEADER ================= -->
+<header class="hdr">
+  <div class="hdr-row">
+    <div class="brand">
+      <span class="brand-badge">AUTOSAR Classic R23-11</span>
+      <div>
+        <div class="brand-title">EcuM Interactive Simulator &amp; Technical Handbook</div>
+        <div class="brand-sub">ECU State Manager · Startup PreOS/PostOS · Sleep GoHalt/GoPoll · Wakeup Validation · Multi-Core &amp; Shutdown</div>
+      </div>
+    </div>
+
+    <div class="view-switch" role="tablist">
+      <button id="btnViewSim" class="view-btn active" onclick="switchMainView('sim')">🎛️ Trình Mô Phỏng EcuM</button>
+      <button id="btnViewHb" class="view-btn" onclick="switchMainView('hb')">📖 Sổ Tay Kỹ Thuật &amp; Thuật Ngữ</button>
+    </div>
+
+    <div class="hdr-actions">
+      <button class="btn btn-pri" onclick="openExportModal()">📦 Xuất ARXML / Cfg / Callouts</button>
+      <button class="btn btn-ok" onclick="downloadStandaloneHTML()">💾 Tải File .HTML</button>
+      <button id="btnTheme" class="btn" onclick="toggleTheme()">☀️ Light Mode</button>
+    </div>
+  </div>
+
+  <div class="hdr-row">
+    <div class="scen-bar">
+      <label for="scenSelect" style="font-weight:700;font-size:11.5px;color:var(--mut)">Kịch bản:</label>
+      <select id="scenSelect" class="scen-select" onchange="onScenarioSelectChange()">
+        <optgroup label="Nhóm 1: Khởi Động (STARTUP) &amp; RUN / POST_RUN">
+          <option value="S1">S1: Cold Start Đa Pha (StartPreOS → StartOS → StartPostOS → BswM_Init)</option>
+          <option value="S2">S2: Giao Thức RUN / POST_RUN Request, RunMinimumDuration &amp; NvM_WriteAll</option>
+          <option value="S3">S3: Lỗi Nhất Quán Config Hash (PB Config Mismatch) &amp; Loop Detection</option>
+        </optgroup>
+        <optgroup label="Nhóm 2: Chu Trình Ngủ (SLEEP Phase)">
+          <option value="S4">S4: Ngủ Sâu GoHalt (Mcu_SetMode HALT + Generate/CheckRamHash)</option>
+          <option value="S5">S5: Ngủ Thăm Dò GoPoll (Mcu_SetMode POLL + SleepActivity &amp; CheckWakeup)</option>
+          <option value="S6">S6: Hẹn Giờ Thức Dậy Nội Bộ Với EcuM Alarm Clock (Rel / Abs)</option>
+        </optgroup>
+        <optgroup label="Nhóm 3: Giao Thức Xác Thực Đánh Thức (Wakeup Validation)">
+          <option value="S7">S7: Nguồn Tức Thì Không Cần Xác Thực (KL15_IGNITION ValidationTimeout = 0)</option>
+          <option value="S8">S8: Xác Thực Đánh Thức CAN_CH0_RX Thành Công (PENDING → VALIDATED → ComM)</option>
+          <option value="S9">S9: Lọc Nhiễu Glitch / False Wakeup (PENDING → Timeout → EXPIRED → Re-Sleep)</option>
+          <option value="S10">S10: Đánh Thức Cụm Mạng Con PNC (ComM_EcuM_PNCWakeUpIndication)</option>
+        </optgroup>
+        <optgroup label="Nhóm 4: Tắt Nguồn (SHUTDOWN), Bootloader, Multi-Core &amp; DET">
+          <option value="S11">S11: Tắt Nguồn Hoàn Toàn OFF (PreOS → ShutdownOS → OffPreOS / SwitchOff)</option>
+          <option value="S12">S12: Khởi Động Lại Vào OEM Flash Bootloader (SelectBootTarget + RESET)</option>
+          <option value="S13">S13: Đồng Bộ Đa Nhân Multi-Core (Master Core 0 ↔ Slave Core 1)</option>
+          <option value="S14">S14: Kiểm Thử Phòng Vệ DET &amp; RAM Check Failed ErrorHook</option>
+        </optgroup>
+      </select>
+
+      <button class="btn btn-sm" onclick="resetCurrentScenario()">⟲ Reset Kịch Bản</button>
+      <button id="btnPrevStep" class="btn btn-sm" onclick="prevScenarioStep()" disabled>◀ Lùi</button>
+      <span id="stepIndicator" class="step-pill">Bước 0 / 0</span>
+      <button id="btnNextStep" class="btn btn-sm btn-pri" onclick="nextScenarioStep()">Bước Tiếp ▶</button>
+      <button id="btnAutoPlay" class="btn btn-sm btn-pur" onclick="toggleScenarioAutoPlay()">▶ Tự Động Kịch Bản</button>
+
+      <div class="clock-box">
+        <span style="font-size:10.5px;color:var(--mut);font-weight:700">Clock:</span>
+        <span id="clockVal" class="clock-val mono">0 ms</span>
+        <button class="btn btn-sm btn-ok" onclick="stepClockTick(10)" title="Chạy EcuM_MainFunction() +10ms">+10ms Tick</button>
+        <button id="btnAutoClock" class="btn btn-sm" onclick="toggleAutoClock()">⏱ Auto Clock</button>
+      </div>
+    </div>
+
+    <div class="hdr-badges">
+      <span id="hdrBadgePhase" class="state-badge sb-run">Phase: ECUM_STATE_RUN</span>
+      <span id="hdrBadgeTarget" class="state-badge sb-sleep">Target: SLEEP (Halt)</span>
+      <span id="hdrBadgeBoot" class="state-badge sb-off">Boot: APP</span>
+      <span id="hdrBadgeFault" class="state-badge sb-err hidden">FAULT</span>
+    </div>
+  </div>
+</header>
+
+<!-- ================= VIEW 1: INTERACTIVE SIMULATOR (ZERO-SCROLL 3 COLUMNS) ================= -->
+<main id="viewSim" class="workspace">
+
+  <!-- LEFT COLUMN: QUICK ACTIONS + SCENARIO WHAT-IF + 6 ECUC CONFIG TABS -->
+  <aside class="col-left">
+    <!-- CARD 1: QUICK ACTION BAR -->
+    <section class="panel">
+      <div class="panel-hdr">
+        <span class="panel-title">⚡ Thao Tác Nhanh (Quick Runtime Actions)</span>
+        <span class="panel-sub">Tác động tức thì</span>
+      </div>
+      <div class="panel-body">
+        <div class="qa-row">
+          <span style="font-size:11px;font-weight:700;color:var(--mut)">Wakeup Src:</span>
+          <select id="qaWakeupSrcSelect" style="flex:1;background:var(--panel-3);border:1px solid var(--bdr);border-radius:5px;padding:3px 6px;font-size:11.5px;font-weight:600">
+            <option value="0x20">Bit 5: CAN_CH0_RX (500ms Val)</option>
+            <option value="0x40">Bit 6: LIN_CH1_RX (300ms Val)</option>
+            <option value="0x80">Bit 7: KL15_IGNITION (0ms Val)</option>
+            <option value="0x01">Bit 0: POWER (0ms Val)</option>
+            <option value="0x02">Bit 1: RESET (0ms Val)</option>
+            <option value="0x04">Bit 2: INTERNAL_RESET (0ms)</option>
+            <option value="0x08">Bit 3: INTERNAL_WDG (0ms)</option>
+            <option value="0x10">Bit 4: EXTERNAL_WDG (0ms)</option>
+          </select>
+          <button class="btn btn-sm btn-warn" onclick="qaTriggerWakeup()">⚡ SetWakeup</button>
+        </div>
+        <div class="qa-grid">
+          <button id="qaBtnValidate" class="qa-btn" onclick="qaValidatePending()">
+            <span>✅ Validate Wakeup</span><span id="qaTxtPending" class="mono">0x00</span>
+          </button>
+          <button id="qaBtnRunReq" class="qa-btn" onclick="qaToggleUserRun()">
+            <span>🏃 SWC RUN Req</span><span id="qaTxtRunReq" class="mono">OFF</span>
+          </button>
+          <button id="qaBtnPostRun" class="qa-btn qa-warn" onclick="qaTogglePostRun()">
+            <span>📝 POST_RUN Req</span><span id="qaTxtPostRun" class="mono">OFF</span>
+          </button>
+          <button id="qaBtnGoDown" class="qa-btn qa-pur" onclick="qaCallGoDown()">
+            <span>🎯 GoDownHaltPoll</span><span id="qaTxtTarget" class="mono">SLEEP</span>
+          </button>
+          <button id="qaBtnSleepNow" class="qa-btn qa-pur" onclick="qaEnterSleepDirect()">
+            <span>💤 Sleep (Halt/Poll)</span><span id="qaTxtSleepMode" class="mono">HALT</span>
+          </button>
+          <button id="qaBtnAlarm" class="qa-btn" onclick="qaSetAlarmClock()">
+            <span>⏰ Set AlarmClock</span><span id="qaTxtAlarm" class="mono">OFF</span>
+          </button>
+          <button class="qa-btn" onclick="stepClockTick(10)">
+            <span>⏱ +10ms MainFn</span><span class="mono">Tick</span>
+          </button>
+          <button class="qa-btn" onclick="qaColdReset()">
+            <span>🔄 Cold Reset Init</span><span class="mono">PreOS</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- CARD 2: CURRENT SCENARIO SUMMARY & 3 WHAT-IF BUTTONS -->
+    <section class="panel">
+      <div class="panel-hdr">
+        <span class="panel-title">🎬 Kịch Bản Đang Chạy &amp; Thử Nghiệm Nhanh</span>
+        <span id="scenIdBadge" class="panel-sub mono">S1</span>
+      </div>
+      <div class="panel-body">
+        <div id="scenSummaryBox" class="scen-desc-box"></div>
+        <div style="font-size:10.5px;font-weight:700;color:var(--pur);margin-bottom:4px">🧪 Thử Nghiệm Nhanh (1-Click What-If):</div>
+        <div id="whatIfContainer" class="whatif-grid"></div>
+      </div>
+    </section>
+
+    <!-- CARD 3: 6-TAB ECUC CONFIG PANEL (34 PARAMETERS + >1S TOOLTIP) -->
+    <section class="panel">
+      <div class="panel-hdr">
+        <span class="panel-title">⚙️ Cấu Hình ECUC EcuM (Hover &gt;1s Xem SWS)</span>
+        <span class="panel-sub">34 Parameters</span>
+      </div>
+      <div class="cfg-tabs">
+        <button id="cfgTabBtn0" class="cfg-tab active" onclick="switchCfgTab(0)">1. General</button>
+        <button id="cfgTabBtn1" class="cfg-tab" onclick="switchCfgTab(1)">2. Startup &amp; PB</button>
+        <button id="cfgTabBtn2" class="cfg-tab" onclick="switchCfgTab(2)">3. Shut &amp; Sleep</button>
+        <button id="cfgTabBtn3" class="cfg-tab" onclick="switchCfgTab(3)">4. Wakeup Src</button>
+        <button id="cfgTabBtn4" class="cfg-tab" onclick="switchCfgTab(4)">5. RUN &amp; Alarm</button>
+        <button id="cfgTabBtn5" class="cfg-tab" onclick="switchCfgTab(5)">6. MultiCore/Err</button>
+      </div>
+
+      <!-- TAB 0: GENERAL -->
+      <div id="cfgPane0" class="cfg-pane">
+        <div class="cfg-row" data-cfg-key="EcuMInitialized">
+          <label class="cfg-lbl" for="cfg_EcuMInitialized"><span class="cfg-i">ⓘ</span><span class="cfg-name">EcuMInitialized (State)</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_EcuMInitialized" checked onchange="onConfigInputChanged('EcuMInitialized')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="EcuMArchitectureVariant">
+          <label class="cfg-lbl" for="cfg_EcuMArchitectureVariant"><span class="cfg-i">ⓘ</span><span class="cfg-name">EcuMArchitectureVariant</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_EcuMArchitectureVariant" onchange="onConfigInputChanged('EcuMArchitectureVariant')">
+              <option value="ECUM_FLEXIBLE_WITH_BSWM">Flexible (BswM)</option>
+              <option value="ECUM_FIXED_CLASSIC">Fixed (Classic)</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="EcuMDevErrorDetect">
+          <label class="cfg-lbl" for="cfg_EcuMDevErrorDetect"><span class="cfg-i">ⓘ</span><span class="cfg-name">EcuMDevErrorDetect</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_EcuMDevErrorDetect" checked onchange="onConfigInputChanged('EcuMDevErrorDetect')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="EcuMVersionInfoApi">
+          <label class="cfg-lbl" for="cfg_EcuMVersionInfoApi"><span class="cfg-i">ⓘ</span><span class="cfg-name">EcuMVersionInfoApi</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_EcuMVersionInfoApi" onchange="onConfigInputChanged('EcuMVersionInfoApi')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="EcuMMainFunctionPeriod">
+          <label class="cfg-lbl" for="cfg_EcuMMainFunctionPeriod"><span class="cfg-i">ⓘ</span><span class="cfg-name">EcuMMainFunctionPeriod</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_EcuMMainFunctionPeriod" min="1" max="100" step="5" value="10" onchange="onConfigInputChanged('EcuMMainFunctionPeriod')" /><span style="font-size:10px;color:var(--mut)">ms</span></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="EcuMLoopDetectionEnabled">
+          <label class="cfg-lbl" for="cfg_EcuMLoopDetectionEnabled"><span class="cfg-i">ⓘ</span><span class="cfg-name">EcuMLoopDetectionEnabled</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_EcuMLoopDetectionEnabled" onchange="onConfigInputChanged('EcuMLoopDetectionEnabled')" /></div>
+        </div>
+      </div>
+
+      <!-- TAB 1: STARTUP & POST-BUILD -->
+      <div id="cfgPane1" class="cfg-pane hidden">
+        <div class="cfg-row" data-cfg-key="EcuMDefaultAppMode">
+          <label class="cfg-lbl" for="cfg_EcuMDefaultAppMode"><span class="cfg-i">ⓘ</span><span class="cfg-name">EcuMDefaultAppMode</span></label>
+          <div class="cfg-ctrl"><input type="text" id="cfg_EcuMDefaultAppMode" class="mono" value="OSDEFAULTAPPMODE" onchange="onConfigInputChanged('EcuMDefaultAppMode')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="EcuMConfigConsistencyHash">
+          <label class="cfg-lbl" for="cfg_EcuMConfigConsistencyHash"><span class="cfg-i">ⓘ</span><span class="cfg-name">EcuMConfigConsistencyHash</span></label>
+          <div class="cfg-ctrl"><input type="text" id="cfg_EcuMConfigConsistencyHash" class="mono" value="0x5A3C9F01" style="width:94px;text-align:center" onchange="onConfigInputChanged('EcuMConfigConsistencyHash')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="InjectedPbConfigHash">
+          <label class="cfg-lbl" for="cfg_InjectedPbConfigHash"><span class="cfg-i">ⓘ</span><span class="cfg-name">InjectedPbConfigHash</span></label>
+          <div class="cfg-ctrl"><input type="text" id="cfg_InjectedPbConfigHash" class="mono" value="0x5A3C9F01" style="width:94px;text-align:center" onchange="onConfigInputChanged('InjectedPbConfigHash')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="SimulatedMcuResetReason">
+          <label class="cfg-lbl" for="cfg_SimulatedMcuResetReason"><span class="cfg-i">ⓘ</span><span class="cfg-name">SimulatedMcuResetReason</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_SimulatedMcuResetReason" onchange="onConfigInputChanged('SimulatedMcuResetReason')">
+              <option value="MCU_POWER_ON_RESET">POWER_ON_RESET</option>
+              <option value="MCU_SW_RESET">SW_RESET (INT_RST)</option>
+              <option value="MCU_WATCHDOG_RESET">WATCHDOG_RESET</option>
+              <option value="MCU_EXT_RESET">EXTERNAL_RESET</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="EcuMDriverInitZeroEnabled">
+          <label class="cfg-lbl" for="cfg_EcuMDriverInitZeroEnabled"><span class="cfg-i">ⓘ</span><span class="cfg-name">EcuMDriverInitZeroEnabled</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_EcuMDriverInitZeroEnabled" checked onchange="onConfigInputChanged('EcuMDriverInitZeroEnabled')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="EcuMDriverInitOneEnabled">
+          <label class="cfg-lbl" for="cfg_EcuMDriverInitOneEnabled"><span class="cfg-i">ⓘ</span><span class="cfg-name">EcuMDriverInitOneEnabled</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_EcuMDriverInitOneEnabled" checked onchange="onConfigInputChanged('EcuMDriverInitOneEnabled')" /></div>
+        </div>
+      </div>
+
+      <!-- TAB 2: SHUTDOWN & SLEEP -->
+      <div id="cfgPane2" class="cfg-pane hidden">
+        <div class="cfg-row" data-cfg-key="EcuMDefaultShutdownTarget">
+          <label class="cfg-lbl" for="cfg_EcuMDefaultShutdownTarget"><span class="cfg-i">ⓘ</span><span class="cfg-name">EcuMDefaultShutdownTarget</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_EcuMDefaultShutdownTarget" onchange="onConfigInputChanged('EcuMDefaultShutdownTarget')">
+              <option value="ECUM_STATE_SLEEP">ECUM_STATE_SLEEP</option>
+              <option value="ECUM_STATE_RESET">ECUM_STATE_RESET</option>
+              <option value="ECUM_STATE_OFF">ECUM_STATE_OFF</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="EcuMSleepModeId">
+          <label class="cfg-lbl" for="cfg_EcuMSleepModeId"><span class="cfg-i">ⓘ</span><span class="cfg-name">EcuMSleepModeId</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_EcuMSleepModeId" onchange="onConfigInputChanged('EcuMSleepModeId')">
+              <option value="0">0: SleepMode_Halt</option>
+              <option value="1">1: SleepMode_Poll</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="EcuMSleepModeSuspend">
+          <label class="cfg-lbl" for="cfg_EcuMSleepModeSuspend"><span class="cfg-i">ⓘ</span><span class="cfg-name">EcuMSleepModeSuspend</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_EcuMSleepModeSuspend" checked onchange="onConfigInputChanged('EcuMSleepModeSuspend')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="EcuMResetModeId">
+          <label class="cfg-lbl" for="cfg_EcuMResetModeId"><span class="cfg-i">ⓘ</span><span class="cfg-name">EcuMResetModeId</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_EcuMResetModeId" onchange="onConfigInputChanged('EcuMResetModeId')">
+              <option value="ECUM_RESET_MCU">ECUM_RESET_MCU</option>
+              <option value="ECUM_RESET_WDG">ECUM_RESET_WDG</option>
+              <option value="ECUM_RESET_IO">ECUM_RESET_IO</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="EcuMShutdownCauseId">
+          <label class="cfg-lbl" for="cfg_EcuMShutdownCauseId"><span class="cfg-i">ⓘ</span><span class="cfg-name">EcuMShutdownCauseId</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_EcuMShutdownCauseId" onchange="onConfigInputChanged('EcuMShutdownCauseId')">
+              <option value="ECUM_CAUSE_ECU_STATE">ECU_STATE</option>
+              <option value="ECUM_CAUSE_DCM">DCM (Diag)</option>
+              <option value="ECUM_CAUSE_WDGM">WDGM</option>
+              <option value="ECUM_CAUSE_UNKNOWN">UNKNOWN</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="CurrentBootTarget">
+          <label class="cfg-lbl" for="cfg_CurrentBootTarget"><span class="cfg-i">ⓘ</span><span class="cfg-name">CurrentBootTarget</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_CurrentBootTarget" onchange="onConfigInputChanged('CurrentBootTarget')">
+              <option value="ECUM_BOOT_TARGET_APP">APP</option>
+              <option value="ECUM_BOOT_TARGET_OEM_BOOTLOADER">OEM_BOOTLOADER</option>
+              <option value="ECUM_BOOT_TARGET_SYS_BOOTLOADER">SYS_BOOTLOADER</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 3: WAKEUP SOURCES -->
+      <div id="cfgPane3" class="cfg-pane hidden">
+        <div class="cfg-row" data-cfg-key="Can0WakeupValidationTimeout">
+          <label class="cfg-lbl" for="cfg_Can0WakeupValidationTimeout"><span class="cfg-i">ⓘ</span><span class="cfg-name">CAN0 ValidationTimeout</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_Can0WakeupValidationTimeout" min="0" max="5000" step="50" value="500" onchange="onConfigInputChanged('Can0WakeupValidationTimeout')" /><span style="font-size:10px;color:var(--mut)">ms</span></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="Lin1WakeupValidationTimeout">
+          <label class="cfg-lbl" for="cfg_Lin1WakeupValidationTimeout"><span class="cfg-i">ⓘ</span><span class="cfg-name">LIN1 ValidationTimeout</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_Lin1WakeupValidationTimeout" min="0" max="5000" step="50" value="300" onchange="onConfigInputChanged('Lin1WakeupValidationTimeout')" /><span style="font-size:10px;color:var(--mut)">ms</span></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="Kl15WakeupValidationTimeout">
+          <label class="cfg-lbl" for="cfg_Kl15WakeupValidationTimeout"><span class="cfg-i">ⓘ</span><span class="cfg-name">KL15 ValidationTimeout</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_Kl15WakeupValidationTimeout" min="0" max="5000" step="10" value="0" onchange="onConfigInputChanged('Kl15WakeupValidationTimeout')" /><span style="font-size:10px;color:var(--mut)">ms</span></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="Can0ComMChannelRefEnabled">
+          <label class="cfg-lbl" for="cfg_Can0ComMChannelRefEnabled"><span class="cfg-i">ⓘ</span><span class="cfg-name">Can0ComMChannelRef</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_Can0ComMChannelRefEnabled" checked onchange="onConfigInputChanged('Can0ComMChannelRefEnabled')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="Can0ComMPNCRefEnabled">
+          <label class="cfg-lbl" for="cfg_Can0ComMPNCRefEnabled"><span class="cfg-i">ⓘ</span><span class="cfg-name">Can0ComMPNCRef (PNC16)</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_Can0ComMPNCRefEnabled" onchange="onConfigInputChanged('Can0ComMPNCRefEnabled')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="EcuMSleepModeWakeupSourceMask">
+          <label class="cfg-lbl" for="cfg_EcuMSleepModeWakeupSourceMask"><span class="cfg-i">ⓘ</span><span class="cfg-name">SleepWakeupSourceMask</span></label>
+          <div class="cfg-ctrl"><input type="text" id="cfg_EcuMSleepModeWakeupSourceMask" class="mono" value="0xE0" style="width:68px;text-align:center" onchange="onConfigInputChanged('EcuMSleepModeWakeupSourceMask')" /></div>
+        </div>
+      </div>
+
+      <!-- TAB 4: RUN & ALARM CLOCK -->
+      <div id="cfgPane4" class="cfg-pane hidden">
+        <div class="cfg-row" data-cfg-key="EcuMRunMinimumDuration">
+          <label class="cfg-lbl" for="cfg_EcuMRunMinimumDuration"><span class="cfg-i">ⓘ</span><span class="cfg-name">EcuMRunMinimumDuration</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_EcuMRunMinimumDuration" min="0" max="10000" step="50" value="300" onchange="onConfigInputChanged('EcuMRunMinimumDuration')" /><span style="font-size:10px;color:var(--mut)">ms</span></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="User0_RunRequestActive">
+          <label class="cfg-lbl" for="cfg_User0_RunRequestActive"><span class="cfg-i">ⓘ</span><span class="cfg-name">User0_RunRequest (SWC)</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_User0_RunRequestActive" onchange="onConfigInputChanged('User0_RunRequestActive')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="User1_PostRunRequestActive">
+          <label class="cfg-lbl" for="cfg_User1_PostRunRequestActive"><span class="cfg-i">ⓘ</span><span class="cfg-name">User1_PostRunRequest</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_User1_PostRunRequestActive" onchange="onConfigInputChanged('User1_PostRunRequestActive')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="EcuMAlarmClockPresent">
+          <label class="cfg-lbl" for="cfg_EcuMAlarmClockPresent"><span class="cfg-i">ⓘ</span><span class="cfg-name">EcuMAlarmClockPresent</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_EcuMAlarmClockPresent" checked onchange="onConfigInputChanged('EcuMAlarmClockPresent')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="EcuMAlarmClockTimeOut">
+          <label class="cfg-lbl" for="cfg_EcuMAlarmClockTimeOut"><span class="cfg-i">ⓘ</span><span class="cfg-name">EcuMAlarmClockTimeOut</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_EcuMAlarmClockTimeOut" min="50" max="10000" step="50" value="400" onchange="onConfigInputChanged('EcuMAlarmClockTimeOut')" /><span style="font-size:10px;color:var(--mut)">ms</span></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="EcuMGoDownAllowedForUser0">
+          <label class="cfg-lbl" for="cfg_EcuMGoDownAllowedForUser0"><span class="cfg-i">ⓘ</span><span class="cfg-name">EcuMGoDownAllowed (U0)</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_EcuMGoDownAllowedForUser0" checked onchange="onConfigInputChanged('EcuMGoDownAllowedForUser0')" /></div>
+        </div>
+      </div>
+
+      <!-- TAB 5: MULTI-CORE & FAULTS -->
+      <div id="cfgPane5" class="cfg-pane hidden">
+        <div class="cfg-row" data-cfg-key="EcuMMultiCoreSupport">
+          <label class="cfg-lbl" for="cfg_EcuMMultiCoreSupport"><span class="cfg-i">ⓘ</span><span class="cfg-name">EcuMMultiCoreSupport</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_EcuMMultiCoreSupport" onchange="onConfigInputChanged('EcuMMultiCoreSupport')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="SlaveCore1ReadyForSleep">
+          <label class="cfg-lbl" for="cfg_SlaveCore1ReadyForSleep"><span class="cfg-i">ⓘ</span><span class="cfg-name">SlaveCore1ReadyForSleep</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_SlaveCore1ReadyForSleep" checked onchange="onConfigInputChanged('SlaveCore1ReadyForSleep')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="SimulateRamHashCorruption">
+          <label class="cfg-lbl" for="cfg_SimulateRamHashCorruption"><span class="cfg-i">ⓘ</span><span class="cfg-name">SimulateRamHashCorruption</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_SimulateRamHashCorruption" onchange="onConfigInputChanged('SimulateRamHashCorruption')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="NvMWriteAllPendingDelay">
+          <label class="cfg-lbl" for="cfg_NvMWriteAllPendingDelay"><span class="cfg-i">ⓘ</span><span class="cfg-name">NvMWriteAllPendingDelay</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_NvMWriteAllPendingDelay" onchange="onConfigInputChanged('NvMWriteAllPendingDelay')" /></div>
+        </div>
+      </div>
+
+      <div id="cfgValidationBox" style="padding:0 10px 8px"></div>
+    </section>
+  </aside>
+
+  <!-- CENTER COLUMN: BIT MONITORING, TIMERS, DUAL STATE MACHINES, SVG ARCHITECTURE -->
+  <section class="col-center">
+    <!-- PANEL 1: 2-TIER WAKEUP VECTOR & DUAL 8-BIT REGISTERS -->
+    <section class="panel">
+      <div class="panel-hdr">
+        <span class="panel-title">⚡ Giám Sát 8 Nguồn Đánh Thức (EcuM_WakeupSourceType), ShutdownTarget &amp; 2 Thanh Ghi 8-Bit</span>
+        <span class="panel-sub">Click vào ô Nguồn Wakeup hoặc Bit để đảo trạng thái trực tiếp</span>
+      </div>
+      <div class="panel-body tier-split">
+        <!-- TIER 1A: TARGET / BOOT / RUN MATRIX + 8 WAKEUP SOURCES ANATOMY -->
+        <div id="targetMatrixBox" class="target-grid"></div>
+
+        <div class="wk-vector-wrap">
+          <div class="wk-vec-hdr">
+            <span style="font-weight:700;font-size:11.5px;color:var(--cyan)">📡 Giải Phẫu Bitmask 8 Nguồn Đánh Thức (Bit 0..4 AUTOSAR Standard + Bit 5..7 Ngoại Vi)</span>
+            <span id="wkVectorSummary" class="mono" style="font-size:11px;color:var(--mut)">Pending: 0x00 | Validated: 0x01 | Expired: 0x00</span>
+          </div>
+          <div id="wkVectorGrid" class="wk-grid"></div>
+        </div>
+
+        <!-- TIER 1B: DUAL 8-BIT REGISTERS -->
+        <div class="reg-grid">
+          <div class="reg-card">
+            <div class="reg-top">
+              <span class="reg-name">Thanh A: EcuM_PhaseControlByte (Phase, OS, BswM, Halt)</span>
+              <span id="regAHex" class="reg-hex mono">0xE1</span>
+            </div>
+            <div id="regABits" class="bit-row"></div>
+          </div>
+
+          <div class="reg-card">
+            <div class="reg-top">
+              <span class="reg-name">Thanh B: EcuM_WakeupStatusByte (Validation, Alarm, Core, Err)</span>
+              <span id="regBHex" class="reg-hex mono">0x22</span>
+            </div>
+            <div id="regBBits" class="bit-row"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PANEL 2: TIMERS & DUAL STATE MACHINES -->
+    <section class="panel">
+      <div class="panel-hdr">
+        <span class="panel-title">⏳ Live Timers, RAM Hash &amp; Máy Trạng Thái Vòng Đời / Wakeup Validation Song Song</span>
+        <span id="archVariantBadge" class="panel-sub mono">Flexible + BswM | Core0 (Single)</span>
+      </div>
+      <div class="panel-body">
+        <div id="timersGrid" class="timer-grid"></div>
+        <div class="sm-dual">
+          <div class="sm-box">
+            <div class="sm-title">
+              <span>🏛️ EcuM Main Lifecycle State Machine (SWS_EcuM_02933)</span>
+              <span id="smLifecycleLbl" class="mono">UP (RUN)</span>
+            </div>
+            <div id="lifecycleSmDiagram" class="sm-states"></div>
+          </div>
+
+          <div class="sm-box">
+            <div class="sm-title">
+              <span>⚡ Wakeup Validation SM (SWS_EcuM_02344)</span>
+              <span id="smWkupLbl" class="mono">VALIDATED</span>
+            </div>
+            <div id="wkupSmDiagram" class="wk-sm-grid"></div>
+            <div id="coreSummaryMini" style="margin-top:6px;padding:5px 7px;border-radius:6px;background:var(--panel);border:1px solid var(--bdr);font-size:10.5px"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PANEL 3: INTERACTIVE END-TO-END AUTOSAR SVG ARCHITECTURE -->
+    <section class="panel">
+      <div class="panel-hdr">
+        <span class="panel-title">🏗️ Kiến Trúc Tương Tác End-to-End Module EcuM Trong AUTOSAR Classic</span>
+        <span class="panel-sub">Click bất kỳ Module nào để xem Input / Output &amp; API ở Inspector bên phải</span>
+      </div>
+      <div class="panel-body">
+        <div class="arch-wrap">
+          <svg id="ecumArchSvg" class="arch-svg" viewBox="0 0 820 355" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <marker id="arrEnd" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                <path d="M 0 1 L 10 5 L 0 9 z" fill="currentColor" />
+              </marker>
+            </defs>
+
+            <!-- ARROWS LAYER -->
+            <path id="arr_boot_ecum" class="flow-arrow" d="M 120 80 L 275 135" marker-end="url(#arrEnd)" />
+            <path id="arr_swc_ecum" class="flow-arrow" d="M 402 80 L 402 112" marker-end="url(#arrEnd)" />
+            <path id="arr_bswm_ecum" class="flow-arrow" d="M 620 80 L 545 128" marker-end="url(#arrEnd)" />
+            <path id="arr_ecum_bswm" class="flow-arrow" d="M 545 140 L 665 80" marker-end="url(#arrEnd)" />
+            <path id="arr_ecum_os" class="flow-arrow" d="M 275 152 L 220 152" marker-end="url(#arrEnd)" />
+            <path id="arr_os_ecum" class="flow-arrow" d="M 220 172 L 275 172" marker-end="url(#arrEnd)" />
+            <path id="arr_ecum_nvm" class="flow-arrow" d="M 545 152 L 600 137" marker-end="url(#arrEnd)" />
+            <path id="arr_ecum_det" class="flow-arrow" d="M 545 186 L 600 198" marker-end="url(#arrEnd)" />
+            <path id="arr_ecum_comm" class="flow-arrow" d="M 295 211 L 165 258" marker-end="url(#arrEnd)" />
+            <path id="arr_canif_ecum" class="flow-arrow" d="M 405 258 L 405 211" marker-end="url(#arrEnd)" />
+            <path id="arr_ecum_canif" class="flow-arrow" d="M 450 211 L 450 258" marker-end="url(#arrEnd)" />
+            <path id="arr_ecum_mcu" class="flow-arrow" d="M 510 211 L 645 258" marker-end="url(#arrEnd)" />
+            <path id="arr_mcu_ecum" class="flow-arrow" d="M 695 258 L 545 198" marker-end="url(#arrEnd)" />
+
+            <!-- MODULE BLOCKS -->
+            <g id="node_MOD_BOOT" class="mod-node" onclick="selectModule('MOD_BOOT')">
+              <rect class="mod-rect" x="20" y="20" width="200" height="60" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="120" y="40" text-anchor="middle" fill="var(--pri)" font-weight="700" font-size="12">MCU Reset &amp; Bootloader</text>
+              <text id="svgSub_MOD_BOOT" x="120" y="56" text-anchor="middle" fill="var(--mut)" font-size="10">BootTarget: APP</text>
+              <text x="120" y="70" text-anchor="middle" fill="var(--txt-soft)" font-size="9.5">main() → EcuM_Init()</text>
+            </g>
+
+            <g id="node_MOD_SWC" class="mod-node" onclick="selectModule('MOD_SWC')">
+              <rect class="mod-rect" x="305" y="20" width="195" height="60" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="402" y="40" text-anchor="middle" fill="var(--acc)" font-weight="700" font-size="12">SWC_App / RTE / Dcm</text>
+              <text id="svgSub_MOD_SWC" x="402" y="56" text-anchor="middle" fill="var(--mut)" font-size="10">RUN: 0 | POST_RUN: 0</text>
+              <text x="402" y="70" text-anchor="middle" fill="var(--txt-soft)" font-size="9.5">RequestRUN / SetRelAlarm</text>
+            </g>
+
+            <g id="node_MOD_BSWM" class="mod-node" onclick="selectModule('MOD_BSWM')">
+              <rect class="mod-rect" x="595" y="20" width="205" height="60" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="697" y="40" text-anchor="middle" fill="var(--ok)" font-weight="700" font-size="12">BswM (Mode Manager)</text>
+              <text id="svgSub_MOD_BSWM" x="697" y="56" text-anchor="middle" fill="var(--mut)" font-size="10">Handover: YES | Rule: RUN</text>
+              <text x="697" y="70" text-anchor="middle" fill="var(--txt-soft)" font-size="9.5">BswM_Init / GoDownHaltPoll</text>
+            </g>
+
+            <g id="node_MOD_OS" class="mod-node" onclick="selectModule('MOD_OS')">
+              <rect class="mod-rect" x="20" y="114" width="200" height="72" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="120" y="135" text-anchor="middle" fill="var(--acc)" font-weight="700" font-size="12">AUTOSAR OS &amp; SchM</text>
+              <text id="svgSub_MOD_OS" x="120" y="152" text-anchor="middle" fill="var(--mut)" font-size="10">OS: RUNNING | Period: 10ms</text>
+              <text x="120" y="168" text-anchor="middle" fill="var(--txt-soft)" font-size="9.5">StartOS / ShutdownOS / Hook</text>
+            </g>
+
+            <g id="node_MOD_ECUM" class="mod-node selected" onclick="selectModule('MOD_ECUM')">
+              <rect class="mod-rect" x="275" y="112" width="270" height="98" rx="10" fill="var(--pri-bg)" stroke="var(--pri)" stroke-width="2.2"/>
+              <text x="410" y="132" text-anchor="middle" fill="var(--pri)" font-weight="800" font-size="13.5">EcuM Core (SWS_EcuM)</text>
+              <text id="svgSub_MOD_ECUM1" x="410" y="150" text-anchor="middle" fill="var(--txt)" font-weight="700" font-size="10.5">Phase: ECUM_STATE_RUN</text>
+              <text id="svgSub_MOD_ECUM2" x="410" y="166" text-anchor="middle" fill="var(--cyan)" font-weight="700" font-size="10">Target: SLEEP (Halt) | RAM: OK</text>
+              <text id="svgSub_MOD_ECUM3" x="410" y="182" text-anchor="middle" fill="var(--mut)" font-size="9.5">PreOS · PostOS · WakeupVal · MultiCore</text>
+              <text x="410" y="198" text-anchor="middle" fill="var(--mut)" font-size="9">Core 0 (Master) / Core 1 (Slave)</text>
+            </g>
+
+            <g id="node_MOD_NVM" class="mod-node" onclick="selectModule('MOD_NVM')">
+              <rect class="mod-rect" x="600" y="110" width="200" height="54" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="700" y="130" text-anchor="middle" fill="var(--pur)" font-weight="700" font-size="12">NvM (Memory Services)</text>
+              <text id="svgSub_MOD_NVM" x="700" y="146" text-anchor="middle" fill="var(--mut)" font-size="10">ReadAll: OK | WriteAll: IDLE</text>
+              <text x="700" y="158" text-anchor="middle" fill="var(--txt-soft)" font-size="9">NvM_ReadAll() / NvM_WriteAll()</text>
+            </g>
+
+            <g id="node_MOD_DET" class="mod-node" onclick="selectModule('MOD_DET')">
+              <rect class="mod-rect" x="600" y="178" width="200" height="50" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="700" y="198" text-anchor="middle" fill="var(--err)" font-weight="700" font-size="12">DET &amp; EcuM_ErrorHook</text>
+              <text id="svgSub_MOD_DET" x="700" y="215" text-anchor="middle" fill="var(--mut)" font-size="10">Faults: 0 | RamHash: 0xA55A</text>
+            </g>
+
+            <g id="node_MOD_COMM" class="mod-node" onclick="selectModule('MOD_COMM')">
+              <rect class="mod-rect" x="20" y="258" width="220" height="76" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="130" y="279" text-anchor="middle" fill="var(--cyan)" font-weight="700" font-size="12">ComM (Comm Manager)</text>
+              <text id="svgSub_MOD_COMM" x="130" y="296" text-anchor="middle" fill="var(--mut)" font-size="10">WakeupInd: NONE | PNC: OFF</text>
+              <text x="130" y="313" text-anchor="middle" fill="var(--txt-soft)" font-size="9.5">ComM_EcuM_WakeUpIndication()</text>
+            </g>
+
+            <g id="node_MOD_CANIF" class="mod-node" onclick="selectModule('MOD_CANIF')">
+              <rect class="mod-rect" x="290" y="258" width="230" height="76" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="405" y="279" text-anchor="middle" fill="var(--warn)" font-weight="700" font-size="12">CanIf / CanTrcv / Icu</text>
+              <text id="svgSub_MOD_CANIF" x="405" y="296" text-anchor="middle" fill="var(--mut)" font-size="10">Pend: 0x00 | Val: 0x01</text>
+              <text x="405" y="313" text-anchor="middle" fill="var(--txt-soft)" font-size="9.5">SetWakeupEvent / ValidateWakeup</text>
+            </g>
+
+            <g id="node_MOD_MCU" class="mod-node" onclick="selectModule('MOD_MCU')">
+              <rect class="mod-rect" x="570" y="258" width="230" height="76" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="685" y="279" text-anchor="middle" fill="var(--ok)" font-weight="700" font-size="12">Mcu, Gpt &amp; WdgM (MCAL)</text>
+              <text id="svgSub_MOD_MCU" x="685" y="296" text-anchor="middle" fill="var(--mut)" font-size="10">Mode: NORMAL | Rst: POWER_ON</text>
+              <text x="685" y="313" text-anchor="middle" fill="var(--txt-soft)" font-size="9.5">Mcu_SetMode / PerformReset / Gpt</text>
+            </g>
+          </svg>
+        </div>
+      </div>
+    </section>
+  </section>
+
+  <!-- RIGHT COLUMN: STICKY 4-TAB INSPECTOR -->
+  <aside class="col-right">
+    <section class="panel insp-panel">
+      <div class="insp-tabs">
+        <button id="inspTabBtn0" class="insp-tab active" onclick="switchInspTab(0)">🔍 Bước Hiện Tại</button>
+        <button id="inspTabBtn1" class="insp-tab" onclick="switchInspTab(1)">🧩 Module</button>
+        <button id="inspTabBtn2" class="insp-tab" onclick="switchInspTab(2)">📄 Code C</button>
+        <button id="inspTabBtn3" class="insp-tab" onclick="switchInspTab(3)">📜 API Trace</button>
+      </div>
+      <div id="inspBody" class="insp-body"></div>
+    </section>
+  </aside>
+</main>
+
+<!-- ================= VIEW 2: MULTI-LEVEL HANDBOOK & ABBREVIATION TABLE ================= -->
+<main id="viewHb" class="hb-wrap hidden">
+  <div class="hb-nav1">
+    <button id="hbTab1_0" class="hb-tab1 active" onclick="switchHbTab1(0)">1. Kiến Trúc EcuM &amp; BswM</button>
+    <button id="hbTab1_1" class="hb-tab1" onclick="switchHbTab1(1)">2. Startup PreOS &amp; PostOS</button>
+    <button id="hbTab1_2" class="hb-tab1" onclick="switchHbTab1(2)">3. UP (RUN) &amp; Shutdown OFF/RST</button>
+    <button id="hbTab1_3" class="hb-tab1" onclick="switchHbTab1(3)">4. Sleep Halt/Poll &amp; Alarm</button>
+    <button id="hbTab1_4" class="hb-tab1" onclick="switchHbTab1(4)">5. Wakeup Validation Protocol</button>
+    <button id="hbTab1_5" class="hb-tab1" onclick="switchHbTab1(5)">6. Multi-Core, API &amp; 34 ECUC</button>
+    <button id="hbTab1_6" class="hb-tab1" onclick="switchHbTab1(6)">7. Bảng Thuật Ngữ &amp; Search</button>
+  </div>
+
+  <div id="hbNav2" class="hb-nav2"></div>
+
+  <div id="hbAbbrFilterBox" class="abbr-toolbar hidden">
+    <input id="abbrSearchInput" class="abbr-search" type="text" placeholder="🔍 Tìm kiếm thuật ngữ AUTOSAR EcuM (VD: PreOS, Halt, RamHash, WUF, BswM, SWS_EcuM...)" oninput="filterAbbreviationTable()" />
+    <div class="cat-pills">
+      <button id="catPill_ALL" class="cat-pill active" onclick="setAbbrCategory('ALL')">Tất cả (54+)</button>
+      <button id="catPill_PHASE" class="cat-pill" onclick="setAbbrCategory('PHASE')">🏛️ Phases &amp; Core</button>
+      <button id="catPill_START" class="cat-pill" onclick="setAbbrCategory('START')">🚀 Startup &amp; Callouts</button>
+      <button id="catPill_WKUP" class="cat-pill" onclick="setAbbrCategory('WKUP')">⚡ Wakeup &amp; Validation</button>
+      <button id="catPill_SLEEP" class="cat-pill" onclick="setAbbrCategory('SLEEP')">💤 Sleep, Shut &amp; Core</button>
+    </div>
+    <span id="abbrCountBadge" class="step-pill">54 thuật ngữ</span>
+  </div>
+
+  <div id="hbContentArea"></div>
+</main>
+
+<!-- ================= EXPORT ARXML / C / JSON MODAL ================= -->
+<div id="exportModal" class="modal-overlay hidden" onclick="if(event.target===this) closeExportModal()">
+  <div class="modal-box">
+    <div class="modal-hdr">
+      <strong style="font-size:13.5px;color:var(--pri)">📦 Xuất Cấu Hình EcuM AUTOSAR (ARXML · EcuM_Cfg.h · PBcfg &amp; Callouts · JSON)</strong>
+      <button class="btn btn-sm" onclick="closeExportModal()">✖ Đóng</button>
+    </div>
+    <div class="modal-tabs">
+      <button id="expTab0" class="btn btn-sm btn-pri" onclick="switchExportTab(0)">EcuM.arxml</button>
+      <button id="expTab1" class="btn btn-sm" onclick="switchExportTab(1)">EcuM_Cfg.h</button>
+      <button id="expTab2" class="btn btn-sm" onclick="switchExportTab(2)">EcuM_Callout_Stubs.c</button>
+      <button id="expTab3" class="btn btn-sm" onclick="switchExportTab(3)">EcuM_Config.json</button>
+    </div>
+    <div class="modal-body">
+      <pre id="exportCodeArea" class="code-block"></pre>
+    </div>
+    <div class="modal-ftr">
+      <button class="btn" onclick="copyExportCode()">📋 Copy Clipboard</button>
+      <button class="btn btn-ok" onclick="downloadExportCode()">⬇ Tải File Hiện Tại</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= FLOATING TOOLTIP POPUP (>1S HOVER ON ECUC FIELDS) ================= -->
+<div id="cfgTooltipPopup" role="tooltip"></div>
+<script>

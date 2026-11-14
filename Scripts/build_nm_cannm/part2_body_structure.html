@@ -1,0 +1,662 @@
+<!-- ================= STICKY UNIFIED HEADER ================= -->
+<header class="hdr">
+  <div class="hdr-row">
+    <div class="brand">
+      <span class="brand-badge">AUTOSAR Classic R22-11 / R23-11</span>
+      <div>
+        <div class="brand-title">Nm &amp; CanNm Co-Simulation &amp; Technical Handbook</div>
+        <div class="brand-sub">Generic Nm Interface · NM Coordinator Cluster (Ch0 &amp; Ch1) · CanNm State Machine · 8-Byte PDU &amp; CBV · Sync PNC Shutdown</div>
+      </div>
+    </div>
+
+    <div class="view-switch" role="tablist">
+      <button id="btnViewSim" class="view-btn active" onclick="switchMainView('sim')">🎛️ Mô Phỏng Phối Hợp Nm &amp; CanNm</button>
+      <button id="btnViewHb" class="view-btn" onclick="switchMainView('hb')">📖 Sổ Tay Đa Tầng &amp; Bảng Abbreviation</button>
+    </div>
+
+    <div class="hdr-actions">
+      <button class="btn btn-pri" onclick="openExportModal()">🧾 Xuất ARXML / Cfg.h / C / JSON</button>
+      <button class="btn btn-ok" onclick="downloadStandaloneHTML()">💾 Tải File .HTML</button>
+      <button id="btnTheme" class="btn" onclick="toggleTheme()">☀️ Light Mode</button>
+    </div>
+  </div>
+
+  <div class="hdr-row">
+    <div class="scen-bar">
+      <label for="scenSelect" style="font-weight:700;font-size:11.5px;color:var(--mut)">Kịch bản:</label>
+      <select id="scenSelect" class="scen-select" onchange="onScenarioSelectChange()">
+        <optgroup label="Nhóm 1: Ánh Xạ 2 Chiều ComM ↔ Nm ↔ CanNm &amp; NmStateReport">
+          <option value="S1">S1: Active Wakeup Qua Nm (Nm_NetworkRequest → CanNm, AWB=1, Burst Tx)</option>
+          <option value="S2">S2: Passive Wakeup Khép Kín (RxInd → Nm_NetworkStartInd → ComM → PassiveStartUp)</option>
+          <option value="S3">S3: Chu Trình Ngủ 4 Pha &amp; Callbacks Ngược (Release → PrepareBusSleep → BusSleep)</option>
+          <option value="S4">S4: Báo Cáo Trạng Thái Tự Động NmStateReport (CanNm → Nm → COM → PduR → CanNm)</option>
+        </optgroup>
+        <optgroup label="Nhóm 2: Node Detection, User Data &amp; Car WakeUp Qua Nm">
+          <option value="S5">S5: Điểm Danh Toàn Mạng Qua Nm (Nm_RepeatMessageRequest, RMR=1 &amp; Callback)</option>
+          <option value="S6">S6: Đồng Bộ User Data &amp; Truy Vấn Node ID / PDU Qua Nm (GetNodeId / GetPduData)</option>
+          <option value="S7">S7: Đánh Thức Toàn Xe Car WakeUp (CBV Bit 3 CWU=1 → Nm_CarWakeUpInd → BswM)</option>
+        </optgroup>
+        <optgroup label="Nhóm 3: Thuật Toán NM Coordinator Điều Phối Cụm Đa Kênh (Ch0 &amp; Ch1)">
+          <option value="S8">S8: Giám Sát Ngủ Từ Xa (RemoteSleepInd) &amp; Nm Coordinator Giữ Cụm Mạng Thức</option>
+          <option value="S9">S9: Đóng Cụm Đồng Bộ (Coordinated Shutdown: SleepReadyBit=1 &amp; ShutdownDelayTimer)</option>
+          <option value="S10">S10: Hủy Khẩn Cấp Quy Trình Ngủ (Abort Coordinated Shutdown / RemoteSleepCancel)</option>
+          <option value="S11">S11: Phối Hợp Active Coordinator vs Passive Coordinator (CoordReadyToSleepInd)</option>
+        </optgroup>
+        <optgroup label="Nhóm 4: Partial Networking, Sync PNC Shutdown &amp; Fault Handling">
+          <option value="S12">S12: Bộ Lọc Partial Networking (PNI=1, ConfirmPnAvailability &amp; ERA/EIRA)</option>
+          <option value="S13">S13: Đồng Bộ Tắt Cụm PNC 2 Chiều (Synchronized PNC Shutdown R22-11 / R23-11)</option>
+          <option value="S14">S14: Kiểm Soát UDS 0x28 (Disable/Enable Comm), TxTimeoutException &amp; Lỗi DET</option>
+        </optgroup>
+      </select>
+
+      <button class="btn btn-sm" onclick="resetCurrentScenario()">↺ Reset</button>
+      <button id="btnPrevStep" class="btn btn-sm" onclick="prevScenarioStep()" disabled>◀ Lùi</button>
+      <span id="stepIndicator" class="step-pill">Bước 0 / 0</span>
+      <button id="btnNextStep" class="btn btn-sm btn-pri" onclick="nextScenarioStep()">Tiếp ▶</button>
+      <button id="btnAutoPlay" class="btn btn-sm btn-pur" onclick="toggleScenarioAutoPlay()">▶ Tự Chạy</button>
+
+      <div class="clock-box">
+        <span style="font-size:10.5px;color:var(--mut);font-weight:700">Clock:</span>
+        <span id="clockVal" class="clock-val mono">0 ms</span>
+        <button class="btn btn-sm btn-ok" onclick="stepClockTick(100)" title="Chạy đồng thời Nm_MainFunction() &amp; CanNm_MainFunction() (+100ms)">+1 Tick (100ms)</button>
+        <button id="btnAutoClock" class="btn btn-sm" onclick="toggleAutoClock()">⏱ Auto Clock</button>
+      </div>
+    </div>
+
+    <div class="hdr-badges">
+      <span id="hdrBadgeCoord" class="state-badge sb-sleep">Nm Coord: SLEEP</span>
+      <span id="hdrBadgeCh0" class="state-badge sb-sleep">Ch0: BUS_SLEEP</span>
+      <span id="hdrBadgeCh1" class="state-badge sb-sleep">Ch1: BUS_SLEEP</span>
+      <span id="hdrBadgeCbv" class="state-badge sb-wait">CBV: 0x00</span>
+    </div>
+  </div>
+</header>
+
+<!-- ================= VIEW 1: INTERACTIVE CO-SIMULATOR (ZERO-SCROLL 3 COLUMNS) ================= -->
+<main id="viewSim" class="workspace">
+
+  <!-- LEFT COLUMN: QUICK ACTIONS + SCENARIO WHAT-IF + 6 ECUC CONFIG SUB-TABS -->
+  <aside class="col-left">
+    <!-- CARD 1: QUICK ACTION BAR (ZERO-SCROLL TOP) -->
+    <section class="panel" style="border-color:var(--pri)">
+      <div class="panel-hdr" style="background:var(--pri-bg)">
+        <span class="panel-title" style="color:var(--pri)">⚡ Thao Tác Nhanh (Quick Action Bar)</span>
+        <span class="panel-sub">Zero-Scroll · Nm &amp; CanNm</span>
+      </div>
+      <div class="panel-body">
+        <div class="qa-row">
+          <span style="font-size:11px;font-weight:700;color:var(--mut)">Kênh Nm:</span>
+          <select id="qaTargetCh" style="flex:1;background:var(--panel-3);border:1px solid var(--bdr);border-radius:5px;padding:3px 6px;font-size:11px;font-weight:700">
+            <option value="0">Ch0: CAN_Body (Active Coord)</option>
+            <option value="1">Ch1: CAN_SubNet (SleepMaster)</option>
+          </select>
+          <button class="btn btn-sm btn-err" id="qaBtnCommCtrl" onclick="qaToggleDisableComm()" title="UDS 0x28: Nm_DisableCommunication / EnableCommunication">🔇 CommCtrl</button>
+        </div>
+
+        <div class="qa-grid">
+          <button class="qa-btn" onclick="qaNetworkRequest()">
+            <span>🟢 Nm_NetworkRequest</span><span class="mono">Req</span>
+          </button>
+          <button class="qa-btn" onclick="qaNetworkRelease()">
+            <span>🟡 Nm_NetworkRelease</span><span class="mono">Rel</span>
+          </button>
+          <button class="qa-btn" onclick="qaPassiveStartUp()">
+            <span>🔵 Nm_PassiveStartUp</span><span class="mono">Pasv</span>
+          </button>
+          <button class="qa-btn" onclick="qaRepeatMessageRequest()">
+            <span>🟣 Nm_RepeatMsgReq</span><span class="mono">RMR</span>
+          </button>
+          <button class="qa-btn qa-warn" onclick="qaTriggerRemoteSleepAll()" title="Mô phỏng các node con trên Ch0 &amp; Ch1 im lặng hết CanNmRemoteSleepIndTime">
+            <span>🌙 RemoteSleep (Ch0/1)</span><span class="mono">RSI</span>
+          </button>
+          <button class="qa-btn" onclick="qaSyncPncShutdown()" title="Gọi Nm_RequestSynchronizedPncShutdown(Ch0, PNC #16)">
+            <span>🔌 SyncPncShutdown</span><span class="mono">PNSR</span>
+          </button>
+          <button class="qa-btn" onclick="stepClockTick(100)">
+            <span>⏱ +1 Tick MainFn</span><span class="mono">+100ms</span>
+          </button>
+          <button class="qa-btn" onclick="qaResetToBusSleep()">
+            <span>🧹 Reset Bus-Sleep</span><span class="mono">Init</span>
+          </button>
+        </div>
+
+        <div class="qa-rx-box">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <span class="mono" style="font-size:10.5px;font-weight:800;color:var(--pur)">📡 Giả Lập Node #2 (0x2B) Gửi NM PDU (Rx)</span>
+            <span class="ch-pill pur">CanNm_RxInd</span>
+          </div>
+          <div class="qa-rx-checks">
+            <label><input type="checkbox" id="qaRxRmr" /><span>Rx RMR=1</span></label>
+            <label><input type="checkbox" id="qaRxAwb" checked /><span>Rx AWB=1</span></label>
+            <label><input type="checkbox" id="qaRxSrb" /><span>Rx SRB/CWU=1</span></label>
+            <label><input type="checkbox" id="qaRxPni" /><span>Rx PNI=1</span></label>
+            <label><input type="checkbox" id="qaRxPnsr" /><span>Rx PNSR=1</span></label>
+          </div>
+          <div style="display:flex;gap:5px;align-items:center">
+            <span style="font-size:10.5px;color:var(--mut);font-weight:700">Rx PNI:</span>
+            <input id="qaRxPniHex" type="text" class="mono" value="05 00" style="width:66px;background:var(--panel);border:1px solid var(--bdr);border-radius:5px;padding:2px 5px;font-size:11px;text-align:center" />
+            <button class="btn btn-sm btn-pur" style="flex:1;justify-content:center" onclick="qaSimulatedRxIndication()">🚀 Bắn CanNm_RxIndication()</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CARD 2: CURRENT SCENARIO SUMMARY & 3 WHAT-IF BUTTONS -->
+    <section class="panel">
+      <div class="panel-hdr">
+        <span class="panel-title">🎬 Kịch Bản Đang Chạy &amp; Thử Nghiệm Nhanh</span>
+        <span id="scenIdBadge" class="panel-sub mono">S1</span>
+      </div>
+      <div class="panel-body">
+        <div id="scenSummaryBox" class="scen-desc-box"></div>
+        <div style="font-size:10.5px;font-weight:700;color:var(--pur);margin-bottom:4px">🧪 3 Nút Thử Nghiệm Nhanh (1-Click What-If):</div>
+        <div id="whatIfContainer" class="whatif-grid"></div>
+      </div>
+    </section>
+
+    <!-- CARD 3: 6-TAB COMBINED ECUC CONFIG PANEL (46 PARAMETERS + >1S TOOLTIP) -->
+    <section class="panel">
+      <div class="panel-hdr">
+        <span class="panel-title">⚙️ Cấu Hình ECUC Nm &amp; CanNm (Hover &gt;1s)</span>
+        <span class="panel-sub">46 Parameters</span>
+      </div>
+      <div class="cfg-tabs">
+        <button id="cfgTabBtn0" class="cfg-tab active" onclick="switchCfgTab(0)">1. Nm Intf/Rpt</button>
+        <button id="cfgTabBtn1" class="cfg-tab" onclick="switchCfgTab(1)">2. Nm Coord</button>
+        <button id="cfgTabBtn2" class="cfg-tab" onclick="switchCfgTab(2)">3. CanNm Timers</button>
+        <button id="cfgTabBtn3" class="cfg-tab" onclick="switchCfgTab(3)">4. PDU/CBV/NID</button>
+        <button id="cfgTabBtn4" class="cfg-tab" onclick="switchCfgTab(4)">5. RemSlp/Burst</button>
+        <button id="cfgTabBtn5" class="cfg-tab" onclick="switchCfgTab(5)">6. PN/Sync/Diag</button>
+      </div>
+
+      <!-- TAB 0: NM INTERFACE & STATE REPORT -->
+      <div id="cfgPane0" class="cfg-pane">
+        <div class="cfg-row" data-cfg-key="NmCanNmInitialized">
+          <label class="cfg-lbl" for="cfg_NmCanNmInitialized"><span class="cfg-i">ⓘ</span><span class="cfg-name">NmCanNmInitialized (Init)</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_NmCanNmInitialized" checked onchange="onConfigInputChanged('NmCanNmInitialized')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="NmDevErrorDetect">
+          <label class="cfg-lbl" for="cfg_NmDevErrorDetect"><span class="cfg-i">ⓘ</span><span class="cfg-name">Nm/CanNmDevErrorDetect</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_NmDevErrorDetect" checked onchange="onConfigInputChanged('NmDevErrorDetect')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="NmBusType">
+          <label class="cfg-lbl" for="cfg_NmBusType"><span class="cfg-i">ⓘ</span><span class="cfg-name">NmBusType (Dispatcher)</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_NmBusType" onchange="onConfigInputChanged('NmBusType')">
+              <option value="NM_BUSNM_CANNM">NM_BUSNM_CANNM</option>
+              <option value="NM_BUSNM_FRNM">NM_BUSNM_FRNM</option>
+              <option value="NM_BUSNM_UDPNM">NM_BUSNM_UDPNM</option>
+              <option value="NM_BUSNM_GENERICNM">NM_BUSNM_GENERICNM</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="NmPassiveModeEnabled">
+          <label class="cfg-lbl" for="cfg_NmPassiveModeEnabled"><span class="cfg-i">ⓘ</span><span class="cfg-name">NmPassiveModeEnabled</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_NmPassiveModeEnabled" onchange="onConfigInputChanged('NmPassiveModeEnabled')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="NmStateChangeIndEnabled">
+          <label class="cfg-lbl" for="cfg_NmStateChangeIndEnabled"><span class="cfg-i">ⓘ</span><span class="cfg-name">NmStateChangeIndEnabled</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_NmStateChangeIndEnabled" checked onchange="onConfigInputChanged('NmStateChangeIndEnabled')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="NmStateReportEnabled">
+          <label class="cfg-lbl" for="cfg_NmStateReportEnabled"><span class="cfg-i">ⓘ</span><span class="cfg-name">NmStateReportEnabled (NMS)</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_NmStateReportEnabled" checked onchange="onConfigInputChanged('NmStateReportEnabled')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="NmStateReportSignalRef">
+          <label class="cfg-lbl" for="cfg_NmStateReportSignalRef"><span class="cfg-i">ⓘ</span><span class="cfg-name">NmStateReportSignalRef</span></label>
+          <div class="cfg-ctrl"><input type="text" id="cfg_NmStateReportSignalRef" class="mono" value="ComSig_NMS_B4" onchange="onConfigInputChanged('NmStateReportSignalRef')" /></div>
+        </div>
+      </div>
+
+      <!-- TAB 1: NM COORDINATOR -->
+      <div id="cfgPane1" class="cfg-pane hidden">
+        <div class="cfg-row" data-cfg-key="NmCoordinatorSupportEnabled">
+          <label class="cfg-lbl" for="cfg_NmCoordinatorSupportEnabled"><span class="cfg-i">ⓘ</span><span class="cfg-name">NmCoordinatorSupportEnabled</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_NmCoordinatorSupportEnabled" checked onchange="onConfigInputChanged('NmCoordinatorSupportEnabled')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="NmCycletimeMainFunction">
+          <label class="cfg-lbl" for="cfg_NmCycletimeMainFunction"><span class="cfg-i">ⓘ</span><span class="cfg-name">NmCycletimeMainFunction</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_NmCycletimeMainFunction" min="10" max="500" step="10" value="100" onchange="onConfigInputChanged('NmCycletimeMainFunction')" /><span style="font-size:10px;color:var(--mut)">ms</span></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="NmGlobalCoordinatorTime">
+          <label class="cfg-lbl" for="cfg_NmGlobalCoordinatorTime"><span class="cfg-i">ⓘ</span><span class="cfg-name">NmGlobalCoordinatorTime</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_NmGlobalCoordinatorTime" min="200" max="20000" step="100" value="1500" onchange="onConfigInputChanged('NmGlobalCoordinatorTime')" /><span style="font-size:10px;color:var(--mut)">ms</span></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="NmActiveCoordinator">
+          <label class="cfg-lbl" for="cfg_NmActiveCoordinator"><span class="cfg-i">ⓘ</span><span class="cfg-name">NmActiveCoordinator (Ch0)</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_NmActiveCoordinator" checked onchange="onConfigInputChanged('NmActiveCoordinator')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="NmChannelSleepMaster">
+          <label class="cfg-lbl" for="cfg_NmChannelSleepMaster"><span class="cfg-i">ⓘ</span><span class="cfg-name">NmChannelSleepMaster (Ch1)</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_NmChannelSleepMaster" checked onchange="onConfigInputChanged('NmChannelSleepMaster')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="NmSynchronizingNetwork">
+          <label class="cfg-lbl" for="cfg_NmSynchronizingNetwork"><span class="cfg-i">ⓘ</span><span class="cfg-name">NmSynchronizingNetwork (Ch0)</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_NmSynchronizingNetwork" onchange="onConfigInputChanged('NmSynchronizingNetwork')" /></div>
+        </div>
+      </div>
+
+      <!-- TAB 2: CANNM TIMERS -->
+      <div id="cfgPane2" class="cfg-pane hidden">
+        <div class="cfg-row" data-cfg-key="CanNmMainFunctionPeriod">
+          <label class="cfg-lbl" for="cfg_CanNmMainFunctionPeriod"><span class="cfg-i">ⓘ</span><span class="cfg-name">CanNmMainFunctionPeriod</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_CanNmMainFunctionPeriod" min="10" max="500" step="10" value="100" onchange="onConfigInputChanged('CanNmMainFunctionPeriod')" /><span style="font-size:10px;color:var(--mut)">ms</span></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="CanNmMsgCycleTime">
+          <label class="cfg-lbl" for="cfg_CanNmMsgCycleTime"><span class="cfg-i">ⓘ</span><span class="cfg-name">CanNmMsgCycleTime</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_CanNmMsgCycleTime" min="100" max="10000" step="100" value="1000" onchange="onConfigInputChanged('CanNmMsgCycleTime')" /><span style="font-size:10px;color:var(--mut)">ms</span></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="CanNmMsgCycleOffset">
+          <label class="cfg-lbl" for="cfg_CanNmMsgCycleOffset"><span class="cfg-i">ⓘ</span><span class="cfg-name">CanNmMsgCycleOffset</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_CanNmMsgCycleOffset" min="0" max="5000" step="50" value="100" onchange="onConfigInputChanged('CanNmMsgCycleOffset')" /><span style="font-size:10px;color:var(--mut)">ms</span></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="CanNmRepeatMessageTime">
+          <label class="cfg-lbl" for="cfg_CanNmRepeatMessageTime"><span class="cfg-i">ⓘ</span><span class="cfg-name">CanNmRepeatMessageTime</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_CanNmRepeatMessageTime" min="100" max="10000" step="100" value="1500" onchange="onConfigInputChanged('CanNmRepeatMessageTime')" /><span style="font-size:10px;color:var(--mut)">ms</span></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="CanNmTimeoutTime">
+          <label class="cfg-lbl" for="cfg_CanNmTimeoutTime"><span class="cfg-i">ⓘ</span><span class="cfg-name">CanNmTimeoutTime</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_CanNmTimeoutTime" min="200" max="20000" step="100" value="2000" onchange="onConfigInputChanged('CanNmTimeoutTime')" /><span style="font-size:10px;color:var(--mut)">ms</span></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="CanNmWaitBusSleepTime">
+          <label class="cfg-lbl" for="cfg_CanNmWaitBusSleepTime"><span class="cfg-i">ⓘ</span><span class="cfg-name">CanNmWaitBusSleepTime</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_CanNmWaitBusSleepTime" min="100" max="10000" step="100" value="1500" onchange="onConfigInputChanged('CanNmWaitBusSleepTime')" /><span style="font-size:10px;color:var(--mut)">ms</span></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="CanNmMsgTimeoutTime">
+          <label class="cfg-lbl" for="cfg_CanNmMsgTimeoutTime"><span class="cfg-i">ⓘ</span><span class="cfg-name">CanNmMsgTimeoutTime (Tx)</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_CanNmMsgTimeoutTime" min="100" max="5000" step="100" value="500" onchange="onConfigInputChanged('CanNmMsgTimeoutTime')" /><span style="font-size:10px;color:var(--mut)">ms</span></div>
+        </div>
+      </div>
+
+      <!-- TAB 3: PDU / CBV / NODE ID -->
+      <div id="cfgPane3" class="cfg-pane hidden">
+        <div class="cfg-row" data-cfg-key="CanNmNodeId">
+          <label class="cfg-lbl" for="cfg_CanNmNodeId"><span class="cfg-i">ⓘ</span><span class="cfg-name">CanNmNodeId (SNI)</span></label>
+          <div class="cfg-ctrl"><input type="text" id="cfg_CanNmNodeId" class="mono" value="0x1A" style="width:74px;text-align:center" onchange="onConfigInputChanged('CanNmNodeId')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="CanNmBaseCanId">
+          <label class="cfg-lbl" for="cfg_CanNmBaseCanId"><span class="cfg-i">ⓘ</span><span class="cfg-name">CanNmBaseCanId</span></label>
+          <div class="cfg-ctrl"><input type="text" id="cfg_CanNmBaseCanId" class="mono" value="0x500" style="width:74px;text-align:center" onchange="onConfigInputChanged('CanNmBaseCanId')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="CanNmPduNidPosition">
+          <label class="cfg-lbl" for="cfg_CanNmPduNidPosition"><span class="cfg-i">ⓘ</span><span class="cfg-name">CanNmPduNidPosition</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_CanNmPduNidPosition" onchange="onConfigInputChanged('CanNmPduNidPosition')">
+              <option value="CANNM_PDU_BYTE_0">CANNM_PDU_BYTE_0</option>
+              <option value="CANNM_PDU_BYTE_1">CANNM_PDU_BYTE_1</option>
+              <option value="CANNM_PDU_OFF">CANNM_PDU_OFF</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="CanNmPduCbvPosition">
+          <label class="cfg-lbl" for="cfg_CanNmPduCbvPosition"><span class="cfg-i">ⓘ</span><span class="cfg-name">CanNmPduCbvPosition</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_CanNmPduCbvPosition" onchange="onConfigInputChanged('CanNmPduCbvPosition')">
+              <option value="CANNM_PDU_BYTE_1">CANNM_PDU_BYTE_1</option>
+              <option value="CANNM_PDU_BYTE_0">CANNM_PDU_BYTE_0</option>
+              <option value="CANNM_PDU_OFF">CANNM_PDU_OFF</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="CanNmActiveWakeupBitEnabled">
+          <label class="cfg-lbl" for="cfg_CanNmActiveWakeupBitEnabled"><span class="cfg-i">ⓘ</span><span class="cfg-name">CanNmActiveWakeupBitEnabled</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_CanNmActiveWakeupBitEnabled" checked onchange="onConfigInputChanged('CanNmActiveWakeupBitEnabled')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="NmNodeIdEnabled">
+          <label class="cfg-lbl" for="cfg_NmNodeIdEnabled"><span class="cfg-i">ⓘ</span><span class="cfg-name">Nm/CanNmNodeIdEnabled</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_NmNodeIdEnabled" checked onchange="onConfigInputChanged('NmNodeIdEnabled')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="NmNodeDetectionEnabled">
+          <label class="cfg-lbl" for="cfg_NmNodeDetectionEnabled"><span class="cfg-i">ⓘ</span><span class="cfg-name">Nm/CanNmNodeDetection</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_NmNodeDetectionEnabled" checked onchange="onConfigInputChanged('NmNodeDetectionEnabled')" /></div>
+        </div>
+      </div>
+
+      <!-- TAB 4: REMOTE SLEEP / BURST / BUS LOAD -->
+      <div id="cfgPane4" class="cfg-pane hidden">
+        <div class="cfg-row" data-cfg-key="NmRemoteSleepIndEnabled">
+          <label class="cfg-lbl" for="cfg_NmRemoteSleepIndEnabled"><span class="cfg-i">ⓘ</span><span class="cfg-name">Nm/CanNmRemoteSleepInd</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_NmRemoteSleepIndEnabled" checked onchange="onConfigInputChanged('NmRemoteSleepIndEnabled')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="CanNmRemoteSleepIndTime">
+          <label class="cfg-lbl" for="cfg_CanNmRemoteSleepIndTime"><span class="cfg-i">ⓘ</span><span class="cfg-name">CanNmRemoteSleepIndTime</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_CanNmRemoteSleepIndTime" min="200" max="10000" step="100" value="1500" onchange="onConfigInputChanged('CanNmRemoteSleepIndTime')" /><span style="font-size:10px;color:var(--mut)">ms</span></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="NmRepeatMsgIndEnabled">
+          <label class="cfg-lbl" for="cfg_NmRepeatMsgIndEnabled"><span class="cfg-i">ⓘ</span><span class="cfg-name">NmRepeatMsgIndEnabled</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_NmRepeatMsgIndEnabled" checked onchange="onConfigInputChanged('NmRepeatMsgIndEnabled')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="NmPduRxIndicationEnabled">
+          <label class="cfg-lbl" for="cfg_NmPduRxIndicationEnabled"><span class="cfg-i">ⓘ</span><span class="cfg-name">NmPduRxIndicationEnabled</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_NmPduRxIndicationEnabled" onchange="onConfigInputChanged('NmPduRxIndicationEnabled')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="CanNmImmediateNmTransmissions">
+          <label class="cfg-lbl" for="cfg_CanNmImmediateNmTransmissions"><span class="cfg-i">ⓘ</span><span class="cfg-name">CanNmImmediateNmTx (Count)</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_CanNmImmediateNmTransmissions" min="0" max="10" step="1" value="3" onchange="onConfigInputChanged('CanNmImmediateNmTransmissions')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="CanNmImmediateNmCycleTime">
+          <label class="cfg-lbl" for="cfg_CanNmImmediateNmCycleTime"><span class="cfg-i">ⓘ</span><span class="cfg-name">CanNmImmediateNmCycleTime</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_CanNmImmediateNmCycleTime" min="50" max="1000" step="50" value="100" onchange="onConfigInputChanged('CanNmImmediateNmCycleTime')" /><span style="font-size:10px;color:var(--mut)">ms</span></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="CanNmImmediateRestartEnabled">
+          <label class="cfg-lbl" for="cfg_CanNmImmediateRestartEnabled"><span class="cfg-i">ⓘ</span><span class="cfg-name">CanNmImmediateRestart</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_CanNmImmediateRestartEnabled" checked onchange="onConfigInputChanged('CanNmImmediateRestartEnabled')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="NmBusLoadReductionEnabled">
+          <label class="cfg-lbl" for="cfg_NmBusLoadReductionEnabled"><span class="cfg-i">ⓘ</span><span class="cfg-name">Nm/CanNmBusLoadReduction</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_NmBusLoadReductionEnabled" onchange="onConfigInputChanged('NmBusLoadReductionEnabled')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="CanNmMsgReducedTime">
+          <label class="cfg-lbl" for="cfg_CanNmMsgReducedTime"><span class="cfg-i">ⓘ</span><span class="cfg-name">CanNmMsgReducedTime</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_CanNmMsgReducedTime" min="100" max="5000" step="100" value="600" onchange="onConfigInputChanged('CanNmMsgReducedTime')" /><span style="font-size:10px;color:var(--mut)">ms</span></div>
+        </div>
+      </div>
+
+      <!-- TAB 5: PARTIAL NETWORKING, SYNC PNC, USER DATA, CWU, DIAG -->
+      <div id="cfgPane5" class="cfg-pane hidden">
+        <div class="cfg-row" data-cfg-key="CanNmPnEnabled">
+          <label class="cfg-lbl" for="cfg_CanNmPnEnabled"><span class="cfg-i">ⓘ</span><span class="cfg-name">CanNmPnEnabled (PNI Bit 6)</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_CanNmPnEnabled" onchange="onConfigInputChanged('CanNmPnEnabled')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="CanNmPnFilterMaskHex">
+          <label class="cfg-lbl" for="cfg_CanNmPnFilterMaskHex"><span class="cfg-i">ⓘ</span><span class="cfg-name">CanNmPnFilterMaskByte</span></label>
+          <div class="cfg-ctrl"><input type="text" id="cfg_CanNmPnFilterMaskHex" class="mono" value="05 00" style="width:74px;text-align:center" onchange="onConfigInputChanged('CanNmPnFilterMaskHex')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="CanNmPnResetTime">
+          <label class="cfg-lbl" for="cfg_CanNmPnResetTime"><span class="cfg-i">ⓘ</span><span class="cfg-name">CanNmPnResetTime (EIRA)</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_CanNmPnResetTime" min="200" max="10000" step="100" value="1500" onchange="onConfigInputChanged('CanNmPnResetTime')" /><span style="font-size:10px;color:var(--mut)">ms</span></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="NmSynchronizedPncShutdownEnabled">
+          <label class="cfg-lbl" for="cfg_NmSynchronizedPncShutdownEnabled"><span class="cfg-i">ⓘ</span><span class="cfg-name">SyncPncShutdownEnabled</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_NmSynchronizedPncShutdownEnabled" onchange="onConfigInputChanged('NmSynchronizedPncShutdownEnabled')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="NmComUserDataSupport">
+          <label class="cfg-lbl" for="cfg_NmComUserDataSupport"><span class="cfg-i">ⓘ</span><span class="cfg-name">Nm/CanNmComUserDataSupport</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_NmComUserDataSupport" checked onchange="onConfigInputChanged('NmComUserDataSupport')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="UserDataBytesHex">
+          <label class="cfg-lbl" for="cfg_UserDataBytesHex"><span class="cfg-i">ⓘ</span><span class="cfg-name">UserDataBytesHex (COM)</span></label>
+          <div class="cfg-ctrl"><input type="text" id="cfg_UserDataBytesHex" class="mono" value="11 22 33 44 55 66" style="width:128px;text-align:center" onchange="onConfigInputChanged('UserDataBytesHex')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="NmCarWakeUpRxEnabled">
+          <label class="cfg-lbl" for="cfg_NmCarWakeUpRxEnabled"><span class="cfg-i">ⓘ</span><span class="cfg-name">Nm/CanNmCarWakeUpRxEnabled</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_NmCarWakeUpRxEnabled" checked onchange="onConfigInputChanged('NmCarWakeUpRxEnabled')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="CanNmCarWakeUpFilterEnabled">
+          <label class="cfg-lbl" for="cfg_CanNmCarWakeUpFilterEnabled"><span class="cfg-i">ⓘ</span><span class="cfg-name">CanNmCarWakeUpFilterEnabled</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_CanNmCarWakeUpFilterEnabled" checked onchange="onConfigInputChanged('CanNmCarWakeUpFilterEnabled')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="CanNmCarWakeUpFilterNodeId">
+          <label class="cfg-lbl" for="cfg_CanNmCarWakeUpFilterNodeId"><span class="cfg-i">ⓘ</span><span class="cfg-name">CanNmCarWakeUpFilterNodeId</span></label>
+          <div class="cfg-ctrl"><input type="text" id="cfg_CanNmCarWakeUpFilterNodeId" class="mono" value="0x2B" style="width:74px;text-align:center" onchange="onConfigInputChanged('CanNmCarWakeUpFilterNodeId')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="NmComControlEnabled">
+          <label class="cfg-lbl" for="cfg_NmComControlEnabled"><span class="cfg-i">ⓘ</span><span class="cfg-name">Nm/CanNmComControlEnabled</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_NmComControlEnabled" checked onchange="onConfigInputChanged('NmComControlEnabled')" /></div>
+        </div>
+      </div>
+
+      <div id="cfgValidationBox" style="padding:0 10px 8px"></div>
+    </section>
+  </aside>
+
+  <!-- CENTER COLUMN: CLUSTER MATRIX, 8-BYTE PDU, 2x 8-BIT REGS, TIMERS, DUAL SM, SVG -->
+  <section class="col-center">
+
+    <!-- PANEL 1: NM COORDINATOR CLUSTER + 8-BYTE CANNM PDU + DUAL 8-BIT REGISTERS -->
+    <section class="panel">
+      <div class="panel-hdr">
+        <span class="panel-title">🧭 Ma Trận Nm Coordinator (Ch0 &amp; Ch1) · Khung 8-Byte CanNm PDU · 2 Thanh Ghi 8-Bit</span>
+        <span class="panel-sub">Click vào ô Bit để thử nghiệm trực tiếp</span>
+      </div>
+      <div class="panel-body tier-split">
+        <!-- 1A-1: NM COORDINATOR CLUSTER MATRIX -->
+        <div class="cluster-wrap">
+          <div class="cluster-hdr">
+            <span style="font-weight:800;font-size:11px;color:var(--pri)">1A. NM COORDINATOR CLUSTER (`NmCoordClusterIndex = 0`) — Điều Phối Đa Kênh `Ch0` &amp; `Ch1`</span>
+            <span id="coordSummaryPill" class="mono" style="font-size:10.5px;color:var(--cyan)">Coord: CLUSTER_SLEEP | NMS: 0x00 | SyncPt: OFF</span>
+          </div>
+          <div id="clusterGrid" class="cluster-grid"></div>
+        </div>
+
+        <!-- 1A-2: 8-BYTE CANNM PDU FRAME SLICER -->
+        <div class="pdu-wrap">
+          <div class="pdu-hdr">
+            <span style="font-weight:800;font-size:11px;color:var(--warn)">🧬 KHUNG 8-BYTE CANNM PDU TRÊN BUS (Ch0) — <span id="pduCanIdLbl" class="mono">CAN ID: 0x51A</span></span>
+            <span id="pduLayoutNote" class="mono" style="font-size:10px;color:var(--mut)">NidPos: BYTE_0 | CbvPos: BYTE_1 | Byte 4: NMS Report</span>
+          </div>
+          <div id="pduFrameGrid" class="pdu-frame-grid"></div>
+        </div>
+
+        <!-- 1B: DUAL 8-BIT INTERACTIVE REGISTERS -->
+        <div class="reg-grid">
+          <div class="reg-card">
+            <div class="reg-top">
+              <span class="reg-name">Thanh A: CanNm Control Bit Vector (`CBV Byte`)</span>
+              <span id="regAHex" class="reg-hex mono">0x00</span>
+            </div>
+            <div id="regABits" class="bit-row"></div>
+          </div>
+
+          <div class="reg-card">
+            <div class="reg-top">
+              <span class="reg-name">Thanh B: Nm &amp; CanNm Co-Engine (`Nm_CanNm_CoEngineByte`)</span>
+              <span id="regBHex" class="reg-hex mono">0x01</span>
+            </div>
+            <div id="regBBits" class="bit-row"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PANEL 2: 6 TIMERS & DUAL STATE MACHINES -->
+    <section class="panel">
+      <div class="panel-hdr">
+        <span class="panel-title">⏳ 6 Bộ Đếm Thời Gian Đồng Bộ &amp; 2 Máy Trạng Thái Song Song (`Nm Coordinator` ↔ `CanNm`)</span>
+        <span id="panel2SubLbl" class="panel-sub mono">BusType: NM_BUSNM_CANNM | EIRA: 0x0000</span>
+      </div>
+      <div class="panel-body">
+        <div id="timersGrid" class="timer-grid"></div>
+        <div class="sm-dual">
+          <div class="sm-box">
+            <div class="sm-title">
+              <span>🧭 Nm Coordinator Cluster SM (SWS_Nm_00232)</span>
+              <span id="smCoordLbl" class="mono">SLEEP</span>
+            </div>
+            <div id="coordSmDiagram" class="sm-states"></div>
+          </div>
+
+          <div class="sm-box">
+            <div class="sm-title">
+              <span>🚦 CanNm Modes &amp; Sub-States (Ch0 &amp; Ch1)</span>
+              <span id="smCanNmLbl" class="mono">BUS_SLEEP</span>
+            </div>
+            <div id="cannmSmDiagram" class="sm-states"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PANEL 3: INTERACTIVE END-TO-END AUTOSAR SVG ARCHITECTURE -->
+    <section class="panel">
+      <div class="panel-hdr">
+        <span class="panel-title">🏗️ Kiến Trúc Tương Tác End-to-End Sự Phối Hợp `Nm` &amp; `CanNm` (SVG)</span>
+        <span class="panel-sub">Click vào từng khối để xem Input / Processing / Output &amp; API ở cột phải</span>
+      </div>
+      <div class="panel-body">
+        <div class="arch-wrap">
+          <svg id="nmCanNmArchSvg" class="arch-svg" viewBox="0 0 820 385" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <marker id="arrEnd" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                <path d="M 0 1 L 10 5 L 0 9 z" fill="currentColor" />
+              </marker>
+            </defs>
+
+            <!-- ARROWS LAYER -->
+            <path id="arr_swc_comm" class="flow-arrow" d="M 245 46 L 285 46" marker-end="url(#arrEnd)" />
+            <path id="arr_swc_rte" class="flow-arrow" d="M 130 74 L 130 112" marker-end="url(#arrEnd)" />
+            <path id="arr_rte_nm" class="flow-arrow" d="M 215 140 L 250 140" marker-end="url(#arrEnd)" />
+            <path id="arr_comm_nm" class="flow-arrow" d="M 380 74 L 380 112" marker-end="url(#arrEnd)" />
+            <path id="arr_nm_comm" class="flow-arrow" d="M 445 112 L 445 74" marker-end="url(#arrEnd)" />
+            <path id="arr_nm_com" class="flow-arrow" d="M 250 176 L 195 176 L 195 224 L 160 224" marker-end="url(#arrEnd)" />
+            <path id="arr_nm_det" class="flow-arrow" d="M 595 148 L 635 148" marker-end="url(#arrEnd)" />
+            <path id="arr_nm_cannm" class="flow-arrow" d="M 380 198 L 380 232" marker-end="url(#arrEnd)" />
+            <path id="arr_cannm_nm" class="flow-arrow" d="M 460 232 L 460 198" marker-end="url(#arrEnd)" />
+            <path id="arr_com_cannm" class="flow-arrow" d="M 185 268 L 250 268" marker-end="url(#arrEnd)" />
+            <path id="arr_cannm_com" class="flow-arrow" d="M 250 284 L 185 284" marker-end="url(#arrEnd)" />
+            <path id="arr_cannm_det" class="flow-arrow" d="M 595 268 L 718 268 L 718 182" marker-end="url(#arrEnd)" />
+            <path id="arr_cansm_cannm" class="flow-arrow" d="M 215 344 L 285 304" marker-end="url(#arrEnd)" />
+            <path id="arr_cannm_canif" class="flow-arrow" d="M 385 304 L 385 326" marker-end="url(#arrEnd)" />
+            <path id="arr_canif_cannm" class="flow-arrow" d="M 445 326 L 445 304" marker-end="url(#arrEnd)" />
+            <path id="arr_canif_hw" class="flow-arrow" d="M 525 352 L 580 352" marker-end="url(#arrEnd)" />
+
+            <!-- ROW 1: TOP LAYER (SWC, ComM/BswM/Dcm, RTE/SchM) -->
+            <g id="node_MOD_SWC" class="mod-node" onclick="selectModule('MOD_SWC')">
+              <rect class="mod-rect" x="20" y="18" width="225" height="56" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="132" y="36" text-anchor="middle" fill="var(--pri)" font-weight="700" font-size="11.5">SWC_App / SWC_Diag / CWU</text>
+              <text id="svgSub_MOD_SWC" x="132" y="51" text-anchor="middle" fill="var(--mut)" font-size="9.5">Ch0 Req: NO_COM | Diag: OFF</text>
+              <text x="132" y="64" text-anchor="middle" fill="var(--txt-soft)" font-size="9">ComM_Req / Nm_RepeatMsgReq</text>
+            </g>
+
+            <g id="node_MOD_COMM" class="mod-node" onclick="selectModule('MOD_COMM')">
+              <rect class="mod-rect" x="285" y="18" width="310" height="56" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="440" y="36" text-anchor="middle" fill="var(--ok)" font-weight="700" font-size="11.5">ComM / BswM / Dcm (UDS 0x28)</text>
+              <text id="svgSub_MOD_COMM" x="440" y="51" text-anchor="middle" fill="var(--mut)" font-size="9.5">Ch0: NO_COM | Ch1: NO_COM | CommCtrl: ON</text>
+              <text x="440" y="64" text-anchor="middle" fill="var(--txt-soft)" font-size="9">Nm_NetworkReq / ComM_Nm_BusSleep / BswM_CarWakeUp</text>
+            </g>
+
+            <g id="node_MOD_RTE" class="mod-node" onclick="selectModule('MOD_RTE')">
+              <rect class="mod-rect" x="20" y="112" width="195" height="56" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="117" y="131" text-anchor="middle" fill="var(--acc)" font-weight="700" font-size="11.5">RTE &amp; SchM (OS Task)</text>
+              <text id="svgSub_MOD_RTE" x="117" y="146" text-anchor="middle" fill="var(--mut)" font-size="9.5">Nm: 100ms | CanNm: 100ms</text>
+              <text x="117" y="159" text-anchor="middle" fill="var(--txt-soft)" font-size="9">Nm_MainFunction / CanNm_MainFunction</text>
+            </g>
+
+            <!-- ROW 2: NM CORE (INTERFACE + COORDINATOR) -->
+            <g id="node_MOD_NM" class="mod-node selected" onclick="selectModule('MOD_NM')">
+              <rect class="mod-rect" x="250" y="112" width="345" height="86" rx="10" fill="var(--pri-bg)" stroke="var(--pri)" stroke-width="2.2"/>
+              <text x="422" y="131" text-anchor="middle" fill="var(--pri)" font-weight="800" font-size="12.5">Nm (Generic Interface &amp; NM Coordinator)</text>
+              <text id="svgSub_MOD_NM1" x="422" y="148" text-anchor="middle" fill="var(--txt)" font-weight="700" font-size="10">Coord: CLUSTER_SLEEP | ShdnTimer: 0 ms</text>
+              <text id="svgSub_MOD_NM2" x="422" y="164" text-anchor="middle" fill="var(--cyan)" font-weight="700" font-size="9.5">Dispatcher: NM_BUSNM_CANNM | NMS: 0x00</text>
+              <text x="422" y="180" text-anchor="middle" fill="var(--mut)" font-size="9">NmCoordCluster · CanNm_SetSleepReadyBit · StateReport</text>
+            </g>
+
+            <g id="node_MOD_DET" class="mod-node" onclick="selectModule('MOD_DET')">
+              <rect class="mod-rect" x="635" y="116" width="165" height="66" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="717" y="136" text-anchor="middle" fill="var(--err)" font-weight="700" font-size="11.5">DET (Error Tracer)</text>
+              <text id="svgSub_MOD_DET" x="717" y="153" text-anchor="middle" fill="var(--mut)" font-size="9.5">Faults: 0 (OK)</text>
+              <text x="717" y="168" text-anchor="middle" fill="var(--txt-soft)" font-size="9">Nm (0x1D) &amp; CanNm (0x1F)</text>
+            </g>
+
+            <!-- ROW 3: COM/PDUR + CANNM ENGINE -->
+            <g id="node_MOD_COM" class="mod-node" onclick="selectModule('MOD_COM')">
+              <rect class="mod-rect" x="20" y="224" width="165" height="78" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="102" y="244" text-anchor="middle" fill="var(--cyan)" font-weight="700" font-size="11.5">AUTOSAR COM / PduR</text>
+              <text id="svgSub_MOD_COM" x="102" y="261" text-anchor="middle" fill="var(--mut)" font-size="9.5">NMS: 0x00 | EIRA: 0x0000</text>
+              <text x="102" y="277" text-anchor="middle" fill="var(--txt-soft)" font-size="8.8">Com_SendSignal(NMS)</text>
+              <text x="102" y="290" text-anchor="middle" fill="var(--txt-soft)" font-size="8.8">PduR_CanNmTriggerTransmit</text>
+            </g>
+
+            <g id="node_MOD_CANNM" class="mod-node" onclick="selectModule('MOD_CANNM')">
+              <rect class="mod-rect" x="250" y="232" width="345" height="72" rx="10" fill="var(--warn-bg)" stroke="var(--warn)" stroke-width="2"/>
+              <text x="422" y="250" text-anchor="middle" fill="var(--warn)" font-weight="800" font-size="12.5">CanNm Engine (Ch0 &amp; Ch1)</text>
+              <text id="svgSub_MOD_CANNM1" x="422" y="266" text-anchor="middle" fill="var(--txt)" font-weight="700" font-size="10">Ch0: BUS_SLEEP | Ch1: BUS_SLEEP</text>
+              <text id="svgSub_MOD_CANNM2" x="422" y="281" text-anchor="middle" fill="var(--mut)" font-size="9.5">CBV: 0x00 | RemoteSleep(Ch0/1): NO / NO</text>
+              <text x="422" y="295" text-anchor="middle" fill="var(--txt-soft)" font-size="8.8">State Machine · CBV Byte · RemoteSleepInd · PN Filter</text>
+            </g>
+
+            <!-- ROW 4: CANSM, CANIF, HW -->
+            <g id="node_MOD_CANSM" class="mod-node" onclick="selectModule('MOD_CANSM')">
+              <rect class="mod-rect" x="20" y="326" width="195" height="48" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="117" y="345" text-anchor="middle" fill="var(--ok)" font-weight="700" font-size="11.5">CanSM (State Manager)</text>
+              <text id="svgSub_MOD_CANSM" x="117" y="362" text-anchor="middle" fill="var(--mut)" font-size="9.5">Mode: NO_COM | PnAvail: OFF</text>
+            </g>
+
+            <g id="node_MOD_CANIF" class="mod-node" onclick="selectModule('MOD_CANIF')">
+              <rect class="mod-rect" x="295" y="326" width="230" height="48" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="410" y="345" text-anchor="middle" fill="var(--pur)" font-weight="700" font-size="11.5">CanIf (CAN Interface)</text>
+              <text id="svgSub_MOD_CANIF" x="410" y="362" text-anchor="middle" fill="var(--mut)" font-size="9.5">TxId: 0x51A | PduMode: OFFLINE</text>
+            </g>
+
+            <g id="node_MOD_HW" class="mod-node" onclick="selectModule('MOD_HW')">
+              <rect class="mod-rect" x="580" y="326" width="220" height="48" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="690" y="345" text-anchor="middle" fill="var(--pri)" font-weight="700" font-size="11.5">CanDrv / CanTrcv &amp; CAN Bus</text>
+              <text id="svgSub_MOD_HW" x="690" y="362" text-anchor="middle" fill="var(--mut)" font-size="9.5">Remote Node 0x2B: IDLE</text>
+            </g>
+          </svg>
+        </div>
+      </div>
+    </section>
+  </section>
+
+  <!-- RIGHT COLUMN: STICKY 4-TAB INSPECTOR -->
+  <aside class="col-right">
+    <section class="panel insp-panel">
+      <div class="insp-tabs">
+        <button id="inspTabBtn0" class="insp-tab active" onclick="switchInspTab(0)">🔍 Bước Hiện Tại</button>
+        <button id="inspTabBtn1" class="insp-tab" onclick="switchInspTab(1)">🧩 Module</button>
+        <button id="inspTabBtn2" class="insp-tab" onclick="switchInspTab(2)">📄 Code C</button>
+        <button id="inspTabBtn3" class="insp-tab" onclick="switchInspTab(3)">📜 API Trace</button>
+      </div>
+      <div id="inspBody" class="insp-body"></div>
+    </section>
+  </aside>
+</main>
+
+<!-- ================= VIEW 2: MULTI-LEVEL HANDBOOK (6x4) & ABBREVIATION TABLE ================= -->
+<main id="viewHb" class="hb-wrap hidden">
+  <div class="hb-nav1">
+    <button id="hbTab1_0" class="hb-tab1 active" onclick="switchHbTab1(0)">1. Kiến Trúc Phối Hợp Nm &amp; CanNm</button>
+    <button id="hbTab1_1" class="hb-tab1" onclick="switchHbTab1(1)">2. NM Coordinator &amp; Ngủ Đồng Bộ</button>
+    <button id="hbTab1_2" class="hb-tab1" onclick="switchHbTab1(2)">3. Máy Trạng Thái &amp; Figure 7-1</button>
+    <button id="hbTab1_3" class="hb-tab1" onclick="switchHbTab1(3)">4. 8-Byte PDU, CBV &amp; NmStateReport</button>
+    <button id="hbTab1_4" class="hb-tab1" onclick="switchHbTab1(4)">5. Partial Net, EIRA/ERA &amp; Sync PNC</button>
+    <button id="hbTab1_5" class="hb-tab1" onclick="switchHbTab1(5)">6. Từ Điển API R23-11, DET &amp; ECUC</button>
+    <button id="hbTab1_6" class="hb-tab1" onclick="switchHbTab1(6)">7. Bảng Thuật Ngữ &amp; Search</button>
+  </div>
+
+  <div id="hbNav2" class="hb-nav2"></div>
+
+  <div id="hbAbbrFilterBox" class="abbr-toolbar hidden">
+    <input id="abbrSearchInput" class="abbr-search" type="text" placeholder="🔍 Tìm kiếm thuật ngữ Nm &amp; CanNm (VD: Coordinator, SRB, NMS, CBV, RMR, PNSR, EIRA, SWS_Nm...)" oninput="filterAbbreviationTable()" />
+    <div class="cat-pills">
+      <button id="catPill_ALL" class="cat-pill active" onclick="setAbbrCategory('ALL')">Tất cả (56)</button>
+      <button id="catPill_NM_COORD" class="cat-pill" onclick="setAbbrCategory('NM_COORD')">🧭 Nm Interface &amp; Coord</button>
+      <button id="catPill_CANNM" class="cat-pill" onclick="setAbbrCategory('CANNM')">🎛️ CanNm Core &amp; States</button>
+      <button id="catPill_CBV_TMR" class="cat-pill" onclick="setAbbrCategory('CBV_TMR')">🔢 CBV Bits &amp; Timers</button>
+      <button id="catPill_PN_SYNC" class="cat-pill" onclick="setAbbrCategory('PN_SYNC')">🌐 PN &amp; Sync PNC</button>
+      <button id="catPill_STACK" class="cat-pill" onclick="setAbbrCategory('STACK')">🧩 AUTOSAR Stack</button>
+    </div>
+    <span id="abbrCountBadge" class="step-pill">56 thuật ngữ</span>
+  </div>
+
+  <div id="hbContentArea"></div>
+</main>
+
+<!-- ================= EXPORT ARXML / C / JSON MODAL ================= -->
+<div id="exportModal" class="modal-overlay hidden" onclick="if(event.target===this) closeExportModal()">
+  <div class="modal-box">
+    <div class="modal-hdr">
+      <strong style="font-size:13.5px;color:var(--pri)">🧾 Xuất Cấu Hình Phối Hợp Nm &amp; CanNm (ARXML · Nm_Cfg.h · CanNm_Cfg.h · Lcfg.c · JSON)</strong>
+      <button class="btn btn-sm" onclick="closeExportModal()">✖ Đóng</button>
+    </div>
+    <div class="modal-tabs">
+      <button id="expTab0" class="btn btn-sm btn-pri" onclick="switchExportTab(0)">Nm_CanNm.arxml</button>
+      <button id="expTab1" class="btn btn-sm" onclick="switchExportTab(1)">Nm_Cfg.h</button>
+      <button id="expTab2" class="btn btn-sm" onclick="switchExportTab(2)">CanNm_Cfg.h</button>
+      <button id="expTab3" class="btn btn-sm" onclick="switchExportTab(3)">Nm_CanNm_Lcfg.c</button>
+      <button id="expTab4" class="btn btn-sm" onclick="switchExportTab(4)">Nm_CanNm_Config.json</button>
+    </div>
+    <div class="modal-body">
+      <pre id="exportCodeArea" class="code-block"></pre>
+    </div>
+    <div class="modal-ftr">
+      <button class="btn" onclick="copyExportCode()">📋 Copy Clipboard</button>
+      <button class="btn btn-ok" onclick="downloadExportCode()">⬇ Tải File Hiện Tại</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= FLOATING TOOLTIP POPUP (>1S HOVER ON ECUC FIELDS) ================= -->
+<div id="cfgTooltipPopup" role="tooltip"></div>
+<script>

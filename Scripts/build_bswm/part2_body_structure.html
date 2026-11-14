@@ -1,0 +1,666 @@
+<!-- ================= STICKY UNIFIED HEADER ================= -->
+<header class="hdr">
+  <div class="hdr-row">
+    <div class="brand">
+      <span class="brand-badge">AUTOSAR Classic R23-11</span>
+      <div>
+        <div class="brand-title">BswM Interactive Simulator &amp; Technical Handbook</div>
+        <div class="brand-sub">Basic Software Mode Manager · Mode Arbitration (IMMEDIATE/DEFERRED) · Rules &amp; ActionLists · Com_IpduGroupVector</div>
+      </div>
+    </div>
+
+    <div class="view-switch" role="tablist">
+      <button id="btnViewSim" class="view-btn active" onclick="switchMainView('sim')">🎛️ Trình Mô Phỏng BswM</button>
+      <button id="btnViewHb" class="view-btn" onclick="switchMainView('hb')">📖 Sổ Tay Kỹ Thuật &amp; Thuật Ngữ</button>
+    </div>
+
+    <div class="hdr-actions">
+      <button class="btn btn-pri" onclick="openExportModal()">📦 Xuất ARXML / Cfg / C</button>
+      <button class="btn btn-ok" onclick="downloadStandaloneHTML()">💾 Tải File .HTML</button>
+      <button id="btnTheme" class="btn" onclick="toggleTheme()">☀️ Light Mode</button>
+    </div>
+  </div>
+
+  <div class="hdr-row">
+    <div class="scen-bar">
+      <label for="scenSelect" style="font-weight:700;font-size:11.5px;color:var(--mut)">Kịch bản:</label>
+      <select id="scenSelect" class="scen-select" onchange="onScenarioSelectChange()">
+        <optgroup label="Nhóm 1: Khởi Động ECU, NvM, RTE &amp; Điều Khiển I-PDU Group">
+          <option value="S1">S1: Boot-Up ECU 2 Pha, Đợi NvM_ReadAll() Mới Gọi Rte_Start() &amp; AllowCom</option>
+          <option value="S2">S2: ComM &amp; CanSM FULL_COM → Mở Com_IpduGroupStart, ReceptionDM &amp; PduR</option>
+          <option value="S3">S3: Chuyển SILENT_COM &amp; NO_COM (Ngắt Tx/DM, Giữ Rx Khi SILENT_COM)</option>
+          <option value="S4">S4: Phản Ứng Tức Thì Khi CANSM_BSWM_BUS_OFF (Cắt Khẩn Cấp Tx &amp; DM)</option>
+        </optgroup>
+        <optgroup label="Nhóm 2: Phân Xử Lõi (IMMEDIATE vs DEFERRED, TRIGGER vs CONDITION)">
+          <option value="S5">S5: Đối Chiếu BSWM_IMMEDIATE vs BSWM_DEFERRED &amp; Chống Re-entrancy</option>
+          <option value="S6">S6: Đối Chiếu BSWM_TRIGGER vs BSWM_CONDITION (Sườn Đổi vs Lặp Chu Kỳ)</option>
+          <option value="S7">S7: Vai Trò BswMRuleInitState = BSWM_UNDEFINED &amp; True/False ActionList</option>
+          <option value="S8">S8: Cascaded ActionList Đa Tầng &amp; Cơ Chế BswMAbortOnFail = TRUE</option>
+        </optgroup>
+        <optgroup label="Nhóm 3: Tương Tác SWC, Partial Networking (PNC), PduR &amp; BswMTimer">
+          <option value="S9">S9: Phối Hợp 2 Chiều SWC ↔ BswM Qua RTE (Request, Rte_Switch, SchM_Switch)</option>
+          <option value="S10">S10: Điều Khiển Cụm Mạng Con PNC #16 (Đóng/Mở Riêng IG_PNC16_Tx/Rx)</option>
+          <option value="S11">S11: Bộ Đếm Nội Bộ BswMTimerControl (STARTED → EXPIRED) &amp; Ngắt PduR</option>
+        </optgroup>
+        <optgroup label="Nhóm 4: Chẩn Đoán DCM 0x28, Tắt Máy ECU &amp; Báo Lỗi DET">
+          <option value="S12">S12: Dịch Vụ UDS 0x28 CommunicationControl (Khóa/Mở Normal PDU &amp; NmCtrl)</option>
+          <option value="S13">S13: Chu Trình Tắt Máy An Toàn (PREP_SHUTDOWN → Rte_Stop → NvM_WriteAll → GoOff)</option>
+          <option value="S14">S14: Bẫy DET Errors (NO_INIT, REQ_USER_OUT_OF_RANGE, MODE_OUT_OF_RANGE, NULL)</option>
+        </optgroup>
+      </select>
+
+      <button class="btn btn-sm" onclick="resetCurrentScenario()">⟲ Reset Kịch Bản</button>
+      <button id="btnPrevStep" class="btn btn-sm" onclick="prevScenarioStep()" disabled>◀ Lùi</button>
+      <span id="stepIndicator" class="step-pill">Bước 0 / 0</span>
+      <button id="btnNextStep" class="btn btn-sm btn-pri" onclick="nextScenarioStep()">Bước Tiếp ▶</button>
+      <button id="btnAutoPlay" class="btn btn-sm btn-pur" onclick="toggleScenarioAutoPlay()">▶ Tự Động Kịch Bản</button>
+
+      <div class="clock-box">
+        <span style="font-size:10.5px;color:var(--mut);font-weight:700">Clock:</span>
+        <span id="clockVal" class="clock-val mono">0 ms</span>
+        <button class="btn btn-sm btn-ok" onclick="stepClockTick(10)" title="Chạy BswM_MainFunction() +10ms">+10ms MainFn</button>
+        <button id="btnAutoClock" class="btn btn-sm" onclick="toggleAutoClock()">⏱ Auto Clock</button>
+      </div>
+    </div>
+
+    <div class="hdr-badges">
+      <span id="hdrBadgeEcu" class="state-badge sb-idle">ECU: STARTUP_ONE</span>
+      <span id="hdrBadgeRule" class="state-badge sb-pri">Rule: IDLE</span>
+      <span id="hdrBadgeIpdu" class="state-badge sb-idle">IPduVec: 0x00</span>
+      <span id="hdrBadgeDef" class="state-badge sb-warn hidden">Deferred: 0</span>
+    </div>
+  </div>
+</header>
+
+<!-- ================= VIEW 1: INTERACTIVE SIMULATOR (ZERO-SCROLL 3 COLUMNS) ================= -->
+<main id="viewSim" class="workspace">
+
+  <!-- LEFT COLUMN: QUICK ACTIONS + SCENARIO WHAT-IF + 6 ECUC CONFIG TABS -->
+  <aside class="col-left">
+    <!-- CARD 1: QUICK ACTION BAR -->
+    <section class="panel">
+      <div class="panel-hdr">
+        <span class="panel-title">⚡ Thao Tác Nhanh (Quick Mode Indications)</span>
+        <span class="panel-sub">Tác động tức thì</span>
+      </div>
+      <div class="panel-body">
+        <div class="qa-row">
+          <span style="font-size:11px;font-weight:700;color:var(--mut)">ComM Ch0:</span>
+          <select id="qaComMSelect" style="flex:1;background:var(--panel-3);border:1px solid var(--bdr);border-radius:5px;padding:3px 6px;font-size:11px;font-weight:600">
+            <option value="COMM_FULL_COMMUNICATION">FULL_COMMUNICATION</option>
+            <option value="COMM_SILENT_COMMUNICATION">SILENT_COMMUNICATION</option>
+            <option value="COMM_NO_COMMUNICATION">NO_COMMUNICATION</option>
+          </select>
+          <button class="btn btn-sm btn-ok" onclick="qaSetComMMode()">▶ Bắn ComM</button>
+        </div>
+        <div class="qa-grid">
+          <button id="qaBtnCanSmBusOff" class="qa-btn qa-err" onclick="qaToggleCanSmBusOff()">
+            <span>⚡ CanSM Ch0</span><span id="qaTxtCanSm" class="mono">FULL_COM</span>
+          </button>
+          <button id="qaBtnSwcMode" class="qa-btn" onclick="qaCycleSwcMode()">
+            <span>🚗 SWC Mode</span><span id="qaTxtSwc" class="mono">NORMAL</span>
+          </button>
+          <button id="qaBtnPnc16" class="qa-btn" onclick="qaCyclePnc16Mode()">
+            <span>🌐 PNC #16</span><span id="qaTxtPnc16" class="mono">NO_COM</span>
+          </button>
+          <button id="qaBtnDcm0x28" class="qa-btn qa-warn" onclick="qaToggleDcm0x28()">
+            <span>🩺 DCM 0x28</span><span id="qaTxtDcm28" class="mono">ENABLE</span>
+          </button>
+          <button id="qaBtnLifecycle" class="qa-btn" onclick="qaStepEcuLifecycle()">
+            <span>🔄 EcuM / NvM</span><span id="qaTxtLife" class="mono">STARTUP1</span>
+          </button>
+          <button id="qaBtnTimer0" class="qa-btn" onclick="qaStartStopTimer()">
+            <span>⏱ BswMTimer</span><span id="qaTxtTimer" class="mono">STOPPED</span>
+          </button>
+          <button class="qa-btn" onclick="stepClockTick(10)">
+            <span>▶ +10ms MainFn</span><span class="mono">Tick</span>
+          </button>
+          <button class="qa-btn" onclick="resetCurrentScenario()">
+            <span>⟲ Reset State</span><span class="mono">Init</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- CARD 2: CURRENT SCENARIO SUMMARY & 3 WHAT-IF BUTTONS -->
+    <section class="panel">
+      <div class="panel-hdr">
+        <span class="panel-title">🎬 Kịch Bản Đang Chạy &amp; Thử Nghiệm Nhanh</span>
+        <span id="scenIdBadge" class="panel-sub mono">S1</span>
+      </div>
+      <div class="panel-body">
+        <div id="scenSummaryBox" class="scen-desc-box"></div>
+        <div style="font-size:10.5px;font-weight:700;color:var(--pur);margin-bottom:4px">🧪 Thử Nghiệm Nhanh (1-Click What-If):</div>
+        <div id="whatIfContainer" class="whatif-grid"></div>
+      </div>
+    </section>
+
+    <!-- CARD 3: 6-TAB ECUC CONFIG PANEL (36 PARAMETERS + >1S TOOLTIP) -->
+    <section class="panel">
+      <div class="panel-hdr">
+        <span class="panel-title">⚙️ Cấu Hình ECUC BswM (Hover &gt;1s Xem SWS)</span>
+        <span class="panel-sub">36 Parameters</span>
+      </div>
+      <div class="cfg-tabs">
+        <button id="cfgTabBtn0" class="cfg-tab active" onclick="switchCfgTab(0)">1. General</button>
+        <button id="cfgTabBtn1" class="cfg-tab" onclick="switchCfgTab(1)">2. Mode Ports</button>
+        <button id="cfgTabBtn2" class="cfg-tab" onclick="switchCfgTab(2)">3. Rules &amp; Expr</button>
+        <button id="cfgTabBtn3" class="cfg-tab" onclick="switchCfgTab(3)">4. ActionLists</button>
+        <button id="cfgTabBtn4" class="cfg-tab" onclick="switchCfgTab(4)">5. PDU/PduR/Tmr</button>
+        <button id="cfgTabBtn5" class="cfg-tab" onclick="switchCfgTab(5)">6. Life &amp; DCM</button>
+      </div>
+
+      <!-- TAB 0: GENERAL -->
+      <div id="cfgPane0" class="cfg-pane">
+        <div class="cfg-row" data-cfg-key="BswMInitialized">
+          <label class="cfg-lbl" for="cfg_BswMInitialized"><span class="cfg-i">ⓘ</span><span class="cfg-name">BswMInitialized (State)</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_BswMInitialized" checked onchange="onConfigInputChanged('BswMInitialized')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="BswMDevErrorDetect">
+          <label class="cfg-lbl" for="cfg_BswMDevErrorDetect"><span class="cfg-i">ⓘ</span><span class="cfg-name">BswMDevErrorDetect</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_BswMDevErrorDetect" checked onchange="onConfigInputChanged('BswMDevErrorDetect')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="BswMVersionInfoApi">
+          <label class="cfg-lbl" for="cfg_BswMVersionInfoApi"><span class="cfg-i">ⓘ</span><span class="cfg-name">BswMVersionInfoApi</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_BswMVersionInfoApi" onchange="onConfigInputChanged('BswMVersionInfoApi')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="BswMMainFunctionPeriod">
+          <label class="cfg-lbl" for="cfg_BswMMainFunctionPeriod"><span class="cfg-i">ⓘ</span><span class="cfg-name">BswMMainFunctionPeriod</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_BswMMainFunctionPeriod" min="1" max="100" step="5" value="10" onchange="onConfigInputChanged('BswMMainFunctionPeriod')" /><span style="font-size:10px;color:var(--mut)">ms</span></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="BswMComMEnabled">
+          <label class="cfg-lbl" for="cfg_BswMComMEnabled"><span class="cfg-i">ⓘ</span><span class="cfg-name">BswMComMEnabled</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_BswMComMEnabled" checked onchange="onConfigInputChanged('BswMComMEnabled')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="BswMDcmEnabled">
+          <label class="cfg-lbl" for="cfg_BswMDcmEnabled"><span class="cfg-i">ⓘ</span><span class="cfg-name">BswMDcmEnabled (&amp; EcuM)</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_BswMDcmEnabled" checked onchange="onConfigInputChanged('BswMDcmEnabled')" /></div>
+        </div>
+      </div>
+
+      <!-- TAB 1: MODE REQUEST PORTS -->
+      <div id="cfgPane1" class="cfg-pane hidden">
+        <div class="cfg-row" data-cfg-key="MRP_ComM_Ch0_Processing">
+          <label class="cfg-lbl" for="cfg_MRP_ComM_Ch0_Processing"><span class="cfg-i">ⓘ</span><span class="cfg-name">MRP_ComM_Ch0 Processing</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_MRP_ComM_Ch0_Processing" onchange="onConfigInputChanged('MRP_ComM_Ch0_Processing')">
+              <option value="BSWM_IMMEDIATE">BSWM_IMMEDIATE</option>
+              <option value="BSWM_DEFERRED">BSWM_DEFERRED</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="MRP_CanSM_Ch0_Processing">
+          <label class="cfg-lbl" for="cfg_MRP_CanSM_Ch0_Processing"><span class="cfg-i">ⓘ</span><span class="cfg-name">MRP_CanSM_Ch0 Processing</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_MRP_CanSM_Ch0_Processing" onchange="onConfigInputChanged('MRP_CanSM_Ch0_Processing')">
+              <option value="BSWM_IMMEDIATE">BSWM_IMMEDIATE</option>
+              <option value="BSWM_DEFERRED">BSWM_DEFERRED</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="MRP_Dcm_ComCtrl_Processing">
+          <label class="cfg-lbl" for="cfg_MRP_Dcm_ComCtrl_Processing"><span class="cfg-i">ⓘ</span><span class="cfg-name">MRP_Dcm_ComCtrl Processing</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_MRP_Dcm_ComCtrl_Processing" onchange="onConfigInputChanged('MRP_Dcm_ComCtrl_Processing')">
+              <option value="BSWM_IMMEDIATE">BSWM_IMMEDIATE</option>
+              <option value="BSWM_DEFERRED">BSWM_DEFERRED</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="MRP_EcuM_State_Processing">
+          <label class="cfg-lbl" for="cfg_MRP_EcuM_State_Processing"><span class="cfg-i">ⓘ</span><span class="cfg-name">MRP_EcuM_State Processing</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_MRP_EcuM_State_Processing" onchange="onConfigInputChanged('MRP_EcuM_State_Processing')">
+              <option value="BSWM_DEFERRED">BSWM_DEFERRED</option>
+              <option value="BSWM_IMMEDIATE">BSWM_IMMEDIATE</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="MRP_NvM_Job_Processing">
+          <label class="cfg-lbl" for="cfg_MRP_NvM_Job_Processing"><span class="cfg-i">ⓘ</span><span class="cfg-name">MRP_NvM_Job Processing</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_MRP_NvM_Job_Processing" onchange="onConfigInputChanged('MRP_NvM_Job_Processing')">
+              <option value="BSWM_DEFERRED">BSWM_DEFERRED</option>
+              <option value="BSWM_IMMEDIATE">BSWM_IMMEDIATE</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="MRP_Swc_AppMode_Processing">
+          <label class="cfg-lbl" for="cfg_MRP_Swc_AppMode_Processing"><span class="cfg-i">ⓘ</span><span class="cfg-name">MRP_Swc_AppMode Proc</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_MRP_Swc_AppMode_Processing" onchange="onConfigInputChanged('MRP_Swc_AppMode_Processing')">
+              <option value="BSWM_DEFERRED">BSWM_DEFERRED</option>
+              <option value="BSWM_IMMEDIATE">BSWM_IMMEDIATE</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 2: RULES & LOGICAL EXPRESSIONS -->
+      <div id="cfgPane2" class="cfg-pane hidden">
+        <div class="cfg-row" data-cfg-key="Rule02_ComMFull_InitState">
+          <label class="cfg-lbl" for="cfg_Rule02_ComMFull_InitState"><span class="cfg-i">ⓘ</span><span class="cfg-name">Rule02_InitState</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_Rule02_ComMFull_InitState" onchange="onConfigInputChanged('Rule02_ComMFull_InitState')">
+              <option value="BSWM_FALSE">BSWM_FALSE</option>
+              <option value="BSWM_TRUE">BSWM_TRUE</option>
+              <option value="BSWM_UNDEFINED">BSWM_UNDEFINED</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="Rule02_LogicalOperator">
+          <label class="cfg-lbl" for="cfg_Rule02_LogicalOperator"><span class="cfg-i">ⓘ</span><span class="cfg-name">Rule02_LogicalOperator</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_Rule02_LogicalOperator" onchange="onConfigInputChanged('Rule02_LogicalOperator')">
+              <option value="BSWM_AND">BSWM_AND</option>
+              <option value="BSWM_OR">BSWM_OR</option>
+              <option value="BSWM_XOR">BSWM_XOR</option>
+              <option value="BSWM_NAND">BSWM_NAND</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="Rule02_EnableFalseActionList">
+          <label class="cfg-lbl" for="cfg_Rule02_EnableFalseActionList"><span class="cfg-i">ⓘ</span><span class="cfg-name">Rule02_FalseActionList</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_Rule02_EnableFalseActionList" checked onchange="onConfigInputChanged('Rule02_EnableFalseActionList')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="Rule06_SwcSport_InitState">
+          <label class="cfg-lbl" for="cfg_Rule06_SwcSport_InitState"><span class="cfg-i">ⓘ</span><span class="cfg-name">Rule06_SwcSport_InitState</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_Rule06_SwcSport_InitState" onchange="onConfigInputChanged('Rule06_SwcSport_InitState')">
+              <option value="BSWM_FALSE">BSWM_FALSE</option>
+              <option value="BSWM_UNDEFINED">BSWM_UNDEFINED</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="EnableIndependentRuleEvaluation">
+          <label class="cfg-lbl" for="cfg_EnableIndependentRuleEvaluation"><span class="cfg-i">ⓘ</span><span class="cfg-name">IndependentRuleEvaluation</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_EnableIndependentRuleEvaluation" checked onchange="onConfigInputChanged('EnableIndependentRuleEvaluation')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="GenericReq_UserId_And_MaxMode">
+          <label class="cfg-lbl" for="cfg_GenericReq_UserId_And_MaxMode"><span class="cfg-i">ⓘ</span><span class="cfg-name">GenericReq (User / MaxMode)</span></label>
+          <div class="cfg-ctrl"><input type="text" id="cfg_GenericReq_UserId_And_MaxMode" class="mono" value="1 / 3" style="width:74px;text-align:center" onchange="onConfigInputChanged('GenericReq_UserId_And_MaxMode')" /></div>
+        </div>
+      </div>
+
+      <!-- TAB 3: ACTION LISTS -->
+      <div id="cfgPane3" class="cfg-pane hidden">
+        <div class="cfg-row" data-cfg-key="AL_EnableTxRxDM_Execution">
+          <label class="cfg-lbl" for="cfg_AL_EnableTxRxDM_Execution"><span class="cfg-i">ⓘ</span><span class="cfg-name">AL_EnableTxRxDM Exec</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_AL_EnableTxRxDM_Execution" onchange="onConfigInputChanged('AL_EnableTxRxDM_Execution')">
+              <option value="BSWM_TRIGGER">BSWM_TRIGGER</option>
+              <option value="BSWM_CONDITION">BSWM_CONDITION</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="AL_SwcSportMode_Execution">
+          <label class="cfg-lbl" for="cfg_AL_SwcSportMode_Execution"><span class="cfg-i">ⓘ</span><span class="cfg-name">AL_SwcSportMode Exec</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_AL_SwcSportMode_Execution" onchange="onConfigInputChanged('AL_SwcSportMode_Execution')">
+              <option value="BSWM_CONDITION">BSWM_CONDITION</option>
+              <option value="BSWM_TRIGGER">BSWM_TRIGGER</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="BswMActionListPriority">
+          <label class="cfg-lbl" for="cfg_BswMActionListPriority"><span class="cfg-i">ⓘ</span><span class="cfg-name">BswMActionListPriority</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_BswMActionListPriority" min="0" max="255" value="0" onchange="onConfigInputChanged('BswMActionListPriority')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="BswMAbortOnFail">
+          <label class="cfg-lbl" for="cfg_BswMAbortOnFail"><span class="cfg-i">ⓘ</span><span class="cfg-name">BswMAbortOnFail</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_BswMAbortOnFail" checked onchange="onConfigInputChanged('BswMAbortOnFail')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="InjectActionItemFailure">
+          <label class="cfg-lbl" for="cfg_InjectActionItemFailure"><span class="cfg-i">ⓘ</span><span class="cfg-name">InjectActionItemFailure</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_InjectActionItemFailure" onchange="onConfigInputChanged('InjectActionItemFailure')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="EnableCascadedActionList">
+          <label class="cfg-lbl" for="cfg_EnableCascadedActionList"><span class="cfg-i">ⓘ</span><span class="cfg-name">EnableCascadedActionList</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_EnableCascadedActionList" checked onchange="onConfigInputChanged('EnableCascadedActionList')" /></div>
+        </div>
+      </div>
+
+      <!-- TAB 4: PDU / PDUR / TIMER -->
+      <div id="cfgPane4" class="cfg-pane hidden">
+        <div class="cfg-row" data-cfg-key="BswMPduGroupSwitchReinit">
+          <label class="cfg-lbl" for="cfg_BswMPduGroupSwitchReinit"><span class="cfg-i">ⓘ</span><span class="cfg-name">BswMPduGroupSwitchReinit</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_BswMPduGroupSwitchReinit" checked onchange="onConfigInputChanged('BswMPduGroupSwitchReinit')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="EnableReceptionDmControl">
+          <label class="cfg-lbl" for="cfg_EnableReceptionDmControl"><span class="cfg-i">ⓘ</span><span class="cfg-name">EnableReceptionDmControl</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_EnableReceptionDmControl" checked onchange="onConfigInputChanged('EnableReceptionDmControl')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="EnableTriggerIpduSendAction">
+          <label class="cfg-lbl" for="cfg_EnableTriggerIpduSendAction"><span class="cfg-i">ⓘ</span><span class="cfg-name">EnableTriggerIpduSend</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_EnableTriggerIpduSendAction" onchange="onConfigInputChanged('EnableTriggerIpduSendAction')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="EnablePduRouterControl">
+          <label class="cfg-lbl" for="cfg_EnablePduRouterControl"><span class="cfg-i">ⓘ</span><span class="cfg-name">EnablePduRouterControl</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_EnablePduRouterControl" checked onchange="onConfigInputChanged('EnablePduRouterControl')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="BswMComMPncEnabled">
+          <label class="cfg-lbl" for="cfg_BswMComMPncEnabled"><span class="cfg-i">ⓘ</span><span class="cfg-name">BswMComMPncEnabled</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_BswMComMPncEnabled" checked onchange="onConfigInputChanged('BswMComMPncEnabled')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="BswMTimerValue">
+          <label class="cfg-lbl" for="cfg_BswMTimerValue"><span class="cfg-i">ⓘ</span><span class="cfg-name">BswMTimerValue</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_BswMTimerValue" min="10" max="5000" step="10" value="300" onchange="onConfigInputChanged('BswMTimerValue')" /><span style="font-size:10px;color:var(--mut)">ms</span></div>
+        </div>
+      </div>
+
+      <!-- TAB 5: LIFECYCLE & DCM -->
+      <div id="cfgPane5" class="cfg-pane hidden">
+        <div class="cfg-row" data-cfg-key="EcuMShutdownTarget">
+          <label class="cfg-lbl" for="cfg_EcuMShutdownTarget"><span class="cfg-i">ⓘ</span><span class="cfg-name">EcuMShutdownTarget</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_EcuMShutdownTarget" onchange="onConfigInputChanged('EcuMShutdownTarget')">
+              <option value="ECUM_STATE_OFF">ECUM_STATE_OFF</option>
+              <option value="ECUM_STATE_SLEEP">ECUM_STATE_SLEEP</option>
+              <option value="ECUM_STATE_RESET">ECUM_STATE_RESET</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="RequireNvMReadAllBeforeRteStart">
+          <label class="cfg-lbl" for="cfg_RequireNvMReadAllBeforeRteStart"><span class="cfg-i">ⓘ</span><span class="cfg-name">RequireNvMReadAllBeforeRte</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_RequireNvMReadAllBeforeRteStart" checked onchange="onConfigInputChanged('RequireNvMReadAllBeforeRteStart')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="RequireNvMWriteAllBeforeGoOff">
+          <label class="cfg-lbl" for="cfg_RequireNvMWriteAllBeforeGoOff"><span class="cfg-i">ⓘ</span><span class="cfg-name">RequireNvMWriteAllBeforeOff</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_RequireNvMWriteAllBeforeGoOff" checked onchange="onConfigInputChanged('RequireNvMWriteAllBeforeGoOff')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="DcmCommunicationControlMode">
+          <label class="cfg-lbl" for="cfg_DcmCommunicationControlMode"><span class="cfg-i">ⓘ</span><span class="cfg-name">DcmCommControl (0x28)</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_DcmCommunicationControlMode" onchange="onConfigInputChanged('DcmCommunicationControlMode')">
+              <option value="DCM_ENABLE_RX_TX_NORM_NM">ENABLE_RX_TX_NORM_NM</option>
+              <option value="DCM_ENABLE_RX_DISABLE_TX_NORM">ENABLE_RX_DISABLE_TX</option>
+              <option value="DCM_DISABLE_RX_TX_NORM">DISABLE_RX_TX_NORM</option>
+              <option value="DCM_DISABLE_RX_TX_NM">DISABLE_RX_TX_NM</option>
+              <option value="DCM_DISABLE_RX_TX_NORM_NM">DISABLE_RX_TX_NORM_NM</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="EnableNmControlOnDcm0x28">
+          <label class="cfg-lbl" for="cfg_EnableNmControlOnDcm0x28"><span class="cfg-i">ⓘ</span><span class="cfg-name">EnableNmControlOnDcm0x28</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_EnableNmControlOnDcm0x28" checked onchange="onConfigInputChanged('EnableNmControlOnDcm0x28')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="EnableWdgMPartitionResetRule">
+          <label class="cfg-lbl" for="cfg_EnableWdgMPartitionResetRule"><span class="cfg-i">ⓘ</span><span class="cfg-name">WdgMPartitionResetRule</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_EnableWdgMPartitionResetRule" checked onchange="onConfigInputChanged('EnableWdgMPartitionResetRule')" /></div>
+        </div>
+      </div>
+
+      <div id="cfgValidationBox" style="padding:0 10px 8px"></div>
+    </section>
+  </aside>
+
+  <!-- CENTER COLUMN: RULE MATRIX, IPDU VECTOR, DUAL 8-BIT REGS, TIMERS/SM, SVG ARCHITECTURE -->
+  <section class="col-center">
+    <!-- PANEL 1: 2-TIER RULE EVALUATION MATRIX, IPDU VECTOR & DUAL 8-BIT REGISTERS -->
+    <section class="panel">
+      <div class="panel-hdr">
+        <span class="panel-title">🧠 Ma Trận Luật (MRP → Expr → Rule → ActionList), Com_IpduGroupVector &amp; 2 Thanh Ghi 8-Bit</span>
+        <span class="panel-sub">Click cổng MRP, I-PDU Group hoặc Bit để thử nghiệm</span>
+      </div>
+      <div class="panel-body tier-split">
+        <!-- TIER 1A-1: 8 MODE REQUEST PORTS -->
+        <div id="mrpPortsBox" class="mrp-grid"></div>
+
+        <!-- TIER 1A-2: BSWM RULE EVALUATION TABLE -->
+        <div class="rule-tbl-wrap">
+          <table class="rule-tbl">
+            <thead>
+              <tr>
+                <th>BswMRule</th>
+                <th>Logical Expression</th>
+                <th>Prev → Curr</th>
+                <th>Kiểu Chạy</th>
+                <th>ActionList / Kết Quả</th>
+              </tr>
+            </thead>
+            <tbody id="ruleTableBody"></tbody>
+          </table>
+        </div>
+
+        <!-- TIER 1A-3: 8-BIT COM_IPDUGROUPVECTOR & PDUR ROUTING -->
+        <div class="ipdu-vector-wrap">
+          <div class="ipdu-vec-hdr">
+            <span style="font-weight:700;font-size:11.5px;color:var(--cyan)">📡 Vector 8-Bit Com_IpduGroupVector &amp; PduR RoutingPathGroup (Com_IpduGroupStart / Stop)</span>
+            <span id="ipduVectorSummary" class="mono" style="font-size:11px;color:var(--mut)">Vector: 0x00 | Bin: 0000 0000</span>
+          </div>
+          <div id="ipduVectorGrid" class="ipdu-grid"></div>
+        </div>
+
+        <!-- TIER 1B: DUAL 8-BIT REGISTERS -->
+        <div class="reg-grid">
+          <div class="reg-card">
+            <div class="reg-top">
+              <span class="reg-name">Thanh A: BswM_ArbitrationStatusByte</span>
+              <span id="regAHex" class="reg-hex mono">0x80</span>
+            </div>
+            <div id="regABits" class="bit-row"></div>
+          </div>
+
+          <div class="reg-card">
+            <div class="reg-top">
+              <span class="reg-name">Thanh B: BswM_ActionControlByte</span>
+              <span id="regBHex" class="reg-hex mono">0x00</span>
+            </div>
+            <div id="regBBits" class="bit-row"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PANEL 2: DEFERRED QUEUE, BSWM TIMER & DUAL STATE MACHINES -->
+    <section class="panel">
+      <div class="panel-hdr">
+        <span class="panel-title">⏳ Hàng Đợi DEFERRED, BswMTimer &amp; 2 Máy Trạng Thái BswM Song Song</span>
+        <span id="bswmExecBadge" class="panel-sub mono">MainFn: 10ms | Pending: 0</span>
+      </div>
+      <div class="panel-body">
+        <div id="timersGrid" class="timer-grid"></div>
+        <div class="sm-dual">
+          <div class="sm-box">
+            <div class="sm-title">
+              <span>⚙️ BswM Arbitration &amp; Execution Pipeline</span>
+              <span id="smPipeLbl" class="mono">IDLE</span>
+            </div>
+            <div id="pipeSmDiagram" class="sm-states"></div>
+          </div>
+
+          <div class="sm-box">
+            <div class="sm-title">
+              <span>🔄 ECU &amp; Comm Lifecycle Orchestration</span>
+              <span id="smLifeLbl" class="mono">STARTUP_ONE</span>
+            </div>
+            <div id="lifeSmDiagram" class="sm-states"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PANEL 3: INTERACTIVE END-TO-END AUTOSAR SVG ARCHITECTURE -->
+    <section class="panel">
+      <div class="panel-hdr">
+        <span class="panel-title">🏗️ Kiến Trúc Tương Tác End-to-End Module BswM Trong AUTOSAR Classic</span>
+        <span class="panel-sub">Click bất kỳ Module nào để xem Input / Output &amp; API ở Inspector bên phải</span>
+      </div>
+      <div class="panel-body">
+        <div class="arch-wrap">
+          <svg id="bswmArchSvg" class="arch-svg" viewBox="0 0 820 365" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <marker id="arrEnd" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                <path d="M 0 1 L 10 5 L 0 9 z" fill="currentColor" />
+              </marker>
+            </defs>
+
+            <!-- ARROWS LAYER -->
+            <path id="arr_swc_rte" class="flow-arrow" d="M 123 78 L 123 114" marker-end="url(#arrEnd)" />
+            <path id="arr_rte_bswm" class="flow-arrow" d="M 228 133 L 270 133" marker-end="url(#arrEnd)" />
+            <path id="arr_bswm_rte" class="flow-arrow" d="M 270 154 L 228 154" marker-end="url(#arrEnd)" />
+            <path id="arr_dcm_bswm" class="flow-arrow" d="M 405 78 L 405 110" marker-end="url(#arrEnd)" />
+            <path id="arr_ecum_bswm" class="flow-arrow" d="M 580 56 L 515 110" marker-end="url(#arrEnd)" />
+            <path id="arr_bswm_ecum" class="flow-arrow" d="M 550 122 L 620 78" marker-end="url(#arrEnd)" />
+            <path id="arr_nvm_bswm" class="flow-arrow" d="M 585 128 L 550 128" marker-end="url(#arrEnd)" />
+            <path id="arr_bswm_nvm" class="flow-arrow" d="M 550 148 L 585 148" marker-end="url(#arrEnd)" />
+            <path id="arr_bswm_det" class="flow-arrow" d="M 550 195 L 585 195" marker-end="url(#arrEnd)" />
+            <path id="arr_bswm_com" class="flow-arrow" d="M 302 216 L 113 264" marker-end="url(#arrEnd)" />
+            <path id="arr_bswm_pdur" class="flow-arrow" d="M 358 216 L 315 264" marker-end="url(#arrEnd)" />
+            <path id="arr_comm_bswm" class="flow-arrow" d="M 495 264 L 465 216" marker-end="url(#arrEnd)" />
+            <path id="arr_bswm_comm" class="flow-arrow" d="M 495 216 L 535 264" marker-end="url(#arrEnd)" />
+            <path id="arr_cansm_bswm" class="flow-arrow" d="M 715 264 L 538 216" marker-end="url(#arrEnd)" />
+
+            <!-- MODULE BLOCKS -->
+            <g id="node_MOD_SWC" class="mod-node" onclick="selectModule('MOD_SWC')">
+              <rect class="mod-rect" x="18" y="18" width="210" height="60" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="123" y="37" text-anchor="middle" fill="var(--pri)" font-weight="700" font-size="11.5">SWC_ModeMgr &amp; SWC_App</text>
+              <text id="svgSub_MOD_SWC" x="123" y="53" text-anchor="middle" fill="var(--mut)" font-size="10">AppMode: NORMAL</text>
+              <text x="123" y="68" text-anchor="middle" fill="var(--txt-soft)" font-size="9.5">BswMSwcModeRequest / Rte_Switch</text>
+            </g>
+
+            <g id="node_MOD_DCM" class="mod-node" onclick="selectModule('MOD_DCM')">
+              <rect class="mod-rect" x="295" y="18" width="220" height="60" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="405" y="37" text-anchor="middle" fill="var(--warn)" font-weight="700" font-size="11.5">DCM (UDS 0x28 CommCtrl)</text>
+              <text id="svgSub_MOD_DCM" x="405" y="53" text-anchor="middle" fill="var(--mut)" font-size="10">ENABLE_RX_TX_NORM_NM</text>
+              <text x="405" y="68" text-anchor="middle" fill="var(--txt-soft)" font-size="9.5">BswM_Dcm_CommunicationMode</text>
+            </g>
+
+            <g id="node_MOD_ECUM" class="mod-node" onclick="selectModule('MOD_ECUM')">
+              <rect class="mod-rect" x="580" y="18" width="222" height="60" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="691" y="37" text-anchor="middle" fill="var(--ok)" font-weight="700" font-size="11.5">EcuM (ECU State Mgr)</text>
+              <text id="svgSub_MOD_ECUM" x="691" y="53" text-anchor="middle" fill="var(--mut)" font-size="10">State: STARTUP_ONE</text>
+              <text x="691" y="68" text-anchor="middle" fill="var(--txt-soft)" font-size="9.5">BswM_EcuM_CurrentState / GoDown</text>
+            </g>
+
+            <g id="node_MOD_RTE" class="mod-node" onclick="selectModule('MOD_RTE')">
+              <rect class="mod-rect" x="18" y="114" width="210" height="58" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="123" y="133" text-anchor="middle" fill="var(--acc)" font-weight="700" font-size="11.5">RTE &amp; SchM</text>
+              <text id="svgSub_MOD_RTE" x="123" y="149" text-anchor="middle" fill="var(--mut)" font-size="10">RTE: STOPPED | MainFn: 10ms</text>
+              <text x="123" y="163" text-anchor="middle" fill="var(--txt-soft)" font-size="9.5">Rte_Start() / Rte_Switch() / SchM</text>
+            </g>
+
+            <g id="node_MOD_BSWM" class="mod-node selected" onclick="selectModule('MOD_BSWM')">
+              <rect class="mod-rect" x="270" y="110" width="280" height="106" rx="10" fill="var(--pri-bg)" stroke="var(--pri)" stroke-width="2.2"/>
+              <text x="410" y="130" text-anchor="middle" fill="var(--pri)" font-weight="800" font-size="13.5">BswM Core (SWS_BswM)</text>
+              <text id="svgSub_MOD_BSWM1" x="410" y="148" text-anchor="middle" fill="var(--txt)" font-weight="700" font-size="10.5">Init: BSWM_INIT | Queue: 0</text>
+              <text id="svgSub_MOD_BSWM2" x="410" y="165" text-anchor="middle" fill="var(--cyan)" font-weight="700" font-size="10">Rule: IDLE | IPduVec: 0x00</text>
+              <text id="svgSub_MOD_BSWM3" x="410" y="182" text-anchor="middle" fill="var(--mut)" font-size="9.5">Mode Arbitration (MRP → Expr → Rule)</text>
+              <text x="410" y="198" text-anchor="middle" fill="var(--mut)" font-size="9.5">Mode Control (TRIGGER / CONDITION Actions)</text>
+            </g>
+
+            <g id="node_MOD_NVM" class="mod-node" onclick="selectModule('MOD_NVM')">
+              <rect class="mod-rect" x="585" y="108" width="217" height="52" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="693" y="126" text-anchor="middle" fill="var(--pur)" font-weight="700" font-size="11.5">NvM &amp; WdgM</text>
+              <text id="svgSub_MOD_NVM" x="693" y="142" text-anchor="middle" fill="var(--mut)" font-size="10">Job: IDLE | WdgM: OK</text>
+              <text x="693" y="154" text-anchor="middle" fill="var(--txt-soft)" font-size="9">NvM_ReadAll / WriteAll / PartitionRst</text>
+            </g>
+
+            <g id="node_MOD_DET" class="mod-node" onclick="selectModule('MOD_DET')">
+              <rect class="mod-rect" x="585" y="172" width="217" height="46" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="693" y="191" text-anchor="middle" fill="var(--err)" font-weight="700" font-size="11.5">DET (ModuleId = 42)</text>
+              <text id="svgSub_MOD_DET" x="693" y="208" text-anchor="middle" fill="var(--mut)" font-size="10">Faults Logged: 0 (OK)</text>
+            </g>
+
+            <g id="node_MOD_COM" class="mod-node" onclick="selectModule('MOD_COM')">
+              <rect class="mod-rect" x="18" y="264" width="190" height="78" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="113" y="285" text-anchor="middle" fill="var(--cyan)" font-weight="700" font-size="11.5">AUTOSAR COM</text>
+              <text id="svgSub_MOD_COM" x="113" y="302" text-anchor="middle" fill="var(--mut)" font-size="10">Tx: OFF | Rx: OFF | DM: OFF</text>
+              <text x="113" y="319" text-anchor="middle" fill="var(--txt-soft)" font-size="9.5">Com_IpduGroupStart / Stop / DM</text>
+            </g>
+
+            <g id="node_MOD_PDUR" class="mod-node" onclick="selectModule('MOD_PDUR')">
+              <rect class="mod-rect" x="228" y="264" width="175" height="78" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="315" y="285" text-anchor="middle" fill="var(--pur)" font-weight="700" font-size="11.5">PduR (Router)</text>
+              <text id="svgSub_MOD_PDUR" x="315" y="302" text-anchor="middle" fill="var(--mut)" font-size="10">RPG_0_GW: DISABLED</text>
+              <text x="315" y="319" text-anchor="middle" fill="var(--txt-soft)" font-size="9.5">PduR_Enable / DisableRouting()</text>
+            </g>
+
+            <g id="node_MOD_COMM" class="mod-node" onclick="selectModule('MOD_COMM')">
+              <rect class="mod-rect" x="423" y="264" width="185" height="78" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="515" y="285" text-anchor="middle" fill="var(--ok)" font-weight="700" font-size="11.5">ComM &amp; Nm</text>
+              <text id="svgSub_MOD_COMM" x="515" y="302" text-anchor="middle" fill="var(--mut)" font-size="10">Ch0: NO_COM | PNC16: NO_COM</text>
+              <text x="515" y="319" text-anchor="middle" fill="var(--txt-soft)" font-size="9.5">BswM_ComM_CurrentMode / Allow</text>
+            </g>
+
+            <g id="node_MOD_CANSM" class="mod-node" onclick="selectModule('MOD_CANSM')">
+              <rect class="mod-rect" x="628" y="264" width="174" height="78" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="715" y="285" text-anchor="middle" fill="var(--warn)" font-weight="700" font-size="11.5">CanSM / BusSM</text>
+              <text id="svgSub_MOD_CANSM" x="715" y="302" text-anchor="middle" fill="var(--mut)" font-size="10">State: NO_COM</text>
+              <text x="715" y="319" text-anchor="middle" fill="var(--txt-soft)" font-size="9.5">BswM_CanSM_CurrentState()</text>
+            </g>
+          </svg>
+        </div>
+      </div>
+    </section>
+  </section>
+
+  <!-- RIGHT COLUMN: STICKY 4-TAB INSPECTOR -->
+  <aside class="col-right">
+    <section class="panel insp-panel">
+      <div class="insp-tabs">
+        <button id="inspTabBtn0" class="insp-tab active" onclick="switchInspTab(0)">🔍 Bước Hiện Tại</button>
+        <button id="inspTabBtn1" class="insp-tab" onclick="switchInspTab(1)">🧩 Module</button>
+        <button id="inspTabBtn2" class="insp-tab" onclick="switchInspTab(2)">📄 Code C</button>
+        <button id="inspTabBtn3" class="insp-tab" onclick="switchInspTab(3)">📜 API Trace</button>
+      </div>
+      <div id="inspBody" class="insp-body"></div>
+    </section>
+  </aside>
+</main>
+
+<!-- ================= VIEW 2: MULTI-LEVEL HANDBOOK & ABBREVIATION TABLE ================= -->
+<main id="viewHb" class="hb-wrap hidden">
+  <div class="hb-nav1">
+    <button id="hbTab1_0" class="hb-tab1 active" onclick="switchHbTab1(0)">1. Kiến Trúc &amp; Arbitration</button>
+    <button id="hbTab1_1" class="hb-tab1" onclick="switchHbTab1(1)">2. MRP &amp; IMMEDIATE/DEFERRED</button>
+    <button id="hbTab1_2" class="hb-tab1" onclick="switchHbTab1(2)">3. Rules &amp; TRIGGER/CONDITION</button>
+    <button id="hbTab1_3" class="hb-tab1" onclick="switchHbTab1(3)">4. ActionList, I-PDU &amp; DCM 0x28</button>
+    <button id="hbTab1_4" class="hb-tab1" onclick="switchHbTab1(4)">5. Vòng Đời ECU &amp; SWC/RTE</button>
+    <button id="hbTab1_5" class="hb-tab1" onclick="switchHbTab1(5)">6. API R23-11, DET &amp; ECUC</button>
+    <button id="hbTab1_6" class="hb-tab1" onclick="switchHbTab1(6)">7. Bảng Thuật Ngữ &amp; Search</button>
+  </div>
+
+  <div id="hbNav2" class="hb-nav2"></div>
+
+  <div id="hbAbbrFilterBox" class="abbr-toolbar hidden">
+    <input id="abbrSearchInput" class="abbr-search" type="text" placeholder="🔍 Tìm kiếm thuật ngữ AUTOSAR BswM (VD: MRP, TRIGGER, CONDITION, AbortOnFail, IPduGroup, 0x28, SWS_BswM...)" oninput="filterAbbreviationTable()" />
+    <div class="cat-pills">
+      <button id="catPill_ALL" class="cat-pill active" onclick="setAbbrCategory('ALL')">Tất cả (52+)</button>
+      <button id="catPill_ARB" class="cat-pill" onclick="setAbbrCategory('ARB')">🧠 Arbitration &amp; Rules</button>
+      <button id="catPill_ACT" class="cat-pill" onclick="setAbbrCategory('ACT')">⚡ ActionLists &amp; Actions</button>
+      <button id="catPill_PDU" class="cat-pill" onclick="setAbbrCategory('PDU')">📡 PDU, PduR &amp; DCM</button>
+      <button id="catPill_LIFE" class="cat-pill" onclick="setAbbrCategory('LIFE')">🔄 Lifecycle, RTE &amp; BSW</button>
+    </div>
+    <span id="abbrCountBadge" class="step-pill">52 thuật ngữ</span>
+  </div>
+
+  <div id="hbContentArea"></div>
+</main>
+
+<!-- ================= EXPORT ARXML / C / JSON MODAL ================= -->
+<div id="exportModal" class="modal-overlay hidden" onclick="if(event.target===this) closeExportModal()">
+  <div class="modal-box">
+    <div class="modal-hdr">
+      <strong style="font-size:13.5px;color:var(--pri)">📦 Xuất Cấu Hình BswM AUTOSAR (ARXML · BswM_Cfg.h · BswM_Lcfg.c · JSON)</strong>
+      <button class="btn btn-sm" onclick="closeExportModal()">✖ Đóng</button>
+    </div>
+    <div class="modal-tabs">
+      <button id="expTab0" class="btn btn-sm btn-pri" onclick="switchExportTab(0)">BswM.arxml</button>
+      <button id="expTab1" class="btn btn-sm" onclick="switchExportTab(1)">BswM_Cfg.h</button>
+      <button id="expTab2" class="btn btn-sm" onclick="switchExportTab(2)">BswM_Lcfg.c</button>
+      <button id="expTab3" class="btn btn-sm" onclick="switchExportTab(3)">BswM_Config.json</button>
+    </div>
+    <div class="modal-body">
+      <pre id="exportCodeArea" class="code-block"></pre>
+    </div>
+    <div class="modal-ftr">
+      <button class="btn" onclick="copyExportCode()">📋 Copy Clipboard</button>
+      <button class="btn btn-ok" onclick="downloadExportCode()">⬇ Tải File Hiện Tại</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= FLOATING TOOLTIP POPUP (>1S HOVER ON ECUC FIELDS) ================= -->
+<div id="cfgTooltipPopup" role="tooltip"></div>
+<script>

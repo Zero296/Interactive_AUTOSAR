@@ -1,0 +1,620 @@
+<!-- ================= STICKY UNIFIED HEADER ================= -->
+<header class="hdr">
+  <div class="hdr-row">
+    <div class="brand">
+      <span class="brand-badge">AUTOSAR Classic R23-11</span>
+      <div>
+        <div class="brand-title">WdgM Interactive Simulator &amp; Technical Handbook</div>
+        <div class="brand-sub">Watchdog Manager · Alive / Deadline / Logical Supervision · Local &amp; Global Status · WdgIf &amp; Window Wdg</div>
+      </div>
+    </div>
+
+    <div class="view-switch" role="tablist">
+      <button id="btnViewSim" class="view-btn active" onclick="switchMainView('sim')">🎛️ Trình Mô Phỏng WdgM</button>
+      <button id="btnViewHb" class="view-btn" onclick="switchMainView('hb')">📖 Sổ Tay Đa Tầng &amp; Thuật Ngữ</button>
+    </div>
+
+    <div class="hdr-actions">
+      <button class="btn btn-pri" onclick="openExportModal()">📦 Xuất ARXML / Cfg / C</button>
+      <button class="btn btn-ok" onclick="downloadStandaloneHTML()">💾 Tải File .HTML</button>
+      <button id="btnTheme" class="btn" onclick="toggleTheme()">☀️ Light Mode</button>
+    </div>
+  </div>
+
+  <div class="hdr-row">
+    <div class="scen-bar">
+      <label for="scenSelect" style="font-weight:700;font-size:11.5px;color:var(--mut)">Kịch bản:</label>
+      <select id="scenSelect" class="scen-select" onchange="onScenarioSelectChange()">
+        <optgroup label="Nhóm 1: Alive Supervision &amp; Tolerance">
+          <option value="S1">S1: WdgM_Init() &amp; Chu Trình Chuẩn (Alive + Deadline + Logical = OK)</option>
+          <option value="S2">S2: Thiếu Xung Alive (FAILED) &amp; Tự Phục Hồi Nhờ Tolerance</option>
+          <option value="S3">S3: Dư Xung (Babbling Task) &amp; Vượt Tolerance → Kẹt EXPIRED + FirstExpiredSEID</option>
+        </optgroup>
+        <optgroup label="Nhóm 2: Deadline Supervision &amp; Timeout">
+          <option value="S4">S4: Giám Sát Thời Hạn Deadline Hợp Lệ (Tmin ≤ Δt ≤ Tmax) Qua OsCounter</option>
+          <option value="S5">S5: Vi Phạm Deadline (Quá Sớm / Quá Muộn / Timeout Detection) → Nhảy Thẳng EXPIRED</option>
+        </optgroup>
+        <optgroup label="Nhóm 3: Logical Supervision (Internal &amp; External Graph)">
+          <option value="S6">S6: Đồ Thị Luồng Nội Bộ (Internal Graph: CP0 → CP1 → CP2) &amp; Bắt Lỗi Nhảy Cóc</option>
+          <option value="S7">S7: Đồ Thị Liên Thực Thể (External Graph: SE0 Brake → SE1 EngineTrq)</option>
+        </optgroup>
+        <optgroup label="Nhóm 4: Global Status, WdgIf, Partition/MCU Reset, SetMode &amp; DET/DEM">
+          <option value="S8">S8: Leo Thang Global Status (OK → EXPIRED → STOPPED), Cắt WdgIf(0) &amp; Báo DEM</option>
+          <option value="S9">S9: OS Partition Reset vs Immediate MCU Reset &amp; Đọc Lại FirstExpiredSEID</option>
+          <option value="S10">S10: Chuyển Chế Độ WdgM_SetMode (SLOW → FAST → OFF) &amp; Phòng Vệ WdgMDefensiveBehavior</option>
+          <option value="S11">S11: Reset Khẩn Cấp WdgM_PerformReset() &amp; Tắt An Toàn WdgM_DeInit()</option>
+          <option value="S12">S12: Bảo Vệ Tham Số &amp; Bẫy Lỗi DET (UNINIT, SEID, CPID, SEDEACTIVATED, INV_POINTER)</option>
+        </optgroup>
+      </select>
+
+      <button class="btn btn-sm" onclick="resetCurrentScenario()">⟲ Reset</button>
+      <button id="btnPrevStep" class="btn btn-sm" onclick="prevScenarioStep()" disabled>◀ Lùi</button>
+      <span id="stepIndicator" class="step-pill">Bước 0 / 0</span>
+      <button id="btnNextStep" class="btn btn-sm btn-pri" onclick="nextScenarioStep()">Tiếp ▶</button>
+      <button id="btnAutoPlay" class="btn btn-sm btn-pur" onclick="toggleScenarioAutoPlay()">▶ Tự Chạy</button>
+
+      <div class="clock-box">
+        <span style="font-size:10.5px;color:var(--mut);font-weight:700">Clock:</span>
+        <span id="clockVal" class="clock-val mono">0 ms</span>
+        <button class="btn btn-sm btn-cyan" onclick="stepAdvanceMs(1)" title="Tăng đồng hồ OsCounter thêm +1ms để thử Deadline Δt">+1ms</button>
+        <button class="btn btn-sm btn-ok" onclick="stepMainFunctionTick()" title="Chạy 1 chu kỳ WdgM_MainFunction() (+10ms)">+10ms MainFn</button>
+        <button id="btnAutoClock" class="btn btn-sm" onclick="toggleAutoClock()">⏱ Auto</button>
+      </div>
+    </div>
+
+    <div class="hdr-badges">
+      <span id="hdrBadgeGlobal" class="state-badge sb-ok">Global: OK</span>
+      <span id="hdrBadgeSe0" class="state-badge sb-ok">SE0: OK</span>
+      <span id="hdrBadgeWdgIf" class="state-badge sb-cyan">WdgIf: 20ms</span>
+      <span id="hdrBadgeFirstExp" class="state-badge sb-deact">1stExp: NONE</span>
+    </div>
+  </div>
+</header>
+
+<!-- ================= VIEW 1: INTERACTIVE SIMULATOR (ZERO-SCROLL 3 COLUMNS) ================= -->
+<main id="viewSim" class="workspace">
+
+  <!-- LEFT COLUMN: QUICK ACTIONS + SCENARIO WHAT-IF + 6 ECUC CONFIG TABS -->
+  <aside class="col-left">
+    <!-- CARD 1: QUICK ACTION BAR -->
+    <section class="panel">
+      <div class="panel-hdr">
+        <span class="panel-title">⚡ Điều Khiển Checkpoint &amp; Sự Kiện (Quick Actions)</span>
+        <span class="panel-sub">Tác động tức thì</span>
+      </div>
+      <div class="panel-body">
+        <div class="qa-row">
+          <span style="font-size:11px;font-weight:700;color:var(--mut)">Thực thể:</span>
+          <select id="qaSeSelect" onchange="onQaSeSelectChange()" style="flex:1;background:var(--panel-3);border:1px solid var(--bdr);border-radius:5px;padding:3px 6px;font-size:11.5px;font-weight:600">
+            <option value="0">SE_0 (SWC_BrakeCtrl — Alive/Dead/Log)</option>
+            <option value="1">SE_1 (SWC_EngineTrq — Alive/ExtGraph)</option>
+            <option value="2">SE_2 (BSW_CanDiag — SlowMode Only)</option>
+          </select>
+        </div>
+        <div class="qa-grid">
+          <button class="qa-btn qa-ok" onclick="qaReachCheckpoint(0)">
+            <span>🟢 1. CP_0 (Init)</span><span class="mono">Alive/Start</span>
+          </button>
+          <button class="qa-btn" onclick="qaReachCheckpoint(1)">
+            <span>🔵 2. CP_1 (Run)</span><span class="mono">DeadStop</span>
+          </button>
+          <button class="qa-btn qa-pur" onclick="qaReachCheckpoint(2)">
+            <span>🟣 3. CP_2 (Exit)</span><span class="mono">LogFinal</span>
+          </button>
+          <button class="qa-btn qa-ok" onclick="qaRunHealthyCycle()">
+            <span>⚡ 4. Vòng Chuẩn</span><span class="mono">CP0→1→2</span>
+          </button>
+          <button class="qa-btn qa-warn" onclick="qaCycleWdgMode()">
+            <span>🔄 5. Đổi WdgMMode</span><span id="qaTxtMode" class="mono">FAST</span>
+          </button>
+          <button class="qa-btn qa-err" onclick="qaInjectSelectedFault()">
+            <span>💥 6. Bơm Lỗi</span><span id="qaTxtFaultKind" class="mono">AC=0</span>
+          </button>
+          <button class="qa-btn qa-err" onclick="qaPerformReset()">
+            <span>🚨 7. PerformReset</span><span class="mono">STOPPED</span>
+          </button>
+          <button class="qa-btn" onclick="qaResetAllOk()">
+            <span>🧹 8. Reset Về OK</span><span class="mono">Init</span>
+          </button>
+        </div>
+        <div class="qa-row" style="margin-top:6px;margin-bottom:0">
+          <span style="font-size:10.5px;font-weight:700;color:var(--mut)">Loại lỗi:</span>
+          <select id="qaFaultKind" onchange="onFaultKindChange()" style="flex:1;background:var(--panel-3);border:1px solid var(--bdr);border-radius:5px;padding:2px 6px;font-size:11px;font-weight:600">
+            <option value="MISS_ALIVE">Treo Task (Thiếu xung Alive AC=0)</option>
+            <option value="BABBLING">Babbling Task (Dư xung Alive AC=5)</option>
+            <option value="DEADLINE_LATE">Trễ Deadline (Δt = 12ms &gt; Tmax)</option>
+            <option value="DEADLINE_EARLY">Sớm Deadline (Δt = 1ms &lt; Tmin)</option>
+            <option value="LOGICAL_SKIP">Nhảy cóc Logical (CP0 → CP2)</option>
+          </select>
+        </div>
+      </div>
+    </section>
+
+    <!-- CARD 2: CURRENT SCENARIO SUMMARY & 3 WHAT-IF BUTTONS -->
+    <section class="panel">
+      <div class="panel-hdr">
+        <span class="panel-title">🎬 Kịch Bản Đang Chạy &amp; Thử Nghiệm Nhanh</span>
+        <span id="scenIdBadge" class="panel-sub mono">S1</span>
+      </div>
+      <div class="panel-body">
+        <div id="scenSummaryBox" class="scen-desc-box"></div>
+        <div style="font-size:10.5px;font-weight:700;color:var(--pur);margin-bottom:4px">🧪 Thử Nghiệm Nhanh (1-Click What-If):</div>
+        <div id="whatIfContainer" class="whatif-grid"></div>
+      </div>
+    </section>
+
+    <!-- CARD 3: 6-TAB ECUC CONFIG PANEL (37 PARAMETERS + >1S TOOLTIP) -->
+    <section class="panel">
+      <div class="panel-hdr">
+        <span class="panel-title">⚙️ Cấu Hình ECUC WdgM (Hover &gt;1s Xem SWS)</span>
+        <span class="panel-sub">37 Parameters</span>
+      </div>
+      <div class="cfg-tabs">
+        <button id="cfgTabBtn0" class="cfg-tab active" onclick="switchCfgTab(0)">1. General</button>
+        <button id="cfgTabBtn1" class="cfg-tab" onclick="switchCfgTab(1)">2. Alive</button>
+        <button id="cfgTabBtn2" class="cfg-tab" onclick="switchCfgTab(2)">3. Deadline</button>
+        <button id="cfgTabBtn3" class="cfg-tab" onclick="switchCfgTab(3)">4. Logical</button>
+        <button id="cfgTabBtn4" class="cfg-tab" onclick="switchCfgTab(4)">5. Tol &amp; Rst</button>
+        <button id="cfgTabBtn5" class="cfg-tab" onclick="switchCfgTab(5)">6. WdgIf/HW</button>
+      </div>
+
+      <!-- TAB 0: GENERAL & MODES -->
+      <div id="cfgPane0" class="cfg-pane">
+        <div class="cfg-row" data-cfg-key="WdgMInitialized">
+          <label class="cfg-lbl" for="cfg_WdgMInitialized"><span class="cfg-i">ⓘ</span><span class="cfg-name">WdgMInitialized (State)</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_WdgMInitialized" checked onchange="onConfigInputChanged('WdgMInitialized')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="WdgMDevErrorDetect">
+          <label class="cfg-lbl" for="cfg_WdgMDevErrorDetect"><span class="cfg-i">ⓘ</span><span class="cfg-name">WdgMDevErrorDetect</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_WdgMDevErrorDetect" checked onchange="onConfigInputChanged('WdgMDevErrorDetect')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="WdgMVersionInfoApi">
+          <label class="cfg-lbl" for="cfg_WdgMVersionInfoApi"><span class="cfg-i">ⓘ</span><span class="cfg-name">WdgMVersionInfoApi</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_WdgMVersionInfoApi" onchange="onConfigInputChanged('WdgMVersionInfoApi')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="WdgMDefensiveBehavior">
+          <label class="cfg-lbl" for="cfg_WdgMDefensiveBehavior"><span class="cfg-i">ⓘ</span><span class="cfg-name">WdgMDefensiveBehavior</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_WdgMDefensiveBehavior" checked onchange="onConfigInputChanged('WdgMDefensiveBehavior')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="ActiveWdgMMode">
+          <label class="cfg-lbl" for="cfg_ActiveWdgMMode"><span class="cfg-i">ⓘ</span><span class="cfg-name">ActiveWdgMMode (WdgMMode)</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_ActiveWdgMMode" onchange="onConfigInputChanged('ActiveWdgMMode')">
+              <option value="FAST_MODE">1 - FAST_MODE</option>
+              <option value="SLOW_MODE">0 - SLOW_MODE</option>
+              <option value="OFF_MODE">2 - OFF_MODE</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="WdgMSupervisionCycle">
+          <label class="cfg-lbl" for="cfg_WdgMSupervisionCycle"><span class="cfg-i">ⓘ</span><span class="cfg-name">WdgMSupervisionCycle</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_WdgMSupervisionCycle" min="1" max="100" step="1" value="10" onchange="onConfigInputChanged('WdgMSupervisionCycle')" /><span style="font-size:10px;color:var(--mut)">ms</span></div>
+        </div>
+      </div>
+
+      <!-- TAB 1: ALIVE SUPERVISION -->
+      <div id="cfgPane1" class="cfg-pane hidden">
+        <div class="cfg-row" data-cfg-key="SE0_AliveEnabled">
+          <label class="cfg-lbl" for="cfg_SE0_AliveEnabled"><span class="cfg-i">ⓘ</span><span class="cfg-name">SE0_AliveEnabled (CP_0)</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_SE0_AliveEnabled" checked onchange="onConfigInputChanged('SE0_AliveEnabled')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="WdgMExpectedAliveIndications">
+          <label class="cfg-lbl" for="cfg_WdgMExpectedAliveIndications"><span class="cfg-i">ⓘ</span><span class="cfg-name">ExpectedAliveIndications (EAI)</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_WdgMExpectedAliveIndications" min="0" max="255" value="2" onchange="onConfigInputChanged('WdgMExpectedAliveIndications')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="WdgMSupervisionReferenceCycle">
+          <label class="cfg-lbl" for="cfg_WdgMSupervisionReferenceCycle"><span class="cfg-i">ⓘ</span><span class="cfg-name">SupervisionRefCycle (SRC)</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_WdgMSupervisionReferenceCycle" min="1" max="100" value="2" onchange="onConfigInputChanged('WdgMSupervisionReferenceCycle')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="WdgMMinMargin">
+          <label class="cfg-lbl" for="cfg_WdgMMinMargin"><span class="cfg-i">ⓘ</span><span class="cfg-name">WdgMMinMargin</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_WdgMMinMargin" min="0" max="50" value="1" onchange="onConfigInputChanged('WdgMMinMargin')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="WdgMMaxMargin">
+          <label class="cfg-lbl" for="cfg_WdgMMaxMargin"><span class="cfg-i">ⓘ</span><span class="cfg-name">WdgMMaxMargin</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_WdgMMaxMargin" min="0" max="50" value="1" onchange="onConfigInputChanged('WdgMMaxMargin')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="SE1_AliveEnabled">
+          <label class="cfg-lbl" for="cfg_SE1_AliveEnabled"><span class="cfg-i">ⓘ</span><span class="cfg-name">SE1_AliveEnabled (EngineTrq)</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_SE1_AliveEnabled" checked onchange="onConfigInputChanged('SE1_AliveEnabled')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="SE1_ExpectedAlive">
+          <label class="cfg-lbl" for="cfg_SE1_ExpectedAlive"><span class="cfg-i">ⓘ</span><span class="cfg-name">SE1_ExpectedAlive (SRC=1)</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_SE1_ExpectedAlive" min="0" max="20" value="1" onchange="onConfigInputChanged('SE1_ExpectedAlive')" /></div>
+        </div>
+      </div>
+
+      <!-- TAB 2: DEADLINE SUPERVISION -->
+      <div id="cfgPane2" class="cfg-pane hidden">
+        <div class="cfg-row" data-cfg-key="SE0_DeadlineEnabled">
+          <label class="cfg-lbl" for="cfg_SE0_DeadlineEnabled"><span class="cfg-i">ⓘ</span><span class="cfg-name">SE0_DeadlineEnabled</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_SE0_DeadlineEnabled" checked onchange="onConfigInputChanged('SE0_DeadlineEnabled')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="WdgMDeadlineStartRef">
+          <label class="cfg-lbl" for="cfg_WdgMDeadlineStartRef"><span class="cfg-i">ⓘ</span><span class="cfg-name">WdgMDeadlineStartRef</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_WdgMDeadlineStartRef" onchange="onConfigInputChanged('WdgMDeadlineStartRef')">
+              <option value="0">CP_0 (Init)</option>
+              <option value="1">CP_1 (Run)</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="WdgMDeadlineStopRef">
+          <label class="cfg-lbl" for="cfg_WdgMDeadlineStopRef"><span class="cfg-i">ⓘ</span><span class="cfg-name">WdgMDeadlineStopRef</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_WdgMDeadlineStopRef" onchange="onConfigInputChanged('WdgMDeadlineStopRef')">
+              <option value="1">CP_1 (Run)</option>
+              <option value="2">CP_2 (Exit)</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="WdgMDeadlineMin">
+          <label class="cfg-lbl" for="cfg_WdgMDeadlineMin"><span class="cfg-i">ⓘ</span><span class="cfg-name">WdgMDeadlineMin (Tmin)</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_WdgMDeadlineMin" min="0" max="1000" step="1" value="2" onchange="onConfigInputChanged('WdgMDeadlineMin')" /><span style="font-size:10px;color:var(--mut)">ms</span></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="WdgMDeadlineMax">
+          <label class="cfg-lbl" for="cfg_WdgMDeadlineMax"><span class="cfg-i">ⓘ</span><span class="cfg-name">WdgMDeadlineMax (Tmax)</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_WdgMDeadlineMax" min="1" max="5000" step="1" value="8" onchange="onConfigInputChanged('WdgMDeadlineMax')" /><span style="font-size:10px;color:var(--mut)">ms</span></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="WdgMEnableDeadlineTimeoutDetection">
+          <label class="cfg-lbl" for="cfg_WdgMEnableDeadlineTimeoutDetection"><span class="cfg-i">ⓘ</span><span class="cfg-name">DeadlineTimeoutDetection</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_WdgMEnableDeadlineTimeoutDetection" checked onchange="onConfigInputChanged('WdgMEnableDeadlineTimeoutDetection')" /></div>
+        </div>
+      </div>
+
+      <!-- TAB 3: LOGICAL GRAPH -->
+      <div id="cfgPane3" class="cfg-pane hidden">
+        <div class="cfg-row" data-cfg-key="SE0_InternalGraphEnabled">
+          <label class="cfg-lbl" for="cfg_SE0_InternalGraphEnabled"><span class="cfg-i">ⓘ</span><span class="cfg-name">SE0_InternalGraphEnabled</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_SE0_InternalGraphEnabled" checked onchange="onConfigInputChanged('SE0_InternalGraphEnabled')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="WdgMInitialCheckpoint">
+          <label class="cfg-lbl" for="cfg_WdgMInitialCheckpoint"><span class="cfg-i">ⓘ</span><span class="cfg-name">WdgMInitialCheckpoint</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_WdgMInitialCheckpoint" onchange="onConfigInputChanged('WdgMInitialCheckpoint')">
+              <option value="0">CP_0 (Init)</option>
+              <option value="1">CP_1 (Run)</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="WdgMFinalCheckpoint">
+          <label class="cfg-lbl" for="cfg_WdgMFinalCheckpoint"><span class="cfg-i">ⓘ</span><span class="cfg-name">WdgMFinalCheckpoint</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_WdgMFinalCheckpoint" onchange="onConfigInputChanged('WdgMFinalCheckpoint')">
+              <option value="2">CP_2 (Exit)</option>
+              <option value="1">CP_1 (Run)</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="ValidInternalTransitions">
+          <label class="cfg-lbl" for="cfg_ValidInternalTransitions"><span class="cfg-i">ⓘ</span><span class="cfg-name">ValidInternalTransitions</span></label>
+          <div class="cfg-ctrl"><input type="text" id="cfg_ValidInternalTransitions" class="mono" value="CP0->CP1, CP1->CP2" style="width:132px" onchange="onConfigInputChanged('ValidInternalTransitions')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="ExternalGraphEnabled">
+          <label class="cfg-lbl" for="cfg_ExternalGraphEnabled"><span class="cfg-i">ⓘ</span><span class="cfg-name">ExternalGraphEnabled</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_ExternalGraphEnabled" onchange="onConfigInputChanged('ExternalGraphEnabled')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="ValidExternalTransitions">
+          <label class="cfg-lbl" for="cfg_ValidExternalTransitions"><span class="cfg-i">ⓘ</span><span class="cfg-name">ValidExternalTransitions</span></label>
+          <div class="cfg-ctrl"><input type="text" id="cfg_ValidExternalTransitions" class="mono" value="SE0_CP1->SE1_CP0, SE1_CP0->SE1_CP1" style="width:132px" onchange="onConfigInputChanged('ValidExternalTransitions')" /></div>
+        </div>
+      </div>
+
+      <!-- TAB 4: TOLERANCE & RESET -->
+      <div id="cfgPane4" class="cfg-pane hidden">
+        <div class="cfg-row" data-cfg-key="WdgMFailedAliveSupervisionRefCycleTol">
+          <label class="cfg-lbl" for="cfg_WdgMFailedAliveSupervisionRefCycleTol"><span class="cfg-i">ⓘ</span><span class="cfg-name">FailedAliveRefCycleTol (SE0)</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_WdgMFailedAliveSupervisionRefCycleTol" min="0" max="255" value="1" onchange="onConfigInputChanged('WdgMFailedAliveSupervisionRefCycleTol')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="SE1_FailedAliveTol">
+          <label class="cfg-lbl" for="cfg_SE1_FailedAliveTol"><span class="cfg-i">ⓘ</span><span class="cfg-name">SE1_FailedAliveTol</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_SE1_FailedAliveTol" min="0" max="255" value="0" onchange="onConfigInputChanged('SE1_FailedAliveTol')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="WdgMExpiredSupervisionCycleTol">
+          <label class="cfg-lbl" for="cfg_WdgMExpiredSupervisionCycleTol"><span class="cfg-i">ⓘ</span><span class="cfg-name">ExpiredSupervisionCycleTol</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_WdgMExpiredSupervisionCycleTol" min="0" max="255" value="2" onchange="onConfigInputChanged('WdgMExpiredSupervisionCycleTol')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="WdgMImmediateReset">
+          <label class="cfg-lbl" for="cfg_WdgMImmediateReset"><span class="cfg-i">ⓘ</span><span class="cfg-name">WdgMImmediateReset (Mcu)</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_WdgMImmediateReset" onchange="onConfigInputChanged('WdgMImmediateReset')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="WdgMPartitionResetEnabled">
+          <label class="cfg-lbl" for="cfg_WdgMPartitionResetEnabled"><span class="cfg-i">ⓘ</span><span class="cfg-name">WdgMPartitionResetEnabled</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_WdgMPartitionResetEnabled" onchange="onConfigInputChanged('WdgMPartitionResetEnabled')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="WdgMDemEventParameterRefs">
+          <label class="cfg-lbl" for="cfg_WdgMDemEventParameterRefs"><span class="cfg-i">ⓘ</span><span class="cfg-name">DemEventRefs (WDGM_E_*)</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_WdgMDemEventParameterRefs" checked onchange="onConfigInputChanged('WdgMDemEventParameterRefs')" /></div>
+        </div>
+      </div>
+
+      <!-- TAB 5: WDGIF & HW WATCHDOG -->
+      <div id="cfgPane5" class="cfg-pane hidden">
+        <div class="cfg-row" data-cfg-key="WdgMTriggerMode_IntWdg">
+          <label class="cfg-lbl" for="cfg_WdgMTriggerMode_IntWdg"><span class="cfg-i">ⓘ</span><span class="cfg-name">WdgMTriggerMode_IntWdg</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_WdgMTriggerMode_IntWdg" onchange="onConfigInputChanged('WdgMTriggerMode_IntWdg')">
+              <option value="WDGIF_FAST_MODE">WDGIF_FAST_MODE</option>
+              <option value="WDGIF_SLOW_MODE">WDGIF_SLOW_MODE</option>
+              <option value="WDGIF_OFF_MODE">WDGIF_OFF_MODE</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="WdgMTriggerConditionValue_Int">
+          <label class="cfg-lbl" for="cfg_WdgMTriggerConditionValue_Int"><span class="cfg-i">ⓘ</span><span class="cfg-name">TriggerConditionValue_Int</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_WdgMTriggerConditionValue_Int" min="1" max="5000" step="5" value="20" onchange="onConfigInputChanged('WdgMTriggerConditionValue_Int')" /><span style="font-size:10px;color:var(--mut)">ms</span></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="ExternalWindowWdgEnabled">
+          <label class="cfg-lbl" for="cfg_ExternalWindowWdgEnabled"><span class="cfg-i">ⓘ</span><span class="cfg-name">ExternalWindowWdgEnabled</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_ExternalWindowWdgEnabled" onchange="onConfigInputChanged('ExternalWindowWdgEnabled')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="WdgMTriggerConditionValue_Ext">
+          <label class="cfg-lbl" for="cfg_WdgMTriggerConditionValue_Ext"><span class="cfg-i">ⓘ</span><span class="cfg-name">TriggerConditionValue_Ext</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_WdgMTriggerConditionValue_Ext" min="1" max="5000" step="5" value="20" onchange="onConfigInputChanged('WdgMTriggerConditionValue_Ext')" /><span style="font-size:10px;color:var(--mut)">ms</span></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="WindowWdgClosedWindowMs">
+          <label class="cfg-lbl" for="cfg_WindowWdgClosedWindowMs"><span class="cfg-i">ⓘ</span><span class="cfg-name">WindowWdgClosedWindowMs</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_WindowWdgClosedWindowMs" min="0" max="100" step="1" value="5" onchange="onConfigInputChanged('WindowWdgClosedWindowMs')" /><span style="font-size:10px;color:var(--mut)">ms</span></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="SimulateWdgIfSetModeFail">
+          <label class="cfg-lbl" for="cfg_SimulateWdgIfSetModeFail"><span class="cfg-i">ⓘ</span><span class="cfg-name">SimulateWdgIfSetModeFail</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_SimulateWdgIfSetModeFail" onchange="onConfigInputChanged('SimulateWdgIfSetModeFail')" /></div>
+        </div>
+      </div>
+
+      <div id="cfgValidationBox" style="padding:0 10px 8px"></div>
+    </section>
+  </aside>
+
+  <!-- CENTER COLUMN: 3-ALGORITHM ANATOMY, DUAL 8-BIT, TIMERS/WINDOW WDG, DUAL STATE MACHINES, SVG -->
+  <section class="col-center">
+    <!-- PANEL 1: 2-TIER ALGORITHMS ANATOMY & DUAL 8-BIT REGISTERS -->
+    <section class="panel">
+      <div class="panel-hdr">
+        <span class="panel-title">🛡️ Giải Phẫu 3 Thuật Toán (Alive / Deadline / Logical) &amp; 2 Thanh Ghi 8-Bit WdgM</span>
+        <span class="panel-sub">Click chọn SE, Checkpoint CP0..CP2 hoặc ô Bit để thao tác trực tiếp</span>
+      </div>
+      <div class="panel-body tier-split">
+        <!-- TIER 1A: SE MATRIX + 3 ALGORITHM CARDS + FIRST EXPIRED SEID -->
+        <div id="seMatrixBox" class="se-matrix-grid"></div>
+
+        <div class="algo-wrap">
+          <div class="algo-hdr">
+            <span id="algoTitleLbl" style="font-weight:800;font-size:11.5px;color:var(--cyan)">🧮 Giải Phẫu Thuật Toán Thực Thể: SE_0 (SWC_BrakeCtrl)</span>
+            <span id="algoSummaryLbl" class="mono" style="font-size:10.5px;color:var(--mut)">Mode: FAST_MODE | Cycle: 10ms</span>
+          </div>
+          <div id="algoCardsBox" class="algo-cards"></div>
+          <div id="firstExpBar" class="first-exp-bar"></div>
+        </div>
+
+        <!-- TIER 1B: DUAL 8-BIT REGISTERS -->
+        <div class="reg-grid">
+          <div class="reg-card">
+            <div class="reg-top">
+              <span id="regATitle" class="reg-name">Thanh A: WdgM_LocalStatusByte (SE_0)</span>
+              <span id="regAHex" class="reg-hex mono">0xF0</span>
+            </div>
+            <div id="regABits" class="bit-row"></div>
+          </div>
+
+          <div class="reg-card">
+            <div class="reg-top">
+              <span class="reg-name">Thanh B: WdgM_GlobalControlByte (SWS_WdgM_00359)</span>
+              <span id="regBHex" class="reg-hex mono">0xC0</span>
+            </div>
+            <div id="regBBits" class="bit-row"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PANEL 2: TIMERS, WINDOW WATCHDOG & DUAL STATE MACHINES -->
+    <section class="panel">
+      <div class="panel-hdr">
+        <span class="panel-title">⏳ Bộ Đếm Dung Sai, Cửa Sổ Watchdog (WdgIf) &amp; 2 Máy Trạng Thái Song Song</span>
+        <span id="wdgModeBadge" class="panel-sub mono">FAST_MODE | Trigger: 20ms</span>
+      </div>
+      <div class="panel-body">
+        <div id="timersGrid" class="timer-grid"></div>
+        <div id="wdgWindowBox" class="wdg-window-bar"></div>
+        <div class="sm-dual">
+          <div class="sm-box">
+            <div class="sm-title">
+              <span>🚦 Local Supervision Status (SWS_WdgM_00201)</span>
+              <span id="smLocalLbl" class="mono">SE_0: OK</span>
+            </div>
+            <div id="localSmDiagram" class="sm-states"></div>
+          </div>
+
+          <div class="sm-box">
+            <div class="sm-title">
+              <span>🌐 Global Supervision Status (SWS_WdgM_00214)</span>
+              <span id="smGlobalLbl" class="mono">GLOBAL_OK</span>
+            </div>
+            <div id="globalSmDiagram" class="sm-states"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PANEL 3: INTERACTIVE END-TO-END AUTOSAR SVG ARCHITECTURE -->
+    <section class="panel">
+      <div class="panel-hdr">
+        <span class="panel-title">🏗️ Kiến Trúc Tương Tác End-to-End Module WdgM Trong AUTOSAR Classic</span>
+        <span class="panel-sub">Click bất kỳ Module nào để xem Input / Output &amp; API ở Inspector bên phải</span>
+      </div>
+      <div class="panel-body">
+        <div class="arch-wrap">
+          <svg id="wdgmArchSvg" class="arch-svg" viewBox="0 0 820 365" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <marker id="arrEnd" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                <path d="M 0 1 L 10 5 L 0 9 z" fill="currentColor" />
+              </marker>
+            </defs>
+
+            <!-- ARROWS LAYER -->
+            <path id="arr_swc_rte" class="flow-arrow" d="M 120 78 L 120 108" marker-end="url(#arrEnd)" />
+            <path id="arr_rte_wdgm" class="flow-arrow" d="M 225 135 L 275 135" marker-end="url(#arrEnd)" />
+            <path id="arr_bsw_wdgm" class="flow-arrow" d="M 382 78 L 382 110" marker-end="url(#arrEnd)" />
+            <path id="arr_os_wdgm" class="flow-arrow" d="M 225 186 L 275 178" marker-end="url(#arrEnd)" />
+            <path id="arr_bswm_wdgm" class="flow-arrow" d="M 605 78 L 535 122" marker-end="url(#arrEnd)" />
+            <path id="arr_wdgm_bswm" class="flow-arrow" d="M 555 138 L 615 78" marker-end="url(#arrEnd)" />
+            <path id="arr_wdgm_dem" class="flow-arrow" d="M 555 154 L 605 154" marker-end="url(#arrEnd)" />
+            <path id="arr_wdgm_det" class="flow-arrow" d="M 555 190 L 605 206" marker-end="url(#arrEnd)" />
+            <path id="arr_wdgm_wdgif" class="flow-arrow" d="M 415 212 L 415 258" marker-end="url(#arrEnd)" />
+            <path id="arr_wdgif_int" class="flow-arrow" d="M 310 296 L 245 296" marker-end="url(#arrEnd)" />
+            <path id="arr_wdgif_ext" class="flow-arrow" d="M 525 296 L 580 296" marker-end="url(#arrEnd)" />
+
+            <!-- TOP ROW: SUPERVISED ENTITIES & SYSTEM MANAGERS -->
+            <g id="node_MOD_SWC" class="mod-node" onclick="selectModule('MOD_SWC')">
+              <rect class="mod-rect" x="20" y="18" width="205" height="60" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="122" y="38" text-anchor="middle" fill="var(--pri)" font-weight="700" font-size="11.5">SWC_Brake (SE0) &amp; Engine (SE1)</text>
+              <text id="svgSub_MOD_SWC" x="122" y="54" text-anchor="middle" fill="var(--mut)" font-size="10">SE0: OK | SE1: OK</text>
+              <text x="122" y="69" text-anchor="middle" fill="var(--txt-soft)" font-size="9.5">WdgM_CheckpointReached()</text>
+            </g>
+
+            <g id="node_MOD_BSW" class="mod-node" onclick="selectModule('MOD_BSW')">
+              <rect class="mod-rect" x="280" y="18" width="205" height="60" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="382" y="38" text-anchor="middle" fill="var(--cyan)" font-weight="700" font-size="11.5">BSW_CanDiag (SE_2)</text>
+              <text id="svgSub_MOD_BSW" x="382" y="54" text-anchor="middle" fill="var(--mut)" font-size="10">State: DEACTIVATED (FastMode)</text>
+              <text x="382" y="69" text-anchor="middle" fill="var(--txt-soft)" font-size="9.5">C API Direct Checkpoint</text>
+            </g>
+
+            <g id="node_MOD_BSWM" class="mod-node" onclick="selectModule('MOD_BSWM')">
+              <rect class="mod-rect" x="595" y="18" width="205" height="60" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="697" y="38" text-anchor="middle" fill="var(--ok)" font-weight="700" font-size="11.5">BswM / EcuM / Mcu</text>
+              <text id="svgSub_MOD_BSWM" x="697" y="54" text-anchor="middle" fill="var(--mut)" font-size="10">Mode: FAST_MODE | Reset: Idle</text>
+              <text x="697" y="69" text-anchor="middle" fill="var(--txt-soft)" font-size="9.5">SetMode / PartitionReset / McuReset</text>
+            </g>
+
+            <!-- MIDDLE ROW: RTE/SCHM, OS, WDGM CORE, DEM, DET -->
+            <g id="node_MOD_RTE" class="mod-node" onclick="selectModule('MOD_RTE')">
+              <rect class="mod-rect" x="20" y="108" width="205" height="50" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="122" y="128" text-anchor="middle" fill="var(--acc)" font-weight="700" font-size="11.5">RTE &amp; SchM</text>
+              <text id="svgSub_MOD_RTE" x="122" y="144" text-anchor="middle" fill="var(--mut)" font-size="10">Cycle: 10 ms | Rte_Switch</text>
+            </g>
+
+            <g id="node_MOD_OS" class="mod-node" onclick="selectModule('MOD_OS')">
+              <rect class="mod-rect" x="20" y="168" width="205" height="52" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="122" y="188" text-anchor="middle" fill="var(--pur)" font-weight="700" font-size="11.5">AUTOSAR OS &amp; OsCounter</text>
+              <text id="svgSub_MOD_OS" x="122" y="205" text-anchor="middle" fill="var(--mut)" font-size="10">OsTick: 0 ms | Partition Ready</text>
+            </g>
+
+            <g id="node_MOD_WDGM" class="mod-node selected" onclick="selectModule('MOD_WDGM')">
+              <rect class="mod-rect" x="275" y="110" width="280" height="102" rx="10" fill="var(--pri-bg)" stroke="var(--pri)" stroke-width="2.2"/>
+              <text x="415" y="131" text-anchor="middle" fill="var(--pri)" font-weight="800" font-size="13.5">WdgM Core (SWS_WdgM)</text>
+              <text id="svgSub_MOD_WDGM1" x="415" y="149" text-anchor="middle" fill="var(--txt)" font-weight="700" font-size="10.5">Global: WDGM_GLOBAL_STATUS_OK</text>
+              <text id="svgSub_MOD_WDGM2" x="415" y="166" text-anchor="middle" fill="var(--cyan)" font-weight="700" font-size="10">Alive | Deadline | Logical Graph</text>
+              <text id="svgSub_MOD_WDGM3" x="415" y="183" text-anchor="middle" fill="var(--mut)" font-size="9.5">1stExpSEID: NONE | ExpCnt: 0/2</text>
+              <text x="415" y="199" text-anchor="middle" fill="var(--mut)" font-size="9">WdgM_CheckpointReached() &amp; MainFunction()</text>
+            </g>
+
+            <g id="node_MOD_DEM" class="mod-node" onclick="selectModule('MOD_DEM')">
+              <rect class="mod-rect" x="605" y="118" width="195" height="52" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="702" y="138" text-anchor="middle" fill="var(--warn)" font-weight="700" font-size="11.5">DEM (Diagnostic Events)</text>
+              <text id="svgSub_MOD_DEM" x="702" y="155" text-anchor="middle" fill="var(--mut)" font-size="10">MONITORING: OK | SET_MODE: OK</text>
+            </g>
+
+            <g id="node_MOD_DET" class="mod-node" onclick="selectModule('MOD_DET')">
+              <rect class="mod-rect" x="605" y="180" width="195" height="50" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="702" y="200" text-anchor="middle" fill="var(--err)" font-weight="700" font-size="11.5">DET (Error Tracer)</text>
+              <text id="svgSub_MOD_DET" x="702" y="216" text-anchor="middle" fill="var(--mut)" font-size="10">Module 13 | Faults: 0</text>
+            </g>
+
+            <!-- BOTTOM ROW: WDGIF & HARDWARE WATCHDOG DRIVERS -->
+            <g id="node_MOD_WDG_INT" class="mod-node" onclick="selectModule('MOD_WDG_INT')">
+              <rect class="mod-rect" x="20" y="260" width="225" height="82" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="132" y="281" text-anchor="middle" fill="var(--ok)" font-weight="700" font-size="11.5">Wdg_Int (MCU Watchdog)</text>
+              <text id="svgSub_MOD_WDG_INT" x="132" y="299" text-anchor="middle" fill="var(--mut)" font-size="10">Dev 0 | FAST | Rem: 20 ms</text>
+              <text x="132" y="317" text-anchor="middle" fill="var(--txt-soft)" font-size="9.5">HW Register WDG_SR Refresh</text>
+            </g>
+
+            <g id="node_MOD_WDGIF" class="mod-node" onclick="selectModule('MOD_WDGIF')">
+              <rect class="mod-rect" x="295" y="258" width="240" height="86" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="415" y="280" text-anchor="middle" fill="var(--cyan)" font-weight="700" font-size="12">WdgIf (Watchdog Interface)</text>
+              <text id="svgSub_MOD_WDGIF" x="415" y="298" text-anchor="middle" fill="var(--mut)" font-size="10">Last Trig: 20 ms | Mode: FAST</text>
+              <text x="415" y="316" text-anchor="middle" fill="var(--txt-soft)" font-size="9.5">WdgIf_SetTriggerCondition(Idx, Tmo)</text>
+              <text x="415" y="331" text-anchor="middle" fill="var(--txt-soft)" font-size="9.5">WdgIf_SetMode(Idx, WdgMode)</text>
+            </g>
+
+            <g id="node_MOD_WDG_EXT" class="mod-node" onclick="selectModule('MOD_WDG_EXT')">
+              <rect class="mod-rect" x="580" y="260" width="220" height="82" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="690" y="281" text-anchor="middle" fill="var(--pur)" font-weight="700" font-size="11.5">Wdg_Ext (SBC Window Wdg)</text>
+              <text id="svgSub_MOD_WDG_EXT" x="690" y="299" text-anchor="middle" fill="var(--mut)" font-size="10">Dev 1 | Disabled | Win [5..20ms]</text>
+              <text x="690" y="317" text-anchor="middle" fill="var(--txt-soft)" font-size="9.5">SPI Window Refresh / NRES Pin</text>
+            </g>
+          </svg>
+        </div>
+      </div>
+    </section>
+  </section>
+
+  <!-- RIGHT COLUMN: STICKY 4-TAB INSPECTOR -->
+  <aside class="col-right">
+    <section class="panel insp-panel">
+      <div class="insp-tabs">
+        <button id="inspTabBtn0" class="insp-tab active" onclick="switchInspTab(0)">🔍 Bước Hiện Tại</button>
+        <button id="inspTabBtn1" class="insp-tab" onclick="switchInspTab(1)">🧩 Module</button>
+        <button id="inspTabBtn2" class="insp-tab" onclick="switchInspTab(2)">📄 Code C</button>
+        <button id="inspTabBtn3" class="insp-tab" onclick="switchInspTab(3)">📜 API Trace</button>
+      </div>
+      <div id="inspBody" class="insp-body"></div>
+    </section>
+  </aside>
+</main>
+
+<!-- ================= VIEW 2: MULTI-LEVEL HANDBOOK & ABBREVIATION TABLE ================= -->
+<main id="viewHb" class="hb-wrap hidden">
+  <div class="hb-nav1">
+    <button id="hbTab1_0" class="hb-tab1 active" onclick="switchHbTab1(0)">1. Kiến Trúc WdgM &amp; WdgIf</button>
+    <button id="hbTab1_1" class="hb-tab1" onclick="switchHbTab1(1)">2. 3 Thuật Toán Giám Sát</button>
+    <button id="hbTab1_2" class="hb-tab1" onclick="switchHbTab1(2)">3. Máy Trạng Thái Local &amp; Global</button>
+    <button id="hbTab1_3" class="hb-tab1" onclick="switchHbTab1(3)">4. Nuôi WdgIf, Modes &amp; Window</button>
+    <button id="hbTab1_4" class="hb-tab1" onclick="switchHbTab1(4)">5. Phục Hồi, Reset &amp; 1stExpiredSEID</button>
+    <button id="hbTab1_5" class="hb-tab1" onclick="switchHbTab1(5)">6. Chuẩn API R23-11, DET &amp; ECUC</button>
+    <button id="hbTab1_6" class="hb-tab1" onclick="switchHbTab1(6)">7. Bảng Thuật Ngữ &amp; Search</button>
+  </div>
+
+  <div id="hbNav2" class="hb-nav2"></div>
+
+  <div id="hbAbbrFilterBox" class="abbr-toolbar hidden">
+    <input id="abbrSearchInput" class="abbr-search" type="text" placeholder="🔍 Tìm kiếm thuật ngữ AUTOSAR WdgM (VD: SEID, CP, EAI, SRC, Deadline, Logical, WdgIf, SBC...)" oninput="filterAbbreviationTable()" />
+    <div class="cat-pills">
+      <button id="catPill_ALL" class="cat-pill active" onclick="setAbbrCategory('ALL')">Tất cả (50+)</button>
+      <button id="catPill_CORE" class="cat-pill" onclick="setAbbrCategory('CORE')">🛡️ WdgM Core &amp; States</button>
+      <button id="catPill_ALGO" class="cat-pill" onclick="setAbbrCategory('ALGO')">🧮 3 Thuật Toán</button>
+      <button id="catPill_HW" class="cat-pill" onclick="setAbbrCategory('HW')">⏱️ WdgIf &amp; HW Wdg</button>
+      <button id="catPill_SAFETY" class="cat-pill" onclick="setAbbrCategory('SAFETY')">🚨 Reset &amp; Safety Stack</button>
+    </div>
+    <span id="abbrCountBadge" class="step-pill">52 thuật ngữ</span>
+  </div>
+
+  <div id="hbContentArea"></div>
+</main>
+
+<!-- ================= EXPORT ARXML / C / JSON MODAL ================= -->
+<div id="exportModal" class="modal-overlay hidden" onclick="onExportModalBackdrop(event)">
+  <div class="modal-box">
+    <div class="modal-hdr">
+      <strong style="font-size:13.5px;color:var(--pri)">📦 Xuất Cấu Hình WdgM AUTOSAR (ARXML · WdgM_Cfg.h · WdgM_Lcfg.c · JSON)</strong>
+      <button class="btn btn-sm" onclick="closeExportModal()">✖ Đóng</button>
+    </div>
+    <div class="modal-tabs">
+      <button id="expTab0" class="btn btn-sm btn-pri" onclick="switchExportTab(0)">WdgM.arxml</button>
+      <button id="expTab1" class="btn btn-sm" onclick="switchExportTab(1)">WdgM_Cfg.h</button>
+      <button id="expTab2" class="btn btn-sm" onclick="switchExportTab(2)">WdgM_Lcfg.c</button>
+      <button id="expTab3" class="btn btn-sm" onclick="switchExportTab(3)">WdgM_Config.json</button>
+    </div>
+    <div class="modal-body">
+      <pre id="exportCodeArea" class="code-block"></pre>
+    </div>
+    <div class="modal-ftr">
+      <button class="btn" onclick="copyExportCode()">📋 Copy Clipboard</button>
+      <button class="btn btn-ok" onclick="downloadExportCode()">⬇ Tải File Hiện Tại</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= FLOATING TOOLTIP POPUP (>1S HOVER ON ECUC FIELDS) ================= -->
+<div id="cfgTooltipPopup" role="tooltip"></div>
+<script>
