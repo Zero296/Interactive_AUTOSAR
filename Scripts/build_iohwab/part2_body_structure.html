@@ -1,0 +1,659 @@
+<!-- ================= STICKY UNIFIED HEADER ================= -->
+<header class="hdr">
+  <div class="hdr-row">
+    <div class="brand">
+      <span class="brand-badge">AUTOSAR Classic R23-11</span>
+      <div>
+        <div class="brand-title">IoHwAb Interactive Simulator &amp; Technical Handbook</div>
+        <div class="brand-sub">I/O Hardware Abstraction · ADC/DIO/PWM/ICU Conditioning · Electrical Diag (DEM/FiM) · DCM UDS 0x2F</div>
+      </div>
+    </div>
+
+    <div class="view-switch" role="tablist">
+      <button id="btnViewSim" class="view-btn active" onclick="switchMainView('sim')">🎛️ Trình Mô Phỏng IoHwAb</button>
+      <button id="btnViewHb" class="view-btn" onclick="switchMainView('hb')">📖 Sổ Tay Kỹ Thuật &amp; Thuật Ngữ</button>
+    </div>
+
+    <div class="hdr-actions">
+      <button class="btn btn-pri" onclick="openExportModal()">📦 Xuất ARXML / Cfg / C</button>
+      <button class="btn btn-ok" onclick="downloadStandaloneHTML()">💾 Tải File .HTML</button>
+      <button id="btnTheme" class="btn" onclick="toggleTheme()">☀️ Light Mode</button>
+    </div>
+  </div>
+
+  <div class="hdr-row">
+    <div class="scen-bar">
+      <label for="scenSelect" style="font-weight:700;font-size:11.5px;color:var(--mut)">Kịch bản:</label>
+      <select id="scenSelect" class="scen-select" onchange="onScenarioSelectChange()">
+        <optgroup label="Nhóm 1: Khởi Tạo I/O &amp; Xử Lý Kênh Số DIO">
+          <option value="S1">S1: Khởi Tạo Ngăn Xếp I/O (Port_Init → Adc/Pwm/Icu_Init → IoHwAb_Init)</option>
+          <option value="S2">S2: Đọc Công Tắc DIO Active-Low &amp; Khử Rung Tiếp Điểm (Debounce 15ms)</option>
+          <option value="S3">S3: Điều Khiển Ngõ Ra DIO Kèm Kiểm Chứng Đọc Ngược (Output Readback)</option>
+        </optgroup>
+        <optgroup label="Nhóm 2: Chuỗi ADC, Ratiometric, IIR, PWM 0x8000 &amp; ICU">
+          <option value="S4">S4: Luồng F9 Chuẩn: ADC Raw → IoHwAb Scaling → SWC PID → PWM 0x4000</option>
+          <option value="S5">S5: Bù Trôi Nguồn 5V Ratiometric &amp; Bộ Lọc Thông Thấp IIR EMA Filter</option>
+          <option value="S6">S6: Điều Khiển PWM 16-Bit (0x0000..0x8000) &amp; Khóa Biên Duty Clamp 5..95%</option>
+          <option value="S7">S7: Đo Tần Số, Tốc Độ Quay (RPM) &amp; Độ Rộng Xung Qua MCAL ICU</option>
+        </optgroup>
+        <optgroup label="Nhóm 3: Chẩn Đoán Lỗi Điện Học, DEM &amp; FiM Fail-Safe">
+          <option value="S8">S8: Lỗi Chạm Đất Short-to-GND (&lt;250mV) → DEM FAILED &amp; Replacement Value</option>
+          <option value="S9">S9: Lỗi Chạm Nguồn Short-to-Bat (&gt;4750mV) &amp; Sụt Áp Nguồn 5V Chung</option>
+          <option value="S10">S10: Lỗi Hở Tải Open-Load &amp; Quá Dòng Cầu H (&gt;8.0A Qua ADC/SPI SmartFET)</option>
+          <option value="S11">S11: Vòng Lặp ISO 26262 (IoHwAb → DEM → FiM Inhibit → Safe-State Idle)</option>
+        </optgroup>
+        <optgroup label="Nhóm 4: Cưỡng Chế DCM UDS 0x2F, Sleep &amp; Báo Lỗi DET">
+          <option value="S12">S12: Dịch Vụ UDS 0x2F: ShortTermAdjustment (0x03), Freeze (0x02) &amp; Default</option>
+          <option value="S13">S13: Trả Quyền 0x2F ReturnControlToECU &amp; Hạ Chân Tiết Kiệm Điện (DeInit)</option>
+          <option value="S14">S14: Bẫy DET Errors (UNINIT, PARAM_SIGNAL, PARAM_POINTER, PARAM_DUTY)</option>
+        </optgroup>
+      </select>
+
+      <button class="btn btn-sm" onclick="resetCurrentScenario()">⟲ Reset Kịch Bản</button>
+      <button id="btnPrevStep" class="btn btn-sm" onclick="prevScenarioStep()" disabled>◀ Lùi</button>
+      <span id="stepIndicator" class="step-pill">Bước 0 / 0</span>
+      <button id="btnNextStep" class="btn btn-sm btn-pri" onclick="nextScenarioStep()">Bước Tiếp ▶</button>
+      <button id="btnAutoPlay" class="btn btn-sm btn-pur" onclick="toggleScenarioAutoPlay()">▶ Tự Động Kịch Bản</button>
+
+      <div class="clock-box">
+        <span style="font-size:10.5px;color:var(--mut);font-weight:700">Clock:</span>
+        <span id="clockVal" class="clock-val mono">0 ms</span>
+        <button id="btnStepClock" class="btn btn-sm btn-ok" onclick="stepClockTick()" title="Chạy IoHwAb_MainFunction() +5ms">+5ms MainFn</button>
+        <button id="btnAutoClock" class="btn btn-sm" onclick="toggleAutoClock()">⏱ Auto Clock</button>
+      </div>
+    </div>
+
+    <div class="hdr-badges">
+      <span id="hdrBadgeSupply" class="state-badge sb-ok">5V_Ref: 5000mV</span>
+      <span id="hdrBadgeQual" class="state-badge sb-ok">Qual: GOOD</span>
+      <span id="hdrBadgePwm" class="state-badge sb-pri">PWM: 0x4000 (50%)</span>
+      <span id="hdrBadgeOverride" class="state-badge sb-idle">0x2F: ECU</span>
+    </div>
+  </div>
+</header>
+
+<!-- ================= VIEW 1: INTERACTIVE SIMULATOR (ZERO-SCROLL 3 COLUMNS) ================= -->
+<main id="viewSim" class="workspace">
+
+  <!-- LEFT COLUMN: QUICK ACTIONS + SCENARIO WHAT-IF + 6 ECUC CONFIG TABS -->
+  <aside class="col-left">
+    <!-- CARD 1: QUICK ACTION BAR -->
+    <section class="panel">
+      <div class="panel-hdr">
+        <span class="panel-title">⚡ Thao Tác Vật Lý &amp; Sự Kiện Nhanh</span>
+        <span class="panel-sub">Chân Pin / Lỗi / 0x2F</span>
+      </div>
+      <div class="panel-body">
+        <div class="qa-row">
+          <span style="font-size:11px;font-weight:700;color:var(--mut)">Áp P02.3:</span>
+          <select id="qaAdcVoltSelect" style="flex:1;background:var(--panel-3);border:1px solid var(--bdr);border-radius:5px;padding:3px 6px;font-size:11px;font-weight:600">
+            <option value="80">0.08 V (Short-to-GND &lt;0.25V)</option>
+            <option value="500">0.50 V (0.0% Pedal)</option>
+            <option value="1500">1.50 V (25.0% Pedal)</option>
+            <option value="2500" selected>2.50 V (50.0% Pedal)</option>
+            <option value="3500">3.50 V (75.0% Pedal)</option>
+            <option value="4500">4.50 V (100.0% Pedal)</option>
+            <option value="4920">4.92 V (Short-to-Bat &gt;4.75V)</option>
+          </select>
+          <button class="btn btn-sm btn-ok" onclick="qaSetAdcVoltage()">▶ Đặt Áp</button>
+        </div>
+        <div class="qa-grid">
+          <button id="qaBtnDioBrake" class="qa-btn" onclick="qaToggleDioBrake()">
+            <span>🔘 Phanh P00.7</span><span id="qaTxtDio" class="mono">HIGH (0)</span>
+          </button>
+          <button id="qaBtnPwmCmd" class="qa-btn" onclick="qaCyclePwmCmd()">
+            <span>⚙️ SWC PWM Cmd</span><span id="qaTxtPwm" class="mono">50.0%</span>
+          </button>
+          <button id="qaBtnIcuFreq" class="qa-btn" onclick="qaCycleIcuFreq()">
+            <span>🛞 Xung ICU P01.4</span><span id="qaTxtIcu" class="mono">500Hz</span>
+          </button>
+          <button id="qaBtnFaultInj" class="qa-btn qa-err" onclick="qaCycleFaultInjection()">
+            <span>⚡ Tiêm Lỗi Tải</span><span id="qaTxtFault" class="mono">OK</span>
+          </button>
+          <button id="qaBtnDcm2F" class="qa-btn qa-warn" onclick="qaCycleDcm0x2F()">
+            <span>🩺 DCM 0x2F</span><span id="qaTxtDcm2F" class="mono">ECU</span>
+          </button>
+          <button id="qaBtnFiM" class="qa-btn qa-err" onclick="qaToggleFiMPerm()">
+            <span>🛡️ FiM Perm</span><span id="qaTxtFiM" class="mono">ALLOW</span>
+          </button>
+          <button class="qa-btn" onclick="stepClockTick()">
+            <span>▶ +Tick MainFn</span><span class="mono">5ms</span>
+          </button>
+          <button class="qa-btn" onclick="resetCurrentScenario()">
+            <span>⟲ Reset State</span><span class="mono">Init</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- CARD 2: CURRENT SCENARIO SUMMARY & 3 WHAT-IF BUTTONS -->
+    <section class="panel">
+      <div class="panel-hdr">
+        <span class="panel-title">🎬 Kịch Bản Đang Chạy &amp; Thử Nghiệm Nhanh</span>
+        <span id="scenIdBadge" class="panel-sub mono">S1</span>
+      </div>
+      <div class="panel-body">
+        <div id="scenSummaryBox" class="scen-desc-box"></div>
+        <div style="font-size:10.5px;font-weight:700;color:var(--pur);margin-bottom:4px">🧪 Thử Nghiệm Nhanh (1-Click What-If):</div>
+        <div id="whatIfContainer" class="whatif-grid"></div>
+      </div>
+    </section>
+
+    <!-- CARD 3: 6-TAB ECUC CONFIG PANEL (36 PARAMETERS + >1S TOOLTIP) -->
+    <section class="panel">
+      <div class="panel-hdr">
+        <span class="panel-title">⚙️ Cấu Hình ECUC IoHwAb (Hover &gt;1s Xem SWS)</span>
+        <span class="panel-sub">36 Parameters</span>
+      </div>
+      <div class="cfg-tabs">
+        <button id="cfgTabBtn0" class="cfg-tab active" onclick="switchCfgTab(0)">1. General</button>
+        <button id="cfgTabBtn1" class="cfg-tab" onclick="switchCfgTab(1)">2. Digital DIO</button>
+        <button id="cfgTabBtn2" class="cfg-tab" onclick="switchCfgTab(2)">3. Analog ADC</button>
+        <button id="cfgTabBtn3" class="cfg-tab" onclick="switchCfgTab(3)">4. PWM Bridge</button>
+        <button id="cfgTabBtn4" class="cfg-tab" onclick="switchCfgTab(4)">5. ICU Capture</button>
+        <button id="cfgTabBtn5" class="cfg-tab" onclick="switchCfgTab(5)">6. Diag &amp; 0x2F</button>
+      </div>
+
+      <!-- TAB 0: GENERAL & SUPPLY (6) -->
+      <div id="cfgPane0" class="cfg-pane">
+        <div class="cfg-row" data-cfg-key="IoHwAbInitialized">
+          <label class="cfg-lbl" for="cfg_IoHwAbInitialized"><span class="cfg-i">ⓘ</span><span class="cfg-name">IoHwAbInitialized (State)</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_IoHwAbInitialized" checked onchange="onConfigInputChanged('IoHwAbInitialized')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="IoHwAbDevErrorDetect">
+          <label class="cfg-lbl" for="cfg_IoHwAbDevErrorDetect"><span class="cfg-i">ⓘ</span><span class="cfg-name">IoHwAbDevErrorDetect</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_IoHwAbDevErrorDetect" checked onchange="onConfigInputChanged('IoHwAbDevErrorDetect')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="IoHwAbVersionInfoApi">
+          <label class="cfg-lbl" for="cfg_IoHwAbVersionInfoApi"><span class="cfg-i">ⓘ</span><span class="cfg-name">IoHwAbVersionInfoApi</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_IoHwAbVersionInfoApi" onchange="onConfigInputChanged('IoHwAbVersionInfoApi')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="IoHwAbMainFunctionPeriodMs">
+          <label class="cfg-lbl" for="cfg_IoHwAbMainFunctionPeriodMs"><span class="cfg-i">ⓘ</span><span class="cfg-name">MainFunctionPeriodMs</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_IoHwAbMainFunctionPeriodMs" min="1" max="50" step="1" value="5" onchange="onConfigInputChanged('IoHwAbMainFunctionPeriodMs')" /><span style="font-size:10px;color:var(--mut)">ms</span></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="IoHwAbSensorSupplyMeasuredMv">
+          <label class="cfg-lbl" for="cfg_IoHwAbSensorSupplyMeasuredMv"><span class="cfg-i">ⓘ</span><span class="cfg-name">5V_Ref MeasuredMv</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_IoHwAbSensorSupplyMeasuredMv" min="3000" max="5500" step="50" value="5000" onchange="onConfigInputChanged('IoHwAbSensorSupplyMeasuredMv')" /><span style="font-size:10px;color:var(--mut)">mV</span></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="IoHwAbSupplyValidWindowMv">
+          <label class="cfg-lbl" for="cfg_IoHwAbSupplyValidWindowMv"><span class="cfg-i">ⓘ</span><span class="cfg-name">SupplyValidWindowMv</span></label>
+          <div class="cfg-ctrl"><input type="text" id="cfg_IoHwAbSupplyValidWindowMv" class="mono" value="4750 .. 5250" style="width:98px;text-align:center" onchange="onConfigInputChanged('IoHwAbSupplyValidWindowMv')" /></div>
+        </div>
+      </div>
+
+      <!-- TAB 1: DIGITAL DIO (6) -->
+      <div id="cfgPane1" class="cfg-pane hidden">
+        <div class="cfg-row" data-cfg-key="IoHwAbDioActivePolarity">
+          <label class="cfg-lbl" for="cfg_IoHwAbDioActivePolarity"><span class="cfg-i">ⓘ</span><span class="cfg-name">DioActivePolarity</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_IoHwAbDioActivePolarity" onchange="onConfigInputChanged('IoHwAbDioActivePolarity')">
+              <option value="ACTIVE_LOW">ACTIVE_LOW</option>
+              <option value="ACTIVE_HIGH">ACTIVE_HIGH</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="IoHwAbDioDebounceEnable">
+          <label class="cfg-lbl" for="cfg_IoHwAbDioDebounceEnable"><span class="cfg-i">ⓘ</span><span class="cfg-name">DioDebounceEnable</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_IoHwAbDioDebounceEnable" checked onchange="onConfigInputChanged('IoHwAbDioDebounceEnable')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="IoHwAbDioDebounceTimeMs">
+          <label class="cfg-lbl" for="cfg_IoHwAbDioDebounceTimeMs"><span class="cfg-i">ⓘ</span><span class="cfg-name">DioDebounceTimeMs</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_IoHwAbDioDebounceTimeMs" min="0" max="100" step="5" value="15" onchange="onConfigInputChanged('IoHwAbDioDebounceTimeMs')" /><span style="font-size:10px;color:var(--mut)">ms</span></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="IoHwAbPortPinPullMode">
+          <label class="cfg-lbl" for="cfg_IoHwAbPortPinPullMode"><span class="cfg-i">ⓘ</span><span class="cfg-name">PortPinPullResistor</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_IoHwAbPortPinPullMode" onchange="onConfigInputChanged('IoHwAbPortPinPullMode')">
+              <option value="PORT_PIN_IN_PULL_UP">PULL_UP</option>
+              <option value="PORT_PIN_IN_PULL_DOWN">PULL_DOWN</option>
+              <option value="PORT_PIN_IN_NO_PULL">NO_PULL</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="IoHwAbDioOutputReadbackVerify">
+          <label class="cfg-lbl" for="cfg_IoHwAbDioOutputReadbackVerify"><span class="cfg-i">ⓘ</span><span class="cfg-name">DioOutputReadbackVerify</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_IoHwAbDioOutputReadbackVerify" checked onchange="onConfigInputChanged('IoHwAbDioOutputReadbackVerify')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="PortPinDirectionChangeable">
+          <label class="cfg-lbl" for="cfg_PortPinDirectionChangeable"><span class="cfg-i">ⓘ</span><span class="cfg-name">PortPinDirectionChange</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_PortPinDirectionChangeable" onchange="onConfigInputChanged('PortPinDirectionChangeable')" /></div>
+        </div>
+      </div>
+
+      <!-- TAB 2: ANALOG ADC (6) -->
+      <div id="cfgPane2" class="cfg-pane hidden">
+        <div class="cfg-row" data-cfg-key="AdcGroupTriggSrc">
+          <label class="cfg-lbl" for="cfg_AdcGroupTriggSrc"><span class="cfg-i">ⓘ</span><span class="cfg-name">AdcGroupTriggSrc</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_AdcGroupTriggSrc" onchange="onConfigInputChanged('AdcGroupTriggSrc')">
+              <option value="ADC_TRIGG_SRC_SW">ADC_TRIGG_SRC_SW</option>
+              <option value="ADC_TRIGG_SRC_HW">ADC_TRIGG_SRC_HW</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="AdcResolutionBits">
+          <label class="cfg-lbl" for="cfg_AdcResolutionBits"><span class="cfg-i">ⓘ</span><span class="cfg-name">AdcResolutionBits</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_AdcResolutionBits" onchange="onConfigInputChanged('AdcResolutionBits')">
+              <option value="12">12-bit (0..4095)</option>
+              <option value="10">10-bit (0..1023)</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="IoHwAbEnableRatiometricCompensation">
+          <label class="cfg-lbl" for="cfg_IoHwAbEnableRatiometricCompensation"><span class="cfg-i">ⓘ</span><span class="cfg-name">Ratiometric 5V Comp</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_IoHwAbEnableRatiometricCompensation" checked onchange="onConfigInputChanged('IoHwAbEnableRatiometricCompensation')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="IoHwAbPcbVoltageDividerGainOffset">
+          <label class="cfg-lbl" for="cfg_IoHwAbPcbVoltageDividerGainOffset"><span class="cfg-i">ⓘ</span><span class="cfg-name">PCB Gain / Offset</span></label>
+          <div class="cfg-ctrl"><input type="text" id="cfg_IoHwAbPcbVoltageDividerGainOffset" class="mono" value="0.025 / -12.5" style="width:98px;text-align:center" onchange="onConfigInputChanged('IoHwAbPcbVoltageDividerGainOffset')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="IoHwAbAdcIirFilterEnable">
+          <label class="cfg-lbl" for="cfg_IoHwAbAdcIirFilterEnable"><span class="cfg-i">ⓘ</span><span class="cfg-name">AdcIirFilterEnable</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_IoHwAbAdcIirFilterEnable" checked onchange="onConfigInputChanged('IoHwAbAdcIirFilterEnable')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="IoHwAbAdcIirAlphaCoeff">
+          <label class="cfg-lbl" for="cfg_IoHwAbAdcIirAlphaCoeff"><span class="cfg-i">ⓘ</span><span class="cfg-name">IirAlphaCoeff (0.1..1)</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_IoHwAbAdcIirAlphaCoeff" min="0.1" max="1" step="0.05" value="0.4" onchange="onConfigInputChanged('IoHwAbAdcIirAlphaCoeff')" /></div>
+        </div>
+      </div>
+
+      <!-- TAB 3: PWM & H-BRIDGE (6) -->
+      <div id="cfgPane3" class="cfg-pane hidden">
+        <div class="cfg-row" data-cfg-key="IoHwAbPwmDefaultPeriodHz">
+          <label class="cfg-lbl" for="cfg_IoHwAbPwmDefaultPeriodHz"><span class="cfg-i">ⓘ</span><span class="cfg-name">PwmDefaultPeriodHz</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_IoHwAbPwmDefaultPeriodHz" min="500" max="25000" step="500" value="2000" onchange="onConfigInputChanged('IoHwAbPwmDefaultPeriodHz')" /><span style="font-size:10px;color:var(--mut)">Hz</span></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="IoHwAbPwmDutyClampEnable">
+          <label class="cfg-lbl" for="cfg_IoHwAbPwmDutyClampEnable"><span class="cfg-i">ⓘ</span><span class="cfg-name">PwmDutyClampEnable</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_IoHwAbPwmDutyClampEnable" checked onchange="onConfigInputChanged('IoHwAbPwmDutyClampEnable')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="IoHwAbPwmDutyClampRangePct">
+          <label class="cfg-lbl" for="cfg_IoHwAbPwmDutyClampRangePct"><span class="cfg-i">ⓘ</span><span class="cfg-name">DutyClampRange (%)</span></label>
+          <div class="cfg-ctrl"><input type="text" id="cfg_IoHwAbPwmDutyClampRangePct" class="mono" value="5.0 .. 95.0" style="width:94px;text-align:center" onchange="onConfigInputChanged('IoHwAbPwmDutyClampRangePct')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="PwmPolarityAndIdleState">
+          <label class="cfg-lbl" for="cfg_PwmPolarityAndIdleState"><span class="cfg-i">ⓘ</span><span class="cfg-name">PwmPolarity &amp; Idle</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_PwmPolarityAndIdleState" onchange="onConfigInputChanged('PwmPolarityAndIdleState')">
+              <option value="PWM_HIGH / IDLE_LOW">HIGH / IDLE_LOW</option>
+              <option value="PWM_LOW / IDLE_HIGH">LOW / IDLE_HIGH</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="PwmDutycycleUpdatedEndperiod">
+          <label class="cfg-lbl" for="cfg_PwmDutycycleUpdatedEndperiod"><span class="cfg-i">ⓘ</span><span class="cfg-name">UpdatedEndperiod (Shadow)</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_PwmDutycycleUpdatedEndperiod" checked onchange="onConfigInputChanged('PwmDutycycleUpdatedEndperiod')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="IoHwAbHBridgeDriveMode">
+          <label class="cfg-lbl" for="cfg_IoHwAbHBridgeDriveMode"><span class="cfg-i">ⓘ</span><span class="cfg-name">HBridgeDriveMode</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_IoHwAbHBridgeDriveMode" onchange="onConfigInputChanged('IoHwAbHBridgeDriveMode')">
+              <option value="PWM_PLUS_DIR_AND_EN">PWM + DIR + EN</option>
+              <option value="DUAL_PWM_HALF_BRIDGE">DUAL_PWM_BRIDGE</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 4: ICU CAPTURE (4) -->
+      <div id="cfgPane4" class="cfg-pane hidden">
+        <div class="cfg-row" data-cfg-key="IcuMeasurementMode">
+          <label class="cfg-lbl" for="cfg_IcuMeasurementMode"><span class="cfg-i">ⓘ</span><span class="cfg-name">IcuMeasurementMode</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_IcuMeasurementMode" onchange="onConfigInputChanged('IcuMeasurementMode')">
+              <option value="ICU_MODE_SIGNAL_MEASUREMENT">SIGNAL_MEASUREMENT</option>
+              <option value="ICU_MODE_EDGE_COUNTER">EDGE_COUNTER</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="IcuDefaultStartEdge">
+          <label class="cfg-lbl" for="cfg_IcuDefaultStartEdge"><span class="cfg-i">ⓘ</span><span class="cfg-name">IcuDefaultStartEdge</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_IcuDefaultStartEdge" onchange="onConfigInputChanged('IcuDefaultStartEdge')">
+              <option value="ICU_RISING_EDGE">ICU_RISING_EDGE</option>
+              <option value="ICU_FALLING_EDGE">ICU_FALLING_EDGE</option>
+              <option value="ICU_BOTH_EDGES">ICU_BOTH_EDGES</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="IoHwAbSpeedSensorTeethCount">
+          <label class="cfg-lbl" for="cfg_IoHwAbSpeedSensorTeethCount"><span class="cfg-i">ⓘ</span><span class="cfg-name">SpeedSensorTeethCount</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_IoHwAbSpeedSensorTeethCount" min="1" max="120" step="1" value="20" onchange="onConfigInputChanged('IoHwAbSpeedSensorTeethCount')" /><span style="font-size:10px;color:var(--mut)">teeth</span></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="IoHwAbIcuTimeoutMs">
+          <label class="cfg-lbl" for="cfg_IoHwAbIcuTimeoutMs"><span class="cfg-i">ⓘ</span><span class="cfg-name">IcuStallTimeoutMs</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_IoHwAbIcuTimeoutMs" min="10" max="500" step="10" value="50" onchange="onConfigInputChanged('IoHwAbIcuTimeoutMs')" /><span style="font-size:10px;color:var(--mut)">ms</span></div>
+        </div>
+      </div>
+
+      <!-- TAB 5: DIAG, FIM & DCM 0x2F (8) -->
+      <div id="cfgPane5" class="cfg-pane hidden">
+        <div class="cfg-row" data-cfg-key="IoHwAbAdcShortToGndThrMv">
+          <label class="cfg-lbl" for="cfg_IoHwAbAdcShortToGndThrMv"><span class="cfg-i">ⓘ</span><span class="cfg-name">ShortToGndThrMv</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_IoHwAbAdcShortToGndThrMv" min="50" max="1000" step="50" value="250" onchange="onConfigInputChanged('IoHwAbAdcShortToGndThrMv')" /><span style="font-size:10px;color:var(--mut)">mV</span></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="IoHwAbAdcShortToBatThrMv">
+          <label class="cfg-lbl" for="cfg_IoHwAbAdcShortToBatThrMv"><span class="cfg-i">ⓘ</span><span class="cfg-name">ShortToBatThrMv</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_IoHwAbAdcShortToBatThrMv" min="4000" max="4950" step="50" value="4750" onchange="onConfigInputChanged('IoHwAbAdcShortToBatThrMv')" /><span style="font-size:10px;color:var(--mut)">mV</span></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="IoHwAbActuatorOverCurrentLimitMa">
+          <label class="cfg-lbl" for="cfg_IoHwAbActuatorOverCurrentLimitMa"><span class="cfg-i">ⓘ</span><span class="cfg-name">OverCurrentLimitMa</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_IoHwAbActuatorOverCurrentLimitMa" min="1000" max="20000" step="500" value="8000" onchange="onConfigInputChanged('IoHwAbActuatorOverCurrentLimitMa')" /><span style="font-size:10px;color:var(--mut)">mA</span></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="IoHwAbFaultSubstStrategy">
+          <label class="cfg-lbl" for="cfg_IoHwAbFaultSubstStrategy"><span class="cfg-i">ⓘ</span><span class="cfg-name">FaultSubstStrategy</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_IoHwAbFaultSubstStrategy" onchange="onConfigInputChanged('IoHwAbFaultSubstStrategy')">
+              <option value="USE_REPLACEMENT_VALUE">USE_REPLACEMENT</option>
+              <option value="HOLD_LAST_VALID_VALUE">HOLD_LAST_VALID</option>
+              <option value="PASS_RAW_WITH_FAULT_FLAG">PASS_RAW_FAULT</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="IoHwAbSensorReplacementValuePct">
+          <label class="cfg-lbl" for="cfg_IoHwAbSensorReplacementValuePct"><span class="cfg-i">ⓘ</span><span class="cfg-name">ReplacementValuePct</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_IoHwAbSensorReplacementValuePct" min="0" max="100" step="5" value="10" onchange="onConfigInputChanged('IoHwAbSensorReplacementValuePct')" /><span style="font-size:10px;color:var(--mut)">%</span></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="IoHwAbDiagDebounceTicks">
+          <label class="cfg-lbl" for="cfg_IoHwAbDiagDebounceTicks"><span class="cfg-i">ⓘ</span><span class="cfg-name">DiagDebounceTicks</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_IoHwAbDiagDebounceTicks" min="1" max="20" step="1" value="3" onchange="onConfigInputChanged('IoHwAbDiagDebounceTicks')" /><span style="font-size:10px;color:var(--mut)">ticks</span></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="IoHwAbEnableFiMSafeStateCheck">
+          <label class="cfg-lbl" for="cfg_IoHwAbEnableFiMSafeStateCheck"><span class="cfg-i">ⓘ</span><span class="cfg-name">EnableFiMSafeStateCheck</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_IoHwAbEnableFiMSafeStateCheck" checked onchange="onConfigInputChanged('IoHwAbEnableFiMSafeStateCheck')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="IoHwAbEnableDcm0x2FControl">
+          <label class="cfg-lbl" for="cfg_IoHwAbEnableDcm0x2FControl"><span class="cfg-i">ⓘ</span><span class="cfg-name">EnableDcm0x2FControl</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_IoHwAbEnableDcm0x2FControl" checked onchange="onConfigInputChanged('IoHwAbEnableDcm0x2FControl')" /></div>
+        </div>
+      </div>
+
+      <div id="cfgValidationBox" style="padding:0 10px 8px"></div>
+    </section>
+  </aside>
+
+  <!-- CENTER COLUMN: 4-CHANNEL IO ANATOMY, FORMULAS, DUAL 8-BIT REGS, METERS/SM, SVG ARCHITECTURE -->
+  <section class="col-center">
+    <!-- PANEL 1: 2-TIER IO SIGNAL MATRIX, SCALING FORMULAS & DUAL 8-BIT REGISTERS -->
+    <section class="panel">
+      <div class="panel-hdr">
+        <span class="panel-title">⚡ Giải Phẫu 4 Kênh I/O (Raw ↔ Conditioning ↔ RTE), Công Thức &amp; 2 Thanh Ghi 8-Bit</span>
+        <span class="panel-sub">Click kênh hoặc ô Bit để thử nghiệm</span>
+      </div>
+      <div class="panel-body tier-split">
+        <!-- TIER 1A-1: 4 CHANNELS MATRIX -->
+        <div class="sig-tbl-wrap">
+          <table class="sig-tbl">
+            <thead>
+              <tr>
+                <th>Kênh (Signal ID)</th>
+                <th>Chân &amp; MCAL API</th>
+                <th>Giá Trị Thô (Raw/Hex)</th>
+                <th>Xử Lý Tại IoHwAb</th>
+                <th>Đơn Vị Vật Lý (RTE)</th>
+                <th>Chất Lượng</th>
+              </tr>
+            </thead>
+            <tbody id="signalChainTableBody"></tbody>
+          </table>
+        </div>
+
+        <!-- TIER 1A-2: LIVE MATH FORMULA & 0x2F MUX -->
+        <div id="formulaAnatomyBox" class="formula-box"></div>
+
+        <!-- TIER 1B: DUAL 8-BIT REGISTERS -->
+        <div class="reg-grid">
+          <div class="reg-card">
+            <div class="reg-top">
+              <span class="reg-name">Thanh A: IoHwAb_SignalStatusByte</span>
+              <span id="regAHex" class="reg-hex mono">0xFB</span>
+            </div>
+            <div id="regABits" class="bit-row"></div>
+          </div>
+
+          <div class="reg-card">
+            <div class="reg-top">
+              <span class="reg-name">Thanh B: IoHwAb_DiagControlByte</span>
+              <span id="regBHex" class="reg-hex mono">0x00</span>
+            </div>
+            <div id="regBBits" class="bit-row"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PANEL 2: VOLTAGE WINDOW, PWM 0x8000 SCALE & DUAL STATE MACHINES -->
+    <section class="panel">
+      <div class="panel-hdr">
+        <span class="panel-title">📊 Cửa Sổ Điện Áp (0..5V), Thang PWM (0x0000..0x8000) &amp; 2 Máy Trạng Thái Song Song</span>
+        <span id="iohwabExecBadge" class="panel-sub mono">MainFn: 5ms | 5V_Ref: 5000mV</span>
+      </div>
+      <div class="panel-body">
+        <div id="metersGrid" class="meters-grid"></div>
+        <div class="sm-dual">
+          <div class="sm-box">
+            <div class="sm-title">
+              <span>⚙️ Signal Conditioning Pipeline</span>
+              <span id="smPipeLbl" class="mono">IDLE_READY</span>
+            </div>
+            <div id="pipeSmDiagram" class="sm-states"></div>
+          </div>
+
+          <div class="sm-box">
+            <div class="sm-title">
+              <span>🛡️ Diag, FiM Fail-Safe &amp; DCM 0x2F</span>
+              <span id="smDiagLbl" class="mono">NORMAL_ECU</span>
+            </div>
+            <div id="diagSmDiagram" class="sm-states"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PANEL 3: INTERACTIVE END-TO-END AUTOSAR SVG ARCHITECTURE -->
+    <section class="panel">
+      <div class="panel-hdr">
+        <span class="panel-title">🏗️ Kiến Trúc Tương Tác End-to-End Module IoHwAb Trong AUTOSAR Classic</span>
+        <span class="panel-sub">Click bất kỳ Module nào để xem Input / Output &amp; API ở Inspector bên phải</span>
+      </div>
+      <div class="panel-body">
+        <div class="arch-wrap">
+          <svg id="iohwabArchSvg" class="arch-svg" viewBox="0 0 820 385" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <marker id="arrEnd" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                <path d="M 0 1 L 10 5 L 0 9 z" fill="currentColor" />
+              </marker>
+            </defs>
+
+            <!-- ARROWS LAYER -->
+            <path id="arr_sa_app" class="flow-arrow" d="M 220 40 L 201 40" marker-end="url(#arrEnd)" />
+            <path id="arr_app_sa" class="flow-arrow" d="M 201 56 L 220 56" marker-end="url(#arrEnd)" />
+            <path id="arr_sa_rte" class="flow-arrow" d="M 258 74 L 258 96 L 116 96 L 116 126" marker-end="url(#arrEnd)" />
+            <path id="arr_rte_sa" class="flow-arrow" d="M 140 126 L 140 104 L 280 104 L 280 74" marker-end="url(#arrEnd)" />
+            <path id="arr_rte_iohwab" class="flow-arrow" d="M 216 146 L 250 146" marker-end="url(#arrEnd)" />
+            <path id="arr_iohwab_rte" class="flow-arrow" d="M 250 172 L 216 172" marker-end="url(#arrEnd)" />
+
+            <path id="arr_iohwab_dem" class="flow-arrow" d="M 472 108 L 512 74" marker-end="url(#arrEnd)" />
+            <path id="arr_fim_iohwab" class="flow-arrow" d="M 552 74 L 512 108" marker-end="url(#arrEnd)" />
+            <path id="arr_dcm_iohwab" class="flow-arrow" d="M 710 74 L 710 92 L 548 92 L 548 108" marker-end="url(#arrEnd)" />
+            <path id="arr_ecum_iohwab" class="flow-arrow" d="M 605 135 L 570 135" marker-end="url(#arrEnd)" />
+            <path id="arr_iohwab_det" class="flow-arrow" d="M 570 198 L 605 198" marker-end="url(#arrEnd)" />
+
+            <path id="arr_iohwab_dio" class="flow-arrow" d="M 280 222 L 108 272" marker-end="url(#arrEnd)" />
+            <path id="arr_dio_iohwab" class="flow-arrow" d="M 135 272 L 302 222" marker-end="url(#arrEnd)" />
+            <path id="arr_adc_iohwab" class="flow-arrow" d="M 310 272 L 352 222" marker-end="url(#arrEnd)" />
+            <path id="arr_iohwab_adc" class="flow-arrow" d="M 378 222 L 336 272" marker-end="url(#arrEnd)" />
+            <path id="arr_iohwab_pwm" class="flow-arrow" d="M 465 222 L 512 272" marker-end="url(#arrEnd)" />
+            <path id="arr_icu_iohwab" class="flow-arrow" d="M 713 272 L 545 222" marker-end="url(#arrEnd)" />
+
+            <!-- MODULE BLOCKS (12 NODES) -->
+            <g id="node_MOD_SWC_APP" class="mod-node" onclick="selectModule('MOD_SWC_APP')">
+              <rect class="mod-rect" x="16" y="16" width="185" height="58" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="108" y="34" text-anchor="middle" fill="var(--pri)" font-weight="700" font-size="11.5">SWC_App (ASW)</text>
+              <text id="svgSub_MOD_SWC_APP" x="108" y="49" text-anchor="middle" fill="var(--mut)" font-size="9.8">PID Target: 50.0% FWD</text>
+              <text x="108" y="64" text-anchor="middle" fill="var(--txt-soft)" font-size="9">Control Law (HW-Independent)</text>
+            </g>
+
+            <g id="node_MOD_SWC_SA" class="mod-node" onclick="selectModule('MOD_SWC_SA')">
+              <rect class="mod-rect" x="220" y="16" width="200" height="58" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="320" y="34" text-anchor="middle" fill="var(--acc)" font-weight="700" font-size="11.5">SWC_SensorAct (ASW)</text>
+              <text id="svgSub_MOD_SWC_SA" x="320" y="49" text-anchor="middle" fill="var(--mut)" font-size="9.8">Pedal: 50.0% | Brake: 0</text>
+              <text x="320" y="64" text-anchor="middle" fill="var(--txt-soft)" font-size="9">Rte_Call_IoHwAb_* / NTC Map</text>
+            </g>
+
+            <g id="node_MOD_DEM_FIM" class="mod-node" onclick="selectModule('MOD_DEM_FIM')">
+              <rect class="mod-rect" x="440" y="16" width="175" height="58" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="527" y="34" text-anchor="middle" fill="var(--err)" font-weight="700" font-size="11.5">DEM &amp; FiM</text>
+              <text id="svgSub_MOD_DEM_FIM" x="527" y="49" text-anchor="middle" fill="var(--mut)" font-size="9.8">DEM: PASSED | FiM: ALLOW</text>
+              <text x="527" y="64" text-anchor="middle" fill="var(--txt-soft)" font-size="9">SetEventStatus / GetPerm</text>
+            </g>
+
+            <g id="node_MOD_DCM" class="mod-node" onclick="selectModule('MOD_DCM')">
+              <rect class="mod-rect" x="635" y="16" width="170" height="58" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="720" y="34" text-anchor="middle" fill="var(--warn)" font-weight="700" font-size="11.5">DCM (UDS 0x2F)</text>
+              <text id="svgSub_MOD_DCM" x="720" y="49" text-anchor="middle" fill="var(--mut)" font-size="9.8">Mode: RETURN_TO_ECU</text>
+              <text x="720" y="64" text-anchor="middle" fill="var(--txt-soft)" font-size="9">InputOutputControlById</text>
+            </g>
+
+            <g id="node_MOD_RTE" class="mod-node" onclick="selectModule('MOD_RTE')">
+              <rect class="mod-rect" x="16" y="126" width="200" height="64" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="116" y="145" text-anchor="middle" fill="var(--acc)" font-weight="700" font-size="11.5">RTE &amp; SchM</text>
+              <text id="svgSub_MOD_RTE" x="116" y="161" text-anchor="middle" fill="var(--mut)" font-size="9.8">C/S Ports | MainFn: 5ms</text>
+              <text x="116" y="177" text-anchor="middle" fill="var(--txt-soft)" font-size="9">IoHwAb_MainFunction / Area</text>
+            </g>
+
+            <g id="node_MOD_IOHWAB" class="mod-node selected" onclick="selectModule('MOD_IOHWAB')">
+              <rect class="mod-rect" x="250" y="108" width="320" height="114" rx="10" fill="var(--pri-bg)" stroke="var(--pri)" stroke-width="2.2"/>
+              <text x="410" y="128" text-anchor="middle" fill="var(--pri)" font-weight="800" font-size="13.5">IoHwAb Core (SWS_IoHwAb)</text>
+              <text id="svgSub_MOD_IOHWAB1" x="410" y="146" text-anchor="middle" fill="var(--txt)" font-weight="700" font-size="10.3">Init: INIT | 5V_Ref: 5000mV | Qual: GOOD</text>
+              <text id="svgSub_MOD_IOHWAB2" x="410" y="163" text-anchor="middle" fill="var(--cyan)" font-weight="700" font-size="10">SigReg: 0xFB | DiagReg: 0x00 | PWM: 0x4000</text>
+              <text x="410" y="182" text-anchor="middle" fill="var(--mut)" font-size="9.5">Scaling · 5V Ratiometric · IIR EMA · DIO Debounce</text>
+              <text x="410" y="198" text-anchor="middle" fill="var(--mut)" font-size="9.5">Duty Clamp · Diag Window · DEM/FiM · DCM 0x2F Mux</text>
+              <text x="410" y="213" text-anchor="middle" fill="var(--txt-soft)" font-size="9">ECU Abstraction Layer (PCB &amp; Electrical Mapping)</text>
+            </g>
+
+            <g id="node_MOD_BSWM_ECUM" class="mod-node" onclick="selectModule('MOD_BSWM_ECUM')">
+              <rect class="mod-rect" x="605" y="108" width="200" height="54" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="705" y="126" text-anchor="middle" fill="var(--ok)" font-weight="700" font-size="11.5">EcuM &amp; BswM</text>
+              <text id="svgSub_MOD_BSWM_ECUM" x="705" y="141" text-anchor="middle" fill="var(--mut)" font-size="9.8">State: RUN | SafeReq: OFF</text>
+              <text x="705" y="155" text-anchor="middle" fill="var(--txt-soft)" font-size="9">Init / DeInit / SafeState()</text>
+            </g>
+
+            <g id="node_MOD_DET" class="mod-node" onclick="selectModule('MOD_DET')">
+              <rect class="mod-rect" x="605" y="174" width="200" height="48" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="705" y="193" text-anchor="middle" fill="var(--err)" font-weight="700" font-size="11.5">DET (ModuleId = 254)</text>
+              <text id="svgSub_MOD_DET" x="705" y="210" text-anchor="middle" fill="var(--mut)" font-size="9.8">Faults Logged: 0 (OK)</text>
+            </g>
+
+            <g id="node_MOD_PORT_DIO" class="mod-node" onclick="selectModule('MOD_PORT_DIO')">
+              <rect class="mod-rect" x="16" y="272" width="185" height="74" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="108" y="291" text-anchor="middle" fill="var(--cyan)" font-weight="700" font-size="11.5">Port &amp; Dio (MCAL)</text>
+              <text id="svgSub_MOD_PORT_DIO" x="108" y="308" text-anchor="middle" fill="var(--mut)" font-size="9.8">P00.7: HIGH | Pull: UP</text>
+              <text x="108" y="324" text-anchor="middle" fill="var(--txt-soft)" font-size="9">Port_Init / Dio_Read/Write</text>
+              <text x="108" y="338" text-anchor="middle" fill="var(--mut)" font-size="8.8">SWS_Port · SWS_Dio</text>
+            </g>
+
+            <g id="node_MOD_ADC" class="mod-node" onclick="selectModule('MOD_ADC')">
+              <rect class="mod-rect" x="218" y="272" width="185" height="74" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="310" y="291" text-anchor="middle" fill="var(--ok)" font-weight="700" font-size="11.5">Adc Driver (MCAL)</text>
+              <text id="svgSub_MOD_ADC" x="310" y="308" text-anchor="middle" fill="var(--mut)" font-size="9.8">Raw: 2048/4095 (2500mV)</text>
+              <text x="310" y="324" text-anchor="middle" fill="var(--txt-soft)" font-size="9">SetupBuf / StartConv / ReadGrp</text>
+              <text x="310" y="338" text-anchor="middle" fill="var(--mut)" font-size="8.8">SWS_Adc (SW / HW Trigger)</text>
+            </g>
+
+            <g id="node_MOD_PWM" class="mod-node" onclick="selectModule('MOD_PWM')">
+              <rect class="mod-rect" x="420" y="272" width="185" height="74" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="512" y="291" text-anchor="middle" fill="var(--pur)" font-weight="700" font-size="11.5">Pwm &amp; Ocu (MCAL)</text>
+              <text id="svgSub_MOD_PWM" x="512" y="308" text-anchor="middle" fill="var(--mut)" font-size="9.8">0x4000 (50.0% @ 2kHz)</text>
+              <text x="512" y="324" text-anchor="middle" fill="var(--txt-soft)" font-size="9">SetDutyCycle / SetToIdle</text>
+              <text x="512" y="338" text-anchor="middle" fill="var(--mut)" font-size="8.8">SWS_Pwm (0x0000..0x8000)</text>
+            </g>
+
+            <g id="node_MOD_ICU" class="mod-node" onclick="selectModule('MOD_ICU')">
+              <rect class="mod-rect" x="622" y="272" width="183" height="74" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="713" y="291" text-anchor="middle" fill="var(--warn)" font-weight="700" font-size="11.5">Icu &amp; Spi (MCAL)</text>
+              <text id="svgSub_MOD_ICU" x="713" y="308" text-anchor="middle" fill="var(--mut)" font-size="9.8">500Hz (1500 RPM) | SmartFET OK</text>
+              <text x="713" y="324" text-anchor="middle" fill="var(--txt-soft)" font-size="9">GetDutyCycleValues / SpiSync</text>
+              <text x="713" y="338" text-anchor="middle" fill="var(--mut)" font-size="8.8">SWS_Icu · SWS_Spi</text>
+            </g>
+
+            <!-- HARDWARE PCB FOOTER -->
+            <rect x="16" y="357" width="789" height="22" rx="5" fill="var(--panel)" stroke="var(--bdr)" stroke-width="1.2"/>
+            <text x="410" y="372" text-anchor="middle" fill="var(--mut)" font-weight="700" font-size="9.8">ECU_HW &amp; PCB: Pin P00.7 (Brake Pull-Up) · Pin P02.3 (Pedal ADC) · Pin P10.1 (H-Bridge/SmartFET) · Pin P01.4 (Wheel Speed) · 5V_Ref LDO</text>
+          </svg>
+        </div>
+      </div>
+    </section>
+  </section>
+
+  <!-- RIGHT COLUMN: STICKY 4-TAB INSPECTOR -->
+  <aside class="col-right">
+    <section class="panel insp-panel">
+      <div class="insp-tabs">
+        <button id="inspTabBtn0" class="insp-tab active" onclick="switchInspTab(0)">🔍 Bước Hiện Tại</button>
+        <button id="inspTabBtn1" class="insp-tab" onclick="switchInspTab(1)">🧩 Module</button>
+        <button id="inspTabBtn2" class="insp-tab" onclick="switchInspTab(2)">📄 Code C</button>
+        <button id="inspTabBtn3" class="insp-tab" onclick="switchInspTab(3)">📜 API Trace</button>
+      </div>
+      <div id="inspBody" class="insp-body"></div>
+    </section>
+  </aside>
+</main>
+
+<!-- ================= VIEW 2: MULTI-LEVEL HANDBOOK & ABBREVIATION TABLE ================= -->
+<main id="viewHb" class="hb-wrap hidden">
+  <div class="hb-nav1">
+    <button id="hbTab1_0" class="hb-tab1 active" onclick="switchHbTab1(0)">1. Kiến Trúc &amp; Trách Nhiệm</button>
+    <button id="hbTab1_1" class="hb-tab1" onclick="switchHbTab1(1)">2. Chuỗi Analog &amp; Ratiometric</button>
+    <button id="hbTab1_2" class="hb-tab1" onclick="switchHbTab1(2)">3. DIO, PWM (0x8000) &amp; ICU</button>
+    <button id="hbTab1_3" class="hb-tab1" onclick="switchHbTab1(3)">4. Diag Điện &amp; DEM / FiM</button>
+    <button id="hbTab1_4" class="hb-tab1" onclick="switchHbTab1(4)">5. DCM UDS 0x2F &amp; Sleep</button>
+    <button id="hbTab1_5" class="hb-tab1" onclick="switchHbTab1(5)">6. API R23-11, DET &amp; ECUC</button>
+    <button id="hbTab1_6" class="hb-tab1" onclick="switchHbTab1(6)">7. Bảng Thuật Ngữ &amp; Search</button>
+  </div>
+
+  <div id="hbNav2" class="hb-nav2"></div>
+
+  <div id="hbAbbrFilterBox" class="abbr-toolbar hidden">
+    <input id="abbrSearchInput" class="abbr-search" type="text" placeholder="🔍 Tìm kiếm thuật ngữ AUTOSAR IoHwAb (VD: Ratiometric, 0x8000, Clamp, Short-to-GND, 0x2F, SWS_IoHwAb...)" oninput="filterAbbreviationTable()" />
+    <div class="cat-pills">
+      <button id="catPill_ALL" class="cat-pill active" onclick="setAbbrCategory('ALL')">Tất cả (52)</button>
+      <button id="catPill_CORE" class="cat-pill" onclick="setAbbrCategory('CORE')">🧩 Core &amp; VFB</button>
+      <button id="catPill_ADC" class="cat-pill" onclick="setAbbrCategory('ADC')">📈 Analog &amp; Scaling</button>
+      <button id="catPill_DPWM" class="cat-pill" onclick="setAbbrCategory('DPWM')">⚡ DIO, PWM &amp; ICU</button>
+      <button id="catPill_DIAG" class="cat-pill" onclick="setAbbrCategory('DIAG')">🩺 Diag, DEM/FiM &amp; 0x2F</button>
+    </div>
+    <span id="abbrCountBadge" class="step-pill">52 thuật ngữ</span>
+  </div>
+
+  <div id="hbContentArea"></div>
+</main>
+
+<!-- ================= EXPORT ARXML / C / JSON MODAL ================= -->
+<div id="exportModal" class="modal-overlay hidden" onclick="if(event.target===this) closeExportModal()">
+  <div class="modal-box">
+    <div class="modal-hdr">
+      <strong style="font-size:13.5px;color:var(--pri)">📦 Xuất Cấu Hình IoHwAb AUTOSAR (ARXML · IoHwAb_Cfg.h · IoHwAb_Lcfg.c · JSON)</strong>
+      <button class="btn btn-sm" onclick="closeExportModal()">✖ Đóng</button>
+    </div>
+    <div class="modal-tabs">
+      <button id="expTab0" class="btn btn-sm btn-pri" onclick="switchExportTab(0)">IoHwAb.arxml</button>
+      <button id="expTab1" class="btn btn-sm" onclick="switchExportTab(1)">IoHwAb_Cfg.h</button>
+      <button id="expTab2" class="btn btn-sm" onclick="switchExportTab(2)">IoHwAb_Lcfg.c</button>
+      <button id="expTab3" class="btn btn-sm" onclick="switchExportTab(3)">IoHwAb_Config.json</button>
+    </div>
+    <div class="modal-body">
+      <pre id="exportCodeArea" class="code-block"></pre>
+    </div>
+    <div class="modal-ftr">
+      <button class="btn" onclick="copyExportCode()">📋 Copy Clipboard</button>
+      <button class="btn btn-ok" onclick="downloadExportCode()">⬇ Tải File Hiện Tại</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= FLOATING TOOLTIP POPUP (>1S HOVER ON ECUC FIELDS) ================= -->
+<div id="cfgTooltipPopup" role="tooltip"></div>
+<script>

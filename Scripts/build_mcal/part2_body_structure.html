@@ -1,0 +1,810 @@
+<!-- ================= STICKY UNIFIED HEADER ================= -->
+<header class="hdr">
+  <div class="hdr-row">
+    <div class="brand">
+      <span class="brand-badge">AUTOSAR Classic R22-11 / R23-11</span>
+      <div>
+        <div class="brand-title">8-Module Core MCAL Interactive Simulator &amp; Technical Handbook</div>
+        <div class="brand-sub">Mcu · Port · Dio · Adc · Pwm · Spi · Can · Fls ↔ IoHwAb / CanIf / Fee / EcuM ↔ RTE ↔ SWC · Silicon Registers</div>
+      </div>
+    </div>
+
+    <div class="view-switch" role="tablist">
+      <button id="btnViewSim" class="view-btn active" onclick="switchMainView('sim')">🎛️ Mô Phỏng 8 Module MCAL</button>
+      <button id="btnViewHb" class="view-btn" onclick="switchMainView('hb')">📖 Sổ Tay Đa Tầng &amp; Bảng Abbreviation</button>
+    </div>
+
+    <div class="hdr-actions">
+      <button class="btn btn-pri" onclick="openExportModal()">🧾 Xuất ARXML / *_Cfg.h / JSON</button>
+      <button class="btn btn-ok" onclick="downloadStandaloneHTML()">💾 Tải File .HTML</button>
+      <button id="btnTheme" class="btn" onclick="toggleTheme()">☀️ Light Mode</button>
+    </div>
+  </div>
+
+  <div class="hdr-row">
+    <div class="mod-ws-bar" role="tablist" aria-label="Module Workspace Tabs">
+      <span style="font-size:10.5px;font-weight:700;color:var(--mut);margin-right:2px">Module Tab:</span>
+      <button id="modWsBtn_Mcu" class="mod-ws-btn active" onclick="switchMcalWorkspace('Mcu')">⚡ Mcu</button>
+      <button id="modWsBtn_Port" class="mod-ws-btn" onclick="switchMcalWorkspace('Port')">🔌 Port</button>
+      <button id="modWsBtn_Dio" class="mod-ws-btn" onclick="switchMcalWorkspace('Dio')">💡 Dio</button>
+      <button id="modWsBtn_Adc" class="mod-ws-btn" onclick="switchMcalWorkspace('Adc')">📈 Adc</button>
+      <button id="modWsBtn_Pwm" class="mod-ws-btn" onclick="switchMcalWorkspace('Pwm')">〰️ Pwm</button>
+      <button id="modWsBtn_Spi" class="mod-ws-btn" onclick="switchMcalWorkspace('Spi')">🔄 Spi</button>
+      <button id="modWsBtn_Can" class="mod-ws-btn" onclick="switchMcalWorkspace('Can')">🚌 Can</button>
+      <button id="modWsBtn_Fls" class="mod-ws-btn" onclick="switchMcalWorkspace('Fls')">💾 Fls</button>
+      <button id="modWsBtn_E2E" class="mod-ws-btn" onclick="switchMcalWorkspace('E2E')">🔗 E2E Loop</button>
+    </div>
+
+    <div class="hdr-badges">
+      <span id="hdrBadgeMod" class="state-badge sb-org">Focus: Mcu</span>
+      <span id="hdrBadgeDrv" class="state-badge sb-net">Init: ALL READY</span>
+      <span id="hdrBadgeHw" class="state-badge sb-prep">PLL: 160MHz</span>
+      <span id="hdrBadgeFault" class="state-badge sb-sleep">DET/DEM: 0</span>
+    </div>
+  </div>
+
+  <div class="hdr-row">
+    <div class="scen-bar">
+      <label for="scenSelect" style="font-weight:700;font-size:11.5px;color:var(--mut)">Kịch bản:</label>
+      <select id="scenSelect" class="scen-select" onchange="onScenarioSelectChange()">
+        <optgroup label="1. Mcu (Microcontroller Driver)">
+          <option value="S1">S1: Mcu Khởi Tạo Clock Tree, Khóa PLL (160MHz) &amp; DistributePllClock</option>
+          <option value="S2">S2: Mcu Đọc ResetReason, Ngủ HALT/STOP &amp; Software Reset (UDS 0x11)</option>
+        </optgroup>
+        <optgroup label="2. Port &amp; Dio (I/O Port &amp; Digital I/O)">
+          <option value="S3">S3: Port_Init Pin Mux (PCR), Đổi Hướng/Mode Runtime &amp; Port_RefreshPortDirection</option>
+          <option value="S4">S4: Dio Đọc/Ghi/Đảo Chân IO Xuyên Tầng (SWC ↔ RTE ↔ IoHwAb ↔ Dio)</option>
+          <option value="S5">S5: Dio_WriteChannelGroup (Mask &amp; Offset) &amp; Dio_MaskedWritePort</option>
+        </optgroup>
+        <optgroup label="3. Adc &amp; Pwm (Analog Input, PWM &amp; Closed-Loop SWC)">
+          <option value="S6">S6: Adc SW Trigger One-Shot (SetupResultBuffer → Start → EOC ISR → ReadGroup)</option>
+          <option value="S7">S7: Adc HW Trigger &amp; Streaming Buffer (EnableHardwareTrigger → StreamLastPtr)</option>
+          <option value="S8">S8: Pwm Điều Chế Duty (0..0x8000), Đổi Chu Kỳ &amp; SetOutputToIdle</option>
+          <option value="S9">S9: 🔗 E2E Loop SWC_ThermalCtrl (Cảm Biến → Adc → IoHwAb → SWC → Pwm + Dio)</option>
+        </optgroup>
+        <optgroup label="4. Spi (SPI Handler / Driver)">
+          <option value="S10">S10: Spi Truyền Bất Đồng Bộ Seq → Job → Channel Với Internal Buffer (IB)</option>
+          <option value="S11">S11: Spi External Buffer (EB) &amp; Chèn Ngang Ưu Tiên Interruptible Sequence</option>
+        </optgroup>
+        <optgroup label="5. Can (CAN / CAN-FD Driver)">
+          <option value="S12">S12: Can Khởi Động Controller, CAN-FD 64B Qua HTH (Multiplexed) &amp; HRH Filter</option>
+          <option value="S13">S13: Can Xử Lý Sự Cố Bus-Off (TEC ≥ 256 → CanIf_ControllerBusOff) &amp; Wakeup</option>
+        </optgroup>
+        <optgroup label="6. Fls (Flash Driver) &amp; Kiểm Thử DET/DEM">
+          <option value="S14">S14: Fls Xóa Sector – Ghi Page – Đọc &amp; So Sánh (NvM → Fee → Fls_MainFunction)</option>
+          <option value="S15">S15: Fls_BlankCheck, Hủy Tác Vụ Khẩn Cấp Fls_Cancel &amp; Lỗi Căn Chỉnh Page</option>
+          <option value="S16">S16: 🛡️ Kiểm Thử Tổng Hợp Lỗi DET &amp; DEM Trên Cả 8 Module MCAL</option>
+        </optgroup>
+      </select>
+
+      <button class="btn btn-sm" onclick="resetCurrentScenario()">↺ Reset</button>
+      <button id="btnPrevStep" class="btn btn-sm" onclick="prevScenarioStep()" disabled>◀ Lùi</button>
+      <span id="stepIndicator" class="step-pill">Bước 0 / 0</span>
+      <button id="btnNextStep" class="btn btn-sm btn-pri" onclick="nextScenarioStep()">Tiếp ▶</button>
+      <button id="btnAutoPlay" class="btn btn-sm btn-pur" onclick="toggleScenarioAutoPlay()">▶ Tự Chạy</button>
+
+      <div class="clock-box">
+        <span style="font-size:10.5px;color:var(--mut);font-weight:700">Clock:</span>
+        <span id="clockVal" class="clock-val mono">0 ms</span>
+        <button class="btn btn-sm btn-ok" onclick="stepClockTick(1)" title="Thực thi 1 nhịp MainFunction (Fls/Spi/Can) &amp; hoàn tất HW ISR (+1 ms)">+1 Tick (MainFn/ISR)</button>
+        <button id="btnAutoClock" class="btn btn-sm" onclick="toggleAutoClock()">⏱ Auto Clock</button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- ================= VIEW 1: INTERACTIVE CO-SIMULATOR (ZERO-SCROLL 3 COLUMNS) ================= -->
+<main id="viewSim" class="workspace">
+
+  <!-- LEFT COLUMN: QUICK ACTIONS + SCENARIO WHAT-IF + 8 ECUC CONFIG SUB-TABS -->
+  <aside class="col-left">
+    <!-- CARD 1: QUICK ACTION BAR (ZERO-SCROLL TOP) -->
+    <section class="panel" style="border-color:var(--pri)">
+      <div class="panel-hdr" style="background:var(--pri-bg)">
+        <span class="panel-title" style="color:var(--pri)">⚡ Thao Tác Nhanh (Quick Action Bar)</span>
+        <span class="panel-sub">Zero-Scroll · 8 MCAL Drivers</span>
+      </div>
+      <div class="panel-body">
+        <div class="qa-grid">
+          <button id="qaBtn_Mcu" class="qa-btn qa-focus" onclick="qaInitAllMcal()" title="Gọi chuỗi EcuM -> Mcu_Init -> InitClock -> DistributePllClock -> Port/Adc/Pwm/Spi/Can/Fls_Init">
+            <span>⚡ 1. Init All 8 MCAL &amp; PLL</span><span class="mono">EcuM</span>
+          </button>
+          <button id="qaBtn_PortDio" class="qa-btn" onclick="qaDioFlipAndPortRefresh()" title="Gọi Dio_FlipChannel(PA1) &amp; Port_RefreshPortDirection()">
+            <span>🔌💡 2. Dio_Flip &amp; Port_Refresh</span><span class="mono">I/O</span>
+          </button>
+          <button id="qaBtn_Adc" class="qa-btn" onclick="qaTriggerAdcConversion()" title="Gọi Adc_StartGroupConversion() + kích ngắt ADC EOC + Adc_ReadGroup()">
+            <span>📈 3. Trigger Adc Conv/EOC</span><span class="mono">SAR</span>
+          </button>
+          <button id="qaBtn_Pwm" class="qa-btn" onclick="qaUpdatePwmDuty()" title="Cập nhật Pwm_SetDutyCycle() / Pwm_SetPeriodAndDuty() theo thông số cấu hình">
+            <span>〰️ 4. Update Pwm Duty/Per</span><span class="mono">PWM</span>
+          </button>
+          <button id="qaBtn_Spi" class="qa-btn" onclick="qaSpiAsyncTransmit()" title="Nạp Spi_WriteIB/SetupEB và gọi Spi_AsyncTransmit(SpiSeq_0)">
+            <span>🔄 5. Spi_AsyncTransmit</span><span class="mono">Seq</span>
+          </button>
+          <button id="qaBtn_Can" class="qa-btn" onclick="qaCanTxAndRx()" title="Gọi Can_Write(HTH_0) phát khung CAN/CAN-FD &amp; giả lập Rx qua HRH_0">
+            <span>🚌 6. Can_Write &amp; Rx(HRH)</span><span class="mono">HOH</span>
+          </button>
+          <button id="qaBtn_Fls" class="qa-btn" onclick="qaFlsEraseAndWrite()" title="Gọi Fee -> Fls_Erase / Fls_Write() chuẩn bị cho Fls_MainFunction()">
+            <span>💾 7. Fls_Erase &amp; Write</span><span class="mono">Fee</span>
+          </button>
+          <button id="qaBtn_Tick" class="qa-btn qa-warn" onclick="stepClockTick(1)" title="Chạy 1 chu kỳ Fls_MainFunction / Spi_MainFunction_Handling / Can_MainFunction">
+            <span>⏱ 8. +1 Tick MainFn/ISR</span><span class="mono">+1ms</span>
+          </button>
+        </div>
+
+        <div class="qa-hw-box">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
+            <span class="mono" style="font-size:10.5px;font-weight:800;color:var(--cyan)">🎛️ Kích Thích Phần Cứng Nhanh (Silicon Stimulus)</span>
+            <button class="btn btn-sm" onclick="qaResetAllMcal()" style="padding:1px 6px;font-size:10px">🧹 Reset All</button>
+          </div>
+          <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center">
+            <button class="btn btn-sm btn-ok" onclick="qaRunThermalLoopStep()" title="Chạy vòng kín SWC_ThermalCtrl: đọc ADC -> tính độ quạt PWM -> bật/tắt LED DIO">🌡️ Chạy SWC Thermal</button>
+            <button class="btn btn-sm btn-pur" onclick="qaInjectCanRxOnly()" title="Giả lập nhận gói CAN ID=0x105 từ bus vào HRH_0">📡 Inject CAN Rx</button>
+            <button class="btn btn-sm btn-err" onclick="qaTriggerCanBusOff()" title="Tăng TEC=256 kích hoạt CanIf_ControllerBusOff">💥 Bus-Off</button>
+            <button class="btn btn-sm btn-warn" onclick="qaToggleMcuSleep()" title="Đảo chế độ Mcu_SetMode(MCU_MODE_HALT / RUN)">🌙 MCU Halt</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CARD 2: CURRENT SCENARIO SUMMARY & 3 WHAT-IF BUTTONS -->
+    <section class="panel">
+      <div class="panel-hdr">
+        <span class="panel-title">🎬 Kịch Bản Đang Chạy &amp; Thử Nghiệm Nhanh</span>
+        <span id="scenIdBadge" class="panel-sub mono">S1</span>
+      </div>
+      <div class="panel-body">
+        <div id="scenSummaryBox" class="scen-desc-box"></div>
+        <div style="font-size:10.5px;font-weight:700;color:var(--pur);margin-bottom:4px">🧪 3 Nút Thử Nghiệm Nhanh (1-Click What-If):</div>
+        <div id="whatIfContainer" class="whatif-grid"></div>
+      </div>
+    </section>
+
+    <!-- CARD 3: 8-TAB ECUC CONFIG PANEL (48 PARAMETERS + >1S TOOLTIP) -->
+    <section class="panel">
+      <div class="panel-hdr">
+        <span class="panel-title">⚙️ Cấu Hình ECUC 8 Module MCAL (Hover &gt;1s)</span>
+        <span class="panel-sub">48 Parameters</span>
+      </div>
+      <div class="cfg-tabs">
+        <button id="cfgTabBtn0" class="cfg-tab active" onclick="switchCfgTab(0)">1. ⚡ Mcu</button>
+        <button id="cfgTabBtn1" class="cfg-tab" onclick="switchCfgTab(1)">2. 🔌 Port</button>
+        <button id="cfgTabBtn2" class="cfg-tab" onclick="switchCfgTab(2)">3. 💡 Dio</button>
+        <button id="cfgTabBtn3" class="cfg-tab" onclick="switchCfgTab(3)">4. 📈 Adc</button>
+        <button id="cfgTabBtn4" class="cfg-tab" onclick="switchCfgTab(4)">5. 〰️ Pwm</button>
+        <button id="cfgTabBtn5" class="cfg-tab" onclick="switchCfgTab(5)">6. 🔄 Spi</button>
+        <button id="cfgTabBtn6" class="cfg-tab" onclick="switchCfgTab(6)">7. 🚌 Can</button>
+        <button id="cfgTabBtn7" class="cfg-tab" onclick="switchCfgTab(7)">8. 💾 Fls</button>
+      </div>
+
+      <!-- TAB 0: MCU (6 PARAMS) -->
+      <div id="cfgPane0" class="cfg-pane">
+        <div class="cfg-row" data-cfg-key="McuDriverInitialized">
+          <label class="cfg-lbl" for="cfg_McuDriverInitialized"><span class="cfg-i">ⓘ</span><span class="cfg-name">McuDriverInitialized</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_McuDriverInitialized" checked onchange="onConfigInputChanged('McuDriverInitialized')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="McuDevErrorDetect">
+          <label class="cfg-lbl" for="cfg_McuDevErrorDetect"><span class="cfg-i">ⓘ</span><span class="cfg-name">McuDevErrorDetect (All DET)</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_McuDevErrorDetect" checked onchange="onConfigInputChanged('McuDevErrorDetect')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="McuNoPll">
+          <label class="cfg-lbl" for="cfg_McuNoPll"><span class="cfg-i">ⓘ</span><span class="cfg-name">McuNoPll</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_McuNoPll" onchange="onConfigInputChanged('McuNoPll')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="McuPerformResetApi">
+          <label class="cfg-lbl" for="cfg_McuPerformResetApi"><span class="cfg-i">ⓘ</span><span class="cfg-name">McuPerformResetApi</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_McuPerformResetApi" checked onchange="onConfigInputChanged('McuPerformResetApi')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="McuClockReferencePointFrequencyMhz">
+          <label class="cfg-lbl" for="cfg_McuClockReferencePointFrequencyMhz"><span class="cfg-i">ⓘ</span><span class="cfg-name">McuPllTargetFreq (MHz)</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_McuClockReferencePointFrequencyMhz" min="40" max="320" step="20" value="160" onchange="onConfigInputChanged('McuClockReferencePointFrequencyMhz')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="McuPowerModeSetting">
+          <label class="cfg-lbl" for="cfg_McuPowerModeSetting"><span class="cfg-i">ⓘ</span><span class="cfg-name">McuPowerModeSetting</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_McuPowerModeSetting" onchange="onConfigInputChanged('McuPowerModeSetting')">
+              <option value="MCU_MODE_RUN">MCU_MODE_RUN</option>
+              <option value="MCU_MODE_HALT">MCU_MODE_HALT</option>
+              <option value="MCU_MODE_STOP">MCU_MODE_STOP</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 1: PORT (6 PARAMS) -->
+      <div id="cfgPane1" class="cfg-pane hidden">
+        <div class="cfg-row" data-cfg-key="PortDriverInitialized">
+          <label class="cfg-lbl" for="cfg_PortDriverInitialized"><span class="cfg-i">ⓘ</span><span class="cfg-name">PortDriverInitialized</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_PortDriverInitialized" checked onchange="onConfigInputChanged('PortDriverInitialized')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="PortPinDirectionChangeable">
+          <label class="cfg-lbl" for="cfg_PortPinDirectionChangeable"><span class="cfg-i">ⓘ</span><span class="cfg-name">PortPinDirectionChangeable</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_PortPinDirectionChangeable" checked onchange="onConfigInputChanged('PortPinDirectionChangeable')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="PortPinModeChangeable">
+          <label class="cfg-lbl" for="cfg_PortPinModeChangeable"><span class="cfg-i">ⓘ</span><span class="cfg-name">PortPinModeChangeable</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_PortPinModeChangeable" checked onchange="onConfigInputChanged('PortPinModeChangeable')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="PortPinDirection">
+          <label class="cfg-lbl" for="cfg_PortPinDirection"><span class="cfg-i">ⓘ</span><span class="cfg-name">PortPinDirection (PA0)</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_PortPinDirection" onchange="onConfigInputChanged('PortPinDirection')">
+              <option value="PORT_PIN_IN">PORT_PIN_IN</option>
+              <option value="PORT_PIN_OUT">PORT_PIN_OUT</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="PortPinInitialMode">
+          <label class="cfg-lbl" for="cfg_PortPinInitialMode"><span class="cfg-i">ⓘ</span><span class="cfg-name">PortPinInitialMode (PA0)</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_PortPinInitialMode" onchange="onConfigInputChanged('PortPinInitialMode')">
+              <option value="PORT_PIN_MODE_DIO">PORT_PIN_MODE_DIO</option>
+              <option value="PORT_PIN_MODE_ADC">PORT_PIN_MODE_ADC</option>
+              <option value="PORT_PIN_MODE_PWM">PORT_PIN_MODE_PWM</option>
+              <option value="PORT_PIN_MODE_SPI">PORT_PIN_MODE_SPI</option>
+              <option value="PORT_PIN_MODE_CAN">PORT_PIN_MODE_CAN</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="PortPinInternalResistor">
+          <label class="cfg-lbl" for="cfg_PortPinInternalResistor"><span class="cfg-i">ⓘ</span><span class="cfg-name">PortPinInternalResistor</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_PortPinInternalResistor" onchange="onConfigInputChanged('PortPinInternalResistor')">
+              <option value="PORT_PIN_IN_PULL_UP">PULL_UP</option>
+              <option value="PORT_PIN_IN_PULL_DOWN">PULL_DOWN</option>
+              <option value="PORT_PIN_IN_NO_PULL">NO_PULL</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 2: DIO (6 PARAMS) -->
+      <div id="cfgPane2" class="cfg-pane hidden">
+        <div class="cfg-row" data-cfg-key="DioDevErrorDetect">
+          <label class="cfg-lbl" for="cfg_DioDevErrorDetect"><span class="cfg-i">ⓘ</span><span class="cfg-name">DioDevErrorDetect</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_DioDevErrorDetect" checked onchange="onConfigInputChanged('DioDevErrorDetect')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="DioFlipChannelApi">
+          <label class="cfg-lbl" for="cfg_DioFlipChannelApi"><span class="cfg-i">ⓘ</span><span class="cfg-name">DioFlipChannelApi</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_DioFlipChannelApi" checked onchange="onConfigInputChanged('DioFlipChannelApi')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="DioMaskedWritePortApi">
+          <label class="cfg-lbl" for="cfg_DioMaskedWritePortApi"><span class="cfg-i">ⓘ</span><span class="cfg-name">DioMaskedWritePortApi</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_DioMaskedWritePortApi" checked onchange="onConfigInputChanged('DioMaskedWritePortApi')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="DioChannelIdSelected">
+          <label class="cfg-lbl" for="cfg_DioChannelIdSelected"><span class="cfg-i">ⓘ</span><span class="cfg-name">DioChannelId (0:PA0,1:PA1)</span></label>
+          <div class="cfg-ctrl"><input type="text" id="cfg_DioChannelIdSelected" class="mono" value="1" onchange="onConfigInputChanged('DioChannelIdSelected')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="DioPortMaskHex">
+          <label class="cfg-lbl" for="cfg_DioPortMaskHex"><span class="cfg-i">ⓘ</span><span class="cfg-name">DioChannelGroup Mask</span></label>
+          <div class="cfg-ctrl"><input type="text" id="cfg_DioPortMaskHex" class="mono" value="0xF0" onchange="onConfigInputChanged('DioPortMaskHex')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="DioPortWriteValueHex">
+          <label class="cfg-lbl" for="cfg_DioPortWriteValueHex"><span class="cfg-i">ⓘ</span><span class="cfg-name">DioPortWriteValue (Hex)</span></label>
+          <div class="cfg-ctrl"><input type="text" id="cfg_DioPortWriteValueHex" class="mono" value="0xA5" onchange="onConfigInputChanged('DioPortWriteValueHex')" /></div>
+        </div>
+      </div>
+
+      <!-- TAB 3: ADC (6 PARAMS) -->
+      <div id="cfgPane3" class="cfg-pane hidden">
+        <div class="cfg-row" data-cfg-key="AdcDriverInitialized">
+          <label class="cfg-lbl" for="cfg_AdcDriverInitialized"><span class="cfg-i">ⓘ</span><span class="cfg-name">AdcDriverInitialized</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_AdcDriverInitialized" checked onchange="onConfigInputChanged('AdcDriverInitialized')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="AdcGrpNotifCapability">
+          <label class="cfg-lbl" for="cfg_AdcGrpNotifCapability"><span class="cfg-i">ⓘ</span><span class="cfg-name">AdcGrpNotifCapability</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_AdcGrpNotifCapability" checked onchange="onConfigInputChanged('AdcGrpNotifCapability')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="AdcGroupTriggSrc">
+          <label class="cfg-lbl" for="cfg_AdcGroupTriggSrc"><span class="cfg-i">ⓘ</span><span class="cfg-name">AdcGroupTriggSrc</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_AdcGroupTriggSrc" onchange="onConfigInputChanged('AdcGroupTriggSrc')">
+              <option value="ADC_TRIGG_SRC_SW">ADC_TRIGG_SRC_SW</option>
+              <option value="ADC_TRIGG_SRC_HW">ADC_TRIGG_SRC_HW</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="AdcGroupAccessMode">
+          <label class="cfg-lbl" for="cfg_AdcGroupAccessMode"><span class="cfg-i">ⓘ</span><span class="cfg-name">AdcGroupAccessMode</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_AdcGroupAccessMode" onchange="onConfigInputChanged('AdcGroupAccessMode')">
+              <option value="ADC_ACCESS_MODE_SINGLE">SINGLE</option>
+              <option value="ADC_ACCESS_MODE_STREAMING">STREAMING</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="AdcStreamingNumSamples">
+          <label class="cfg-lbl" for="cfg_AdcStreamingNumSamples"><span class="cfg-i">ⓘ</span><span class="cfg-name">AdcStreamingNumSamples</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_AdcStreamingNumSamples" min="1" max="8" step="1" value="3" onchange="onConfigInputChanged('AdcStreamingNumSamples')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="AdcSimInputVoltageMv">
+          <label class="cfg-lbl" for="cfg_AdcSimInputVoltageMv"><span class="cfg-i">ⓘ</span><span class="cfg-name">Pin AN0 Voltage (mV)</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_AdcSimInputVoltageMv" min="0" max="5000" step="100" value="2500" onchange="onConfigInputChanged('AdcSimInputVoltageMv')" /></div>
+        </div>
+      </div>
+
+      <!-- TAB 4: PWM (6 PARAMS) -->
+      <div id="cfgPane4" class="cfg-pane hidden">
+        <div class="cfg-row" data-cfg-key="PwmDriverInitialized">
+          <label class="cfg-lbl" for="cfg_PwmDriverInitialized"><span class="cfg-i">ⓘ</span><span class="cfg-name">PwmDriverInitialized</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_PwmDriverInitialized" checked onchange="onConfigInputChanged('PwmDriverInitialized')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="PwmChannelClass">
+          <label class="cfg-lbl" for="cfg_PwmChannelClass"><span class="cfg-i">ⓘ</span><span class="cfg-name">PwmChannelClass</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_PwmChannelClass" onchange="onConfigInputChanged('PwmChannelClass')">
+              <option value="PWM_FIXED_PERIOD">PWM_FIXED_PERIOD</option>
+              <option value="PWM_VARIABLE_PERIOD">PWM_VARIABLE_PERIOD</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="PwmDutycycleDefaultHex">
+          <label class="cfg-lbl" for="cfg_PwmDutycycleDefaultHex"><span class="cfg-i">ⓘ</span><span class="cfg-name">PwmDutycycle (0..0x8000)</span></label>
+          <div class="cfg-ctrl"><input type="text" id="cfg_PwmDutycycleDefaultHex" class="mono" value="0x6000" onchange="onConfigInputChanged('PwmDutycycleDefaultHex')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="PwmPeriodDefaultUs">
+          <label class="cfg-lbl" for="cfg_PwmPeriodDefaultUs"><span class="cfg-i">ⓘ</span><span class="cfg-name">PwmPeriodDefault (us)</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_PwmPeriodDefaultUs" min="10" max="1000" step="10" value="50" onchange="onConfigInputChanged('PwmPeriodDefaultUs')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="PwmIdleState">
+          <label class="cfg-lbl" for="cfg_PwmIdleState"><span class="cfg-i">ⓘ</span><span class="cfg-name">PwmIdleState</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_PwmIdleState" onchange="onConfigInputChanged('PwmIdleState')">
+              <option value="PWM_LOW">PWM_LOW</option>
+              <option value="PWM_HIGH">PWM_HIGH</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="PwmDutycycleUpdatedEndperiod">
+          <label class="cfg-lbl" for="cfg_PwmDutycycleUpdatedEndperiod"><span class="cfg-i">ⓘ</span><span class="cfg-name">DutyUpdatedEndperiod</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_PwmDutycycleUpdatedEndperiod" checked onchange="onConfigInputChanged('PwmDutycycleUpdatedEndperiod')" /></div>
+        </div>
+      </div>
+
+      <!-- TAB 5: SPI (6 PARAMS) -->
+      <div id="cfgPane5" class="cfg-pane hidden">
+        <div class="cfg-row" data-cfg-key="SpiDriverInitialized">
+          <label class="cfg-lbl" for="cfg_SpiDriverInitialized"><span class="cfg-i">ⓘ</span><span class="cfg-name">SpiDriverInitialized</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_SpiDriverInitialized" checked onchange="onConfigInputChanged('SpiDriverInitialized')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="SpiLevelDelivered">
+          <label class="cfg-lbl" for="cfg_SpiLevelDelivered"><span class="cfg-i">ⓘ</span><span class="cfg-name">SpiLevelDelivered</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_SpiLevelDelivered" onchange="onConfigInputChanged('SpiLevelDelivered')">
+              <option value="0">0 (Sync Only)</option>
+              <option value="1">1 (Async Only)</option>
+              <option value="2" selected>2 (Sync + Async)</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="SpiChannelBuffersAllowed">
+          <label class="cfg-lbl" for="cfg_SpiChannelBuffersAllowed"><span class="cfg-i">ⓘ</span><span class="cfg-name">SpiChannelBuffersAllowed</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_SpiChannelBuffersAllowed" onchange="onConfigInputChanged('SpiChannelBuffersAllowed')">
+              <option value="0">0 (IB Only)</option>
+              <option value="1">1 (EB Only)</option>
+              <option value="2" selected>2 (IB &amp; EB)</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="SpiInterruptibleSequence">
+          <label class="cfg-lbl" for="cfg_SpiInterruptibleSequence"><span class="cfg-i">ⓘ</span><span class="cfg-name">SpiInterruptibleSequence</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_SpiInterruptibleSequence" checked onchange="onConfigInputChanged('SpiInterruptibleSequence')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="SpiAsyncMode">
+          <label class="cfg-lbl" for="cfg_SpiAsyncMode"><span class="cfg-i">ⓘ</span><span class="cfg-name">SpiAsyncMode (Runtime)</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_SpiAsyncMode" onchange="onConfigInputChanged('SpiAsyncMode')">
+              <option value="SPI_INTERRUPT_MODE">SPI_INTERRUPT_MODE</option>
+              <option value="SPI_POLLING_MODE">SPI_POLLING_MODE</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="SpiTxDataHex">
+          <label class="cfg-lbl" for="cfg_SpiTxDataHex"><span class="cfg-i">ⓘ</span><span class="cfg-name">SpiTxData (IB/EB Hex)</span></label>
+          <div class="cfg-ctrl"><input type="text" id="cfg_SpiTxDataHex" class="mono" value="A5 01 55 FF" onchange="onConfigInputChanged('SpiTxDataHex')" /></div>
+        </div>
+      </div>
+
+      <!-- TAB 6: CAN (6 PARAMS) -->
+      <div id="cfgPane6" class="cfg-pane hidden">
+        <div class="cfg-row" data-cfg-key="CanDriverInitialized">
+          <label class="cfg-lbl" for="cfg_CanDriverInitialized"><span class="cfg-i">ⓘ</span><span class="cfg-name">CanDriverInitialized</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_CanDriverInitialized" checked onchange="onConfigInputChanged('CanDriverInitialized')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="CanMultiplexedTransmission">
+          <label class="cfg-lbl" for="cfg_CanMultiplexedTransmission"><span class="cfg-i">ⓘ</span><span class="cfg-name">CanMultiplexedTx (HTH)</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_CanMultiplexedTransmission" checked onchange="onConfigInputChanged('CanMultiplexedTransmission')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="CanFdBaudrateConfig">
+          <label class="cfg-lbl" for="cfg_CanFdBaudrateConfig"><span class="cfg-i">ⓘ</span><span class="cfg-name">CanFdBaudrateConfig (64B)</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_CanFdBaudrateConfig" checked onchange="onConfigInputChanged('CanFdBaudrateConfig')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="CanTxRxProcessingMode">
+          <label class="cfg-lbl" for="cfg_CanTxRxProcessingMode"><span class="cfg-i">ⓘ</span><span class="cfg-name">CanTxRxProcessing</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_CanTxRxProcessingMode" onchange="onConfigInputChanged('CanTxRxProcessingMode')">
+              <option value="INTERRUPT">INTERRUPT</option>
+              <option value="POLLING">POLLING</option>
+              <option value="MIXED">MIXED</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="CanHwFilterCodeHex">
+          <label class="cfg-lbl" for="cfg_CanHwFilterCodeHex"><span class="cfg-i">ⓘ</span><span class="cfg-name">CanHwFilterCode (HRH)</span></label>
+          <div class="cfg-ctrl"><input type="text" id="cfg_CanHwFilterCodeHex" class="mono" value="0x100" onchange="onConfigInputChanged('CanHwFilterCodeHex')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="CanTxFrameIdHex">
+          <label class="cfg-lbl" for="cfg_CanTxFrameIdHex"><span class="cfg-i">ⓘ</span><span class="cfg-name">CanTxFrameId (Can_IdType)</span></label>
+          <div class="cfg-ctrl"><input type="text" id="cfg_CanTxFrameIdHex" class="mono" value="0x40000201" onchange="onConfigInputChanged('CanTxFrameIdHex')" /></div>
+        </div>
+      </div>
+
+      <!-- TAB 7: FLS (6 PARAMS) -->
+      <div id="cfgPane7" class="cfg-pane hidden">
+        <div class="cfg-row" data-cfg-key="FlsDriverInitialized">
+          <label class="cfg-lbl" for="cfg_FlsDriverInitialized"><span class="cfg-i">ⓘ</span><span class="cfg-name">FlsDriverInitialized</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_FlsDriverInitialized" checked onchange="onConfigInputChanged('FlsDriverInitialized')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="FlsDefaultMode">
+          <label class="cfg-lbl" for="cfg_FlsDefaultMode"><span class="cfg-i">ⓘ</span><span class="cfg-name">FlsDefaultMode (Speed)</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_FlsDefaultMode" onchange="onConfigInputChanged('FlsDefaultMode')">
+              <option value="MEMIF_MODE_SLOW">MEMIF_MODE_SLOW (8B)</option>
+              <option value="MEMIF_MODE_FAST">MEMIF_MODE_FAST (32B)</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="FlsPageSize">
+          <label class="cfg-lbl" for="cfg_FlsPageSize"><span class="cfg-i">ⓘ</span><span class="cfg-name">FlsPageSize (Bytes)</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_FlsPageSize" min="4" max="64" step="4" value="8" onchange="onConfigInputChanged('FlsPageSize')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="FlsWriteVerificationEnabled">
+          <label class="cfg-lbl" for="cfg_FlsWriteVerificationEnabled"><span class="cfg-i">ⓘ</span><span class="cfg-name">FlsWriteVerificationEnabled</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_FlsWriteVerificationEnabled" checked onchange="onConfigInputChanged('FlsWriteVerificationEnabled')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="FlsTargetAddressHex">
+          <label class="cfg-lbl" for="cfg_FlsTargetAddressHex"><span class="cfg-i">ⓘ</span><span class="cfg-name">FlsTargetAddress (Offset)</span></label>
+          <div class="cfg-ctrl"><input type="text" id="cfg_FlsTargetAddressHex" class="mono" value="0x0000" onchange="onConfigInputChanged('FlsTargetAddressHex')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="FlsWriteDataHex">
+          <label class="cfg-lbl" for="cfg_FlsWriteDataHex"><span class="cfg-i">ⓘ</span><span class="cfg-name">FlsWriteData (Hex Bytes)</span></label>
+          <div class="cfg-ctrl"><input type="text" id="cfg_FlsWriteDataHex" class="mono" value="5A A5 01 02 10 27 DE AD C0 FF EE 00 11 22 33 44" onchange="onConfigInputChanged('FlsWriteDataHex')" /></div>
+        </div>
+      </div>
+
+      <div class="panel-body" style="padding-top:0">
+        <div id="cfgValidationBox"></div>
+      </div>
+    </section>
+  </aside>
+
+  <!-- CENTER COLUMN: PANEL 1 (ADAPTIVE HW + DUAL 8-BIT), PANEL 2 (METRICS + DUAL SM), PANEL 3 (SVG) -->
+  <section class="col-center">
+    <!-- PANEL 1: ADAPTIVE HARDWARE PERIPHERAL VISUALIZER + DUAL 8-BIT REGISTERS -->
+    <section class="panel">
+      <div class="panel-hdr">
+        <span class="panel-title">🖥️ Bộ Giải Phẫu Ngoại Vi Phần Cứng Tự Thích Ứng &amp; 2 Thanh Ghi 8-Bit Tương Tác</span>
+        <span id="panel1FocusLbl" class="panel-sub mono">View: MCU | A: 0x80 | B: 0x98</span>
+      </div>
+      <div class="panel-body tier-split">
+        <!-- 1A: ADAPTIVE HARDWARE PERIPHERAL VISUALIZER -->
+        <div class="hw-vis-wrap">
+          <div class="hw-vis-hdr">
+            <span id="hwVisTitle" style="font-weight:800;font-size:11px;color:var(--pri)">⚡ PHẦN CỨNG MCU: PLL CLOCK TREE &amp; RESET REASON</span>
+            <div class="hw-view-pills">
+              <button id="hwPill_MCU" class="hw-pill active" onclick="setAdaptiveHwView('MCU')">⚡ Mcu</button>
+              <button id="hwPill_PORT_DIO" class="hw-pill" onclick="setAdaptiveHwView('PORT_DIO')">🔌💡 Port/Dio</button>
+              <button id="hwPill_ADC_PWM" class="hw-pill" onclick="setAdaptiveHwView('ADC_PWM')">📈〰️ Adc/Pwm</button>
+              <button id="hwPill_SPI_CAN" class="hw-pill" onclick="setAdaptiveHwView('SPI_CAN')">🔄🚌 Spi/Can</button>
+              <button id="hwPill_FLS" class="hw-pill" onclick="setAdaptiveHwView('FLS')">💾 Fls</button>
+            </div>
+          </div>
+          <div id="hwVisContent"></div>
+        </div>
+
+        <!-- 1B: DUAL 8-BIT INTERACTIVE REGISTERS -->
+        <div class="reg-grid">
+          <div class="reg-card">
+            <div class="reg-top">
+              <span class="reg-name">Thanh A: Silicon Peripheral &amp; IRQ Status (`Mcal_HwStatusByte`)</span>
+              <span id="regAHex" class="reg-hex mono">0x00</span>
+            </div>
+            <div id="regABits" class="bit-row"></div>
+          </div>
+
+          <div class="reg-card">
+            <div class="reg-top">
+              <span class="reg-name">Thanh B: AUTOSAR MCAL Driver &amp; Safety (`Mcal_DrvEngineByte`)</span>
+              <span id="regBHex" class="reg-hex mono">0x80</span>
+            </div>
+            <div id="regBBits" class="bit-row"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PANEL 2: 6 LIVE METRICS & DUAL STATE MACHINES -->
+    <section class="panel">
+      <div class="panel-hdr">
+        <span class="panel-title">⏳ Giám Sát Xung Nhịp / Tiến Trình Ngoại Vi &amp; 2 Máy Trạng Thái Đồng Bộ</span>
+        <span id="panel2SubLbl" class="panel-sub mono">SM Focus: Mcu | Clock: 160 MHz</span>
+      </div>
+      <div class="panel-body">
+        <div id="timersGrid" class="timer-grid"></div>
+        <div class="sm-dual">
+          <div class="sm-box">
+            <div class="sm-title">
+              <span id="smLeftTitle">🧭 AUTOSAR MCAL Driver State Machine</span>
+              <span id="smLeftLbl" class="mono">INITIALIZED</span>
+            </div>
+            <div id="driverSmDiagram" class="sm-states"></div>
+          </div>
+
+          <div class="sm-box">
+            <div class="sm-title">
+              <span id="smRightTitle">⚙️ Silicon Hardware / Job Result State Machine</span>
+              <span id="smRightLbl" class="mono">IDLE</span>
+            </div>
+            <div id="hwSmDiagram" class="sm-states"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PANEL 3: INTERACTIVE END-TO-END AUTOSAR SVG ARCHITECTURE -->
+    <section class="panel">
+      <div class="panel-hdr">
+        <span class="panel-title">🏗️ Kiến Trúc Tương Tác Liên Tầng: SWC ↔ RTE ↔ EcuAb ↔ 8 MCAL Drivers ↔ Silicon HW (SVG)</span>
+        <span class="panel-sub">Click vào từng khối để xem Input / Processing / Output &amp; API ở cột phải</span>
+      </div>
+      <div class="panel-body">
+        <div class="arch-wrap">
+          <svg id="mcalArchSvg" class="arch-svg" viewBox="0 0 840 410" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <marker id="arrEnd" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                <path d="M 0 1 L 10 5 L 0 9 z" fill="currentColor" />
+              </marker>
+            </defs>
+
+            <!-- ARROWS LAYER -->
+            <path id="arr_swc_rte" class="flow-arrow" d="M 266 34 L 296 34" marker-end="url(#arrEnd)" />
+            <path id="arr_rte_swc" class="flow-arrow" d="M 296 46 L 266 46" marker-end="url(#arrEnd)" />
+            <path id="arr_rte_iohwab" class="flow-arrow" d="M 335 64 L 335 82 L 176 82 L 176 102" marker-end="url(#arrEnd)" />
+            <path id="arr_iohwab_rte" class="flow-arrow" d="M 146 102 L 146 74 L 315 74 L 315 64" marker-end="url(#arrEnd)" />
+            <path id="arr_rte_canif" class="flow-arrow" d="M 455 64 L 455 102" marker-end="url(#arrEnd)" />
+            <path id="arr_canif_rte" class="flow-arrow" d="M 495 102 L 495 64" marker-end="url(#arrEnd)" />
+            <path id="arr_rte_fee" class="flow-arrow" d="M 522 64 L 522 82 L 700 82 L 700 102" marker-end="url(#arrEnd)" />
+            <path id="arr_fee_rte" class="flow-arrow" d="M 730 102 L 730 74 L 536 74 L 536 64" marker-end="url(#arrEnd)" />
+            <path id="arr_ecum_mcal" class="flow-arrow" d="M 594 64 L 594 92 L 50 92 L 50 204" marker-end="url(#arrEnd)" />
+            <path id="arr_mcal_det" class="flow-arrow" d="M 824 248 L 834 248 L 834 38 L 824 38" marker-end="url(#arrEnd)" />
+
+            <path id="arr_iohwab_port" class="flow-arrow" d="M 105 154 L 105 174 L 165 174 L 165 204" marker-end="url(#arrEnd)" />
+            <path id="arr_iohwab_dio" class="flow-arrow" d="M 185 154 L 185 174 L 267 174 L 267 204" marker-end="url(#arrEnd)" />
+            <path id="arr_iohwab_adc" class="flow-arrow" d="M 245 154 L 245 184 L 360 184 L 360 204" marker-end="url(#arrEnd)" />
+            <path id="arr_adc_iohwab" class="flow-arrow" d="M 382 204 L 382 168 L 270 168 L 270 154" marker-end="url(#arrEnd)" />
+            <path id="arr_iohwab_pwm" class="flow-arrow" d="M 300 154 L 300 192 L 471 192 L 471 204" marker-end="url(#arrEnd)" />
+            <path id="arr_iohwab_spi" class="flow-arrow" d="M 325 154 L 325 162 L 573 162 L 573 204" marker-end="url(#arrEnd)" />
+            <path id="arr_canif_can" class="flow-arrow" d="M 515 154 L 515 176 L 664 176 L 664 204" marker-end="url(#arrEnd)" />
+            <path id="arr_can_canif" class="flow-arrow" d="M 690 204 L 690 166 L 552 166 L 552 154" marker-end="url(#arrEnd)" />
+            <path id="arr_fee_fls" class="flow-arrow" d="M 730 154 L 730 178 L 765 178 L 765 204" marker-end="url(#arrEnd)" />
+            <path id="arr_fls_fee" class="flow-arrow" d="M 792 204 L 792 154" marker-end="url(#arrEnd)" />
+
+            <path id="arr_mcu_hw" class="flow-arrow" d="M 63 290 L 63 332" marker-end="url(#arrEnd)" />
+            <path id="arr_port_hw" class="flow-arrow" d="M 165 290 L 165 332" marker-end="url(#arrEnd)" />
+            <path id="arr_dio_hw" class="flow-arrow" d="M 267 290 L 267 332" marker-end="url(#arrEnd)" />
+            <path id="arr_adc_hw" class="flow-arrow" d="M 369 290 L 369 332" marker-end="url(#arrEnd)" />
+            <path id="arr_pwm_hw" class="flow-arrow" d="M 471 290 L 471 332" marker-end="url(#arrEnd)" />
+            <path id="arr_spi_hw" class="flow-arrow" d="M 573 290 L 573 332" marker-end="url(#arrEnd)" />
+            <path id="arr_can_hw" class="flow-arrow" d="M 675 290 L 675 332" marker-end="url(#arrEnd)" />
+            <path id="arr_fls_hw" class="flow-arrow" d="M 777 290 L 777 332" marker-end="url(#arrEnd)" />
+
+            <!-- ROW 1: APPLICATION / RTE / SYSTEM SERVICES -->
+            <g id="node_MOD_SWC" class="mod-node" onclick="selectModule('MOD_SWC')">
+              <rect class="mod-rect" x="16" y="12" width="250" height="52" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="141" y="30" text-anchor="middle" fill="var(--pri)" font-weight="700" font-size="11.5">SWC_ThermalCtrl / SWC_Body</text>
+              <text id="svgSub_MOD_SWC" x="141" y="45" text-anchor="middle" fill="var(--mut)" font-size="9.5">Temp: 85.0°C | Fan: 75% | LED: ON</text>
+              <text x="141" y="58" text-anchor="middle" fill="var(--txt-soft)" font-size="8.8">Không gọi trực tiếp MCAL (Đi qua RTE)</text>
+            </g>
+
+            <g id="node_MOD_RTE" class="mod-node" onclick="selectModule('MOD_RTE')">
+              <rect class="mod-rect" x="296" y="12" width="248" height="52" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="420" y="30" text-anchor="middle" fill="var(--acc)" font-weight="700" font-size="11.5">RTE · SchM · COM/PduR · NvM</text>
+              <text id="svgSub_MOD_RTE" x="420" y="45" text-anchor="middle" fill="var(--mut)" font-size="9.5">Rte_Call_IoHwAb_* / MainFunction</text>
+              <text x="420" y="58" text-anchor="middle" fill="var(--txt-soft)" font-size="8.8">VFB Port Routing &amp; Exclusive Areas</text>
+            </g>
+
+            <g id="node_MOD_ECUM" class="mod-node" onclick="selectModule('MOD_ECUM')">
+              <rect class="mod-rect" x="574" y="12" width="250" height="52" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="699" y="30" text-anchor="middle" fill="var(--err)" font-weight="700" font-size="11.5">EcuM / BswM / Dem / Det</text>
+              <text id="svgSub_MOD_ECUM" x="699" y="45" text-anchor="middle" fill="var(--mut)" font-size="9.5">DriverInitOne: OK | DET/DEM: 0</text>
+              <text x="699" y="58" text-anchor="middle" fill="var(--txt-soft)" font-size="8.8">Lifecycle Init, Reset &amp; Fault Report</text>
+            </g>
+
+            <!-- ROW 2: ECU ABSTRACTION (IoHwAb, CanIf, Fee) -->
+            <g id="node_MOD_IOHWAB" class="mod-node" onclick="selectModule('MOD_IOHWAB')">
+              <rect class="mod-rect" x="16" y="102" width="320" height="52" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="176" y="120" text-anchor="middle" fill="var(--ok)" font-weight="700" font-size="11.5">IoHwAb (I/O Hardware Abstraction)</text>
+              <text id="svgSub_MOD_IOHWAB" x="176" y="135" text-anchor="middle" fill="var(--mut)" font-size="9.5">Raw→mV/°C | %→0x8000 | Pin Map</text>
+              <text x="176" y="148" text-anchor="middle" fill="var(--txt-soft)" font-size="8.8">Cầu nối SWC ⇄ Port / Dio / Adc / Pwm / Spi</text>
+            </g>
+
+            <g id="node_MOD_CANIF" class="mod-node" onclick="selectModule('MOD_CANIF')">
+              <rect class="mod-rect" x="366" y="102" width="220" height="52" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="476" y="120" text-anchor="middle" fill="var(--pur)" font-weight="700" font-size="11.5">CanIf &amp; CanSM</text>
+              <text id="svgSub_MOD_CANIF" x="476" y="135" text-anchor="middle" fill="var(--mut)" font-size="9.5">CanIf_Transmit → Can_Write(HTH)</text>
+              <text x="476" y="148" text-anchor="middle" fill="var(--txt-soft)" font-size="8.8">TxQueue, HRH RxInd &amp; Bus-Off Recovery</text>
+            </g>
+
+            <g id="node_MOD_FEE" class="mod-node" onclick="selectModule('MOD_FEE')">
+              <rect class="mod-rect" x="616" y="102" width="208" height="52" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="720" y="120" text-anchor="middle" fill="var(--cyan)" font-weight="700" font-size="11.5">Fee / MemIf (EEPROM Emu)</text>
+              <text id="svgSub_MOD_FEE" x="720" y="135" text-anchor="middle" fill="var(--mut)" font-size="9.5">BlockId → Flash Offset | JobEnd</text>
+              <text x="720" y="148" text-anchor="middle" fill="var(--txt-soft)" font-size="8.8">Wear Leveling &amp; Fls Job Orchestration</text>
+            </g>
+
+            <!-- ROW 3: 8 CORE MCAL DRIVERS -->
+            <g id="node_MOD_MCU" class="mod-node selected" onclick="selectModule('MOD_MCU')">
+              <rect class="mod-rect" x="16" y="204" width="94" height="86" rx="8" fill="var(--org-bg)" stroke="var(--org)" stroke-width="2"/>
+              <text x="63" y="222" text-anchor="middle" fill="var(--org)" font-weight="800" font-size="12">Mcu</text>
+              <text x="63" y="236" text-anchor="middle" fill="var(--mut)" font-size="8.8">ModId: 101</text>
+              <text id="svgSub_MOD_MCU" x="63" y="253" text-anchor="middle" fill="var(--txt)" font-weight="700" font-size="9">160MHz LOCK</text>
+              <text x="63" y="269" text-anchor="middle" fill="var(--txt-soft)" font-size="8.2">PLL · Reset</text>
+              <text x="63" y="281" text-anchor="middle" fill="var(--txt-soft)" font-size="8.2">SetMode</text>
+            </g>
+
+            <g id="node_MOD_PORT" class="mod-node" onclick="selectModule('MOD_PORT')">
+              <rect class="mod-rect" x="118" y="204" width="94" height="86" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="165" y="222" text-anchor="middle" fill="var(--pri)" font-weight="800" font-size="12">Port</text>
+              <text x="165" y="236" text-anchor="middle" fill="var(--mut)" font-size="8.8">ModId: 124</text>
+              <text id="svgSub_MOD_PORT" x="165" y="253" text-anchor="middle" fill="var(--txt)" font-weight="700" font-size="9">PORT_INIT</text>
+              <text x="165" y="269" text-anchor="middle" fill="var(--txt-soft)" font-size="8.2">Pin Mux PCR</text>
+              <text x="165" y="281" text-anchor="middle" fill="var(--txt-soft)" font-size="8.2">Dir / Pull</text>
+            </g>
+
+            <g id="node_MOD_DIO" class="mod-node" onclick="selectModule('MOD_DIO')">
+              <rect class="mod-rect" x="220" y="204" width="94" height="86" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="267" y="222" text-anchor="middle" fill="var(--ok)" font-weight="800" font-size="12">Dio</text>
+              <text x="267" y="236" text-anchor="middle" fill="var(--mut)" font-size="8.8">ModId: 120</text>
+              <text id="svgSub_MOD_DIO" x="267" y="253" text-anchor="middle" fill="var(--txt)" font-weight="700" font-size="9">Port0: 0xA5</text>
+              <text x="267" y="269" text-anchor="middle" fill="var(--txt-soft)" font-size="8.2">Read/Write</text>
+              <text x="267" y="281" text-anchor="middle" fill="var(--txt-soft)" font-size="8.2">Flip/Group</text>
+            </g>
+
+            <g id="node_MOD_ADC" class="mod-node" onclick="selectModule('MOD_ADC')">
+              <rect class="mod-rect" x="322" y="204" width="94" height="86" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="369" y="222" text-anchor="middle" fill="var(--cyan)" font-weight="800" font-size="12">Adc</text>
+              <text x="369" y="236" text-anchor="middle" fill="var(--mut)" font-size="8.8">ModId: 123</text>
+              <text id="svgSub_MOD_ADC" x="369" y="253" text-anchor="middle" fill="var(--txt)" font-weight="700" font-size="9">ADC_IDLE</text>
+              <text x="369" y="269" text-anchor="middle" fill="var(--txt-soft)" font-size="8.2">SAR 12-Bit</text>
+              <text x="369" y="281" text-anchor="middle" fill="var(--txt-soft)" font-size="8.2">SW/HW Trig</text>
+            </g>
+
+            <g id="node_MOD_PWM" class="mod-node" onclick="selectModule('MOD_PWM')">
+              <rect class="mod-rect" x="424" y="204" width="94" height="86" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="471" y="222" text-anchor="middle" fill="var(--warn)" font-weight="800" font-size="12">Pwm</text>
+              <text x="471" y="236" text-anchor="middle" fill="var(--mut)" font-size="8.8">ModId: 121</text>
+              <text id="svgSub_MOD_PWM" x="471" y="253" text-anchor="middle" fill="var(--txt)" font-weight="700" font-size="9">Duty: 75%</text>
+              <text x="471" y="269" text-anchor="middle" fill="var(--txt-soft)" font-size="8.2">0..0x8000</text>
+              <text x="471" y="281" text-anchor="middle" fill="var(--txt-soft)" font-size="8.2">EndPeriod</text>
+            </g>
+
+            <g id="node_MOD_SPI" class="mod-node" onclick="selectModule('MOD_SPI')">
+              <rect class="mod-rect" x="526" y="204" width="94" height="86" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="573" y="222" text-anchor="middle" fill="var(--pur)" font-weight="800" font-size="12">Spi</text>
+              <text x="573" y="236" text-anchor="middle" fill="var(--mut)" font-size="8.8">ModId: 83</text>
+              <text id="svgSub_MOD_SPI" x="573" y="253" text-anchor="middle" fill="var(--txt)" font-weight="700" font-size="9">SPI_IDLE</text>
+              <text x="573" y="269" text-anchor="middle" fill="var(--txt-soft)" font-size="8.2">Seq→Job→Ch</text>
+              <text x="573" y="281" text-anchor="middle" fill="var(--txt-soft)" font-size="8.2">IB / EB</text>
+            </g>
+
+            <g id="node_MOD_CAN" class="mod-node" onclick="selectModule('MOD_CAN')">
+              <rect class="mod-rect" x="628" y="204" width="94" height="86" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="675" y="222" text-anchor="middle" fill="var(--acc)" font-weight="800" font-size="12">Can</text>
+              <text x="675" y="236" text-anchor="middle" fill="var(--mut)" font-size="8.8">ModId: 80</text>
+              <text id="svgSub_MOD_CAN" x="675" y="253" text-anchor="middle" fill="var(--txt)" font-weight="700" font-size="9">STARTED</text>
+              <text x="675" y="269" text-anchor="middle" fill="var(--txt-soft)" font-size="8.2">HRH / HTH</text>
+              <text x="675" y="281" text-anchor="middle" fill="var(--txt-soft)" font-size="8.2">FD / BusOff</text>
+            </g>
+
+            <g id="node_MOD_FLS" class="mod-node" onclick="selectModule('MOD_FLS')">
+              <rect class="mod-rect" x="730" y="204" width="94" height="86" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="777" y="222" text-anchor="middle" fill="var(--org)" font-weight="800" font-size="12">Fls</text>
+              <text x="777" y="236" text-anchor="middle" fill="var(--mut)" font-size="8.8">ModId: 92</text>
+              <text id="svgSub_MOD_FLS" x="777" y="253" text-anchor="middle" fill="var(--txt)" font-weight="700" font-size="9">MEMIF_IDLE</text>
+              <text x="777" y="269" text-anchor="middle" fill="var(--txt-soft)" font-size="8.2">Erase 0xFF</text>
+              <text x="777" y="281" text-anchor="middle" fill="var(--txt-soft)" font-size="8.2">Write/Comp</text>
+            </g>
+
+            <!-- ROW 4: SILICON HARDWARE PERIPHERALS -->
+            <g id="node_MOD_HW" class="mod-node" onclick="selectModule('MOD_HW')">
+              <rect class="mod-rect" x="16" y="332" width="808" height="62" rx="9" fill="var(--panel-3)" stroke="var(--bdr)" stroke-width="1.8"/>
+              <text x="420" y="352" text-anchor="middle" fill="var(--pri)" font-weight="800" font-size="12">MCU Silicon Peripherals &amp; Memory-Mapped Hardware Registers</text>
+              <text id="svgSub_MOD_HW" x="420" y="369" text-anchor="middle" fill="var(--txt)" font-weight="700" font-size="9.5">PLL: 160MHz | GPIO: 0xA5 | AN0: 2500mV | PWM: 20kHz | QSPI: Idle | CAN Bus: Active | DataFlash: 0x00080000</text>
+              <text x="420" y="384" text-anchor="middle" fill="var(--mut)" font-size="8.8">PLL_SR · RGM_FES · PCR[0..7] · GPIO_PDOR/PDIR · SAR_ADC · FTM/eMIOS · QSPI_SR · FlexCAN Mailboxes · Flash HV Pump</text>
+            </g>
+          </svg>
+        </div>
+      </div>
+    </section>
+  </section>
+
+  <!-- RIGHT COLUMN: STICKY 4-TAB INSPECTOR -->
+  <aside class="col-right">
+    <section class="panel insp-panel">
+      <div class="insp-tabs">
+        <button id="inspTabBtn0" class="insp-tab active" onclick="switchInspTab(0)">🔍 Bước Hiện Tại</button>
+        <button id="inspTabBtn1" class="insp-tab" onclick="switchInspTab(1)">🧩 Module</button>
+        <button id="inspTabBtn2" class="insp-tab" onclick="switchInspTab(2)">📄 Code C</button>
+        <button id="inspTabBtn3" class="insp-tab" onclick="switchInspTab(3)">📜 API Trace</button>
+      </div>
+      <div id="inspBody" class="insp-body"></div>
+    </section>
+  </aside>
+</main>
+
+<!-- ================= VIEW 2: MULTI-LEVEL HANDBOOK (9x4) & ABBREVIATION TABLE ================= -->
+<main id="viewHb" class="hb-wrap hidden">
+  <div class="hb-nav1">
+    <button id="hbTab1_0" class="hb-tab1 active" onclick="switchHbTab1(0)">1. Kiến Trúc MCAL &amp; SWC</button>
+    <button id="hbTab1_1" class="hb-tab1" onclick="switchHbTab1(1)">2. ⚡ Mcu</button>
+    <button id="hbTab1_2" class="hb-tab1" onclick="switchHbTab1(2)">3. 🔌 Port</button>
+    <button id="hbTab1_3" class="hb-tab1" onclick="switchHbTab1(3)">4. 💡 Dio</button>
+    <button id="hbTab1_4" class="hb-tab1" onclick="switchHbTab1(4)">5. 📈 Adc</button>
+    <button id="hbTab1_5" class="hb-tab1" onclick="switchHbTab1(5)">6. 〰️ Pwm</button>
+    <button id="hbTab1_6" class="hb-tab1" onclick="switchHbTab1(6)">7. 🔄 Spi</button>
+    <button id="hbTab1_7" class="hb-tab1" onclick="switchHbTab1(7)">8. 🚌 Can</button>
+    <button id="hbTab1_8" class="hb-tab1" onclick="switchHbTab1(8)">9. 💾 Fls</button>
+    <button id="hbTab1_9" class="hb-tab1" onclick="switchHbTab1(9)">10. 🔤 Thuật Ngữ &amp; Search</button>
+  </div>
+
+  <div id="hbNav2" class="hb-nav2"></div>
+
+  <div id="hbAbbrFilterBox" class="abbr-toolbar hidden">
+    <input id="abbrSearchInput" class="abbr-search" type="text" placeholder="🔍 Tìm kiếm thuật ngữ 8 module MCAL (VD: PLL, PCR, SAR, Duty, IB/EB, HOH, Fee, DET, SWS_...)" oninput="filterAbbreviationTable()" />
+    <div class="cat-pills">
+      <button id="catPill_ALL" class="cat-pill active" onclick="setAbbrCategory('ALL')">Tất cả (68)</button>
+      <button id="catPill_ARCH" class="cat-pill" onclick="setAbbrCategory('ARCH')">🏛️ Kiến Trúc</button>
+      <button id="catPill_MCU" class="cat-pill" onclick="setAbbrCategory('MCU')">⚡ Mcu</button>
+      <button id="catPill_PORT" class="cat-pill" onclick="setAbbrCategory('PORT')">🔌 Port</button>
+      <button id="catPill_DIO" class="cat-pill" onclick="setAbbrCategory('DIO')">💡 Dio</button>
+      <button id="catPill_ADC" class="cat-pill" onclick="setAbbrCategory('ADC')">📈 Adc</button>
+      <button id="catPill_PWM" class="cat-pill" onclick="setAbbrCategory('PWM')">〰️ Pwm</button>
+      <button id="catPill_SPI" class="cat-pill" onclick="setAbbrCategory('SPI')">🔄 Spi</button>
+      <button id="catPill_CAN" class="cat-pill" onclick="setAbbrCategory('CAN')">🚌 Can</button>
+      <button id="catPill_FLS" class="cat-pill" onclick="setAbbrCategory('FLS')">💾 Fls &amp; Mem</button>
+    </div>
+    <span id="abbrCountBadge" class="step-pill">68 thuật ngữ</span>
+  </div>
+
+  <div id="hbContentArea"></div>
+</main>
+
+<!-- ================= EXPORT ARXML / C / JSON MODAL ================= -->
+<div id="exportModal" class="modal-overlay hidden" onclick="if(event.target===this) closeExportModal()">
+  <div class="modal-box">
+    <div class="modal-hdr">
+      <strong style="font-size:13.5px;color:var(--pri)">🧾 Xuất Cấu Hình 8 Module MCAL (ARXML · *_Cfg.h · JSON)</strong>
+      <button class="btn btn-sm" onclick="closeExportModal()">✖ Đóng</button>
+    </div>
+    <div class="modal-tabs">
+      <button id="expTab0" class="btn btn-sm btn-pri" onclick="switchExportTab(0)">MCAL_Ecuc.arxml</button>
+      <button id="expTab1" class="btn btn-sm" onclick="switchExportTab(1)">Mcu_Port_Dio_Cfg.h</button>
+      <button id="expTab2" class="btn btn-sm" onclick="switchExportTab(2)">Adc_Pwm_Cfg.h</button>
+      <button id="expTab3" class="btn btn-sm" onclick="switchExportTab(3)">Spi_Can_Fls_Cfg.h</button>
+      <button id="expTab4" class="btn btn-sm" onclick="switchExportTab(4)">MCAL_Config.json</button>
+    </div>
+    <div class="modal-body">
+      <pre id="exportCodeArea" class="code-block"></pre>
+    </div>
+    <div class="modal-ftr">
+      <button class="btn" onclick="copyExportCode()">📋 Copy Clipboard</button>
+      <button class="btn btn-ok" onclick="downloadExportCode()">⬇ Tải File Hiện Tại</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= FLOATING TOOLTIP POPUP (>1S HOVER ON ECUC FIELDS) ================= -->
+<div id="cfgTooltipPopup" role="tooltip"></div>
+<script>

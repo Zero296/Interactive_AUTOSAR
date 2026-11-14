@@ -1,0 +1,629 @@
+<!-- ================= STICKY UNIFIED HEADER ================= -->
+<header class="hdr">
+  <div class="hdr-row">
+    <div class="brand">
+      <span class="brand-badge">AUTOSAR Classic R23-11</span>
+      <div>
+        <div class="brand-title">NvM Interactive Simulator &amp; Technical Handbook</div>
+        <div class="brand-sub">NVRAM Manager · RAM/Mirror ↔ NV #0/#1 ↔ ROM · CRC/StaticID/Verify · Immediate Queue Preemption · MemIf → Fee/Ea → Fls/Eep</div>
+      </div>
+    </div>
+
+    <div class="view-switch" role="tablist">
+      <button id="btnViewSim" class="view-btn active" onclick="switchMainView('sim')">🎛️ Trình Mô Phỏng NvM</button>
+      <button id="btnViewHb" class="view-btn" onclick="switchMainView('hb')">📖 Sổ Tay Kỹ Thuật &amp; Thuật Ngữ</button>
+    </div>
+
+    <div class="hdr-actions">
+      <button class="btn btn-pri" onclick="openExportModal()">📦 Xuất ARXML / Cfg / C</button>
+      <button class="btn btn-ok" onclick="downloadStandaloneHTML()">💾 Tải File .HTML</button>
+      <button id="btnTheme" class="btn" onclick="toggleTheme()">☀️ Light Mode</button>
+    </div>
+  </div>
+
+  <div class="hdr-row">
+    <div class="scen-bar">
+      <label for="scenSelect" style="font-weight:700;font-size:11.5px;color:var(--mut)">Kịch bản:</label>
+      <select id="scenSelect" class="scen-select" onchange="onScenarioSelectChange()">
+        <optgroup label="Nhóm 1: Khởi Động, ReadAll, Explicit Sync &amp; Dataset">
+          <option value="S1">S1: Boot-Up NvM_Init &amp; NvM_ReadAll() (ConfigId, MEMIF_FAST &amp; BswM)</option>
+          <option value="S2">S2: Đọc Khối Đơn Lẻ Bất Đồng Bộ (ReadBlock/PRAM → MemIf → Fee → Fls → CRC)</option>
+          <option value="S3">S3: Đồng Bộ Gương Tường Minh Explicit Sync (NvM Mirror &amp; RepeatMirrorOps)</option>
+          <option value="S4">S4: Quản Lý Khối NVM_BLOCK_DATASET (NvM_SetDataIndex &amp; Ánh Xạ NV/ROM)</option>
+        </optgroup>
+        <optgroup label="Nhóm 2: Ghi Dữ Liệu, CRC Compare, Verify, Hàng Đợi Ưu Tiên &amp; WriteAll">
+          <option value="S5">S5: NvM_SetRamBlockStatus(TRUE) &amp; NvM_WriteBlock (REDUNDANT NV #0/#1)</option>
+          <option value="S6">S6: Chống Mòn Flash (CRC Compare Skip) &amp; Đọc Ngược Kiểm Chứng (WriteVerify)</option>
+          <option value="S7">S7: Immediate Preemption (Prio=0 MemIf_Cancel Cắt Ngang Standard Queue)</option>
+          <option value="S8">S8: Chu Trình Tắt Máy NvM_WriteAll(), ValidateAll() &amp; CancelWriteAll()</option>
+        </optgroup>
+        <optgroup label="Nhóm 3: Khối Dự Phòng Kép (REDUNDANT), ROM Default &amp; Erase/Invalidate">
+          <option value="S9">S9: Tự Cứu Hộ Khối REDUNDANT (NV #0 Lỗi CRC → Đọc NV #1 &amp; Phục Hồi)</option>
+          <option value="S10">S10: Khôi Phục Mặc Định ROM Default &amp; InitBlockCallback (RESTORED_FROM_ROM)</option>
+          <option value="S11">S11: Phân Biệt NvM_InvalidateNvBlock() vs NvM_EraseNvBlock() (Prio=0)</option>
+        </optgroup>
+        <optgroup label="Nhóm 4: Static Block ID, Write Protection, Retries &amp; Lỗi DEM/DET">
+          <option value="S12">S12: Static Block ID Check (WRONG_BLOCK_ID) &amp; Nâng Cấp SW (Dynamic Config)</option>
+          <option value="S13">S13: Khóa Chống Ghi SetBlockProtection(TRUE) &amp; NvMWriteBlockOnce = TRUE</option>
+          <option value="S14">S14: Tự Động Thử Lại (MaxWriteRetries → DEM) &amp; Bẫy Toàn Bộ Mã Lỗi DET</option>
+        </optgroup>
+      </select>
+
+      <button class="btn btn-sm" onclick="resetCurrentScenario()">⟲ Reset Kịch Bản</button>
+      <button id="btnPrevStep" class="btn btn-sm" onclick="prevScenarioStep()" disabled>◀ Lùi</button>
+      <span id="stepIndicator" class="step-pill">Bước 0 / 0</span>
+      <button id="btnNextStep" class="btn btn-sm btn-pri" onclick="nextScenarioStep()">Bước Tiếp ▶</button>
+      <button id="btnAutoPlay" class="btn btn-sm btn-pur" onclick="toggleScenarioAutoPlay()">▶ Tự Động Kịch Bản</button>
+
+      <div class="clock-box">
+        <span style="font-size:10.5px;color:var(--mut);font-weight:700">Clock:</span>
+        <span id="clockVal" class="clock-val mono">0 ms</span>
+        <button class="btn btn-sm btn-ok" onclick="stepClockTick(10)" title="Chạy 1 chu kỳ NvM_MainFunction() + Fee/Fls (+10ms)">+10ms MainFn</button>
+        <button id="btnAutoClock" class="btn btn-sm" onclick="toggleAutoClock()">⏱ Auto Clock</button>
+      </div>
+    </div>
+
+    <div class="hdr-badges">
+      <span id="hdrBadgeInit" class="state-badge sb-ok">NvM: INITIALIZED</span>
+      <span id="hdrBadgeBlk" class="state-badge sb-pri">Blk #3: Odometer</span>
+      <span id="hdrBadgeRes" class="state-badge sb-idle">Result: NVM_REQ_OK</span>
+      <span id="hdrBadgeQ" class="state-badge sb-idle">Q: 0 Imm / 0 Std</span>
+    </div>
+  </div>
+</header>
+
+<!-- ================= VIEW 1: INTERACTIVE SIMULATOR (ZERO-SCROLL 3 COLUMNS) ================= -->
+<main id="viewSim" class="workspace">
+
+  <!-- LEFT COLUMN: QUICK ACTIONS + SCENARIO WHAT-IF + 6 ECUC CONFIG TABS -->
+  <aside class="col-left">
+    <!-- CARD 1: QUICK ACTION BAR -->
+    <section class="panel">
+      <div class="panel-hdr">
+        <span class="panel-title">⚡ Thao Tác Nhanh (Quick NvM Requests)</span>
+        <span class="panel-sub">Tác động tức thì</span>
+      </div>
+      <div class="panel-body">
+        <div class="qa-row">
+          <select id="qaBlockSelect" onchange="qaSelectBlock()" style="flex:1;background:var(--panel-3);border:1px solid var(--bdr);border-radius:5px;padding:3px 6px;font-size:11px;font-weight:700">
+            <option value="1">#1 ConfigId_CompiledSw (RED)</option>
+            <option value="2">#2 Calib_EngineMap (NAT)</option>
+            <option value="3" selected>#3 Odometer_Redundant (RED)</option>
+            <option value="4">#4 Variant_Coding (DS)</option>
+            <option value="5">#5 Crash_EventRecord (IMM)</option>
+          </select>
+          <select id="qaMaintSelect" style="width:128px;background:var(--panel-3);border:1px solid var(--bdr);border-radius:5px;padding:3px 5px;font-size:11px;font-weight:600">
+            <option value="RESTORE">RestoreDefaults</option>
+            <option value="INVALIDATE">InvalidateNvBlock</option>
+            <option value="ERASE">EraseNvBlock (P0)</option>
+            <option value="PROTECT">Toggle BlockProt</option>
+            <option value="VALIDATE_ALL">NvM_ValidateAll</option>
+            <option value="CANCEL_WRITE_ALL">CancelWriteAll</option>
+          </select>
+        </div>
+        <div class="qa-grid">
+          <button id="qaBtnRead" class="qa-btn" onclick="qaReadBlock()">
+            <span>📖 ReadBlock / PRAM</span><span class="mono">Read</span>
+          </button>
+          <button id="qaBtnWrite" class="qa-btn" onclick="qaWriteBlock()">
+            <span>✍️ WriteBlock / PRAM</span><span class="mono">Write</span>
+          </button>
+          <button id="qaBtnDirty" class="qa-btn" onclick="qaSetRamStatusDirty()">
+            <span>🚩 SetRamStatus(TRUE)</span><span id="qaTxtDirty" class="mono">Dirty</span>
+          </button>
+          <button id="qaBtnMaint" class="qa-btn" onclick="qaExecuteMaintAction()">
+            <span>🔄 Chạy Maint API</span><span class="mono">Exec</span>
+          </button>
+          <button id="qaBtnReadAll" class="qa-btn" onclick="qaRunReadAll()">
+            <span>🚀 Startup: ReadAll()</span><span class="mono">Multi</span>
+          </button>
+          <button id="qaBtnWriteAll" class="qa-btn" onclick="qaRunWriteAll()">
+            <span>🛑 Shutdown: WriteAll()</span><span class="mono">Multi</span>
+          </button>
+          <button id="qaBtnCorrupt" class="qa-btn qa-warn" onclick="qaToggleCorruptNv0()">
+            <span>💥 Corrupt NV #0 CRC</span><span id="qaTxtCorrupt" class="mono">OK</span>
+          </button>
+          <button id="qaBtnCrash" class="qa-btn qa-err" onclick="qaTriggerImmediateCrash()">
+            <span>🚨 Imm Crash (Prio=0)</span><span class="mono">Preempt</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- CARD 2: CURRENT SCENARIO SUMMARY & 3 WHAT-IF BUTTONS -->
+    <section class="panel">
+      <div class="panel-hdr">
+        <span class="panel-title">🎬 Kịch Bản Đang Chạy &amp; Thử Nghiệm Nhanh</span>
+        <span id="scenIdBadge" class="panel-sub mono">S1</span>
+      </div>
+      <div class="panel-body">
+        <div id="scenSummaryBox" class="scen-desc-box"></div>
+        <div style="font-size:10.5px;font-weight:700;color:var(--pur);margin-bottom:4px">🧪 Thử Nghiệm Nhanh (1-Click What-If):</div>
+        <div id="whatIfContainer" class="whatif-grid"></div>
+      </div>
+    </section>
+
+    <!-- CARD 3: 6-TAB ECUC CONFIG PANEL (36 PARAMETERS + >1S TOOLTIP LIKE DEM) -->
+    <section class="panel">
+      <div class="panel-hdr">
+        <span class="panel-title">⚙️ Cấu Hình ECUC NvM (Hover &gt;1s Hoặc Click ⓘ)</span>
+        <span class="panel-sub">36 Parameters</span>
+      </div>
+      <div class="cfg-tabs">
+        <button id="cfgTabBtn0" class="cfg-tab active" onclick="switchCfgTab(0)">1. Common</button>
+        <button id="cfgTabBtn1" class="cfg-tab" onclick="switchCfgTab(1)">2. Block/DS</button>
+        <button id="cfgTabBtn2" class="cfg-tab" onclick="switchCfgTab(2)">3. RAM/Sync</button>
+        <button id="cfgTabBtn3" class="cfg-tab" onclick="switchCfgTab(3)">4. CRC/Verify</button>
+        <button id="cfgTabBtn4" class="cfg-tab" onclick="switchCfgTab(4)">5. Prot/Retry</button>
+        <button id="cfgTabBtn5" class="cfg-tab" onclick="switchCfgTab(5)">6. Multi/Stack</button>
+      </div>
+
+      <!-- TAB 0: COMMON & QUEUES -->
+      <div id="cfgPane0" class="cfg-pane">
+        <div class="cfg-row" data-cfg-key="NvMInitialized">
+          <label class="cfg-lbl" for="cfg_NvMInitialized"><span class="cfg-i">ⓘ</span><span class="cfg-name">NvMInitialized (Init State)</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_NvMInitialized" checked onchange="onConfigInputChanged('NvMInitialized')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="NvMApiConfigClass">
+          <label class="cfg-lbl" for="cfg_NvMApiConfigClass"><span class="cfg-i">ⓘ</span><span class="cfg-name">NvMApiConfigClass</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_NvMApiConfigClass" onchange="onConfigInputChanged('NvMApiConfigClass')">
+              <option value="NVM_API_CONFIG_CLASS_3">API_CONFIG_CLASS_3</option>
+              <option value="NVM_API_CONFIG_CLASS_2">API_CONFIG_CLASS_2</option>
+              <option value="NVM_API_CONFIG_CLASS_1">API_CONFIG_CLASS_1</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="NvMDevErrorDetect">
+          <label class="cfg-lbl" for="cfg_NvMDevErrorDetect"><span class="cfg-i">ⓘ</span><span class="cfg-name">NvMDevErrorDetect</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_NvMDevErrorDetect" checked onchange="onConfigInputChanged('NvMDevErrorDetect')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="NvMJobPrioritization">
+          <label class="cfg-lbl" for="cfg_NvMJobPrioritization"><span class="cfg-i">ⓘ</span><span class="cfg-name">NvMJobPrioritization</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_NvMJobPrioritization" checked onchange="onConfigInputChanged('NvMJobPrioritization')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="NvMQueueSizes">
+          <label class="cfg-lbl" for="cfg_NvMQueueSizes"><span class="cfg-i">ⓘ</span><span class="cfg-name">Queue Size (Std / Imm)</span></label>
+          <div class="cfg-ctrl"><input type="text" id="cfg_NvMQueueSizes" class="mono" value="8 / 3" style="width:74px;text-align:center" onchange="onConfigInputChanged('NvMQueueSizes')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="NvMMainFnAndCrcBytes">
+          <label class="cfg-lbl" for="cfg_NvMMainFnAndCrcBytes"><span class="cfg-i">ⓘ</span><span class="cfg-name">MainFn (ms) / CrcBytes</span></label>
+          <div class="cfg-ctrl"><input type="text" id="cfg_NvMMainFnAndCrcBytes" class="mono" value="10 / 64" style="width:74px;text-align:center" onchange="onConfigInputChanged('NvMMainFnAndCrcBytes')" /></div>
+        </div>
+      </div>
+
+      <!-- TAB 1: BLOCK DESCRIPTOR & DATASET -->
+      <div id="cfgPane1" class="cfg-pane hidden">
+        <div class="cfg-row" data-cfg-key="SelectedBlockId">
+          <label class="cfg-lbl" for="cfg_SelectedBlockId"><span class="cfg-i">ⓘ</span><span class="cfg-name">SelectedBlockId</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_SelectedBlockId" onchange="onConfigInputChanged('SelectedBlockId')">
+              <option value="1">#1 ConfigId_CompiledSw</option>
+              <option value="2">#2 Calib_EngineMap</option>
+              <option value="3" selected>#3 Odometer_Redundant</option>
+              <option value="4">#4 Variant_Coding</option>
+              <option value="5">#5 Crash_EventRecord</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="NvMBlockManagementType">
+          <label class="cfg-lbl" for="cfg_NvMBlockManagementType"><span class="cfg-i">ⓘ</span><span class="cfg-name">NvMBlockManagementType</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_NvMBlockManagementType" onchange="onConfigInputChanged('NvMBlockManagementType')">
+              <option value="NVM_BLOCK_NATIVE">NVM_BLOCK_NATIVE</option>
+              <option value="NVM_BLOCK_REDUNDANT">NVM_BLOCK_REDUNDANT</option>
+              <option value="NVM_BLOCK_DATASET">NVM_BLOCK_DATASET</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="NvMBlockJobPriority">
+          <label class="cfg-lbl" for="cfg_NvMBlockJobPriority"><span class="cfg-i">ⓘ</span><span class="cfg-name">NvMBlockJobPriority (0=Imm)</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_NvMBlockJobPriority" min="0" max="255" value="2" onchange="onConfigInputChanged('NvMBlockJobPriority')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="NvMNvBlockLength">
+          <label class="cfg-lbl" for="cfg_NvMNvBlockLength"><span class="cfg-i">ⓘ</span><span class="cfg-name">NvMNvBlockLength</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_NvMNvBlockLength" min="1" max="4096" value="8" onchange="onConfigInputChanged('NvMNvBlockLength')" /><span style="font-size:10px;color:var(--mut)">B</span></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="NvMBlockCounts">
+          <label class="cfg-lbl" for="cfg_NvMBlockCounts"><span class="cfg-i">ⓘ</span><span class="cfg-name">NvNum / RomNum</span></label>
+          <div class="cfg-ctrl"><input type="text" id="cfg_NvMBlockCounts" class="mono" value="2 / 1" style="width:74px;text-align:center" onchange="onConfigInputChanged('NvMBlockCounts')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="CurrentDataIndex">
+          <label class="cfg-lbl" for="cfg_CurrentDataIndex"><span class="cfg-i">ⓘ</span><span class="cfg-name">CurrentDataIndex (Dataset)</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_CurrentDataIndex" min="0" max="15" value="0" onchange="onConfigInputChanged('CurrentDataIndex')" /></div>
+        </div>
+      </div>
+
+      <!-- TAB 2: RAM & EXPLICIT SYNC -->
+      <div id="cfgPane2" class="cfg-pane hidden">
+        <div class="cfg-row" data-cfg-key="UsePermanentRamBlock">
+          <label class="cfg-lbl" for="cfg_UsePermanentRamBlock"><span class="cfg-i">ⓘ</span><span class="cfg-name">UsePermanentRamBlock</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_UsePermanentRamBlock" checked onchange="onConfigInputChanged('UsePermanentRamBlock')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="NvMBlockUseSyncMechanism">
+          <label class="cfg-lbl" for="cfg_NvMBlockUseSyncMechanism"><span class="cfg-i">ⓘ</span><span class="cfg-name">NvMBlockUseSyncMechanism</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_NvMBlockUseSyncMechanism" onchange="onConfigInputChanged('NvMBlockUseSyncMechanism')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="NvMRepeatMirrorOperations">
+          <label class="cfg-lbl" for="cfg_NvMRepeatMirrorOperations"><span class="cfg-i">ⓘ</span><span class="cfg-name">NvMRepeatMirrorOperations</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_NvMRepeatMirrorOperations" min="0" max="10" value="3" onchange="onConfigInputChanged('NvMRepeatMirrorOperations')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="InjectMirrorBusyConflict">
+          <label class="cfg-lbl" for="cfg_InjectMirrorBusyConflict"><span class="cfg-i">ⓘ</span><span class="cfg-name">InjectMirrorBusyConflict</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_InjectMirrorBusyConflict" onchange="onConfigInputChanged('InjectMirrorBusyConflict')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="NvMResistantToChangedSw">
+          <label class="cfg-lbl" for="cfg_NvMResistantToChangedSw"><span class="cfg-i">ⓘ</span><span class="cfg-name">NvMResistantToChangedSw</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_NvMResistantToChangedSw" checked onchange="onConfigInputChanged('NvMResistantToChangedSw')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="NvMBlockUseSetRamBlockStatus">
+          <label class="cfg-lbl" for="cfg_NvMBlockUseSetRamBlockStatus"><span class="cfg-i">ⓘ</span><span class="cfg-name">UseSetRamBlockStatus</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_NvMBlockUseSetRamBlockStatus" checked onchange="onConfigInputChanged('NvMBlockUseSetRamBlockStatus')" /></div>
+        </div>
+      </div>
+
+      <!-- TAB 3: CRC & WRITE VERIFICATION -->
+      <div id="cfgPane3" class="cfg-pane hidden">
+        <div class="cfg-row" data-cfg-key="NvMBlockUseCrc">
+          <label class="cfg-lbl" for="cfg_NvMBlockUseCrc"><span class="cfg-i">ⓘ</span><span class="cfg-name">NvMBlockUseCrc (&amp; CalcRam)</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_NvMBlockUseCrc" checked onchange="onConfigInputChanged('NvMBlockUseCrc')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="NvMBlockCrcType">
+          <label class="cfg-lbl" for="cfg_NvMBlockCrcType"><span class="cfg-i">ⓘ</span><span class="cfg-name">NvMBlockCrcType</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_NvMBlockCrcType" onchange="onConfigInputChanged('NvMBlockCrcType')">
+              <option value="NVM_CRC16">NVM_CRC16</option>
+              <option value="NVM_CRC32">NVM_CRC32</option>
+              <option value="NVM_CRC8">NVM_CRC8</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="NvMBlockUseCrcCompMechanism">
+          <label class="cfg-lbl" for="cfg_NvMBlockUseCrcCompMechanism"><span class="cfg-i">ⓘ</span><span class="cfg-name">NvMBlockUseCrcCompMech</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_NvMBlockUseCrcCompMechanism" checked onchange="onConfigInputChanged('NvMBlockUseCrcCompMechanism')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="NvMStaticBlockIDCheck">
+          <label class="cfg-lbl" for="cfg_NvMStaticBlockIDCheck"><span class="cfg-i">ⓘ</span><span class="cfg-name">NvMStaticBlockIDCheck</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_NvMStaticBlockIDCheck" checked onchange="onConfigInputChanged('NvMStaticBlockIDCheck')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="NvMWriteVerification">
+          <label class="cfg-lbl" for="cfg_NvMWriteVerification"><span class="cfg-i">ⓘ</span><span class="cfg-name">NvMWriteVerification</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_NvMWriteVerification" checked onchange="onConfigInputChanged('NvMWriteVerification')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="NvMBlockUseAutoValidation">
+          <label class="cfg-lbl" for="cfg_NvMBlockUseAutoValidation"><span class="cfg-i">ⓘ</span><span class="cfg-name">NvMBlockUseAutoValidation</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_NvMBlockUseAutoValidation" onchange="onConfigInputChanged('NvMBlockUseAutoValidation')" /></div>
+        </div>
+      </div>
+
+      <!-- TAB 4: PROTECTION & RETRIES -->
+      <div id="cfgPane4" class="cfg-pane hidden">
+        <div class="cfg-row" data-cfg-key="NvMBlockWriteProt">
+          <label class="cfg-lbl" for="cfg_NvMBlockWriteProt"><span class="cfg-i">ⓘ</span><span class="cfg-name">NvMBlockWriteProt</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_NvMBlockWriteProt" onchange="onConfigInputChanged('NvMBlockWriteProt')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="NvMWriteBlockOnce">
+          <label class="cfg-lbl" for="cfg_NvMWriteBlockOnce"><span class="cfg-i">ⓘ</span><span class="cfg-name">NvMWriteBlockOnce</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_NvMWriteBlockOnce" onchange="onConfigInputChanged('NvMWriteBlockOnce')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="NvMMaxRetries">
+          <label class="cfg-lbl" for="cfg_NvMMaxRetries"><span class="cfg-i">ⓘ</span><span class="cfg-name">Retries (Write / Read)</span></label>
+          <div class="cfg-ctrl"><input type="text" id="cfg_NvMMaxRetries" class="mono" value="3 / 1" style="width:74px;text-align:center" onchange="onConfigInputChanged('NvMMaxRetries')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="InjectNvCrcCorruption">
+          <label class="cfg-lbl" for="cfg_InjectNvCrcCorruption"><span class="cfg-i">ⓘ</span><span class="cfg-name">InjectNvCrcCorruption (NV#0)</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_InjectNvCrcCorruption" onchange="onConfigInputChanged('InjectNvCrcCorruption')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="InjectMemIfWriteError">
+          <label class="cfg-lbl" for="cfg_InjectMemIfWriteError"><span class="cfg-i">ⓘ</span><span class="cfg-name">InjectMemIfWriteError</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_InjectMemIfWriteError" onchange="onConfigInputChanged('InjectMemIfWriteError')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="ProvideRomBlockDefault">
+          <label class="cfg-lbl" for="cfg_ProvideRomBlockDefault"><span class="cfg-i">ⓘ</span><span class="cfg-name">ProvideRomBlockDefault</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_ProvideRomBlockDefault" checked onchange="onConfigInputChanged('ProvideRomBlockDefault')" /></div>
+        </div>
+      </div>
+
+      <!-- TAB 5: MULTI-BLOCK, BSWM & MEMIF -->
+      <div id="cfgPane5" class="cfg-pane hidden">
+        <div class="cfg-row" data-cfg-key="NvMSelectForReadAndWriteAll">
+          <label class="cfg-lbl" for="cfg_NvMSelectForReadAndWriteAll"><span class="cfg-i">ⓘ</span><span class="cfg-name">Select ReadAll / WriteAll</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_NvMSelectForReadAndWriteAll" onchange="onConfigInputChanged('NvMSelectForReadAndWriteAll')">
+              <option value="BOTH_READ_WRITE">BOTH_READ_WRITE</option>
+              <option value="READ_ALL_ONLY">READ_ALL_ONLY</option>
+              <option value="WRITE_ALL_ONLY">WRITE_ALL_ONLY</option>
+              <option value="NONE">NONE</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="NvMConfigIdComparison">
+          <label class="cfg-lbl" for="cfg_NvMConfigIdComparison"><span class="cfg-i">ⓘ</span><span class="cfg-name">ConfigId (Comp / Stored)</span></label>
+          <div class="cfg-ctrl"><input type="text" id="cfg_NvMConfigIdComparison" class="mono" value="0xA55A / 0xA55A" style="width:136px;text-align:center" onchange="onConfigInputChanged('NvMConfigIdComparison')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="NvMDynamicConfiguration">
+          <label class="cfg-lbl" for="cfg_NvMDynamicConfiguration"><span class="cfg-i">ⓘ</span><span class="cfg-name">NvMDynamicConfiguration</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_NvMDynamicConfiguration" checked onchange="onConfigInputChanged('NvMDynamicConfiguration')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="NvMBswMJobStatusInfo">
+          <label class="cfg-lbl" for="cfg_NvMBswMJobStatusInfo"><span class="cfg-i">ⓘ</span><span class="cfg-name">NvMBswMJobStatusInfo</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_NvMBswMJobStatusInfo" checked onchange="onConfigInputChanged('NvMBswMJobStatusInfo')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="NvMDrvModeSwitch">
+          <label class="cfg-lbl" for="cfg_NvMDrvModeSwitch"><span class="cfg-i">ⓘ</span><span class="cfg-name">NvMDrvModeSwitch (FAST)</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_NvMDrvModeSwitch" checked onchange="onConfigInputChanged('NvMDrvModeSwitch')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="NvMNvramDeviceId">
+          <label class="cfg-lbl" for="cfg_NvMNvramDeviceId"><span class="cfg-i">ⓘ</span><span class="cfg-name">NvMNvramDeviceId</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_NvMNvramDeviceId" onchange="onConfigInputChanged('NvMNvramDeviceId')">
+              <option value="0">0: Fee (Data Flash)</option>
+              <option value="1">1: Ea (EEPROM)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div id="cfgValidationBox" style="padding:0 10px 8px"></div>
+    </section>
+  </aside>
+
+  <!-- CENTER COLUMN: NVRAM BLOCK ANATOMY, 6 BLOCKS, DUAL 8-BIT REGS, QUEUES/SM, SVG ARCHITECTURE -->
+  <section class="col-center">
+    <!-- PANEL 1: 2-TIER NVRAM BLOCK ANATOMY, 6 BLOCKS TABLE & DUAL 8-BIT REGISTERS -->
+    <section class="panel">
+      <div class="panel-hdr">
+        <span class="panel-title">💾 Giải Phẫu Khối NVRAM (RAM/Mirror ↔ NV #0/#1 ↔ ROM), 6 Khối &amp; 2 Thanh Ghi 8-Bit</span>
+        <span class="panel-sub">Click khối bên dưới để soi chi tiết từng vùng nhớ &amp; Click Bit để thử nghiệm</span>
+      </div>
+      <div class="panel-body tier-split">
+        <!-- TIER 1A-1: 3-REGION NVRAM BLOCK ANATOMY INSPECTOR -->
+        <div id="blockAnatomyHdr" class="anat-hdr"></div>
+        <div id="blockAnatomyGrid" class="anat-grid"></div>
+
+        <!-- TIER 1A-2: 6 NVRAM BLOCKS STATUS TABLE -->
+        <div class="blk-tbl-wrap">
+          <table class="blk-tbl">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Tên Khối (Block)</th>
+                <th>Kiểu (Type)</th>
+                <th>Prio / Sync</th>
+                <th>RAM State</th>
+                <th>NV #0 / #1</th>
+                <th>CRC (Hex)</th>
+                <th>Kết Quả (Result)</th>
+              </tr>
+            </thead>
+            <tbody id="blockTableBody"></tbody>
+          </table>
+        </div>
+
+        <!-- TIER 1B: DUAL 8-BIT REGISTERS -->
+        <div class="reg-grid">
+          <div class="reg-card">
+            <div class="reg-top">
+              <span class="reg-name">Thanh A: NvM_AdminStatusByte</span>
+              <span id="regAHex" class="reg-hex mono">0x80</span>
+            </div>
+            <div id="regABits" class="bit-row"></div>
+          </div>
+
+          <div class="reg-card">
+            <div class="reg-top">
+              <span class="reg-name">Thanh B: NvM_JobControlByte</span>
+              <span id="regBHex" class="reg-hex mono">0x80</span>
+            </div>
+            <div id="regBBits" class="bit-row"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PANEL 2: PRIORITY QUEUES, MEMIF PIPELINE & DUAL STATE MACHINES -->
+    <section class="panel">
+      <div class="panel-hdr">
+        <span class="panel-title">⏳ Hàng Đợi Ưu Tiên (Immediate / Standard / Multi-Block) &amp; 2 Máy Trạng Thái Song Song</span>
+        <span id="nvmExecBadge" class="panel-sub mono">MemIf: SLOW/IDLE | Retries: 0</span>
+      </div>
+      <div class="panel-body">
+        <div id="queuesGrid" class="timer-grid"></div>
+        <div id="queueItemsStrip" class="queue-strip"></div>
+        <div class="sm-dual">
+          <div class="sm-box">
+            <div class="sm-title">
+              <span>⚙️ NvM Asynchronous Job &amp; Sub-State Machine</span>
+              <span id="smJobLbl" class="mono">NVM_IDLE</span>
+            </div>
+            <div id="jobSmDiagram" class="sm-states"></div>
+          </div>
+
+          <div class="sm-box">
+            <div class="sm-title">
+              <span>🔄 Queue Preemption &amp; MemIf → Fee/Ea → Fls/Eep Stack</span>
+              <span id="smStackLbl" class="mono">STACK_IDLE</span>
+            </div>
+            <div id="stackSmDiagram" class="sm-states"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PANEL 3: INTERACTIVE END-TO-END AUTOSAR MEMORY STACK SVG ARCHITECTURE -->
+    <section class="panel">
+      <div class="panel-hdr">
+        <span class="panel-title">🏗️ Kiến Trúc Tương Tác End-to-End Module NvM Trong AUTOSAR Memory Stack</span>
+        <span class="panel-sub">Click bất kỳ Module nào để xem Input / Output &amp; API ở Inspector bên phải</span>
+      </div>
+      <div class="panel-body">
+        <div class="arch-wrap">
+          <svg id="nvmArchSvg" class="arch-svg" viewBox="0 0 820 390" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <marker id="arrEnd" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                <path d="M 0 1 L 10 5 L 0 9 z" fill="currentColor" />
+              </marker>
+            </defs>
+
+            <!-- ARROWS LAYER (VERIFIED NON-OVERLAPPING) -->
+            <path id="arr_swc_rte" class="flow-arrow" d="M 128 72 L 128 96" marker-end="url(#arrEnd)" />
+            <path id="arr_rte_nvm" class="flow-arrow" d="M 238 118 L 270 118" marker-end="url(#arrEnd)" />
+            <path id="arr_nvm_rte" class="flow-arrow" d="M 270 136 L 238 136" marker-end="url(#arrEnd)" />
+            <path id="arr_dcmdem_nvm" class="flow-arrow" d="M 398 72 L 398 98" marker-end="url(#arrEnd)" />
+            <path id="arr_nvm_dem" class="flow-arrow" d="M 426 98 L 426 72" marker-end="url(#arrEnd)" />
+            <path id="arr_bswm_nvm" class="flow-arrow" d="M 655 72 L 550 112" marker-end="url(#arrEnd)" />
+            <path id="arr_nvm_bswm" class="flow-arrow" d="M 550 128 L 690 72" marker-end="url(#arrEnd)" />
+            <path id="arr_nvm_crc" class="flow-arrow" d="M 270 185 L 238 185" marker-end="url(#arrEnd)" />
+            <path id="arr_nvm_det" class="flow-arrow" d="M 550 150 L 590 150" marker-end="url(#arrEnd)" />
+            <path id="arr_nvm_memif" class="flow-arrow" d="M 410 208 L 410 238" marker-end="url(#arrEnd)" />
+            <path id="arr_memif_fee" class="flow-arrow" d="M 365 292 L 265 318" marker-end="url(#arrEnd)" />
+            <path id="arr_fee_fls" class="flow-arrow" d="M 380 346 L 440 346" marker-end="url(#arrEnd)" />
+            <path id="arr_fls_nvm" class="flow-arrow" d="M 568 318 L 568 188 L 550 188" marker-end="url(#arrEnd)" />
+
+            <!-- MODULE BLOCKS (10 MODULES MATCHING SECTION 4) -->
+            <g id="node_MOD_SWC" class="mod-node" onclick="selectModule('MOD_SWC')">
+              <rect class="mod-rect" x="18" y="16" width="230" height="56" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="133" y="34" text-anchor="middle" fill="var(--pri)" font-weight="700" font-size="11.5">SWC_App &amp; SWC_Calib</text>
+              <text id="svgSub_MOD_SWC" x="133" y="49" text-anchor="middle" fill="var(--mut)" font-size="10">RAM / Mirror: Ready</text>
+              <text x="133" y="63" text-anchor="middle" fill="var(--txt-soft)" font-size="9.5">ReadBlock / WriteBlock / SetRamStatus</text>
+            </g>
+
+            <g id="node_MOD_DCM_DEM" class="mod-node" onclick="selectModule('MOD_DCM_DEM')">
+              <rect class="mod-rect" x="295" y="16" width="230" height="56" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="410" y="34" text-anchor="middle" fill="var(--warn)" font-weight="700" font-size="11.5">Dcm &amp; Dem (Diag / Events)</text>
+              <text id="svgSub_MOD_DCM_DEM" x="410" y="49" text-anchor="middle" fill="var(--mut)" font-size="10">DEM Faults: 0 (OK)</text>
+              <text x="410" y="63" text-anchor="middle" fill="var(--txt-soft)" font-size="9.5">Dem_SetEventStatus(NVM_E_*)</text>
+            </g>
+
+            <g id="node_MOD_BSWM" class="mod-node" onclick="selectModule('MOD_BSWM')">
+              <rect class="mod-rect" x="572" y="16" width="230" height="56" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="687" y="34" text-anchor="middle" fill="var(--ok)" font-weight="700" font-size="11.5">BswM &amp; EcuM (Lifecycle)</text>
+              <text id="svgSub_MOD_BSWM" x="687" y="49" text-anchor="middle" fill="var(--mut)" font-size="10">MultiJob: IDLE</text>
+              <text x="687" y="63" text-anchor="middle" fill="var(--txt-soft)" font-size="9.5">ReadAll / WriteAll / CurrentJobMode</text>
+            </g>
+
+            <g id="node_MOD_RTE" class="mod-node" onclick="selectModule('MOD_RTE')">
+              <rect class="mod-rect" x="18" y="96" width="220" height="52" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="128" y="114" text-anchor="middle" fill="var(--acc)" font-weight="700" font-size="11.5">RTE &amp; SchM (10ms Task)</text>
+              <text id="svgSub_MOD_RTE" x="128" y="129" text-anchor="middle" fill="var(--mut)" font-size="10">NvM_MainFunction: 10ms</text>
+              <text x="128" y="142" text-anchor="middle" fill="var(--txt-soft)" font-size="9.5">JobFinished / Explicit Mirror Cbk</text>
+            </g>
+
+            <g id="node_MOD_CRC" class="mod-node" onclick="selectModule('MOD_CRC')">
+              <rect class="mod-rect" x="18" y="164" width="220" height="52" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="128" y="182" text-anchor="middle" fill="var(--cyan)" font-weight="700" font-size="11.5">Crc Library (SWS_Crc)</text>
+              <text id="svgSub_MOD_CRC" x="128" y="197" text-anchor="middle" fill="var(--mut)" font-size="10">CRC-16 CCITT: 0x84CF</text>
+              <text x="128" y="210" text-anchor="middle" fill="var(--txt-soft)" font-size="9.5">Crc_CalculateCRC8 / 16 / 32()</text>
+            </g>
+
+            <g id="node_MOD_NVM" class="mod-node selected" onclick="selectModule('MOD_NVM')">
+              <rect class="mod-rect" x="270" y="98" width="280" height="110" rx="10" fill="var(--pri-bg)" stroke="var(--pri)" stroke-width="2.2"/>
+              <text x="410" y="118" text-anchor="middle" fill="var(--pri)" font-weight="800" font-size="13.5">NvM Core Engine (SWS_NvM)</text>
+              <text id="svgSub_MOD_NVM1" x="410" y="136" text-anchor="middle" fill="var(--txt)" font-weight="700" font-size="10.5">Init: NVM_INIT | State: NVM_IDLE</text>
+              <text id="svgSub_MOD_NVM2" x="410" y="153" text-anchor="middle" fill="var(--cyan)" font-weight="700" font-size="10">Blk #3 (REDUNDANT) | NVM_REQ_OK</text>
+              <text x="410" y="172" text-anchor="middle" fill="var(--mut)" font-size="9.5">Queues (Imm/Std/Multi) · Mirror Sync · CRC Compare</text>
+              <text x="410" y="188" text-anchor="middle" fill="var(--mut)" font-size="9.5">Redundant Fallback · WriteVerify · WriteProt · Retries</text>
+            </g>
+
+            <g id="node_MOD_DET" class="mod-node" onclick="selectModule('MOD_DET')">
+              <rect class="mod-rect" x="590" y="118" width="212" height="60" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="696" y="138" text-anchor="middle" fill="var(--err)" font-weight="700" font-size="11.5">DET (ModuleId = 20)</text>
+              <text id="svgSub_MOD_DET" x="696" y="155" text-anchor="middle" fill="var(--mut)" font-size="10">Faults Logged: 0 (OK)</text>
+              <text x="696" y="169" text-anchor="middle" fill="var(--txt-soft)" font-size="9">NVM_E_UNINIT / BLOCK_ID / LOCKED</text>
+            </g>
+
+            <g id="node_MOD_MEMIF" class="mod-node" onclick="selectModule('MOD_MEMIF')">
+              <rect class="mod-rect" x="270" y="238" width="280" height="54" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="410" y="256" text-anchor="middle" fill="var(--pur)" font-weight="700" font-size="11.5">MemIf (Memory Abstraction Interface)</text>
+              <text id="svgSub_MOD_MEMIF" x="410" y="272" text-anchor="middle" fill="var(--mut)" font-size="10">Dev 0 (Fee) | Mode: SLOW | MEMIF_IDLE</text>
+              <text x="410" y="285" text-anchor="middle" fill="var(--txt-soft)" font-size="9.5">MemIf_Read / Write / Cancel / SetMode</text>
+            </g>
+
+            <g id="node_MOD_FEE" class="mod-node" onclick="selectModule('MOD_FEE')">
+              <rect class="mod-rect" x="100" y="318" width="280" height="56" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="240" y="336" text-anchor="middle" fill="var(--cyan)" font-weight="700" font-size="11.5">Fee &amp; Ea (Wear Leveling / Mapping)</text>
+              <text id="svgSub_MOD_FEE" x="240" y="352" text-anchor="middle" fill="var(--mut)" font-size="10">Active: Fee (DFlash) · Imm Sector Ready</text>
+              <text x="240" y="366" text-anchor="middle" fill="var(--txt-soft)" font-size="9.5">Fee_Read / Write / Cancel / Invalidate</text>
+            </g>
+
+            <g id="node_MOD_FLS" class="mod-node" onclick="selectModule('MOD_FLS')">
+              <rect class="mod-rect" x="440" y="318" width="280" height="56" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="580" y="336" text-anchor="middle" fill="var(--warn)" font-weight="700" font-size="11.5">Fls &amp; Eep (MCAL Hardware Driver)</text>
+              <text id="svgSub_MOD_FLS" x="580" y="352" text-anchor="middle" fill="var(--mut)" font-size="10">DFlash / EEPROM HW: IDLE</text>
+              <text x="580" y="366" text-anchor="middle" fill="var(--txt-soft)" font-size="9.5">Fls_Read/Write → NvM_JobEndNotification</text>
+            </g>
+          </svg>
+        </div>
+      </div>
+    </section>
+  </section>
+
+  <!-- RIGHT COLUMN: STICKY 4-TAB INSPECTOR -->
+  <aside class="col-right">
+    <section class="panel insp-panel">
+      <div class="insp-tabs">
+        <button id="inspTabBtn0" class="insp-tab active" onclick="switchInspTab(0)">🔍 Bước Hiện Tại</button>
+        <button id="inspTabBtn1" class="insp-tab" onclick="switchInspTab(1)">🧩 Module</button>
+        <button id="inspTabBtn2" class="insp-tab" onclick="switchInspTab(2)">📄 Code C</button>
+        <button id="inspTabBtn3" class="insp-tab" onclick="switchInspTab(3)">📜 API Trace</button>
+      </div>
+      <div id="inspBody" class="insp-body"></div>
+    </section>
+  </aside>
+</main>
+
+<!-- ================= VIEW 2: MULTI-LEVEL HANDBOOK & ABBREVIATION TABLE ================= -->
+<main id="viewHb" class="hb-wrap hidden">
+  <div class="hb-nav1">
+    <button id="hbTab1_0" class="hb-tab1 active" onclick="switchHbTab1(0)">1. Memory Stack &amp; Giải Phẫu</button>
+    <button id="hbTab1_1" class="hb-tab1" onclick="switchHbTab1(1)">2. NATIVE / REDUNDANT / DATASET</button>
+    <button id="hbTab1_2" class="hb-tab1" onclick="switchHbTab1(2)">3. RAM &amp; Explicit Sync Mirror</button>
+    <button id="hbTab1_3" class="hb-tab1" onclick="switchHbTab1(3)">4. CRC, Compare, Verify &amp; Bảo Vệ</button>
+    <button id="hbTab1_4" class="hb-tab1" onclick="switchHbTab1(4)">5. Hàng Đợi &amp; ReadAll / WriteAll</button>
+    <button id="hbTab1_5" class="hb-tab1" onclick="switchHbTab1(5)">6. API R23-11, DEM/DET &amp; ECUC</button>
+    <button id="hbTab1_6" class="hb-tab1" onclick="switchHbTab1(6)">7. Bảng Thuật Ngữ &amp; Search</button>
+  </div>
+
+  <div id="hbNav2" class="hb-nav2"></div>
+
+  <div id="hbAbbrFilterBox" class="abbr-toolbar hidden">
+    <input id="abbrSearchInput" class="abbr-search" type="text" placeholder="🔍 Tìm kiếm thuật ngữ AUTOSAR NvM (VD: REDUNDANT, MIRROR, CRC, MemIf, Fee, Preempt, SWS_NvM...)" oninput="filterAbbreviationTable()" />
+    <div class="cat-pills">
+      <button id="catPill_ALL" class="cat-pill active" onclick="setAbbrCategory('ALL')">Tất cả (54+)</button>
+      <button id="catPill_ARCH" class="cat-pill" onclick="setAbbrCategory('ARCH')">🧱 NVRAM Block</button>
+      <button id="catPill_QUEUE" class="cat-pill" onclick="setAbbrCategory('QUEUE')">⚡ Queues &amp; Sync</button>
+      <button id="catPill_CRC" class="cat-pill" onclick="setAbbrCategory('CRC')">🛡️ CRC &amp; Protection</button>
+      <button id="catPill_STACK" class="cat-pill" onclick="setAbbrCategory('STACK')">💾 MemIf / Fee / Fls</button>
+    </div>
+    <span id="abbrCountBadge" class="step-pill">54 thuật ngữ</span>
+  </div>
+
+  <div id="hbContentArea"></div>
+</main>
+
+<!-- ================= EXPORT ARXML / C / JSON MODAL ================= -->
+<div id="exportModal" class="modal-overlay hidden" onclick="if(event.target===this) closeExportModal()">
+  <div class="modal-box">
+    <div class="modal-hdr">
+      <strong style="font-size:13.5px;color:var(--pri)">📦 Xuất Cấu Hình NvM AUTOSAR (ARXML · NvM_Cfg.h · NvM_Cfg.c · JSON)</strong>
+      <button class="btn btn-sm" onclick="closeExportModal()">✖ Đóng</button>
+    </div>
+    <div class="modal-tabs">
+      <button id="expTab0" class="btn btn-sm btn-pri" onclick="switchExportTab(0)">NvM.arxml</button>
+      <button id="expTab1" class="btn btn-sm" onclick="switchExportTab(1)">NvM_Cfg.h</button>
+      <button id="expTab2" class="btn btn-sm" onclick="switchExportTab(2)">NvM_Cfg.c</button>
+      <button id="expTab3" class="btn btn-sm" onclick="switchExportTab(3)">NvM_Config.json</button>
+    </div>
+    <div class="modal-body">
+      <pre id="exportCodeArea" class="code-block"></pre>
+    </div>
+    <div class="modal-ftr">
+      <button class="btn" onclick="copyExportCode()">📋 Copy Clipboard</button>
+      <button class="btn btn-ok" onclick="downloadExportCode()">⬇ Tải File Hiện Tại</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= FLOATING TOOLTIP POPUP (>1S HOVER OR ⓘ CLICK, DEM STYLE) ================= -->
+<div id="cfgTooltipPopup" role="tooltip"></div>
+<script>

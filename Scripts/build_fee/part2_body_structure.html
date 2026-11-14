@@ -1,0 +1,613 @@
+<!-- ================= STICKY UNIFIED HEADER ================= -->
+<header class="hdr">
+  <div class="hdr-row">
+    <div class="brand">
+      <span class="brand-badge">AUTOSAR Classic R23-11</span>
+      <div>
+        <div class="brand-title">Fee Interactive Simulator &amp; Technical Handbook</div>
+        <div class="brand-sub">Flash EEPROM Emulation · 2-Bank Wear Leveling &amp; Garbage Collection · RAM LUT · Torn-Write Recovery · Fls / MemAcc</div>
+      </div>
+    </div>
+
+    <div class="view-switch" role="tablist">
+      <button id="btnViewSim" class="view-btn active" onclick="switchMainView('sim')">🎛️ Trình Mô Phỏng Fee</button>
+      <button id="btnViewHb" class="view-btn" onclick="switchMainView('hb')">📖 Sổ Tay Đa Tầng &amp; Thuật Ngữ</button>
+    </div>
+
+    <div class="hdr-actions">
+      <button class="btn btn-pri" onclick="openExportModal()">📦 Xuất ARXML / Cfg / C</button>
+      <button class="btn btn-ok" onclick="downloadStandaloneHTML()">💾 Tải File .HTML</button>
+      <button id="btnTheme" class="btn" onclick="toggleTheme()">☀️ Light Mode</button>
+    </div>
+  </div>
+
+  <div class="hdr-row">
+    <div class="scen-bar">
+      <label for="scenSelect" style="font-weight:700;font-size:11.5px;color:var(--mut)">Kịch bản:</label>
+      <select id="scenSelect" class="scen-select" onchange="onScenarioSelectChange()">
+        <optgroup label="Nhóm 1: Khởi Tạo, Ghi Nguyên Tử &amp; Đọc Qua RAM LUT">
+          <option value="S1">S1: Fee_Init() — Quét 2 Bank Flash, Dựng Bảng RAM LUT &amp; NvM_ReadAll()</option>
+          <option value="S2">S2: Fee_Write() — Căn Chỉnh Trang Ảo 8B &amp; Quy Trình Ghi Nguyên Tử 3 Pha</option>
+          <option value="S3">S3: Fee_Read() — Tra Cứu O(1) Qua RAM LUT, BlockOffset &amp; Partial Read</option>
+        </optgroup>
+        <optgroup label="Nhóm 2: Wear Leveling, Invalidation &amp; Khôi Phục Sập Nguồn">
+          <option value="S4">S4: Ghi Nối Đuôi (Append-Only Wear Leveling) &amp; Đa Tập Dữ Liệu (Dataset)</option>
+          <option value="S5">S5: Fee_InvalidateBlock() &amp; Phản Hồi MEMIF_BLOCK_INVALID Khi Đọc Lại</option>
+          <option value="S6">S6: Mất Nguồn Giữa Chừng (Torn Write) → INCONSISTENT &amp; Auto Fallback Bản Cũ</option>
+        </optgroup>
+        <optgroup label="Nhóm 3: Garbage Collection, Immediate Data &amp; Mode/Cancel">
+          <option value="S7">S7: Thu Gom Rác Tự Động (Garbage Collection: Bank 0 → Bank 1) &amp; Fls_Erase</option>
+          <option value="S8">S8: Dữ Liệu Khẩn Cấp (FeeImmediateData) — Vùng Dự Trữ &amp; Fee_EraseImmediateBlock()</option>
+          <option value="S9">S9: Đổi Tốc Độ Fee_SetMode(SLOW ↔ FAST) &amp; Hủy Lệnh Đang Chạy Fee_Cancel()</option>
+        </optgroup>
+        <optgroup label="Nhóm 4: Tích Hợp Toàn Trình, MemAcc R23-11 &amp; Lỗi Phần Cứng/DET">
+          <option value="S10">S10: Luồng Toàn Trình (SWC → RTE → NvM → MemIf → Fee → Fls) &amp; NvM_WriteAll()</option>
+          <option value="S11">S11: Kiến Trúc Mới R23-11 (Fee ↔ MemAcc ↔ Mem_30_Fls) &amp; Lỗi Flash Verify</option>
+          <option value="S12">S12: Bảo Vệ Tham Số &amp; Bẫy Lỗi DET (UNINIT, BLOCK_NO, OFS, LEN, PTR, BUSY, CANCEL)</option>
+        </optgroup>
+      </select>
+
+      <button class="btn btn-sm" onclick="resetCurrentScenario()">⟲ Reset</button>
+      <button id="btnPrevStep" class="btn btn-sm" onclick="prevScenarioStep()" disabled>◀ Lùi</button>
+      <span id="stepIndicator" class="step-pill">Bước 0 / 0</span>
+      <button id="btnNextStep" class="btn btn-sm btn-pri" onclick="nextScenarioStep()">Tiếp ▶</button>
+      <button id="btnAutoPlay" class="btn btn-sm btn-pur" onclick="toggleScenarioAutoPlay()">▶ Tự Chạy</button>
+
+      <div class="clock-box">
+        <span style="font-size:10.5px;color:var(--mut);font-weight:700">Clock:</span>
+        <span id="clockVal" class="clock-val mono">0 ms</span>
+        <button class="btn btn-sm btn-ok" onclick="stepMainFunctionTick()" title="Chạy 1 chu kỳ Fee_MainFunction() &amp; Fls/MemAcc_MainFunction()">+1 Tick MainFn</button>
+        <button class="btn btn-sm btn-cyan" onclick="stepCompleteAsyncJob()" title="Chạy liên tiếp MainFunction tới khi hoàn tất Job hiện tại">⚡ Xong Nhanh Job</button>
+        <button id="btnAutoClock" class="btn btn-sm" onclick="toggleAutoClock()">⏱ Auto</button>
+      </div>
+    </div>
+
+    <div class="hdr-badges">
+      <span id="hdrBadgeStatus" class="state-badge sb-ok">Status: IDLE</span>
+      <span id="hdrBadgeJob" class="state-badge sb-ok">Job: OK</span>
+      <span id="hdrBadgeBank" class="state-badge sb-cyan">Bank 0 (0%)</span>
+      <span id="hdrBadgeMode" class="state-badge sb-pur">SLOW (8B/tk)</span>
+    </div>
+  </div>
+</header>
+
+<!-- ================= VIEW 1: INTERACTIVE SIMULATOR (ZERO-SCROLL 3 COLUMNS) ================= -->
+<main id="viewSim" class="workspace">
+
+  <!-- LEFT COLUMN: QUICK ACTIONS + SCENARIO WHAT-IF + 6 ECUC CONFIG TABS -->
+  <aside class="col-left">
+    <!-- CARD 1: QUICK ACTION BAR -->
+    <section class="panel">
+      <div class="panel-hdr">
+        <span class="panel-title">⚡ Điều Khiển Lệnh Fee Thủ Công (Quick Actions)</span>
+        <span class="panel-sub">Tác động tức thì</span>
+      </div>
+      <div class="panel-body">
+        <div class="qa-row">
+          <span style="font-size:10.5px;font-weight:700;color:var(--mut);min-width:44px">Block:</span>
+          <select id="qaBlkSelect" onchange="onQaBlockSelectChange()" style="flex:1;background:var(--panel-3);border:1px solid var(--bdr);border-radius:5px;padding:3px 6px;font-size:11px;font-weight:600">
+            <option value="0x0010">Blk#1: Odometer (0x0010 · 14B Std)</option>
+            <option value="0x0020">Blk#2_DS0: EngCalib_0 (0x0020 · 24B DS0)</option>
+            <option value="0x0021">Blk#2_DS1: EngCalib_1 (0x0021 · 24B DS1)</option>
+            <option value="0x0030">Blk#3: CrashEvt_Imm (0x0030 · 8B IMM)</option>
+            <option value="0x0040">Blk#4: DiagVinCode (0x0040 · 17B Std)</option>
+          </select>
+        </div>
+        <div class="qa-grid">
+          <button class="qa-btn qa-ok" onclick="qaFeeWrite()">
+            <span>🟢 1. Fee_Write</span><span class="mono">Append</span>
+          </button>
+          <button class="qa-btn qa-pri" onclick="qaFeeRead()">
+            <span>🔵 2. Fee_Read</span><span class="mono">LUT O(1)</span>
+          </button>
+          <button class="qa-btn qa-pur" onclick="qaFeeInvalidate()">
+            <span>🟣 3. Invalidate</span><span class="mono">0x0000</span>
+          </button>
+          <button class="qa-btn qa-warn" onclick="qaEraseAndWriteImmediate()">
+            <span>🚨 4. Imm Block</span><span class="mono">0x0030</span>
+          </button>
+          <button class="qa-btn qa-cyan" onclick="qaTriggerGarbageCollection()">
+            <span>♻️ 5. Trigger GC</span><span class="mono">Switch</span>
+          </button>
+          <button class="qa-btn qa-err" onclick="qaInjectTornWrite()">
+            <span>⚡ 6. Torn-Write</span><span class="mono">PwrLoss</span>
+          </button>
+          <button class="qa-btn" onclick="qaToggleSpeedMode()">
+            <span>🚀 7. SetMode</span><span id="qaTxtMode" class="mono">SLOW</span>
+          </button>
+          <button class="qa-btn qa-err" onclick="qaCancelOrReset()">
+            <span id="qaLblCancelReset">🛑 8. Cancel/Init</span><span id="qaTxtCancel" class="mono">Init</span>
+          </button>
+        </div>
+        <div class="qa-row" style="margin-top:6px;margin-bottom:0">
+          <span style="font-size:10.5px;font-weight:700;color:var(--mut)">Kiểu đọc / Nút 8:</span>
+          <select id="qaReadSlice" onchange="onQaReadSliceChange()" style="flex:1;background:var(--panel-3);border:1px solid var(--bdr);border-radius:5px;padding:2px 6px;font-size:10.5px;font-weight:600">
+            <option value="FULL">Đọc Toàn Bộ (Offset=0, Full Length) · Nút 8 Auto</option>
+            <option value="PARTIAL">Đọc Một Phần (Offset=4, Length=8B) · Nút 8 Auto</option>
+            <option value="REINIT">Quét Lại Flash (Force Fee_Init Reset) Ở Nút 8</option>
+          </select>
+        </div>
+      </div>
+    </section>
+
+    <!-- CARD 2: CURRENT SCENARIO SUMMARY & 3 WHAT-IF BUTTONS -->
+    <section class="panel">
+      <div class="panel-hdr">
+        <span class="panel-title">🎬 Kịch Bản Đang Chạy &amp; Thử Nghiệm Nhanh</span>
+        <span id="scenIdBadge" class="panel-sub mono">S1</span>
+      </div>
+      <div class="panel-body">
+        <div id="scenSummaryBox" class="scen-desc-box"></div>
+        <div style="font-size:10.5px;font-weight:700;color:var(--pur);margin-bottom:4px">🧪 Thử Nghiệm Nhanh (1-Click What-If):</div>
+        <div id="whatIfContainer" class="whatif-grid"></div>
+      </div>
+    </section>
+
+    <!-- CARD 3: 6-TAB ECUC CONFIG PANEL (36 PARAMETERS + >1S TOOLTIP) -->
+    <section class="panel">
+      <div class="panel-hdr">
+        <span class="panel-title">⚙️ Cấu Hình ECUC Fee (Hover &gt;1s Xem SWS)</span>
+        <span class="panel-sub">36 Parameters</span>
+      </div>
+      <div class="cfg-tabs">
+        <button id="cfgTabBtn0" class="cfg-tab active" onclick="switchCfgTab(0)">1. General</button>
+        <button id="cfgTabBtn1" class="cfg-tab" onclick="switchCfgTab(1)">2. Page/Hdr</button>
+        <button id="cfgTabBtn2" class="cfg-tab" onclick="switchCfgTab(2)">3. Blocks</button>
+        <button id="cfgTabBtn3" class="cfg-tab" onclick="switchCfgTab(3)">4. Banks/GC</button>
+        <button id="cfgTabBtn4" class="cfg-tab" onclick="switchCfgTab(4)">5. Fls/MemAcc</button>
+        <button id="cfgTabBtn5" class="cfg-tab" onclick="switchCfgTab(5)">6. Faults/Rec</button>
+      </div>
+
+      <!-- TAB 0: GENERAL & MODES (6) -->
+      <div id="cfgPane0" class="cfg-pane">
+        <div class="cfg-row" data-cfg-key="FeeInitialized">
+          <label class="cfg-lbl" for="cfg_FeeInitialized"><span class="cfg-i">ⓘ</span><span class="cfg-name">FeeInitialized (State)</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_FeeInitialized" checked onchange="onConfigInputChanged('FeeInitialized')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="FeeDevErrorDetect">
+          <label class="cfg-lbl" for="cfg_FeeDevErrorDetect"><span class="cfg-i">ⓘ</span><span class="cfg-name">FeeDevErrorDetect</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_FeeDevErrorDetect" checked onchange="onConfigInputChanged('FeeDevErrorDetect')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="FeeVersionInfoApi">
+          <label class="cfg-lbl" for="cfg_FeeVersionInfoApi"><span class="cfg-i">ⓘ</span><span class="cfg-name">FeeVersionInfoApi</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_FeeVersionInfoApi" onchange="onConfigInputChanged('FeeVersionInfoApi')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="FeePollingMode">
+          <label class="cfg-lbl" for="cfg_FeePollingMode"><span class="cfg-i">ⓘ</span><span class="cfg-name">FeePollingMode</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_FeePollingMode" onchange="onConfigInputChanged('FeePollingMode')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="FeeSetModeSupported">
+          <label class="cfg-lbl" for="cfg_FeeSetModeSupported"><span class="cfg-i">ⓘ</span><span class="cfg-name">FeeSetModeSupported</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_FeeSetModeSupported" checked onchange="onConfigInputChanged('FeeSetModeSupported')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="FeeMainFunctionPeriod">
+          <label class="cfg-lbl" for="cfg_FeeMainFunctionPeriod"><span class="cfg-i">ⓘ</span><span class="cfg-name">FeeMainFunctionPeriod</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_FeeMainFunctionPeriod" min="1" max="50" step="1" value="5" onchange="onConfigInputChanged('FeeMainFunctionPeriod')" /><span style="font-size:10px;color:var(--mut)">ms</span></div>
+        </div>
+      </div>
+
+      <!-- TAB 1: VIRTUAL PAGE & HEADER (6) -->
+      <div id="cfgPane1" class="cfg-pane hidden">
+        <div class="cfg-row" data-cfg-key="FeeVirtualPageSize">
+          <label class="cfg-lbl" for="cfg_FeeVirtualPageSize"><span class="cfg-i">ⓘ</span><span class="cfg-name">FeeVirtualPageSize</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_FeeVirtualPageSize" onchange="onConfigInputChanged('FeeVirtualPageSize')">
+              <option value="4">4 Bytes</option>
+              <option value="8" selected>8 Bytes (Typ)</option>
+              <option value="16">16 Bytes</option>
+              <option value="32">32 Bytes</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="FeeMinimumReadPageSize">
+          <label class="cfg-lbl" for="cfg_FeeMinimumReadPageSize"><span class="cfg-i">ⓘ</span><span class="cfg-name">FeeMinimumReadPageSize</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_FeeMinimumReadPageSize" min="1" max="16" value="1" onchange="onConfigInputChanged('FeeMinimumReadPageSize')" /><span style="font-size:10px;color:var(--mut)">B</span></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="FeeBlockHeaderSize">
+          <label class="cfg-lbl" for="cfg_FeeBlockHeaderSize"><span class="cfg-i">ⓘ</span><span class="cfg-name">FeeBlockHeaderSize</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_FeeBlockHeaderSize" min="4" max="32" step="4" value="8" onchange="onConfigInputChanged('FeeBlockHeaderSize')" /><span style="font-size:10px;color:var(--mut)">B</span></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="FeeEnableHeaderCrc">
+          <label class="cfg-lbl" for="cfg_FeeEnableHeaderCrc"><span class="cfg-i">ⓘ</span><span class="cfg-name">FeeEnableHeaderCrc</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_FeeEnableHeaderCrc" checked onchange="onConfigInputChanged('FeeEnableHeaderCrc')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="FeeValidTrailerPattern">
+          <label class="cfg-lbl" for="cfg_FeeValidTrailerPattern"><span class="cfg-i">ⓘ</span><span class="cfg-name">FeeValidTrailerPattern</span></label>
+          <div class="cfg-ctrl"><input type="text" id="cfg_FeeValidTrailerPattern" class="mono" value="0xA5A5" style="width:76px;text-align:right" onchange="onConfigInputChanged('FeeValidTrailerPattern')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="FeeErasedValue">
+          <label class="cfg-lbl" for="cfg_FeeErasedValue"><span class="cfg-i">ⓘ</span><span class="cfg-name">FeeErasedValue</span></label>
+          <div class="cfg-ctrl"><input type="text" id="cfg_FeeErasedValue" class="mono" value="0xFF" style="width:62px;text-align:right" onchange="onConfigInputChanged('FeeErasedValue')" /></div>
+        </div>
+      </div>
+
+      <!-- TAB 2: LOGICAL BLOCKS (6) -->
+      <div id="cfgPane2" class="cfg-pane hidden">
+        <div class="cfg-row" data-cfg-key="SelectedFeeBlock">
+          <label class="cfg-lbl" for="cfg_SelectedFeeBlock"><span class="cfg-i">ⓘ</span><span class="cfg-name">SelectedFeeBlock</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_SelectedFeeBlock" onchange="onConfigInputChanged('SelectedFeeBlock')">
+              <option value="0x0010">Blk#1: Odometer</option>
+              <option value="0x0020">Blk#2: EngCalib_DS0</option>
+              <option value="0x0021">Blk#2: EngCalib_DS1</option>
+              <option value="0x0030">Blk#3: CrashEvt_Imm</option>
+              <option value="0x0040">Blk#4: DiagVinCode</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="FeeBlockNumber">
+          <label class="cfg-lbl" for="cfg_FeeBlockNumber"><span class="cfg-i">ⓘ</span><span class="cfg-name">FeeBlockNumber (Hex)</span></label>
+          <div class="cfg-ctrl"><input type="text" id="cfg_FeeBlockNumber" class="mono" value="0x0010" style="width:78px;text-align:right" onchange="onConfigInputChanged('FeeBlockNumber')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="FeeBlockSize">
+          <label class="cfg-lbl" for="cfg_FeeBlockSize"><span class="cfg-i">ⓘ</span><span class="cfg-name">FeeBlockSize (Raw Bytes)</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_FeeBlockSize" min="1" max="128" value="14" onchange="onConfigInputChanged('FeeBlockSize')" /><span style="font-size:10px;color:var(--mut)">B</span></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="FeeImmediateData">
+          <label class="cfg-lbl" for="cfg_FeeImmediateData"><span class="cfg-i">ⓘ</span><span class="cfg-name">FeeImmediateData</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_FeeImmediateData" onchange="onConfigInputChanged('FeeImmediateData')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="FeeNumberOfWriteCycles">
+          <label class="cfg-lbl" for="cfg_FeeNumberOfWriteCycles"><span class="cfg-i">ⓘ</span><span class="cfg-name">FeeNumberOfWriteCycles</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_FeeNumberOfWriteCycles" min="100" max="1000000" step="1000" value="100000" onchange="onConfigInputChanged('FeeNumberOfWriteCycles')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="FeeDatasetSelectionBits">
+          <label class="cfg-lbl" for="cfg_FeeDatasetSelectionBits"><span class="cfg-i">ⓘ</span><span class="cfg-name">FeeDatasetSelectionBits</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_FeeDatasetSelectionBits" min="0" max="4" value="2" onchange="onConfigInputChanged('FeeDatasetSelectionBits')" /><span style="font-size:10px;color:var(--mut)">bit</span></div>
+        </div>
+      </div>
+
+      <!-- TAB 3: FLASH BANKS & GARBAGE COLLECTION (6) -->
+      <div id="cfgPane3" class="cfg-pane hidden">
+        <div class="cfg-row" data-cfg-key="FeeBank0SizeBytes">
+          <label class="cfg-lbl" for="cfg_FeeBank0SizeBytes"><span class="cfg-i">ⓘ</span><span class="cfg-name">FeeBank0SizeBytes (Sim)</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_FeeBank0SizeBytes" min="128" max="1024" step="32" value="256" onchange="onConfigInputChanged('FeeBank0SizeBytes')" /><span style="font-size:10px;color:var(--mut)">B</span></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="FeeBank1SizeBytes">
+          <label class="cfg-lbl" for="cfg_FeeBank1SizeBytes"><span class="cfg-i">ⓘ</span><span class="cfg-name">FeeBank1SizeBytes (Sim)</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_FeeBank1SizeBytes" min="128" max="1024" step="32" value="256" onchange="onConfigInputChanged('FeeBank1SizeBytes')" /><span style="font-size:10px;color:var(--mut)">B</span></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="FeeGcTriggerThresholdPct">
+          <label class="cfg-lbl" for="cfg_FeeGcTriggerThresholdPct"><span class="cfg-i">ⓘ</span><span class="cfg-name">GcTriggerThresholdPct</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_FeeGcTriggerThresholdPct" min="40" max="95" step="5" value="75" onchange="onConfigInputChanged('FeeGcTriggerThresholdPct')" /><span style="font-size:10px;color:var(--mut)">%</span></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="FeeReservedImmediateSpaceBytes">
+          <label class="cfg-lbl" for="cfg_FeeReservedImmediateSpaceBytes"><span class="cfg-i">ⓘ</span><span class="cfg-name">ReservedImmediateSpace</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_FeeReservedImmediateSpaceBytes" min="16" max="128" step="8" value="64" onchange="onConfigInputChanged('FeeReservedImmediateSpaceBytes')" /><span style="font-size:10px;color:var(--mut)">B</span></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="FeeEnableBackgroundGc">
+          <label class="cfg-lbl" for="cfg_FeeEnableBackgroundGc"><span class="cfg-i">ⓘ</span><span class="cfg-name">FeeEnableBackgroundGc</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_FeeEnableBackgroundGc" checked onchange="onConfigInputChanged('FeeEnableBackgroundGc')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="FeeMaxEraseCyclesPerSector">
+          <label class="cfg-lbl" for="cfg_FeeMaxEraseCyclesPerSector"><span class="cfg-i">ⓘ</span><span class="cfg-name">FlsSpecifiedEraseCycles</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_FeeMaxEraseCyclesPerSector" min="1000" max="500000" step="1000" value="100000" onchange="onConfigInputChanged('FeeMaxEraseCyclesPerSector')" /></div>
+        </div>
+      </div>
+
+      <!-- TAB 4: FLS / MEMACC TIMING (6) -->
+      <div id="cfgPane4" class="cfg-pane hidden">
+        <div class="cfg-row" data-cfg-key="FeeLowerLayerArchitecture">
+          <label class="cfg-lbl" for="cfg_FeeLowerLayerArchitecture"><span class="cfg-i">ⓘ</span><span class="cfg-name">LowerLayerArchitecture</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_FeeLowerLayerArchitecture" onchange="onConfigInputChanged('FeeLowerLayerArchitecture')">
+              <option value="CLASSIC_FLS">Classic: Fls Driver</option>
+              <option value="R23_MEMACC">R23-11: MemAcc ➔ Mem</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="ActiveMemIfMode">
+          <label class="cfg-lbl" for="cfg_ActiveMemIfMode"><span class="cfg-i">ⓘ</span><span class="cfg-name">ActiveMemIfMode</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_ActiveMemIfMode" onchange="onConfigInputChanged('ActiveMemIfMode')">
+              <option value="MEMIF_MODE_SLOW">MEMIF_MODE_SLOW</option>
+              <option value="MEMIF_MODE_FAST">MEMIF_MODE_FAST</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="FlsBytesPerCycleSlow">
+          <label class="cfg-lbl" for="cfg_FlsBytesPerCycleSlow"><span class="cfg-i">ⓘ</span><span class="cfg-name">FlsBytesPerCycleSlow</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_FlsBytesPerCycleSlow" min="4" max="32" step="4" value="8" onchange="onConfigInputChanged('FlsBytesPerCycleSlow')" /><span style="font-size:10px;color:var(--mut)">B/tk</span></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="FlsBytesPerCycleFast">
+          <label class="cfg-lbl" for="cfg_FlsBytesPerCycleFast"><span class="cfg-i">ⓘ</span><span class="cfg-name">FlsBytesPerCycleFast</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_FlsBytesPerCycleFast" min="16" max="256" step="8" value="64" onchange="onConfigInputChanged('FlsBytesPerCycleFast')" /><span style="font-size:10px;color:var(--mut)">B/tk</span></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="FlsSectorEraseDurationTicks">
+          <label class="cfg-lbl" for="cfg_FlsSectorEraseDurationTicks"><span class="cfg-i">ⓘ</span><span class="cfg-name">SectorEraseTicks</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_FlsSectorEraseDurationTicks" min="1" max="10" value="3" onchange="onConfigInputChanged('FlsSectorEraseDurationTicks')" /><span style="font-size:10px;color:var(--mut)">tk</span></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="FeeNvmJobNotificationsEnabled">
+          <label class="cfg-lbl" for="cfg_FeeNvmJobNotificationsEnabled"><span class="cfg-i">ⓘ</span><span class="cfg-name">NvmJobEnd/ErrorNotif</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_FeeNvmJobNotificationsEnabled" checked onchange="onConfigInputChanged('FeeNvmJobNotificationsEnabled')" /></div>
+        </div>
+      </div>
+
+      <!-- TAB 5: FAULTS & RECOVERY (6) -->
+      <div id="cfgPane5" class="cfg-pane hidden">
+        <div class="cfg-row" data-cfg-key="FeeEnableRamLutCache">
+          <label class="cfg-lbl" for="cfg_FeeEnableRamLutCache"><span class="cfg-i">ⓘ</span><span class="cfg-name">FeeEnableRamLutCache</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_FeeEnableRamLutCache" checked onchange="onConfigInputChanged('FeeEnableRamLutCache')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="SimulatePowerLossDuringWrite">
+          <label class="cfg-lbl" for="cfg_SimulatePowerLossDuringWrite"><span class="cfg-i">ⓘ</span><span class="cfg-name">SimPowerLoss (TornWrite)</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_SimulatePowerLossDuringWrite" onchange="onConfigInputChanged('SimulatePowerLossDuringWrite')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="FeeAutoFallbackPreviousInstance">
+          <label class="cfg-lbl" for="cfg_FeeAutoFallbackPreviousInstance"><span class="cfg-i">ⓘ</span><span class="cfg-name">AutoFallbackPrevValid</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_FeeAutoFallbackPreviousInstance" checked onchange="onConfigInputChanged('FeeAutoFallbackPreviousInstance')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="SimulateFlsWriteVerifyError">
+          <label class="cfg-lbl" for="cfg_SimulateFlsWriteVerifyError"><span class="cfg-i">ⓘ</span><span class="cfg-name">SimFlsWriteVerifyError</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_SimulateFlsWriteVerifyError" onchange="onConfigInputChanged('SimulateFlsWriteVerifyError')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="SimulateFlsEraseError">
+          <label class="cfg-lbl" for="cfg_SimulateFlsEraseError"><span class="cfg-i">ⓘ</span><span class="cfg-name">SimFlsEraseError</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_SimulateFlsEraseError" onchange="onConfigInputChanged('SimulateFlsEraseError')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="SimulateFlashEccBitFlip">
+          <label class="cfg-lbl" for="cfg_SimulateFlashEccBitFlip"><span class="cfg-i">ⓘ</span><span class="cfg-name">SimFlashEccBitFlip</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_SimulateFlashEccBitFlip" onchange="onConfigInputChanged('SimulateFlashEccBitFlip')" /></div>
+        </div>
+      </div>
+
+      <div id="cfgValidationBox" style="padding:0 10px 8px"></div>
+    </section>
+  </aside>
+
+  <!-- CENTER COLUMN: 2-BANK DFLASH MAP + RAM LUT + VIRTUAL PAGE ANATOMY + DUAL 8-BIT + TIMERS/SM + SVG -->
+  <section class="col-center">
+    <!-- PANEL 1: 2-BANK DATA FLASH MAP, RAM LUT, VIRTUAL PAGE & DUAL 8-BIT REGISTERS -->
+    <section class="panel">
+      <div class="panel-hdr">
+        <span class="panel-title">💾 Bản Đồ 2 Bank Data Flash, RAM LUT, Trang Ảo (8B) &amp; 2 Thanh Ghi 8-Bit</span>
+        <span class="panel-sub">Click ô nhớ Flash, dòng LUT hoặc ô Bit để soi chi tiết</span>
+      </div>
+      <div class="panel-body tier-split">
+        <!-- TIER 1A: SUMMARY + 2 BANK MEMORY MAP + LUT & VIRTUAL PAGE ANATOMY -->
+        <div id="flashSummaryBar" class="flash-summary-bar"></div>
+        <div id="bankMapBox" class="bank-wrap"></div>
+
+        <div class="lut-anatomy-grid">
+          <div class="lut-card">
+            <div class="sub-card-hdr">
+              <span>🗂️ Bảng Ánh Xạ RAM LUT (<span class="mono">Fee_BlockLutCache</span>)</span>
+              <span id="lutStatusBadge" class="pill pill-ok">LUT: O(1) ON</span>
+            </div>
+            <div id="ramLutBox"></div>
+          </div>
+
+          <div class="vp-card">
+            <div class="sub-card-hdr">
+              <span id="vpAnatomyTitle">🔬 Giải Phẫu Khung Vật Lý (Page 0..N)</span>
+              <span id="vpSizeBadge" class="pill pill-cyan">VP = 8B</span>
+            </div>
+            <div id="vpAnatomyBox" class="vp-pages"></div>
+          </div>
+        </div>
+
+        <!-- TIER 1B: DUAL 8-BIT REGISTERS -->
+        <div class="reg-grid">
+          <div class="reg-card">
+            <div class="reg-top">
+              <span id="regATitle" class="reg-name">Thanh A: Fee_ModuleControlByte (MemIf Status/Job)</span>
+              <span id="regAHex" class="reg-hex mono">0x81</span>
+            </div>
+            <div id="regABits" class="bit-row"></div>
+          </div>
+
+          <div class="reg-card">
+            <div class="reg-top">
+              <span id="regBTitle" class="reg-name">Thanh B: Fee_BlockHeaderStatusByte (Block Instance)</span>
+              <span id="regBHex" class="reg-hex mono">0xE8</span>
+            </div>
+            <div id="regBBits" class="bit-row"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PANEL 2: TIMERS / GC PROGRESS + ASYNC 3-PHASE PIPELINE + DUAL STATE MACHINES -->
+    <section class="panel">
+      <div class="panel-hdr">
+        <span class="panel-title">⏳ Tiến Trình Đọc/Ghi Bất Đồng Bộ, Thu Gom Rác &amp; 2 Máy Trạng Thái Song Song</span>
+        <span id="feePipeBadge" class="panel-sub mono">MEMIF_IDLE | Fls Classic</span>
+      </div>
+      <div class="panel-body">
+        <div id="timersGrid" class="timer-grid"></div>
+        <div id="jobPipeBox" class="job-pipe-bar"></div>
+        <div class="sm-dual">
+          <div class="sm-box">
+            <div class="sm-title">
+              <span>🚦 Fee Module &amp; Async Job State Machine (SWS_Fee_00022)</span>
+              <span id="smModuleLbl" class="mono">MEMIF_IDLE</span>
+            </div>
+            <div id="moduleSmDiagram" class="sm-states"></div>
+          </div>
+
+          <div class="sm-box">
+            <div class="sm-title">
+              <span>🧱 Flash Sector &amp; Block Instance Lifecycle (SWS_Fee_00049)</span>
+              <span id="smSectorLbl" class="mono">SECTOR_ACTIVE</span>
+            </div>
+            <div id="sectorSmDiagram" class="sm-states"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PANEL 3: INTERACTIVE END-TO-END AUTOSAR SVG ARCHITECTURE -->
+    <section class="panel">
+      <div class="panel-hdr">
+        <span class="panel-title">🏗️ Kiến Trúc Tương Tác End-to-End Module Fee Trong Memory Stack AUTOSAR</span>
+        <span class="panel-sub">Click bất kỳ Module nào để xem Input / Processing / Output ở Inspector bên phải</span>
+      </div>
+      <div class="panel-body">
+        <div class="arch-wrap">
+          <svg id="feeArchSvg" class="arch-svg" viewBox="0 0 820 385" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <marker id="arrEnd" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                <path d="M 0 1 L 10 5 L 0 9 z" fill="currentColor" />
+              </marker>
+            </defs>
+
+            <!-- ARROWS LAYER (NO CROSSINGS) -->
+            <path id="arr_swc_rte" class="flow-arrow" d="M 255 41 L 290 41" marker-end="url(#arrEnd)" />
+            <path id="arr_rte_nvm" class="flow-arrow" d="M 350 68 L 350 82 L 137 82 L 137 96" marker-end="url(#arrEnd)" />
+            <path id="arr_nvm_memif" class="flow-arrow" d="M 255 125 L 290 125" marker-end="url(#arrEnd)" />
+            <path id="arr_memif_fee" class="flow-arrow" d="M 410 154 L 410 184" marker-end="url(#arrEnd)" />
+            <path id="arr_fee_nvm" class="flow-arrow" d="M 160 230 L 105 230 L 105 154" marker-end="url(#arrEnd)" />
+            <path id="arr_ecum_fee" class="flow-arrow" d="M 640 68 L 640 82 L 546 82 L 546 196 L 530 196" marker-end="url(#arrEnd)" />
+            <path id="arr_fee_dem" class="flow-arrow" d="M 530 214 L 552 214 L 552 132 L 565 132" marker-end="url(#arrEnd)" />
+            <path id="arr_fee_det" class="flow-arrow" d="M 530 238 L 565 238" marker-end="url(#arrEnd)" />
+            <path id="arr_fee_fls" class="flow-arrow" d="M 285 276 L 285 304" marker-end="url(#arrEnd)" />
+            <path id="arr_fls_fee" class="flow-arrow" d="M 225 304 L 225 276" marker-end="url(#arrEnd)" />
+            <path id="arr_fls_dflash" class="flow-arrow" d="M 385 337 L 435 337" marker-end="url(#arrEnd)" />
+
+            <!-- ROW 1: ASW, RTE/SCHM, ECUM/BSWM -->
+            <g id="node_MOD_SWC" class="mod-node" onclick="selectModule('MOD_SWC')">
+              <rect class="mod-rect" x="20" y="14" width="235" height="54" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="137" y="34" text-anchor="middle" fill="var(--pri)" font-weight="700" font-size="11.5">SWC_Odometer / Crash / Calib</text>
+              <text id="svgSub_MOD_SWC" x="137" y="50" text-anchor="middle" fill="var(--mut)" font-size="10">Rte_Call_NvMService (RAM Mirror)</text>
+            </g>
+
+            <g id="node_MOD_RTE" class="mod-node" onclick="selectModule('MOD_RTE')">
+              <rect class="mod-rect" x="290" y="14" width="240" height="54" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="410" y="34" text-anchor="middle" fill="var(--acc)" font-weight="700" font-size="11.5">RTE &amp; SchM (Memory Task)</text>
+              <text id="svgSub_MOD_RTE" x="410" y="50" text-anchor="middle" fill="var(--mut)" font-size="10">Period: 5 ms | ExclusiveArea_0</text>
+            </g>
+
+            <g id="node_MOD_ECUM" class="mod-node" onclick="selectModule('MOD_ECUM')">
+              <rect class="mod-rect" x="565" y="14" width="235" height="54" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="682" y="34" text-anchor="middle" fill="var(--ok)" font-weight="700" font-size="11.5">EcuM &amp; BswM (Startup/Shutdown)</text>
+              <text id="svgSub_MOD_ECUM" x="682" y="50" text-anchor="middle" fill="var(--mut)" font-size="10">Fee_Init | Mode: MEMIF_MODE_SLOW</text>
+            </g>
+
+            <!-- ROW 2: NVM, MEMIF, DEM -->
+            <g id="node_MOD_NVM" class="mod-node" onclick="selectModule('MOD_NVM')">
+              <rect class="mod-rect" x="20" y="96" width="235" height="58" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="137" y="116" text-anchor="middle" fill="var(--pur)" font-weight="700" font-size="11.5">NvM (NVRAM Manager)</text>
+              <text id="svgSub_MOD_NVM" x="137" y="132" text-anchor="middle" fill="var(--mut)" font-size="10">CRC16 | ReadAll / WriteAll | Idle</text>
+              <text x="137" y="146" text-anchor="middle" fill="var(--txt-soft)" font-size="9">NvM_JobEnd / ErrorNotification()</text>
+            </g>
+
+            <g id="node_MOD_MEMIF" class="mod-node" onclick="selectModule('MOD_MEMIF')">
+              <rect class="mod-rect" x="290" y="96" width="240" height="58" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="410" y="116" text-anchor="middle" fill="var(--cyan)" font-weight="700" font-size="11.5">MemIf (Memory Interface)</text>
+              <text id="svgSub_MOD_MEMIF" x="410" y="132" text-anchor="middle" fill="var(--mut)" font-size="10">DeviceIndex = 0 → Route to Fee</text>
+              <text x="410" y="146" text-anchor="middle" fill="var(--txt-soft)" font-size="9">MemIf_Read / Write / Invalidate</text>
+            </g>
+
+            <g id="node_MOD_DEM" class="mod-node" onclick="selectModule('MOD_DEM')">
+              <rect class="mod-rect" x="565" y="96" width="235" height="58" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="682" y="116" text-anchor="middle" fill="var(--warn)" font-weight="700" font-size="11.5">DEM (Diagnostic Event Mgr)</text>
+              <text id="svgSub_MOD_DEM" x="682" y="132" text-anchor="middle" fill="var(--mut)" font-size="10">Flash Verify / Erase: OK</text>
+              <text x="682" y="146" text-anchor="middle" fill="var(--txt-soft)" font-size="9">DTC Storage &amp; FLS_E_FAILED</text>
+            </g>
+
+            <!-- ROW 3: FEE CORE & DET -->
+            <g id="node_MOD_FEE" class="mod-node selected" onclick="selectModule('MOD_FEE')">
+              <rect class="mod-rect" x="160" y="184" width="370" height="92" rx="10" fill="var(--pri-bg)" stroke="var(--pri)" stroke-width="2.2"/>
+              <text x="345" y="205" text-anchor="middle" fill="var(--pri)" font-weight="800" font-size="13.5">Fee Core (Flash EEPROM Emulation · ID=21)</text>
+              <text id="svgSub_MOD_FEE1" x="345" y="223" text-anchor="middle" fill="var(--txt)" font-weight="700" font-size="10.5">Status: MEMIF_IDLE | Job: MEMIF_JOB_OK</text>
+              <text id="svgSub_MOD_FEE2" x="345" y="240" text-anchor="middle" fill="var(--cyan)" font-weight="700" font-size="10">Active: Bank 0 | VirtualPage: 8B | RAM LUT: ON</text>
+              <text id="svgSub_MOD_FEE3" x="345" y="257" text-anchor="middle" fill="var(--mut)" font-size="9.5">Append-Only 3-Phase Write · GC Threshold 75%</text>
+              <text x="345" y="270" text-anchor="middle" fill="var(--mut)" font-size="9">Fee_Read/Write/Invalidate/EraseImm/MainFunction()</text>
+            </g>
+
+            <g id="node_MOD_DET" class="mod-node" onclick="selectModule('MOD_DET')">
+              <rect class="mod-rect" x="565" y="198" width="235" height="64" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="682" y="218" text-anchor="middle" fill="var(--err)" font-weight="700" font-size="11.5">DET (Error Tracer · Mod 21)</text>
+              <text id="svgSub_MOD_DET" x="682" y="235" text-anchor="middle" fill="var(--mut)" font-size="10">Faults Logged: 0</text>
+              <text x="682" y="251" text-anchor="middle" fill="var(--txt-soft)" font-size="9">FEE_E_UNINIT / BLOCK_NO / BUSY</text>
+            </g>
+
+            <!-- ROW 4: FLS / MEMACC & PHYSICAL DFLASH -->
+            <g id="node_MOD_FLS" class="mod-node" onclick="selectModule('MOD_FLS')">
+              <rect class="mod-rect" x="20" y="304" width="365" height="66" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text id="svgTitle_MOD_FLS" x="202" y="325" text-anchor="middle" fill="var(--ok)" font-weight="700" font-size="11.5">Fls Driver (MCAL Flash Driver)</text>
+              <text id="svgSub_MOD_FLS" x="202" y="343" text-anchor="middle" fill="var(--mut)" font-size="10">Idle | Slow: 8 B/tk | Fast: 64 B/tk</text>
+              <text id="svgApi_MOD_FLS" x="202" y="359" text-anchor="middle" fill="var(--txt-soft)" font-size="9">Fls_Write() / Fls_Read() / Fls_Erase() → Fee_JobEndNotification()</text>
+            </g>
+
+            <g id="node_MOD_DFLASH" class="mod-node" onclick="selectModule('MOD_DFLASH')">
+              <rect class="mod-rect" x="435" y="304" width="365" height="66" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="617" y="325" text-anchor="middle" fill="var(--warn)" font-weight="700" font-size="11.5">Physical MCU Data Flash (NOR DFlash)</text>
+              <text id="svgSub_MOD_DFLASH" x="617" y="343" text-anchor="middle" fill="var(--mut)" font-size="10">Bank 0 (0x0800_0000) | Bank 1 (0x0800_1000)</text>
+              <text x="617" y="359" text-anchor="middle" fill="var(--txt-soft)" font-size="9">Erased=0xFF | Program 1→0 (8B Page) | Erase Sector 0→1</text>
+            </g>
+          </svg>
+        </div>
+      </div>
+    </section>
+  </section>
+
+  <!-- RIGHT COLUMN: STICKY 4-TAB INSPECTOR -->
+  <aside class="col-right">
+    <section class="panel insp-panel">
+      <div class="insp-tabs">
+        <button id="inspTabBtn0" class="insp-tab active" onclick="switchInspTab(0)">🔍 Bước Hiện Tại</button>
+        <button id="inspTabBtn1" class="insp-tab" onclick="switchInspTab(1)">🧩 Module</button>
+        <button id="inspTabBtn2" class="insp-tab" onclick="switchInspTab(2)">📄 Code C</button>
+        <button id="inspTabBtn3" class="insp-tab" onclick="switchInspTab(3)">📜 API Trace</button>
+      </div>
+      <div id="inspBody" class="insp-body"></div>
+    </section>
+  </aside>
+</main>
+
+<!-- ================= VIEW 2: MULTI-LEVEL HANDBOOK & ABBREVIATION TABLE ================= -->
+<main id="viewHb" class="hb-wrap hidden">
+  <div class="hb-nav1">
+    <button id="hbTab1_0" class="hb-tab1 active" onclick="switchHbTab1(0)">1. Kiến Trúc Memory Stack &amp; Fee</button>
+    <button id="hbTab1_1" class="hb-tab1" onclick="switchHbTab1(1)">2. Vật Lý DFlash, Trang Ảo &amp; LUT</button>
+    <button id="hbTab1_2" class="hb-tab1" onclick="switchHbTab1(2)">3. Append-Only &amp; Chống Sập Nguồn</button>
+    <button id="hbTab1_3" class="hb-tab1" onclick="switchHbTab1(3)">4. Garbage Collection &amp; Immediate</button>
+    <button id="hbTab1_4" class="hb-tab1" onclick="switchHbTab1(4)">5. Async, Mode &amp; MemAcc R23-11</button>
+    <button id="hbTab1_5" class="hb-tab1" onclick="switchHbTab1(5)">6. Chuẩn API R23-11, DET &amp; ECUC</button>
+    <button id="hbTab1_6" class="hb-tab1" onclick="switchHbTab1(6)">7. Bảng Thuật Ngữ &amp; Search</button>
+  </div>
+
+  <div id="hbNav2" class="hb-nav2"></div>
+
+  <div id="hbAbbrFilterBox" class="abbr-toolbar hidden">
+    <input id="abbrSearchInput" class="abbr-search" type="text" placeholder="🔍 Tìm kiếm thuật ngữ AUTOSAR Fee (VD: LUT, GC, Torn Write, Virtual Page, Immediate, MemAcc, SWS...)" oninput="filterAbbreviationTable()" />
+    <div class="cat-pills">
+      <button id="catPill_ALL" class="cat-pill active" onclick="setAbbrCategory('ALL')">Tất cả (56)</button>
+      <button id="catPill_CORE" class="cat-pill" onclick="setAbbrCategory('CORE')">💾 Fee Core &amp; Layout</button>
+      <button id="catPill_GC" class="cat-pill" onclick="setAbbrCategory('GC')">♻️ GC &amp; Wear Leveling</button>
+      <button id="catPill_STACK" class="cat-pill" onclick="setAbbrCategory('STACK')">🧱 Memory Stack</button>
+      <button id="catPill_HW" class="cat-pill" onclick="setAbbrCategory('HW')">⚡ Flash HW &amp; Errors</button>
+    </div>
+    <span id="abbrCountBadge" class="step-pill">56 / 56 thuật ngữ</span>
+  </div>
+
+  <div id="hbContentArea"></div>
+</main>
+
+<!-- ================= EXPORT ARXML / C / JSON MODAL ================= -->
+<div id="exportModal" class="modal-overlay hidden" onclick="onExportModalBackdrop(event)">
+  <div class="modal-box">
+    <div class="modal-hdr">
+      <strong style="font-size:13.5px;color:var(--pri)">📦 Xuất Cấu Hình Fee AUTOSAR (ARXML · Fee_Cfg.h · Fee_Lcfg.c · JSON)</strong>
+      <button class="btn btn-sm" onclick="closeExportModal()">✖ Đóng</button>
+    </div>
+    <div class="modal-tabs">
+      <button id="expTab0" class="btn btn-sm btn-pri" onclick="switchExportTab(0)">Fee.arxml</button>
+      <button id="expTab1" class="btn btn-sm" onclick="switchExportTab(1)">Fee_Cfg.h</button>
+      <button id="expTab2" class="btn btn-sm" onclick="switchExportTab(2)">Fee_Lcfg.c</button>
+      <button id="expTab3" class="btn btn-sm" onclick="switchExportTab(3)">Fee_Config.json</button>
+    </div>
+    <div class="modal-body">
+      <pre id="exportCodeArea" class="code-block"></pre>
+    </div>
+    <div class="modal-ftr">
+      <button class="btn" onclick="copyExportCode()">📋 Copy Clipboard</button>
+      <button class="btn btn-ok" onclick="downloadExportCode()">⬇ Tải File Hiện Tại</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= FLOATING TOOLTIP POPUP (>1S HOVER ON ECUC FIELDS) ================= -->
+<div id="cfgTooltipPopup" role="tooltip"></div>
+<script>
