@@ -62,6 +62,7 @@
     .wrap{flex-wrap:wrap}
     .btn{display:inline-flex;align-items:center;justify-content:center;gap:5px;padding:6px 11px;border-radius:7px;border:1px solid var(--border2);background:var(--panel3);color:var(--text);font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;font-family:inherit;white-space:nowrap}
     .btn:hover{border-color:var(--accent);transform:translateY(-1px)}
+    .btn:disabled{opacity:.42;cursor:not-allowed;transform:none;border-color:var(--border)}
     .btn.sm{padding:4px 9px;font-size:11.5px}
     .btn.xs{padding:2px 7px;font-size:10.5px;border-radius:5px}
     .btn.primary{background:#0284c7;border-color:#0284c7;color:#fff}
@@ -185,6 +186,7 @@
 
     /* phase tags */
     .tag{display:inline-block;padding:1px 7px;border-radius:5px;font-size:9.5px;font-weight:800;letter-spacing:.04em;white-space:nowrap;border:1px solid transparent}
+    .tag.INIT{background:rgba(148,163,184,.16);color:#cbd5e1;border-color:rgba(148,163,184,.38)}
     .tag.SR{background:rgba(56,189,248,.15);color:#38bdf8;border-color:rgba(56,189,248,.35)}
     .tag.IMPL{background:rgba(129,140,248,.15);color:#a5b4fc;border-color:rgba(129,140,248,.35)}
     .tag.QUEUE{background:rgba(192,132,252,.15);color:#c084fc;border-color:rgba(192,132,252,.35)}
@@ -197,8 +199,8 @@
     .tag.EVT{background:rgba(167,139,250,.15);color:#c4b5fd;border-color:rgba(167,139,250,.35)}
     .tag.SCHM{background:rgba(96,165,250,.14);color:#93c5fd;border-color:rgba(96,165,250,.35)}
     .tag.IRV{background:rgba(34,211,238,.14);color:#22d3ee;border-color:rgba(34,211,238,.35)}
-    body.light .tag.SR{color:#0369a1} body.light .tag.IMPL{color:#4338ca} body.light .tag.QUEUE{color:#7e22ce} body.light .tag.CS{color:#0f766e} body.light .tag.MODE{color:#be185d} body.light .tag.IOC{color:#c2410c} body.light .tag.COM{color:#047857} body.light .tag.XFRM{color:#a16207} body.light .tag.ERR{color:#b91c1c} body.light .tag.EVT{color:#6d28d9} body.light .tag.SCHM{color:#1d4ed8} body.light .tag.IRV{color:#0e7490}
-    .tli.p-SR{border-left-color:#38bdf8} .tli.p-IMPL{border-left-color:#818cf8} .tli.p-QUEUE{border-left-color:#c084fc} .tli.p-CS{border-left-color:#2dd4bf} .tli.p-MODE{border-left-color:#f472b6} .tli.p-IOC{border-left-color:#fb923c} .tli.p-COM{border-left-color:#34d399} .tli.p-XFRM{border-left-color:#fbbf24} .tli.p-ERR{border-left-color:#f87171} .tli.p-EVT{border-left-color:#a78bfa} .tli.p-SCHM{border-left-color:#60a5fa} .tli.p-IRV{border-left-color:#22d3ee}
+    body.light .tag.INIT{color:#475569} body.light .tag.SR{color:#0369a1} body.light .tag.IMPL{color:#4338ca} body.light .tag.QUEUE{color:#7e22ce} body.light .tag.CS{color:#0f766e} body.light .tag.MODE{color:#be185d} body.light .tag.IOC{color:#c2410c} body.light .tag.COM{color:#047857} body.light .tag.XFRM{color:#a16207} body.light .tag.ERR{color:#b91c1c} body.light .tag.EVT{color:#6d28d9} body.light .tag.SCHM{color:#1d4ed8} body.light .tag.IRV{color:#0e7490}
+    .tli.p-INIT{border-left-color:#94a3b8} .tli.p-SR{border-left-color:#38bdf8} .tli.p-IMPL{border-left-color:#818cf8} .tli.p-QUEUE{border-left-color:#c084fc} .tli.p-CS{border-left-color:#2dd4bf} .tli.p-MODE{border-left-color:#f472b6} .tli.p-IOC{border-left-color:#fb923c} .tli.p-COM{border-left-color:#34d399} .tli.p-XFRM{border-left-color:#fbbf24} .tli.p-ERR{border-left-color:#f87171} .tli.p-EVT{border-left-color:#a78bfa} .tli.p-SCHM{border-left-color:#60a5fa} .tli.p-IRV{border-left-color:#22d3ee}
 
     /* ===================== SEQUENCE / TIMELINE CHART ===================== */
     .gantt-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:10px;background:var(--panel2)}
@@ -354,17 +356,17 @@
           <button class="btn sm" onclick="selectNextScenario()" title="Kịch bản tiếp theo (hoặc phím ])">▶</button>
         </div>
         <div class="ctrl">
-          <button class="btn sm" onclick="resetSim()" title="Về bước đầu (phím Home)">↺ Reset</button>
-          <button class="btn sm" onclick="stepBack()" title="Phím ←">◀ Lùi</button>
+          <button class="btn sm" onclick="resetSim()" title="Về bước 0 — khởi tạo trạng thái (phím Home)">↺ Reset</button>
+          <button class="btn sm" id="btnBack" onclick="stepBack()" title="Lùi bước trước / về bước 0 (Phím ←)">◀ Lùi</button>
           <button class="btn sm primary" id="btnPlay" onclick="togglePlay()" title="Phím Space">▶ Chạy tự động</button>
-          <button class="btn sm indigo" onclick="stepNext()" title="Phím →">Bước tiếp ▶</button>
+          <button class="btn sm indigo" id="btnNext" onclick="stepNext()" title="Phím →">Bước tiếp ▶</button>
           <select id="speedSel" class="sm-sel" title="Tốc độ chạy tự động">
             <option value="2400">0.5×</option>
             <option value="1400" selected>1×</option>
             <option value="750">2×</option>
             <option value="350">4×</option>
           </select>
-          <span class="badge mono" id="stepBadge">Bước 1/1</span>
+          <span class="badge mono amb" id="stepBadge">Bước 0/1 (Sẵn sàng)</span>
           <span class="badge amb mono" id="scopeBadge">Scope: INTER_ECU</span>
         </div>
       </div>
@@ -1870,7 +1872,7 @@ function buildScenarioSteps(scnId, cfg, manualActions) {
     }
     const snap = clone(st);
     steps.push({
-      idx: steps.length + 1,
+      idx: steps.length,
       phase: opts.phase || 'SR',
       title: opts.title || 'Bước xử lý RTE',
       narr: opts.narr || '',
@@ -1892,6 +1894,39 @@ function buildScenarioSteps(scnId, cfg, manualActions) {
       state: snap
     });
   }
+
+  // ==================== STEP 0: Initial Baseline / Precondition State ====================
+  const scnMeta = SCENARIOS.find(s => s.id === scnId) || SCENARIOS[0];
+  pushStep({
+    phase: cfg.rteInitialized ? 'INIT' : 'ERR',
+    title: cfg.rteInitialized
+      ? `Khởi tạo trạng thái ban đầu — Sẵn sàng chạy kịch bản ${scnId}`
+      : `Trạng thái khởi tạo: RTE chưa được kích hoạt (RTE_STATE_UNINIT)`,
+    narr: cfg.rteInitialized
+      ? `Hệ thống ở trạng thái sẵn sàng (Step 0): ECU đã gọi Rte_Start() (Bit 0 RTE_STARTED = 1), nạp RteInitValue = ${initV} vào Global/Local Buffer, hàng đợi FIFO trống (0/${qMax}), Task_RteApp đang chờ sự kiện (${hx(st.evtWaitMask)}). Nhấn "Bước tiếp ▶" để bắt đầu Bước 1 của [${scnMeta.short}].`
+      : `ECU vừa cấp nguồn, chưa gọi Rte_Start() (Bit 0 RTE_STARTED = 0). Các bộ đệm đang giữ RteInitValue = ${initV} và mọi API Rte_* sẽ bị từ chối. Nhấn "Bước tiếp ▶" để quan sát lỗi RTE_E_UNINIT.`,
+    activeNodes: cfg.rteInitialized ? ['RTE_Core0'] : [],
+    edges: [],
+    ctxLane: 1,
+    api: 'Rte_Start',
+    callStr: cfg.rteInitialized
+      ? `Rte_Start() /* Step 0: GlobalBuf=${initV}, Queue=0/${qMax}, Mode=${st.modeState.cur} */`
+      : `/* Step 0 (Pre-Init): Rte_Initialized == FALSE */`,
+    retCode: 0x00,
+    statByte: cfg.rteInitialized ? 0x01 : 0x00,
+    inputDesc: cfg.rteInitialized
+      ? `Điều kiện đầu kịch bản ${scnId}: CommScope=${cfg.commScope}, Implicit=${cfg.useImplicitAccess}, Queued=${cfg.isQueued}(Len=${qMax}), Filter=${cfg.dataFilterAlgo}.`
+      : 'Checkbox RteInitialized đang TẮT — giả lập hệ thống trước khi EcuM/BswM gọi Rte_Start().',
+    procDesc: cfg.rteInitialized
+      ? `RTE hoàn tất khởi tạo biến nội bộ bằng RteInitValue = ${initV}, xóa các cờ lỗi/Event tạm, giải phóng khóa ExclusiveArea và sẵn sàng điều phối Bước 1.`
+      : 'Cờ nội bộ Rte_Initialized = FALSE; ngăn không cho SWC truy cập bộ đệm khi hệ thống chưa khởi động xong.',
+    outputDesc: cfg.rteInitialized
+      ? `Thanh ghi A = 0x00 (RTE_E_OK), Thanh ghi B = 0x01 (RTE_STARTED = 1). Sẵn sàng chạy Bước 1!`
+      : `Thanh ghi B Bit 0 (RTE_STARTED) = 0. Sẵn sàng kiểm thử chặn API ở Bước 1!`,
+    cfgKeys: ['rteInitialized', 'commScope', 'rteInitValue'],
+    sws: ['SWS_Rte_01197', 'SWS_Rte_01071'],
+    codeLine: 6
+  });
 
   // Global guard if RTE is not initialized (Rte_Start not called / Rte_Stop called)
   if (!cfg.rteInitialized) {
@@ -3210,7 +3245,7 @@ function applyWhatIf(idx) {
   Object.assign(cfg, clone(w.patch || {}));
   bitOverrideRet = null;
   bitOverrideStat = null;
-  rebuildSim(w.jumpStep ? w.jumpStep - 1 : 0);
+  rebuildSim(w.jumpStep ?? 0);
   showToast('Đã áp dụng: ' + w.title);
 }
 
@@ -3225,20 +3260,20 @@ function triggerManualAction(type) {
     cfg.injectBusTimeout = false;
     cfg.injectQueueOverflow = false;
     rebuildSim(0);
-    showToast('Đã xóa các lỗi & sự kiện thủ công, khôi phục bộ đệm sạch.');
+    showToast('Đã xóa các lỗi & sự kiện thủ công, khôi phục bộ đệm sạch (Bước 0).');
     return;
   }
   if (type === 'CRC_ERR') {
     cfg.enableXfrmChain = true;
     cfg.injectCrcError = !cfg.injectCrcError;
-    rebuildSim(steps.length - 1);
+    rebuildSim(999);
     showToast(cfg.injectCrcError ? '⚡ Đã bật bơm lỗi đảo bit CRC (0x83 WRONGCRC)!' : 'Đã tắt bơm lỗi CRC.');
     return;
   }
   if (type === 'TIMEOUT_ERR') {
     cfg.enableAliveTimeout = true;
     cfg.injectBusTimeout = !cfg.injectBusTimeout;
-    rebuildSim(steps.length - 1);
+    rebuildSim(999);
     showToast(cfg.injectBusTimeout ? '⏱ Đã kích hoạt lỗi quá hạn AliveTimeout (0x40 MAX_AGE_EXCEEDED)!' : 'Đã tắt lỗi AliveTimeout.');
     return;
   }
@@ -3307,7 +3342,24 @@ function renderHeaderAndLeftTop() {
   }
   const scn = SCENARIOS.find(s => s.id === curScnId) || SCENARIOS[0];
   const curStep = steps[curStepIdx] || steps[0];
-  $('#stepBadge').textContent = `Bước ${curStepIdx + 1}/${steps.length}`;
+  const totalExec = Math.max(1, steps.length - 1);
+  const stepBadge = $('#stepBadge');
+  if (stepBadge) {
+    if (curStepIdx === 0) {
+      stepBadge.textContent = `Bước 0/${totalExec} (Sẵn sàng)`;
+      stepBadge.className = 'badge mono amb';
+    } else if (curStepIdx >= steps.length - 1) {
+      stepBadge.textContent = `Bước ${curStep.idx}/${totalExec} (Hoàn tất)`;
+      stepBadge.className = 'badge mono ok';
+    } else {
+      stepBadge.textContent = `Bước ${curStep.idx}/${totalExec}`;
+      stepBadge.className = 'badge mono';
+    }
+  }
+  const btnBack = $('#btnBack');
+  if (btnBack) btnBack.disabled = (curStepIdx <= 0);
+  const btnNext = $('#btnNext');
+  if (btnNext) btnNext.disabled = (curStepIdx >= steps.length - 1);
   $('#scopeBadge').textContent = `Scope: ${cfg.commScope}`;
   $('#scnTitle').textContent = scn.title;
   $('#scnDesc').innerHTML = scn.desc;
@@ -3687,10 +3739,11 @@ function renderDiagram() {
   svg.innerHTML = out;
 
   // Render Narrative & Step Timeline Pills
+  const totalExec = Math.max(1, steps.length - 1);
   $('#narr').innerHTML = `
     <span class="tag ${step.phase}">${esc(step.phase)}</span>
     <div style="flex:1">
-      <div style="font-weight:800;margin-bottom:2px">Bước ${step.idx}/${steps.length}: ${esc(step.title)}</div>
+      <div style="font-weight:800;margin-bottom:2px">${step.idx === 0 ? `Bước 0/${totalExec} (Khởi tạo)` : `Bước ${step.idx}/${totalExec}`}: ${esc(step.title)}</div>
       <div class="muted">${esc(step.narr)}</div>
     </div>
     <span class="ret ${step.retCode === 0 ? 'ok' : (step.retCode >= 0x80 || step.retCode === 0x40 ? 'bad' : 'warn')}">${esc(decodeStdReturn(step.retCode))}</span>
@@ -3698,7 +3751,7 @@ function renderDiagram() {
 
   $('#timeline').innerHTML = steps.map((s, i) => `
     <div class="tli p-${s.phase} ${i < curStepIdx ? 'past' : ''} ${i === curStepIdx ? 'cur' : ''}" onclick="jumpToStep(${i})">
-      #${s.idx} ${esc(s.api)} (${hx(s.retCode)})
+      ${s.idx === 0 ? '#0 Init (0x00)' : `#${s.idx} ${esc(s.api)} (${hx(s.retCode)})`}
     </div>
   `).join('');
 }
@@ -3737,7 +3790,7 @@ function renderGantt() {
     }
     s += `
       <line class="g-grid" x1="${x}" y1="0" x2="${x}" y2="${totalH}"/>
-      <text class="g-ax" x="${x + colW / 2}" y="17" text-anchor="middle">Bước #${st.idx} (${hx(st.retCode)})</text>
+      <text class="g-ax" x="${x + colW / 2}" y="17" text-anchor="middle">${st.idx === 0 ? 'Bước #0 (Init)' : `Bước #${st.idx} (${hx(st.retCode)})`}</text>
     `;
     const laneIdx = clamp(st.ctxLane ?? 1, 0, lanes.length - 1);
     const by = topH + laneIdx * rowH + 4;
@@ -3937,10 +3990,11 @@ function renderInspector() {
 
   const swsChips = (step.sws || []).map(s => `<span class="chip sws">📘 ${esc(s)}</span>`).join('');
 
+  const totalExec = Math.max(1, steps.length - 1);
   $('#insStep').innerHTML = `
     <div class="ins-h">
       <span class="tag ${step.phase}">${esc(step.phase)}</span>
-      <span class="badge mono">Bước ${step.idx}/${steps.length}</span>
+      <span class="badge mono">${step.idx === 0 ? `Bước 0/${totalExec} (Khởi tạo)` : `Bước ${step.idx}/${totalExec}`}</span>
       <span class="ret ${step.retCode === 0 ? 'ok' : 'bad'}">${esc(decodeStdReturn(step.retCode))}</span>
     </div>
     <div class="ins-title">${esc(step.title)}</div>
