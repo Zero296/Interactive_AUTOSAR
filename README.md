@@ -1,6 +1,6 @@
 # AUTOSAR Classic Interactive Architecture & Simulation Hub
 
-Bộ công cụ web tương tác mô phỏng kiến trúc phân tầng **AUTOSAR Classic R23-11** (74 modules, 13 luồng chạy end-to-end với 128 bước chi tiết) và liên kết tới các trình mô phỏng module chi tiết (hiện có 16 file `.html`).
+Bộ công cụ web tương tác mô phỏng kiến trúc phân tầng **AUTOSAR Classic R23-11** (74 modules, 13 luồng chạy end-to-end với 128 bước chi tiết) và liên kết tới **29 module đã gắn mô phỏng** (trên 22 file `.html`).
 
 ---
 
@@ -20,17 +20,17 @@ Bộ công cụ web tương tác mô phỏng kiến trúc phân tầng **AUTOSAR
 ```text
 ├── AUTOSAR.html              # Trang Hub chính (Kiến trúc, Danh mục, JSON Studio, Hướng dẫn)
 ├── autosar_modules.json      # File JSON cấu hình modules, đường dẫn .html và các luồng mô phỏng
-├── Simulation/               # Các file mô phỏng từng module phân theo layer AUTOSAR
+├── Simulation/               # 22 file mô phỏng phân theo layer AUTOSAR (tương ứng 29 module)
 │   ├── 01_Application/       # Tầng ASW (chờ bổ sung)
 │   ├── 02_RTE/               # AUTOSAR_RTE.html
-│   ├── 03_Services/          # 15 file (OS, EcuM, BswM, WdgM, DEM, FiM, ComM, COM, PduR, SecOC, DCM, Nm_CanNm, CanNM, CanSM, DoCAN)
-│   ├── 04_ECU_Abstraction/   # Chờ bổ sung
-│   ├── 05_MCAL/              # Chờ bổ sung
+│   ├── 03_Services/          # 16 file (OS, EcuM, BswM, WdgM, DEM, FiM, NvM, ComM, COM, PduR, SecOC, DCM, Nm_CanNm, CanNM, CanSM, DoCAN)
+│   ├── 04_ECU_Abstraction/   # 4 file (MemIf, Fee, Ea, IoHwAb)
+│   ├── 05_MCAL/              # AUTOSAR_MCAL.html (8-Module Core MCAL: #Mcu, #Port, #Dio, #Adc, #Pwm, #Spi, #Can, #Fls)
 │   ├── 06_Complex_Drivers/   # Chờ bổ sung
 │   ├── assets/               # Tài nguyên hình ảnh phụ trợ
 │   └── old/                  # Các bản mô phỏng cũ
-├── Design_docs/              # 11 tài liệu thiết kế mô phỏng (*_Simulation_design.md)
-├── Scripts/                  # 7 thư mục script build module (build_bswm, build_ecum, ...)
+├── Design_docs/              # 17 tài liệu thiết kế mô phỏng (*_Simulation_design.md)
+├── Scripts/                  # 13 thư mục script build module (build_bswm, build_ecum, build_nvm, build_mcal, ...)
 └── _Archive/                 # File nén lưu trữ cũ
 ```
 

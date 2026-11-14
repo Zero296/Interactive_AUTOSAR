@@ -1075,7 +1075,7 @@
   "title": "AUTOSAR Classic R23-11 Interactive Architecture & Simulation Hub",
   "subtitle": "Tổng hợp kiến trúc phân tầng AUTOSAR Classic (ASW · RTE · Services · ECU Abstraction · MCAL · CDD) & liên kết các trình mô phỏng tương tác",
   "basePath": "./",
-  "updatedAt": "2026-11-13",
+  "updatedAt": "2026-11-14",
   "layers": [
     {
       "id": "application",
@@ -1619,7 +1619,7 @@
       "name": "NVRAM Manager",
       "layer": "services",
       "stack": "memory",
-      "htmlPath": "",
+      "htmlPath": "Simulation/03_Services/AUTOSAR_NvM.html",
       "sws": "SWS_NvM",
       "bus": "Memory",
       "summary": "Quản lý đọc/ghi dữ liệu bền vững (Non-Volatile Blocks: Native, Redundant, Dataset), tính CRC, ReadAll khi khởi động EcuM và WriteAll khi tắt máy ECU.",
@@ -2359,7 +2359,7 @@
       "name": "Memory Abstraction Interface",
       "layer": "ecu_ab",
       "stack": "mem_ab",
-      "htmlPath": "",
+      "htmlPath": "Simulation/04_ECU_Abstraction/AUTOSAR_MemIf.html",
       "sws": "SWS_MemIf",
       "bus": "Memory",
       "summary": "Định tuyến lời gọi đọc/ghi từ NvM xuống lớp giả lập Flash EEPROM (Fee) hoặc EEPROM Abstraction (Ea) dựa trên Device Index.",
@@ -2384,7 +2384,7 @@
       "name": "Flash EEPROM Emulation",
       "layer": "ecu_ab",
       "stack": "mem_ab",
-      "htmlPath": "",
+      "htmlPath": "Simulation/04_ECU_Abstraction/AUTOSAR_Fee.html",
       "sws": "SWS_Fee",
       "bus": "Memory",
       "summary": "Giả lập cấu trúc EEPROM ghi từng block và thực thi Wear Leveling / Garbage Collection trên bộ nhớ Data Flash vật lý qua Fls.",
@@ -2410,7 +2410,7 @@
       "name": "EEPROM Abstraction",
       "layer": "ecu_ab",
       "stack": "mem_ab",
-      "htmlPath": "",
+      "htmlPath": "Simulation/04_ECU_Abstraction/AUTOSAR_Ea.html",
       "sws": "SWS_Ea",
       "bus": "Memory",
       "summary": "Trừu tượng hóa truy cập theo Logical Block lên EEPROM nội bộ (Eep) hoặc EEPROM ngoài qua SPI.",
@@ -2700,7 +2700,7 @@
       "name": "I/O Hardware Abstraction",
       "layer": "ecu_ab",
       "stack": "io_ab",
-      "htmlPath": "",
+      "htmlPath": "Simulation/04_ECU_Abstraction/AUTOSAR_IoHwAb.html",
       "sws": "SWS_IoHwAb",
       "bus": "I/O",
       "summary": "Chuyển đổi tín hiệu điện (ADC raw ticks, DIO pins, PWM duty, ICU frequency) sang đơn vị vật lý chuẩn (mV, °C, RPM) cung cấp cho Sensor/Actuator SW-Cs qua RTE.",
@@ -2730,7 +2730,7 @@
       "name": "Microcontroller Driver",
       "layer": "mcal",
       "stack": "mcu_drv",
-      "htmlPath": "",
+      "htmlPath": "Simulation/05_MCAL/AUTOSAR_MCAL.html#Mcu",
       "sws": "SWS_Mcu",
       "bus": "Core",
       "summary": "Khởi tạo cây xung nhịp (PLL/Clock Tree), phân vùng RAM, quản lý chế độ tiết kiệm năng lượng (Sleep/DeepSleep) và thực thi Software Reset.",
@@ -2811,7 +2811,7 @@
       "name": "Flash Driver",
       "layer": "mcal",
       "stack": "mem_drv",
-      "htmlPath": "",
+      "htmlPath": "Simulation/05_MCAL/AUTOSAR_MCAL.html#Fls",
       "sws": "SWS_Fls",
       "bus": "Memory",
       "summary": "Xóa, ghi và đọc trực tiếp bộ nhớ Data Flash nội bộ của vi điều khiển (theo chu kỳ trạng thái bất đồng bộ của Fee).",
@@ -2886,7 +2886,7 @@
       "name": "CAN Driver",
       "layer": "mcal",
       "stack": "comm_drv",
-      "htmlPath": "",
+      "htmlPath": "Simulation/05_MCAL/AUTOSAR_MCAL.html#Can",
       "sws": "SWS_Can",
       "bus": "CAN",
       "summary": "Điều khiển trực tiếp phần cứng CAN / CAN-FD Controller: quản lý Hardware Transmit/Receive Handles (HTH/HRH), ngắt Rx/Tx/BusOff và chuyển tiếp lên CanIf.",
@@ -2986,7 +2986,7 @@
       "name": "SPI Handler / Driver",
       "layer": "mcal",
       "stack": "comm_drv",
-      "htmlPath": "",
+      "htmlPath": "Simulation/05_MCAL/AUTOSAR_MCAL.html#Spi",
       "sws": "SWS_Spi",
       "bus": "I/O",
       "summary": "Quản lý hàng đợi truyền nhận đồng bộ/bất đồng bộ (Channels/Jobs/Sequences) qua bus SPI tới SBC, Transceiver thông minh, Switch hoặc EEPROM ngoài.",
@@ -3013,7 +3013,7 @@
       "name": "Port Driver",
       "layer": "mcal",
       "stack": "io_drv",
-      "htmlPath": "",
+      "htmlPath": "Simulation/05_MCAL/AUTOSAR_MCAL.html#Port",
       "sws": "SWS_Port",
       "bus": "I/O",
       "summary": "Cấu hình chức năng đa hợp chân vi điều khiển (Pin Muxing: GPIO, CAN, SPI, ADC, PWM), hướng vào/ra và trở kéo.",
@@ -3037,7 +3037,7 @@
       "name": "DIO Driver",
       "layer": "mcal",
       "stack": "io_drv",
-      "htmlPath": "",
+      "htmlPath": "Simulation/05_MCAL/AUTOSAR_MCAL.html#Dio",
       "sws": "SWS_Dio",
       "bus": "I/O",
       "summary": "Đọc/ghi tức thời trạng thái mức logic (High/Low) trên các kênh hoặc nhóm chân Digital I/O.",
@@ -3064,7 +3064,7 @@
       "name": "ADC Driver",
       "layer": "mcal",
       "stack": "io_drv",
-      "htmlPath": "",
+      "htmlPath": "Simulation/05_MCAL/AUTOSAR_MCAL.html#Adc",
       "sws": "SWS_Adc",
       "bus": "I/O",
       "summary": "Khởi tạo và chuyển đổi tín hiệu tương tự sang số theo nhóm kênh (SW/HW Trigger, DMA Buffer) phục vụ đo điện áp/nhiệt độ/dòng.",
@@ -3088,7 +3088,7 @@
       "name": "PWM Driver",
       "layer": "mcal",
       "stack": "io_drv",
-      "htmlPath": "",
+      "htmlPath": "Simulation/05_MCAL/AUTOSAR_MCAL.html#Pwm",
       "sws": "SWS_Pwm",
       "bus": "I/O",
       "summary": "Sinh xung điều biến độ rộng (Duty Cycle & Period) để điều khiển động cơ, van điện từ, đèn LED.",
@@ -6446,7 +6446,7 @@
           : `<span class="pill">⏳ Chưa có .html</span>`;
 
         if (linked && localFolderFiles) {
-          const baseName = m.htmlPath.split("/").pop();
+          const baseName = m.htmlPath.split("/").pop().split("#")[0].split("?")[0];
           statusPill = localFolderFiles.has(baseName)
             ? `<span class="pill pill-ok">📁 File tồn tại</span>`
             : `<span class="pill pill-warn" title="Không thấy file trong thư mục đã quét">⚠️ Thiếu file</span>`;
@@ -6516,7 +6516,8 @@
       const linked = catalog.modules.filter(isLinked);
       await Promise.all(linked.map(async m => {
         try {
-          const res = await fetch(resolveSimUrl(m.htmlPath), { method: "HEAD" });
+          const fetchUrl = resolveSimUrl(m.htmlPath).split("#")[0];
+          const res = await fetch(fetchUrl, { method: "HEAD" });
           httpLinkStatus.set(m.id, res.ok);
         } catch (_) {
           httpLinkStatus.set(m.id, false);
@@ -6839,7 +6840,7 @@
           <h3>4. Cách Sửa &amp; Thêm Link Bằng File JSON</h3>
           <p>File <code>autosar_modules.json</code> nằm cạnh <code>AUTOSAR.html</code> là cấu hình đầu vào mặc định:</p>
           <ul>
-            <li><b>Khi tạo thêm file mô phỏng mới</b> (ví dụ <code>Simulation/03_Services/AUTOSAR_NvM.html</code> hoặc <code>Simulation/04_ECU_Abstraction/AUTOSAR_CanIf.html</code>), mở <code>autosar_modules.json</code> và điền đường dẫn vào <code>"htmlPath"</code> của module đó.</li>
+            <li><b>Khi tạo thêm file mô phỏng mới</b> (ví dụ <code>Simulation/01_Application/AUTOSAR_SWC_App.html</code> hoặc <code>Simulation/04_ECU_Abstraction/AUTOSAR_CanIf.html</code>), mở <code>autosar_modules.json</code> và điền đường dẫn vào <code>"htmlPath"</code> của module đó (có thể gắn <code>#ModuleId</code> nếu dùng chung file đa module như <code>AUTOSAR_MCAL.html#Mcu</code>).</li>
             <li><b>Khi đổi tên hoặc di chuyển file:</b> chỉ cần cập nhật lại chuỗi <code>"htmlPath"</code> (hoặc <code>"basePath"</code>).</li>
             <li><b>Nạp JSON vào trình duyệt:</b> nếu mở qua <code>http://localhost</code> (ví dụ <code>python -m http.server</code>), trang tự động đọc <code>autosar_modules.json</code>. Nếu mở trực tiếp bằng double-click (<code>file://</code>), chỉ cần <b>kéo-thả file .json</b> vào cửa sổ trình duyệt hoặc bấm nút <b>📂 Nạp JSON</b>.</li>
           </ul>
@@ -6917,7 +6918,7 @@
           });
           const htmlNames = new Set(files.map(f => f.name));
           localFolderFiles = htmlNames;
-          const linkedNames = new Set(catalog.modules.filter(isLinked).map(m => m.htmlPath.split("/").pop()));
+          const linkedNames = new Set(catalog.modules.filter(isLinked).map(m => m.htmlPath.split("/").pop().split("#")[0].split("?")[0]));
           const unlinkedHtml = Array.from(htmlNames).filter(n => n !== "AUTOSAR.html" && !linkedNames.has(n));
 
           const box = document.getElementById("folderScanResults");
