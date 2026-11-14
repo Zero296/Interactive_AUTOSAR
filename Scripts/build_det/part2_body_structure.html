@@ -1,0 +1,784 @@
+<body>
+<!-- ==================== STICKY UNIFIED HEADER ==================== -->
+<header class="app-hdr">
+  <div class="hdr-top">
+    <div class="hdr-brand">
+      <span class="brand-badge">AUTOSAR R23-11</span>
+      <span class="brand-title" title="SWC (RTE DETService) • BSW • MCAL • 3 Error Streams • Hooks / DLT / Ring Buffer / Endless Loop / DEM Boundary">Det Simulator — Default Error Tracer (ModuleId 15)</span>
+    </div>
+
+    <div class="hdr-actions">
+      <div class="view-tabs">
+        <button id="btnViewSim" type="button" class="view-tab-btn active" onclick="switchView('sim')">&#9881; Mô Phỏng</button>
+        <button id="btnViewHb" type="button" class="view-tab-btn" onclick="switchView('hb')">&#128214; Sổ Tay &amp; Thuật Ngữ</button>
+      </div>
+      <button type="button" class="btn" onclick="openExportModal()">&#128228; Export ARXML/H/C</button>
+      <button type="button" class="btn btn-primary" onclick="downloadStandaloneHTML()">&#11015; HTML</button>
+      <button id="btnThemeToggle" type="button" class="btn" onclick="toggleTheme()">&#9728; Light</button>
+    </div>
+  </div>
+
+  <div class="hdr-scen-bar">
+    <div class="scen-ctrl">
+      <label for="scenarioSelect" style="font-size:11px;font-weight:700;color:var(--text-muted);white-space:nowrap">Kịch bản:</label>
+      <select id="scenarioSelect" class="hdr-select" onchange="onScenarioChange()"></select>
+      <button id="btnStepPrev" type="button" class="btn" onclick="stepPrev()" title="Prev Step">&#9664;</button>
+      <button id="btnStepNext" type="button" class="btn btn-primary" onclick="stepNext()">Next &#9654;</button>
+      <button id="btnRunAll" type="button" class="btn btn-ok" onclick="runAllSteps()" title="Run All Steps">&#9197; All</button>
+      <button id="btnStepReset" type="button" class="btn" onclick="stepReset()" title="Reset Scenario">&#8634;</button>
+      <span id="stepCounterPill" class="step-counter">0 / 0</span>
+    </div>
+
+    <div class="ctx-group">
+      <label for="ctxSelector" style="font-size:11px;font-weight:700;color:var(--text-muted);white-space:nowrap">Ctx:</label>
+      <select id="ctxSelector" class="ctx-select" onchange="onContextChange()">
+        <option value="Task_10ms">Task_10ms</option>
+        <option value="ISR_CanRx">ISR_CanRx</option>
+      </select>
+      <button id="btnBreakLoop" type="button" class="btn btn-danger" onclick="api_BreakEndlessLoop()" title="Break Endless Loop (Resume E_OK)">&#128275; Break Loop</button>
+      <div class="hdr-pills">
+        <span id="pillLifecycle" class="st-pill warn">DET_UNINIT</span>
+        <span id="pillStreamCounts" class="st-pill info">D:0 R:0 T:0</span>
+        <span id="pillLoopState" class="st-pill ok">CPU: OK</span>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- ==================== VIEW 1: SIMULATOR WORKSPACE ==================== -->
+<main id="viewSim" class="main-wrap">
+  <div class="sim-grid">
+
+    <!-- ========== LEFT COLUMN: QUICK ACTIONS + SCENARIO + 6-TAB ECUC ========== -->
+    <aside class="col-left">
+
+      <!-- Card 1: Quick Action Bar -->
+      <section class="card">
+        <div class="card-hdr">
+          <div class="card-title">&#9889; Quick Action Bar <span class="card-tag">Zero-Scroll Controls</span></div>
+        </div>
+        <div class="card-body">
+          <div class="qa-grid">
+            <button id="qaBtnDev" type="button" class="qa-btn dev" onclick="qaTriggerDevError()">
+              <span class="qa-top"><span>&#128308; BSW Dev Error</span><span>0x01</span></span>
+              <span class="qa-sub">Det_ReportError(NvM, 0x15)</span>
+            </button>
+            <button id="qaBtnRuntm" type="button" class="qa-btn runtm" onclick="qaTriggerRuntimeError()">
+              <span class="qa-top"><span>&#128992; Runtime Error</span><span>0x04</span></span>
+              <span class="qa-sub">Det_ReportRuntimeError(0x1A)</span>
+            </button>
+            <button id="qaBtnTrans" type="button" class="qa-btn trans" onclick="qaTriggerTransientFault()">
+              <span class="qa-top"><span>&#128995; MCAL Transient</span><span>0x05</span></span>
+              <span class="qa-sub">Det_ReportTransientFault(Fls)</span>
+            </button>
+            <button id="qaBtnSwcRte" type="button" class="qa-btn rte" onclick="qaTriggerSwcRte()">
+              <span class="qa-top"><span>&#128309; SWC via RTE</span><span>PDAV</span></span>
+              <span class="qa-sub">Rte_Call_DETService_ReportError</span>
+            </button>
+            <button id="qaBtnClearBuf" type="button" class="qa-btn" onclick="api_ClearRamBuffer()">
+              <span class="qa-top"><span>&#129529; Clear Buffer</span><span>RAM</span></span>
+              <span class="qa-sub">Zero Det_ErrorBuffer[8]</span>
+            </button>
+            <button id="qaBtnReinit" type="button" class="qa-btn ok" onclick="qaInitAndStart()">
+              <span class="qa-top"><span>&#9654; Init + Start</span><span>0x00/02</span></span>
+              <span class="qa-sub">Det_Init() + Det_Start()</span>
+            </button>
+          </div>
+
+          <div class="qa-special-row">
+            <select id="qaSpecialKind" class="ctx-select" style="width:100%">
+              <option value="STORM_10X">Burst Storm (10x CanIf Errors -&gt; Buffer OVF)</option>
+              <option value="ISR_PREEMPT_TASK">ISR_CanRx Preempts Task_10ms (Exclusive Area)</option>
+              <option value="SELF_NULL_PTR">Self-Error: Det_GetVersionInfo(NULL_PTR)</option>
+              <option value="PRE_INIT_CALL">Pre-Init Guard: Call Before Det_Init()</option>
+            </select>
+            <button type="button" class="btn btn-warn" onclick="qaInjectSpecial()">&#9889; Trigger</button>
+          </div>
+
+          <div class="qa-custom-box">
+            <div class="qa-custom-title">
+              <span>&#128268; Custom 4-Tuple Injector</span>
+              <select id="custStream" class="ctx-select" style="padding:1px 4px;font-size:10px">
+                <option value="DEV">Dev Error (0x01)</option>
+                <option value="RUNTM">Runtime Error (0x04)</option>
+                <option value="TRANS">Transient Fault (0x05)</option>
+              </select>
+            </div>
+            <div class="qa-custom-inputs">
+              <input id="custModId" type="text" value="60" title="ModuleId (e.g. 20=NvM, 60=CanIf, 92=Fls, 2048=SWC)">
+              <input id="custInstId" type="text" value="0" title="InstanceId (0..255)">
+              <input id="custApiId" type="text" value="0x05" title="ApiId (Service ID hex/dec)">
+              <input id="custErrId" type="text" value="0x11" title="ErrorId / FaultId (hex/dec)">
+            </div>
+            <button type="button" class="btn btn-primary" style="width:100%;justify-content:center" onclick="qaInjectCustom4Tuple()">&#128640; Inject Custom 4-Tuple</button>
+          </div>
+
+          <div class="qa-status-strip">
+            <div class="mini-stat"><div class="ms-lbl">Buffer Used</div><div id="statBufUsed" class="ms-val">0 / 8</div></div>
+            <div class="mini-stat"><div class="ms-lbl">Overflow Cnt</div><div id="statOvfCnt" class="ms-val">0</div></div>
+            <div class="mini-stat"><div class="ms-lbl">DLT Sent</div><div id="statDltSent" class="ms-val">0</div></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Card 2: Scenario Brief & What-Ifs -->
+      <section class="card">
+        <div class="card-hdr">
+          <div class="card-title">&#127916; <span id="scenTitle">Scenario</span></div>
+          <span class="card-tag">What-If Sandbox</span>
+        </div>
+        <div class="card-body">
+          <p id="scenSummary" class="scen-summary"></p>
+          <div class="step-box">
+            <div id="scenStepTitle" class="step-box-title">Bước hiện tại</div>
+            <div id="scenStepDesc" class="step-box-desc"></div>
+          </div>
+          <div class="whatif-hdr">&#129514; Thử nghiệm What-If cho kịch bản này:</div>
+          <div id="whatIfList" class="whatif-list"></div>
+        </div>
+      </section>
+
+      <!-- Card 3: 6-Tab ECUC Parameter Matrix (36 Params with Hover >1s + Click Info Tooltips) -->
+      <section class="card">
+        <div class="card-hdr">
+          <div class="card-title">&#9881; ECUC Parameters (36 Params)</div>
+          <span class="card-tag">Hover &gt;1s / Click &#9432;</span>
+        </div>
+        <div class="card-body">
+          <div class="cfg-tabs">
+            <button id="cfgTabBtn_0" type="button" class="cfg-tab-btn active" onclick="switchCfgTab(0)">1. Lifecycle</button>
+            <button id="cfgTabBtn_1" type="button" class="cfg-tab-btn" onclick="switchCfgTab(1)">2. Dev &amp; Halt</button>
+            <button id="cfgTabBtn_2" type="button" class="cfg-tab-btn" onclick="switchCfgTab(2)">3. Runtm/Trans</button>
+            <button id="cfgTabBtn_3" type="button" class="cfg-tab-btn" onclick="switchCfgTab(3)">4. Hooks &amp; DLT</button>
+            <button id="cfgTabBtn_4" type="button" class="cfg-tab-btn" onclick="switchCfgTab(4)">5. Buffer/Filter</button>
+            <button id="cfgTabBtn_5" type="button" class="cfg-tab-btn" onclick="switchCfgTab(5)">6. SWC RTE</button>
+          </div>
+
+          <!-- Tab 0: General & Lifecycle -->
+          <div id="cfgPane_0" class="cfg-pane active">
+            <div class="cfg-row" data-cfg-key="DetInitialized">
+              <div class="cfg-label-grp"><span class="cfg-lbl">DetInitialized</span><button type="button" class="cfg-i" data-cfg-key="DetInitialized">i</button></div>
+              <label class="switch cfg-ctrl"><input id="cfg_DetInitialized" type="checkbox" onchange="onConfigChange('DetInitialized')"><span class="slider"></span></label>
+            </div>
+            <div class="cfg-row" data-cfg-key="DetStarted">
+              <div class="cfg-label-grp"><span class="cfg-lbl">DetStarted</span><button type="button" class="cfg-i" data-cfg-key="DetStarted">i</button></div>
+              <label class="switch cfg-ctrl"><input id="cfg_DetStarted" type="checkbox" onchange="onConfigChange('DetStarted')"><span class="slider"></span></label>
+            </div>
+            <div class="cfg-row" data-cfg-key="DetVersionInfoApi">
+              <div class="cfg-label-grp"><span class="cfg-lbl">DetVersionInfoApi</span><button type="button" class="cfg-i" data-cfg-key="DetVersionInfoApi">i</button></div>
+              <label class="switch cfg-ctrl"><input id="cfg_DetVersionInfoApi" type="checkbox" onchange="onConfigChange('DetVersionInfoApi')"><span class="slider"></span></label>
+            </div>
+            <div class="cfg-row" data-cfg-key="DetReportRuntimeErrorCalloutEnabled">
+              <div class="cfg-label-grp"><span class="cfg-lbl">DetReportRuntimeErrorCallout</span><button type="button" class="cfg-i" data-cfg-key="DetReportRuntimeErrorCalloutEnabled">i</button></div>
+              <label class="switch cfg-ctrl"><input id="cfg_DetReportRuntimeErrorCalloutEnabled" type="checkbox" onchange="onConfigChange('DetReportRuntimeErrorCalloutEnabled')"><span class="slider"></span></label>
+            </div>
+            <div class="cfg-row" data-cfg-key="DetReportTransientFaultCalloutEnabled">
+              <div class="cfg-label-grp"><span class="cfg-lbl">DetReportTransientFaultCallout</span><button type="button" class="cfg-i" data-cfg-key="DetReportTransientFaultCalloutEnabled">i</button></div>
+              <label class="switch cfg-ctrl"><input id="cfg_DetReportTransientFaultCalloutEnabled" type="checkbox" onchange="onConfigChange('DetReportTransientFaultCalloutEnabled')"><span class="slider"></span></label>
+            </div>
+            <div class="cfg-row" data-cfg-key="EcuBuildProfile">
+              <div class="cfg-label-grp"><span class="cfg-lbl">EcuBuildProfile</span><button type="button" class="cfg-i" data-cfg-key="EcuBuildProfile">i</button></div>
+              <select id="cfg_EcuBuildProfile" class="cfg-sel cfg-ctrl" onchange="onConfigChange('EcuBuildProfile')">
+                <option value="DEV_DEBUG_BUILD">DEV_DEBUG_BUILD</option>
+                <option value="INTEGRATION_TEST_BUILD">INTEGRATION_TEST_BUILD</option>
+                <option value="PRODUCTION_SERIES_BUILD">PRODUCTION_SERIES_BUILD</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Tab 1: Dev Error & Halt -->
+          <div id="cfgPane_1" class="cfg-pane">
+            <div class="cfg-row" data-cfg-key="CallerDevErrorDetect">
+              <div class="cfg-label-grp"><span class="cfg-lbl">CallerDevErrorDetect (STD_ON)</span><button type="button" class="cfg-i" data-cfg-key="CallerDevErrorDetect">i</button></div>
+              <label class="switch cfg-ctrl"><input id="cfg_CallerDevErrorDetect" type="checkbox" onchange="onConfigChange('CallerDevErrorDetect')"><span class="slider"></span></label>
+            </div>
+            <div class="cfg-row" data-cfg-key="DetEndlessLoopInDevError">
+              <div class="cfg-label-grp"><span class="cfg-lbl">DetEndlessLoopInDevError</span><button type="button" class="cfg-i" data-cfg-key="DetEndlessLoopInDevError">i</button></div>
+              <label class="switch cfg-ctrl"><input id="cfg_DetEndlessLoopInDevError" type="checkbox" onchange="onConfigChange('DetEndlessLoopInDevError')"><span class="slider"></span></label>
+            </div>
+            <div class="cfg-row" data-cfg-key="TriggerHardwareBkptInstruction">
+              <div class="cfg-label-grp"><span class="cfg-lbl">TriggerHardwareBkptInstruction</span><button type="button" class="cfg-i" data-cfg-key="TriggerHardwareBkptInstruction">i</button></div>
+              <label class="switch cfg-ctrl"><input id="cfg_TriggerHardwareBkptInstruction" type="checkbox" onchange="onConfigChange('TriggerHardwareBkptInstruction')"><span class="slider"></span></label>
+            </div>
+            <div class="cfg-row" data-cfg-key="ProtectReentrancyWithSchM">
+              <div class="cfg-label-grp"><span class="cfg-lbl">ProtectReentrancyWithSchM</span><button type="button" class="cfg-i" data-cfg-key="ProtectReentrancyWithSchM">i</button></div>
+              <label class="switch cfg-ctrl"><input id="cfg_ProtectReentrancyWithSchM" type="checkbox" onchange="onConfigChange('ProtectReentrancyWithSchM')"><span class="slider"></span></label>
+            </div>
+            <div class="cfg-row" data-cfg-key="PreventRecursiveHookCall">
+              <div class="cfg-label-grp"><span class="cfg-lbl">PreventRecursiveHookCall</span><button type="button" class="cfg-i" data-cfg-key="PreventRecursiveHookCall">i</button></div>
+              <label class="switch cfg-ctrl"><input id="cfg_PreventRecursiveHookCall" type="checkbox" onchange="onConfigChange('PreventRecursiveHookCall')"><span class="slider"></span></label>
+            </div>
+            <div class="cfg-row" data-cfg-key="MaxHookExecutionTimeUs">
+              <div class="cfg-label-grp"><span class="cfg-lbl">MaxHookExecutionTimeUs</span><button type="button" class="cfg-i" data-cfg-key="MaxHookExecutionTimeUs">i</button></div>
+              <input id="cfg_MaxHookExecutionTimeUs" type="number" min="1" max="5000" class="cfg-num cfg-ctrl" onchange="onConfigChange('MaxHookExecutionTimeUs')">
+            </div>
+          </div>
+
+          <!-- Tab 2: Runtime & Transient -->
+          <div id="cfgPane_2" class="cfg-pane">
+            <div class="cfg-row" data-cfg-key="LogRuntimeErrorsToBuffer">
+              <div class="cfg-label-grp"><span class="cfg-lbl">LogRuntimeErrorsToBuffer</span><button type="button" class="cfg-i" data-cfg-key="LogRuntimeErrorsToBuffer">i</button></div>
+              <label class="switch cfg-ctrl"><input id="cfg_LogRuntimeErrorsToBuffer" type="checkbox" onchange="onConfigChange('LogRuntimeErrorsToBuffer')"><span class="slider"></span></label>
+            </div>
+            <div class="cfg-row" data-cfg-key="LogTransientFaultsToBuffer">
+              <div class="cfg-label-grp"><span class="cfg-lbl">LogTransientFaultsToBuffer</span><button type="button" class="cfg-i" data-cfg-key="LogTransientFaultsToBuffer">i</button></div>
+              <label class="switch cfg-ctrl"><input id="cfg_LogTransientFaultsToBuffer" type="checkbox" onchange="onConfigChange('LogTransientFaultsToBuffer')"><span class="slider"></span></label>
+            </div>
+            <div class="cfg-row" data-cfg-key="TransientFaultRecoveryPolicy">
+              <div class="cfg-label-grp"><span class="cfg-lbl">TransientFaultRecoveryPolicy</span><button type="button" class="cfg-i" data-cfg-key="TransientFaultRecoveryPolicy">i</button></div>
+              <select id="cfg_TransientFaultRecoveryPolicy" class="cfg-sel cfg-ctrl" onchange="onConfigChange('TransientFaultRecoveryPolicy')">
+                <option value="AUTO_CORRECT_AND_RETURN_E_OK">AUTO_CORRECT_E_OK</option>
+                <option value="FAIL_UNCORRECTABLE_RETURN_E_NOT_OK">FAIL_RETURN_E_NOT_OK</option>
+                <option value="CUSTOM_VENDOR_RETURN_CODE">CUSTOM_VENDOR_CODE</option>
+              </select>
+            </div>
+            <div class="cfg-row" data-cfg-key="MaxTransientFaultRetries">
+              <div class="cfg-label-grp"><span class="cfg-lbl">MaxTransientFaultRetries</span><button type="button" class="cfg-i" data-cfg-key="MaxTransientFaultRetries">i</button></div>
+              <input id="cfg_MaxTransientFaultRetries" type="number" min="0" max="10" class="cfg-num cfg-ctrl" onchange="onConfigChange('MaxTransientFaultRetries')">
+            </div>
+            <div class="cfg-row" data-cfg-key="EnableSideBySideDemComparison">
+              <div class="cfg-label-grp"><span class="cfg-lbl">EnableSideBySideDemComparison</span><button type="button" class="cfg-i" data-cfg-key="EnableSideBySideDemComparison">i</button></div>
+              <label class="switch cfg-ctrl"><input id="cfg_EnableSideBySideDemComparison" type="checkbox" onchange="onConfigChange('EnableSideBySideDemComparison')"><span class="slider"></span></label>
+            </div>
+            <div class="cfg-row" data-cfg-key="SaveCrashCrumbToNoInitRam">
+              <div class="cfg-label-grp"><span class="cfg-lbl">SaveCrashCrumbToNoInitRam</span><button type="button" class="cfg-i" data-cfg-key="SaveCrashCrumbToNoInitRam">i</button></div>
+              <label class="switch cfg-ctrl"><input id="cfg_SaveCrashCrumbToNoInitRam" type="checkbox" onchange="onConfigChange('SaveCrashCrumbToNoInitRam')"><span class="slider"></span></label>
+            </div>
+          </div>
+
+          <!-- Tab 3: Hooks & DLT -->
+          <div id="cfgPane_3" class="cfg-pane">
+            <div class="cfg-row" data-cfg-key="DetForwardToDlt">
+              <div class="cfg-label-grp"><span class="cfg-lbl">DetForwardToDlt</span><button type="button" class="cfg-i" data-cfg-key="DetForwardToDlt">i</button></div>
+              <label class="switch cfg-ctrl"><input id="cfg_DetForwardToDlt" type="checkbox" onchange="onConfigChange('DetForwardToDlt')"><span class="slider"></span></label>
+            </div>
+            <div class="cfg-row" data-cfg-key="DltAppIdAndContextId">
+              <div class="cfg-label-grp"><span class="cfg-lbl">DltAppIdAndContextId</span><button type="button" class="cfg-i" data-cfg-key="DltAppIdAndContextId">i</button></div>
+              <input id="cfg_DltAppIdAndContextId" type="text" class="cfg-txt cfg-ctrl" onchange="onConfigChange('DltAppIdAndContextId')">
+            </div>
+            <div class="cfg-row" data-cfg-key="DetErrorHook_0_Enabled">
+              <div class="cfg-label-grp"><span class="cfg-lbl">DetErrorHook_0 (DebuggerHook)</span><button type="button" class="cfg-i" data-cfg-key="DetErrorHook_0_Enabled">i</button></div>
+              <label class="switch cfg-ctrl"><input id="cfg_DetErrorHook_0_Enabled" type="checkbox" onchange="onConfigChange('DetErrorHook_0_Enabled')"><span class="slider"></span></label>
+            </div>
+            <div class="cfg-row" data-cfg-key="DetErrorHook_1_Enabled">
+              <div class="cfg-label-grp"><span class="cfg-lbl">DetErrorHook_1 (SafetyLogger)</span><button type="button" class="cfg-i" data-cfg-key="DetErrorHook_1_Enabled">i</button></div>
+              <label class="switch cfg-ctrl"><input id="cfg_DetErrorHook_1_Enabled" type="checkbox" onchange="onConfigChange('DetErrorHook_1_Enabled')"><span class="slider"></span></label>
+            </div>
+            <div class="cfg-row" data-cfg-key="DetRuntimeErrorCallout_0_Enabled">
+              <div class="cfg-label-grp"><span class="cfg-lbl">DetRuntimeErrorCallout_0</span><button type="button" class="cfg-i" data-cfg-key="DetRuntimeErrorCallout_0_Enabled">i</button></div>
+              <label class="switch cfg-ctrl"><input id="cfg_DetRuntimeErrorCallout_0_Enabled" type="checkbox" onchange="onConfigChange('DetRuntimeErrorCallout_0_Enabled')"><span class="slider"></span></label>
+            </div>
+            <div class="cfg-row" data-cfg-key="DetTransientFaultCallout_0_Enabled">
+              <div class="cfg-label-grp"><span class="cfg-lbl">DetTransientFaultCallout_0</span><button type="button" class="cfg-i" data-cfg-key="DetTransientFaultCallout_0_Enabled">i</button></div>
+              <label class="switch cfg-ctrl"><input id="cfg_DetTransientFaultCallout_0_Enabled" type="checkbox" onchange="onConfigChange('DetTransientFaultCallout_0_Enabled')"><span class="slider"></span></label>
+            </div>
+          </div>
+
+          <!-- Tab 4: RAM Buffer & Filters -->
+          <div id="cfgPane_4" class="cfg-pane">
+            <div class="cfg-row" data-cfg-key="DetErrorBufferSize">
+              <div class="cfg-label-grp"><span class="cfg-lbl">DetErrorBufferSize (Slots)</span><button type="button" class="cfg-i" data-cfg-key="DetErrorBufferSize">i</button></div>
+              <input id="cfg_DetErrorBufferSize" type="number" min="1" max="8" class="cfg-num cfg-ctrl" onchange="onConfigChange('DetErrorBufferSize')">
+            </div>
+            <div class="cfg-row" data-cfg-key="DetBufferOverflowMode">
+              <div class="cfg-label-grp"><span class="cfg-lbl">DetBufferOverflowMode</span><button type="button" class="cfg-i" data-cfg-key="DetBufferOverflowMode">i</button></div>
+              <select id="cfg_DetBufferOverflowMode" class="cfg-sel cfg-ctrl" onchange="onConfigChange('DetBufferOverflowMode')">
+                <option value="FIFO_OVERWRITE_OLDEST">FIFO_OVERWRITE_OLDEST</option>
+                <option value="STOP_ON_FULL_KEEP_FIRST">STOP_ON_FULL_KEEP_FIRST</option>
+              </select>
+            </div>
+            <div class="cfg-row" data-cfg-key="DetGlobalFilterEnabled">
+              <div class="cfg-label-grp"><span class="cfg-lbl">DetGlobalFilterEnabled</span><button type="button" class="cfg-i" data-cfg-key="DetGlobalFilterEnabled">i</button></div>
+              <label class="switch cfg-ctrl"><input id="cfg_DetGlobalFilterEnabled" type="checkbox" onchange="onConfigChange('DetGlobalFilterEnabled')"><span class="slider"></span></label>
+            </div>
+            <div class="cfg-row" data-cfg-key="DetGlobalFilterRule">
+              <div class="cfg-label-grp"><span class="cfg-lbl">DetGlobalFilterRule</span><button type="button" class="cfg-i" data-cfg-key="DetGlobalFilterRule">i</button></div>
+              <input id="cfg_DetGlobalFilterRule" type="text" class="cfg-txt cfg-ctrl" onchange="onConfigChange('DetGlobalFilterRule')">
+            </div>
+            <div class="cfg-row" data-cfg-key="DetBreakpointFilterEnabled">
+              <div class="cfg-label-grp"><span class="cfg-lbl">DetBreakpointFilterEnabled</span><button type="button" class="cfg-i" data-cfg-key="DetBreakpointFilterEnabled">i</button></div>
+              <label class="switch cfg-ctrl"><input id="cfg_DetBreakpointFilterEnabled" type="checkbox" onchange="onConfigChange('DetBreakpointFilterEnabled')"><span class="slider"></span></label>
+            </div>
+            <div class="cfg-row" data-cfg-key="DetBreakpointFilterRule">
+              <div class="cfg-label-grp"><span class="cfg-lbl">DetBreakpointFilterRule</span><button type="button" class="cfg-i" data-cfg-key="DetBreakpointFilterRule">i</button></div>
+              <input id="cfg_DetBreakpointFilterRule" type="text" class="cfg-txt cfg-ctrl" onchange="onConfigChange('DetBreakpointFilterRule')">
+            </div>
+          </div>
+
+          <!-- Tab 5: SWC RTE Service Ports -->
+          <div id="cfgPane_5" class="cfg-pane">
+            <div class="cfg-row" data-cfg-key="SwcBrake_DetPortEnabled">
+              <div class="cfg-label-grp"><span class="cfg-lbl">SwcBrake_DetPortEnabled</span><button type="button" class="cfg-i" data-cfg-key="SwcBrake_DetPortEnabled">i</button></div>
+              <label class="switch cfg-ctrl"><input id="cfg_SwcBrake_DetPortEnabled" type="checkbox" onchange="onConfigChange('SwcBrake_DetPortEnabled')"><span class="slider"></span></label>
+            </div>
+            <div class="cfg-row" data-cfg-key="SwcBrake_DetModuleId">
+              <div class="cfg-label-grp"><span class="cfg-lbl">SwcBrake_DetModuleId (PDAV)</span><button type="button" class="cfg-i" data-cfg-key="SwcBrake_DetModuleId">i</button></div>
+              <input id="cfg_SwcBrake_DetModuleId" type="number" min="2048" max="65535" class="cfg-num cfg-ctrl" onchange="onConfigChange('SwcBrake_DetModuleId')">
+            </div>
+            <div class="cfg-row" data-cfg-key="SwcBrake_DefaultInstanceId">
+              <div class="cfg-label-grp"><span class="cfg-lbl">SwcBrake_DefaultInstanceId</span><button type="button" class="cfg-i" data-cfg-key="SwcBrake_DefaultInstanceId">i</button></div>
+              <input id="cfg_SwcBrake_DefaultInstanceId" type="number" min="0" max="255" class="cfg-num cfg-ctrl" onchange="onConfigChange('SwcBrake_DefaultInstanceId')">
+            </div>
+            <div class="cfg-row" data-cfg-key="SwcDiag_DetPortEnabled">
+              <div class="cfg-label-grp"><span class="cfg-lbl">SwcDiag_DetPortEnabled</span><button type="button" class="cfg-i" data-cfg-key="SwcDiag_DetPortEnabled">i</button></div>
+              <label class="switch cfg-ctrl"><input id="cfg_SwcDiag_DetPortEnabled" type="checkbox" onchange="onConfigChange('SwcDiag_DetPortEnabled')"><span class="slider"></span></label>
+            </div>
+            <div class="cfg-row" data-cfg-key="SwcDiag_DetModuleId">
+              <div class="cfg-label-grp"><span class="cfg-lbl">SwcDiag_DetModuleId (PDAV)</span><button type="button" class="cfg-i" data-cfg-key="SwcDiag_DetModuleId">i</button></div>
+              <input id="cfg_SwcDiag_DetModuleId" type="number" min="2048" max="65535" class="cfg-num cfg-ctrl" onchange="onConfigChange('SwcDiag_DetModuleId')">
+            </div>
+            <div class="cfg-row" data-cfg-key="CustomInject4Tuple">
+              <div class="cfg-label-grp"><span class="cfg-lbl">CustomInject4Tuple Preset</span><button type="button" class="cfg-i" data-cfg-key="CustomInject4Tuple">i</button></div>
+              <input id="cfg_CustomInject4Tuple" type="text" class="cfg-txt cfg-ctrl" onchange="onConfigChange('CustomInject4Tuple')">
+            </div>
+          </div>
+
+          <div id="cfgWarnBox" class="cfg-warn-box"></div>
+        </div>
+      </section>
+
+    </aside>
+
+    <!-- ========== CENTER COLUMN: CORE DIAGNOSTICS + PIPELINE/SM + SVG ARCH ========== -->
+    <section class="col-center">
+
+      <!-- Panel 1: 4-Tuple Anatomy + 3-Stream Funnel + 8-Slot RAM Ring Buffer + Dual 8-Bit Registers -->
+      <section class="card">
+        <div class="card-hdr">
+          <div class="card-title">&#128269; Core Diagnostics: 4-Tuple Anatomy &bull; 3 Streams &bull; RAM Ring Buffer &bull; 8-Bit Registers</div>
+          <span class="card-tag">Top Zero-Scroll</span>
+        </div>
+        <div class="card-body">
+          <div class="p1-top-split">
+            <!-- Left: 4-Tuple Error Packet Anatomy -->
+            <div class="sub-panel">
+              <div class="sub-panel-hdr">
+                <span>1A. 4-Tuple Error Packet Anatomy</span>
+                <span id="tupStreamBadge" class="stream-badge sb-EMPTY">IDLE</span>
+              </div>
+              <div class="tuple-grid">
+                <div class="tuple-cell">
+                  <div class="tc-key">ModuleId</div>
+                  <div id="tupModVal" class="tc-val">--</div>
+                  <div id="tupModName" class="tc-name">None</div>
+                </div>
+                <div class="tuple-cell">
+                  <div class="tc-key">InstanceId</div>
+                  <div id="tupInstVal" class="tc-val">--</div>
+                  <div id="tupInstName" class="tc-name">Instance</div>
+                </div>
+                <div class="tuple-cell">
+                  <div class="tc-key">ApiId (SID)</div>
+                  <div id="tupApiVal" class="tc-val">--</div>
+                  <div id="tupApiName" class="tc-name">None</div>
+                </div>
+                <div class="tuple-cell">
+                  <div class="tc-key">Error / FaultId</div>
+                  <div id="tupErrVal" class="tc-val">--</div>
+                  <div id="tupErrName" class="tc-name">None</div>
+                </div>
+              </div>
+              <div class="tuple-meta">
+                <span>Caller: <strong id="tupCallerBadge" class="mono">-</strong></span>
+                <span>Return: <strong id="tupReturnVal" class="mono">E_OK</strong></span>
+              </div>
+            </div>
+
+            <!-- Right: 3-Stream Funnel -->
+            <div class="sub-panel">
+              <div class="sub-panel-hdr">
+                <span>1B. 3-Stream Funnel</span>
+                <span style="font-size:9.5px;color:var(--text-dim)">0x01 / 0x04 / 0x05</span>
+              </div>
+              <div class="funnel-grid">
+                <div id="streamCardDev" class="stream-card dev">
+                  <div class="sc-title">Dev Error</div>
+                  <div class="sc-api">SID 0x01</div>
+                  <div id="cntDev" class="sc-cnt">0</div>
+                  <div id="retDev" class="sc-ret">E_OK</div>
+                </div>
+                <div id="streamCardRuntm" class="stream-card runtm">
+                  <div class="sc-title">Runtime</div>
+                  <div class="sc-api">SID 0x04</div>
+                  <div id="cntRuntm" class="sc-cnt">0</div>
+                  <div id="retRuntm" class="sc-ret">E_OK</div>
+                </div>
+                <div id="streamCardTrans" class="stream-card trans">
+                  <div class="sc-title">Transient</div>
+                  <div class="sc-api">SID 0x05</div>
+                  <div id="cntTrans" class="sc-cnt">0</div>
+                  <div id="retTrans" class="sc-ret">E_OK</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 8-Slot RAM Ring Buffer -->
+          <div class="sub-panel ring-wrap">
+            <div class="sub-panel-hdr">
+              <span>1C. RAM Ring Buffer: Det_ErrorBuffer[8] (Click slot to inspect)</span>
+              <span>
+                <span id="ringHeadBadge" class="card-tag">WriteIdx: 0</span>
+                <span id="ringPolicyBadge" class="card-tag">FIFO_OVERWRITE</span>
+              </span>
+            </div>
+            <table class="ring-table">
+              <thead>
+                <tr>
+                  <th>Slot</th>
+                  <th>Stream</th>
+                  <th>ModuleId</th>
+                  <th>Inst</th>
+                  <th>ApiId</th>
+                  <th>Error / FaultId</th>
+                  <th>Context / Seq</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="ringBufferBody"></tbody>
+            </table>
+          </div>
+
+          <!-- Dual 8-Bit Interactive Registers -->
+          <div class="regs-split">
+            <div class="reg-box">
+              <div class="reg-hdr">
+                <span class="reg-title">Thanh A: Det_CoreStatusByte (Click bit)</span>
+                <span id="regCoreHex" class="reg-hex">0x00</span>
+              </div>
+              <div id="regCoreBits" class="bit-row"></div>
+            </div>
+            <div class="reg-box">
+              <div class="reg-hdr">
+                <span class="reg-title">Thanh B: Det_PipelineFilterByte (Click bit)</span>
+                <span id="regPipeHex" class="reg-hex">0x20</span>
+              </div>
+              <div id="regPipeBits" class="bit-row"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Panel 2: Hook / DLT Pipeline Execution + Dual State Machines -->
+      <section class="card">
+        <div class="card-hdr">
+          <div class="card-title">&#9881; Internal Execution Pipeline &amp; Dual State Machines</div>
+          <span class="card-tag">SWS_Det Execution Order</span>
+        </div>
+        <div class="card-body">
+          <div class="pipe-stages">
+            <div id="pipeGuard" class="pipe-node">
+              <div class="pn-step">Stage 1</div>
+              <div class="pn-name">Init &amp; SchM Guard</div>
+              <div id="pipeGuardSt" class="pn-state">IDLE</div>
+            </div>
+            <div id="pipeFilter" class="pipe-node">
+              <div class="pn-step">Stage 2</div>
+              <div class="pn-name">Global Filter</div>
+              <div id="pipeFilterSt" class="pn-state">IDLE</div>
+            </div>
+            <div id="pipeHook" class="pipe-node">
+              <div class="pn-step">Stage 3</div>
+              <div class="pn-name">Hook / Callout</div>
+              <div id="pipeHookSt" class="pn-state">IDLE</div>
+            </div>
+            <div id="pipeDlt" class="pipe-node">
+              <div class="pn-step">Stage 4</div>
+              <div class="pn-name">DLT Forward</div>
+              <div id="pipeDltSt" class="pn-state">IDLE</div>
+            </div>
+            <div id="pipeBuf" class="pipe-node">
+              <div class="pn-step">Stage 5</div>
+              <div class="pn-name">RAM Ring Buffer</div>
+              <div id="pipeBufSt" class="pn-state">IDLE</div>
+            </div>
+            <div id="pipeExit" class="pipe-node">
+              <div class="pn-step">Stage 6</div>
+              <div class="pn-name">Exit / Halt / Return</div>
+              <div id="pipeExitSt" class="pn-state">IDLE</div>
+            </div>
+          </div>
+
+          <div class="sm-dual">
+            <div class="sm-card">
+              <div class="sm-title"><span>SM 1: Det Lifecycle State Machine</span><span class="mono" style="font-size:10px;color:var(--text-dim)">SWS_Det_00019/025</span></div>
+              <div class="sm-states">
+                <div id="smUninit" class="sm-node active-info">DET_UNINIT</div>
+                <span class="sm-arrow">&rarr;</span>
+                <div id="smInit" class="sm-node">DET_INIT</div>
+                <span class="sm-arrow">&rarr;</span>
+                <div id="smStarted" class="sm-node">DET_STARTED</div>
+              </div>
+            </div>
+            <div class="sm-card">
+              <div class="sm-title"><span>SM 2: Endless Loop &amp; Bkpt Halt</span><span class="mono" style="font-size:10px;color:var(--text-dim)">Dev Error Only</span></div>
+              <div class="sm-states">
+                <div id="smRun" class="sm-node active-ok">NORMAL_EXEC (E_OK)</div>
+                <span class="sm-arrow">&harr;</span>
+                <div id="smHalt" class="sm-node">ENDLESS_HALT / __BKPT(0)</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Panel 3: End-to-End Interactive AUTOSAR SVG Architecture -->
+      <section class="card">
+        <div class="card-hdr">
+          <div class="card-title">&#128506; Interactive End-to-End AUTOSAR Det Architecture</div>
+          <span class="card-tag">Click Module to Inspect I/O</span>
+        </div>
+        <div class="card-body">
+          <svg id="detArchSvg" class="arch-svg" viewBox="0 0 920 430" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <marker id="arrowNorm" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                <path d="M 0 1 L 10 5 L 0 9 z" fill="#64748b"/>
+              </marker>
+              <marker id="arrowDev" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                <path d="M 0 1 L 10 5 L 0 9 z" fill="#ef4444"/>
+              </marker>
+              <marker id="arrowRuntm" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                <path d="M 0 1 L 10 5 L 0 9 z" fill="#f59e0b"/>
+              </marker>
+              <marker id="arrowTrans" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                <path d="M 0 1 L 10 5 L 0 9 z" fill="#a855f7"/>
+              </marker>
+              <marker id="arrowOk" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                <path d="M 0 1 L 10 5 L 0 9 z" fill="#22c55e"/>
+              </marker>
+              <marker id="arrowInfo" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                <path d="M 0 1 L 10 5 L 0 9 z" fill="#38bdf8"/>
+              </marker>
+            </defs>
+
+            <!-- Layer Columns Background Labels -->
+            <rect x="12" y="10" width="240" height="408" rx="8" fill="none" stroke="var(--border)" stroke-dasharray="4 4"/>
+            <text x="132" y="28" text-anchor="middle" fill="var(--text-dim)" font-size="11" font-weight="700">CALLER LAYERS (SWC / BSW / MCAL)</text>
+
+            <rect x="275" y="10" width="340" height="408" rx="8" fill="none" stroke="var(--border)" stroke-dasharray="4 4"/>
+            <text x="445" y="28" text-anchor="middle" fill="var(--text-dim)" font-size="11" font-weight="700">AUTOSAR SERVICE: DET ENGINE</text>
+
+            <rect x="640" y="10" width="268" height="408" rx="8" fill="none" stroke="var(--border)" stroke-dasharray="4 4"/>
+            <text x="774" y="28" text-anchor="middle" fill="var(--text-dim)" font-size="11" font-weight="700">OUTPUT SINKS &amp; BOUNDARY</text>
+
+            <!-- Connection Paths (drawn under boxes) -->
+            <path id="arr_swc_rte" class="arr" d="M 192 78 L 285 78" marker-end="url(#arrowNorm)"/>
+            <text class="arr-lbl" x="238" y="71" text-anchor="middle">ReportError</text>
+
+            <path id="arr_rte_det" class="arr" d="M 358 112 L 358 160" marker-end="url(#arrowNorm)"/>
+            <text class="arr-lbl" x="415" y="140">PDAV ModId 2048+</text>
+
+            <path id="arr_bsw_det" class="arr" d="M 192 195 L 295 195" marker-end="url(#arrowNorm)"/>
+            <text class="arr-lbl" x="244" y="187" text-anchor="middle">0x01 / 0x04</text>
+
+            <path id="arr_mcal_det" class="arr" d="M 192 285 L 245 285 L 245 220 L 295 220" marker-end="url(#arrowNorm)"/>
+            <text class="arr-lbl" x="244" y="276" text-anchor="middle">0x05 Fault</text>
+
+            <path id="arr_ecum_det" class="arr" d="M 192 365 L 358 365 L 358 265" marker-end="url(#arrowNorm)"/>
+            <text class="arr-lbl" x="275" y="357" text-anchor="middle">Det_Init / Det_Start</text>
+
+            <path id="arr_det_hooks" class="arr" d="M 595 178 L 660 80" marker-end="url(#arrowNorm)"/>
+            <text class="arr-lbl" x="620" y="114" text-anchor="middle">Hooks[]</text>
+
+            <path id="arr_det_dlt" class="arr" d="M 595 198 L 660 170" marker-end="url(#arrowNorm)"/>
+            <text class="arr-lbl" x="628" y="176" text-anchor="middle">Dlt Fwd</text>
+
+            <path id="arr_det_buf" class="arr" d="M 595 218 L 660 258" marker-end="url(#arrowNorm)"/>
+            <text class="arr-lbl" x="628" y="246" text-anchor="middle">Ring Log</text>
+
+            <path id="arr_det_halt" class="arr" d="M 595 242 L 660 350" marker-end="url(#arrowNorm)"/>
+            <text class="arr-lbl" x="615" y="305" text-anchor="middle">while(1)</text>
+
+            <path id="arr_det_dem" class="arr" d="M 295 245 L 260 245 L 260 398 L 774 398 L 774 388" marker-end="url(#arrowNorm)"/>
+            <text class="arr-lbl" x="530" y="392" text-anchor="middle">E_NOT_OK / Hard Fault Escalation -&gt; Dem_SetEventStatus()</text>
+
+            <!-- Left Caller Nodes -->
+            <g id="svg_MOD_SWC" class="mod-box" onclick="selectModule('MOD_SWC')">
+              <rect class="mod-bg" x="26" y="48" width="166" height="58" rx="8" fill="var(--hb-box-fill)" stroke="var(--primary)" stroke-width="1.5"/>
+              <text x="109" y="69" text-anchor="middle" fill="var(--hb-text)" font-size="11.5" font-weight="700">SWC_BrakeCtrl / Diag</text>
+              <text x="109" y="86" text-anchor="middle" fill="var(--hb-subtext)" font-size="10">Rte_Call_DETService_*()</text>
+              <text x="109" y="99" text-anchor="middle" fill="var(--primary)" font-size="9.5" font-weight="700">ModId 2048 / 2049</text>
+            </g>
+
+            <g id="svg_MOD_BSW" class="mod-box" onclick="selectModule('MOD_BSW')">
+              <rect class="mod-bg" x="26" y="160" width="166" height="68" rx="8" fill="var(--hb-box-fill)" stroke="var(--accent-dev)" stroke-width="1.5"/>
+              <text x="109" y="182" text-anchor="middle" fill="var(--hb-text)" font-size="11.5" font-weight="700">BSW Services Layer</text>
+              <text x="109" y="198" text-anchor="middle" fill="var(--hb-subtext)" font-size="10">NvM(20), CanIf(60), WdgM(13)</text>
+              <text x="109" y="214" text-anchor="middle" fill="var(--accent-dev)" font-size="9.5" font-weight="700">Dev (0x01) + Runtime (0x04)</text>
+            </g>
+
+            <g id="svg_MOD_MCAL" class="mod-box" onclick="selectModule('MOD_MCAL')">
+              <rect class="mod-bg" x="26" y="246" width="166" height="68" rx="8" fill="var(--hb-box-fill)" stroke="var(--accent-trans)" stroke-width="1.5"/>
+              <text x="109" y="268" text-anchor="middle" fill="var(--hb-text)" font-size="11.5" font-weight="700">MCAL Drivers</text>
+              <text x="109" y="284" text-anchor="middle" fill="var(--hb-subtext)" font-size="10">Fls(92), Spi(83), Adc(123)</text>
+              <text x="109" y="300" text-anchor="middle" fill="var(--accent-trans)" font-size="9.5" font-weight="700">TransientFault (0x05)</text>
+            </g>
+
+            <g id="svg_MOD_ECUM" class="mod-box" onclick="selectModule('MOD_ECUM')">
+              <rect class="mod-bg" x="26" y="330" width="166" height="58" rx="8" fill="var(--hb-box-fill)" stroke="var(--accent-ok)" stroke-width="1.5"/>
+              <text x="109" y="352" text-anchor="middle" fill="var(--hb-text)" font-size="11.5" font-weight="700">EcuM / BswM Lifecycle</text>
+              <text x="109" y="368" text-anchor="middle" fill="var(--hb-subtext)" font-size="10">DriverInitZero -&gt; Det_Init</text>
+              <text x="109" y="381" text-anchor="middle" fill="var(--accent-ok)" font-size="9.5" font-weight="700">Det_Start() @ StartupTwo</text>
+            </g>
+
+            <!-- Center Layer: RTE & Core Det -->
+            <g id="svg_MOD_RTE" class="mod-box" onclick="selectModule('MOD_RTE')">
+              <rect class="mod-bg" x="285" y="48" width="150" height="64" rx="8" fill="var(--hb-box-alt)" stroke="var(--primary)" stroke-width="1.5"/>
+              <text x="360" y="69" text-anchor="middle" fill="var(--hb-text)" font-size="11.5" font-weight="700">RTE (DETService Port)</text>
+              <text x="360" y="85" text-anchor="middle" fill="var(--hb-subtext)" font-size="10">Port-Defined Arg Value</text>
+              <text x="360" y="100" text-anchor="middle" fill="var(--primary)" font-size="9.5" font-weight="700">Auto-Injects SWC ModId</text>
+            </g>
+
+            <g id="svg_MOD_DET" class="mod-box selected" onclick="selectModule('MOD_DET')">
+              <rect class="mod-bg" x="295" y="160" width="300" height="105" rx="10" fill="var(--hb-box-alt)" stroke="var(--primary)" stroke-width="2"/>
+              <text x="445" y="183" text-anchor="middle" fill="var(--primary)" font-size="13" font-weight="800">CORE DET ENGINE (ModuleId = 15)</text>
+              <text x="445" y="201" text-anchor="middle" fill="var(--hb-text)" font-size="10.5">APIs: 0x00 Init | 0x01 Dev | 0x02 Start | 0x03 VerInfo | 0x04 Runtm | 0x05 Trans</text>
+              <text x="445" y="218" text-anchor="middle" fill="var(--hb-subtext)" font-size="10">SchM_Enter_Det_DET_EXCLUSIVE_AREA_0() | Anti-Recursion Guard</text>
+              <text x="445" y="236" text-anchor="middle" fill="var(--accent-runtm)" font-size="10" font-weight="700">Self-Check: NULL_PTR -&gt; DET_E_PARAM_POINTER (0x01)</text>
+              <text x="445" y="253" text-anchor="middle" fill="var(--hb-subtext)" font-size="9.5">Routes 3 Error Streams concurrently without cross-contamination</text>
+            </g>
+
+            <!-- Right Output Sinks -->
+            <g id="svg_MOD_HOOKS" class="mod-box" onclick="selectModule('MOD_HOOKS')">
+              <rect class="mod-bg" x="660" y="45" width="232" height="66" rx="8" fill="var(--hb-box-fill)" stroke="var(--accent-hook)" stroke-width="1.5"/>
+              <text x="776" y="66" text-anchor="middle" fill="var(--hb-text)" font-size="11.5" font-weight="700">DetErrorHook[] &amp; Callouts</text>
+              <text x="776" y="82" text-anchor="middle" fill="var(--hb-subtext)" font-size="10">ErrorHook[0..1] | RuntmCallout | TransCallout</text>
+              <text x="776" y="98" text-anchor="middle" fill="var(--accent-hook)" font-size="9.5" font-weight="700">SWS_Det_00014 / 00503 (Return E_OK/E_NOT_OK)</text>
+            </g>
+
+            <g id="svg_MOD_DLT" class="mod-box" onclick="selectModule('MOD_DLT')">
+              <rect class="mod-bg" x="660" y="132" width="232" height="66" rx="8" fill="var(--hb-box-fill)" stroke="var(--accent-dlt)" stroke-width="1.5"/>
+              <text x="776" y="153" text-anchor="middle" fill="var(--hb-text)" font-size="11.5" font-weight="700">DLT Module (ModuleId 55)</text>
+              <text x="776" y="169" text-anchor="middle" fill="var(--hb-subtext)" font-size="10">Dlt_DetForwardErrorTrace(4-Tuple)</text>
+              <text x="776" y="185" text-anchor="middle" fill="var(--accent-dlt)" font-size="9.5" font-weight="700">Dev + Runtime only (NOT Transient!)</text>
+            </g>
+
+            <g id="svg_MOD_BUFFER" class="mod-box" onclick="selectModule('MOD_BUFFER')">
+              <rect class="mod-bg" x="660" y="220" width="232" height="66" rx="8" fill="var(--hb-box-fill)" stroke="var(--accent-runtm)" stroke-width="1.5"/>
+              <text x="776" y="241" text-anchor="middle" fill="var(--hb-text)" font-size="11.5" font-weight="700">RAM Ring Buffer &amp; Filters</text>
+              <text x="776" y="257" text-anchor="middle" fill="var(--hb-subtext)" font-size="10">Det_ErrorBuffer[8] + Global/Bkpt Filter</text>
+              <text x="776" y="273" text-anchor="middle" fill="var(--accent-runtm)" font-size="9.5" font-weight="700">FIFO Overwrite vs Stop-On-Full</text>
+            </g>
+
+            <g id="svg_MOD_DEBUG_DEM" class="mod-box" onclick="selectModule('MOD_DEBUG_DEM')">
+              <rect class="mod-bg" x="660" y="308" width="232" height="72" rx="8" fill="var(--hb-box-fill)" stroke="var(--accent-dem)" stroke-width="1.5"/>
+              <text x="776" y="329" text-anchor="middle" fill="var(--hb-text)" font-size="11.5" font-weight="700">Debugger Halt / DEM Boundary</text>
+              <text x="776" y="345" text-anchor="middle" fill="var(--hb-subtext)" font-size="10">while(det_halt) / __BKPT(0) [Dev Only]</text>
+              <text x="776" y="361" text-anchor="middle" fill="var(--accent-dem)" font-size="9.5" font-weight="700">DEM/NvM DTC Escalation (Production Faults)</text>
+            </g>
+          </svg>
+        </div>
+      </section>
+
+    </section>
+
+    <!-- ========== RIGHT COLUMN: STICKY 4-TAB INSPECTOR ========== -->
+    <aside class="col-right">
+      <section class="card insp-sticky">
+        <div class="insp-card">
+          <div class="insp-tabs">
+            <button id="inspTabBtn_trace" type="button" class="insp-tab-btn active" onclick="switchInspTab('trace')">1. Live Trace</button>
+            <button id="inspTabBtn_io" type="button" class="insp-tab-btn" onclick="switchInspTab('io')">2. Module I/O</button>
+            <button id="inspTabBtn_callers" type="button" class="insp-tab-btn" onclick="switchInspTab('callers')">3. SWC/Callers</button>
+            <button id="inspTabBtn_code" type="button" class="insp-tab-btn" onclick="switchInspTab('code')">4. C Code / RAM</button>
+          </div>
+          <div class="insp-body">
+            <!-- Tab 1: Live Trace -->
+            <div id="inspPane_trace" class="insp-pane active">
+              <div class="trace-toolbar">
+                <select id="traceFilterSelect" class="ctx-select" onchange="renderTraceList()">
+                  <option value="ALL">All Tags</option>
+                  <option value="DEV">[DEV] Development Error</option>
+                  <option value="RUNTM">[RUNTM] Runtime Error</option>
+                  <option value="TRANS">[TRANS] Transient Fault</option>
+                  <option value="HOOK">[HOOK] Hooks &amp; Callouts</option>
+                  <option value="DLT">[DLT] Dlt Forward</option>
+                  <option value="HALT">[HALT] Loop / Breakpoint</option>
+                </select>
+                <button type="button" class="btn" onclick="clearTrace()">&#128465; Clear Trace</button>
+              </div>
+              <div id="traceList"></div>
+            </div>
+
+            <!-- Tab 2: Module IO & DET vs DEM Comparison -->
+            <div id="inspPane_io" class="insp-pane">
+              <div id="moduleIoContent"></div>
+            </div>
+
+            <!-- Tab 3: SWC & Callers Matrix -->
+            <div id="inspPane_callers" class="insp-pane">
+              <div id="callerMatrixContent"></div>
+            </div>
+
+            <!-- Tab 4: Live C Code & RAM Structs -->
+            <div id="inspPane_code" class="insp-pane">
+              <div id="liveCodeContent"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </aside>
+
+  </div>
+</main>
+
+<!-- ==================== VIEW 2: MULTI-LEVEL HANDBOOK & ABBREVIATIONS ==================== -->
+<main id="viewHb" class="main-wrap" style="display:none">
+  <div class="hb-wrap">
+    <nav id="hbNav1" class="hb-nav1">
+      <button id="hbTab1_0" type="button" class="hb-tab1 active" onclick="selectHbTab1(0)">1. Kiến trúc &amp; Vòng đời</button>
+      <button id="hbTab1_1" type="button" class="hb-tab1" onclick="selectHbTab1(1)">2. Phân luồng 3 API</button>
+      <button id="hbTab1_2" type="button" class="hb-tab1" onclick="selectHbTab1(2)">3. SWC &amp; BSW Tương tác</button>
+      <button id="hbTab1_3" type="button" class="hb-tab1" onclick="selectHbTab1(3)">4. Hooks, DLT &amp; Filter</button>
+      <button id="hbTab1_4" type="button" class="hb-tab1" onclick="selectHbTab1(4)">5. An toàn, Reentrancy &amp; Debug</button>
+      <button id="hbTab1_5" type="button" class="hb-tab1" onclick="selectHbTab1(5)">6. ECUC, SWS &amp; So sánh DEM</button>
+      <button id="hbTab1_6" type="button" class="hb-tab1" onclick="selectHbTab1(6)">7. Bảng Thuật Ngữ (Abbreviations)</button>
+    </nav>
+
+    <div id="hbNav2" class="hb-nav2"></div>
+
+    <div id="hbAbbrFilterBox" class="abbr-toolbar" style="display:none">
+      <div class="abbr-search-grp">
+        <input id="abbrSearchInput" type="text" class="abbr-search-input" placeholder="Tìm kiếm thuật ngữ (VD: PDAV, Det, DLT, Transient, DEM, 0x05...)" oninput="renderAbbreviationTable()">
+        <span id="abbrCountBadge" class="card-tag">52 thuật ngữ</span>
+      </div>
+      <div class="abbr-cats">
+        <button id="abbrCat_ALL" type="button" class="abbr-cat-btn active" onclick="setAbbrCategory('ALL')">ALL</button>
+        <button id="abbrCat_CORE" type="button" class="abbr-cat-btn" onclick="setAbbrCategory('CORE')">CORE</button>
+        <button id="abbrCat_CALLER" type="button" class="abbr-cat-btn" onclick="setAbbrCategory('CALLER')">CALLER</button>
+        <button id="abbrCat_HOOK" type="button" class="abbr-cat-btn" onclick="setAbbrCategory('HOOK')">HOOK</button>
+        <button id="abbrCat_SAFETY" type="button" class="abbr-cat-btn" onclick="setAbbrCategory('SAFETY')">SAFETY</button>
+      </div>
+    </div>
+
+    <div id="hbContentArea" class="hb-content"></div>
+  </div>
+</main>
+
+<!-- ==================== EXPORT ARXML / C / H / JSON MODAL ==================== -->
+<div id="exportModal" class="modal-overlay" onclick="if(event.target===this) closeExportModal()">
+  <div class="modal-box">
+    <div class="modal-hdr">
+      <strong>&#128228; Export AUTOSAR Det Configuration &amp; Runtime Files</strong>
+      <button type="button" class="btn" onclick="closeExportModal()">&#10005; Close</button>
+    </div>
+    <div class="exp-tabs">
+      <button id="expTab_arxml" type="button" class="exp-tab-btn active" onclick="switchExportTab('arxml')">Det_ecuc.arxml</button>
+      <button id="expTab_h" type="button" class="exp-tab-btn" onclick="switchExportTab('h')">Det_Cfg.h</button>
+      <button id="expTab_c" type="button" class="exp-tab-btn" onclick="switchExportTab('c')">Det_Cfg.c</button>
+      <button id="expTab_json" type="button" class="exp-tab-btn" onclick="switchExportTab('json')">Det_SimState.json</button>
+    </div>
+    <div class="modal-body">
+      <textarea id="exportCodeArea" class="code-area" readonly></textarea>
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:10px">
+        <button type="button" class="btn" onclick="copyExportCode()">&#128203; Copy to Clipboard</button>
+        <button type="button" class="btn btn-primary" onclick="downloadExportFile()">&#11015; Download File</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== DEM-STYLE RICH FLOATING CONFIG TOOLTIP ==================== -->
+<div id="cfgTooltipPopup"></div>
+
+<script>

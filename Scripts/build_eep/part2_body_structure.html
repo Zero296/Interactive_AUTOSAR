@@ -1,0 +1,614 @@
+<!-- ================= STICKY UNIFIED HEADER ================= -->
+<header class="hdr">
+  <div class="hdr-row">
+    <div class="brand">
+      <span class="brand-badge">AUTOSAR Classic R23-11</span>
+      <div>
+        <div class="brand-title">Eep Interactive Simulator &amp; Technical Handbook</div>
+        <div class="brand-sub">EEPROM Driver (MCAL · Mod 90 / 0x005A) · Cyclic Chunking (SLOW/FAST) · Internal vs External SPI · Verify / Compare / Dem / DET</div>
+      </div>
+    </div>
+
+    <div class="view-switch" role="tablist">
+      <button id="btnViewSim" class="view-btn active" onclick="switchMainView('sim')">🎛️ Trình Mô Phỏng Eep</button>
+      <button id="btnViewHb" class="view-btn" onclick="switchMainView('hb')">📖 Sổ Tay Đa Tầng &amp; Thuật Ngữ</button>
+    </div>
+
+    <div class="hdr-actions">
+      <button class="btn btn-pri" onclick="openExportModal()">📦 Xuất ARXML / Cfg / C</button>
+      <button class="btn btn-ok" onclick="downloadStandaloneHTML()">💾 Tải File .HTML</button>
+      <button id="btnTheme" class="btn" onclick="toggleTheme()">☀️ Light Mode</button>
+    </div>
+  </div>
+
+  <div class="hdr-row">
+    <div class="scen-bar">
+      <label for="scenSelect" style="font-weight:700;font-size:11.5px;color:var(--mut)">Kịch bản:</label>
+      <select id="scenSelect" class="scen-select" onchange="onScenarioSelectChange()">
+        <optgroup label="Nhóm 1: Khởi Tạo, Đọc, Ghi Đa Chu Kỳ &amp; Xóa Trang">
+          <option value="S1">S1: Khởi Tạo Eep_Init(&amp;Eep_Config) &amp; Nạp Tham Số Vật Lý (UNINIT → IDLE)</option>
+          <option value="S2">S2: Đọc Đa Chu Kỳ Eep_Read(0x0000, 24B) Chia Nhỏ 16B+8B Theo Mode SLOW</option>
+          <option value="S3">S3: Ghi Đa Chu Kỳ Eep_Write(0x0060, 16B) Kèm Blank Check &amp; Read-Back Verify</option>
+          <option value="S4">S4: Xóa Vùng Nhớ Eep_Erase(0x0050, 16B) Về 0xFF &amp; Erase Verification</option>
+        </optgroup>
+        <optgroup label="Nhóm 2: So Sánh (Compare), Tối Ưu Chu Kỳ Ghi, SetMode &amp; Ngắt">
+          <option value="S5">S5: So Sánh Dữ Liệu Khớp 100% Eep_Compare(0x0000, 16B) → MEMIF_JOB_OK</option>
+          <option value="S6">S6: So Sánh Phát Hiện Lệch Byte Eep_Compare() → MEMIF_BLOCK_INCONSISTENT</option>
+          <option value="S7">S7: Giảm Chu Kỳ Ghi EepWriteCycleReduction &amp; Tăng Tốc Eep_SetMode(FAST)</option>
+          <option value="S8">S8: Đối Chiếu Polling (Eep_MainFunction) vs Ngắt (EepUseInterrupts=TRUE)</option>
+        </optgroup>
+        <optgroup label="Nhóm 3: Giao Tiếp External SPI EEPROM, Luồng Liên Tầng &amp; Cancel">
+          <option value="S9">S9: Điều Khiển External SPI EEPROM (WREN 0x06 → WRITE 0x02 → RDSR 0x05 → READ)</option>
+          <option value="S10">S10: Luồng Liên Tầng End-to-End: SWC → RTE → NvM → MemIf → Ea → 3x Eep_Write</option>
+          <option value="S11">S11: Hủy Lệnh Bằng Eep_Cancel() → MEMIF_JOB_CANCELED &amp; Bảo Vệ WIP_HW_BUSY</option>
+        </optgroup>
+        <optgroup label="Nhóm 4: Lỗi Phần Cứng (Dem), Timeout &amp; Kiểm Thử DET">
+          <option value="S12">S12: Verify Thất Bại Do Stuck Bit → Dem (EEP_E_WRITE_FAILED) &amp; MEMIF_JOB_FAILED</option>
+          <option value="S13">S13: Giám Sát Treo WIP_HW_BUSY → Det_ReportRuntimeError(EEP_E_TIMEOUT = 0x05)</option>
+          <option value="S14">S14: Kiểm Thử Toàn Diện DET (0x00..0x0A) &amp; Runtime Error EEP_E_BUSY (0x04)</option>
+        </optgroup>
+      </select>
+
+      <button class="btn btn-sm" onclick="resetCurrentScenario()">⟲ Reset Kịch Bản</button>
+      <button id="btnPrevStep" class="btn btn-sm" onclick="prevScenarioStep()" disabled>◀ Lùi</button>
+      <span id="stepIndicator" class="step-pill">Bước 0 / 0</span>
+      <button id="btnNextStep" class="btn btn-sm btn-pri" onclick="nextScenarioStep()">Bước Tiếp ▶</button>
+      <button id="btnAutoPlay" class="btn btn-sm btn-pur" onclick="toggleScenarioAutoPlay()">▶ Tự Động</button>
+
+      <div class="clock-box">
+        <span style="font-size:10.5px;color:var(--mut);font-weight:700">Clock:</span>
+        <span id="clockVal" class="clock-val mono">0 ms</span>
+        <button class="btn btn-sm btn-ok" onclick="stepClockTick()" title="Chạy 1 chu kỳ Eep_MainFunction()">+5ms MainFn</button>
+        <button id="btnAutoClock" class="btn btn-sm" onclick="toggleAutoClock()">⏱ Auto Clock</button>
+      </div>
+    </div>
+
+    <div class="hdr-badges">
+      <span id="hdrBadgeStatus" class="state-badge sb-ok">MEMIF_IDLE</span>
+      <span id="hdrBadgeResult" class="state-badge sb-ok">MEMIF_JOB_OK</span>
+      <span id="hdrBadgeMode" class="state-badge sb-cyan">SLOW (16/8B)</span>
+      <span id="hdrBadgeHwBus" class="state-badge sb-pri">EXT SPI</span>
+    </div>
+  </div>
+</header>
+
+<!-- ================= VIEW 1: INTERACTIVE SIMULATOR (ZERO-SCROLL 3 COLUMNS) ================= -->
+<main id="viewSim" class="workspace">
+
+  <!-- LEFT COLUMN: QUICK ACTIONS + SCENARIO WHAT-IF + 6 ECUC CONFIG TABS -->
+  <aside class="col-left">
+    <!-- CARD 1: QUICK ACTION BAR -->
+    <section class="panel">
+      <div class="panel-hdr">
+        <span class="panel-title">⚡ Thao Tác Nhanh API Eep (Quick Actions)</span>
+        <span class="panel-sub">Đóng vai Ea / EcuM / SchM</span>
+      </div>
+      <div class="panel-body">
+        <div class="qa-row">
+          <span style="font-size:10.5px;font-weight:700;color:var(--mut)">Addr:</span>
+          <input id="qaAddrInput" class="qa-input mono" type="text" value="0x0060" style="width:62px;text-align:right" title="EepromAddress offset (0x0000..0x00FF)" />
+          <span style="font-size:10.5px;font-weight:700;color:var(--mut)">Len:</span>
+          <input id="qaLenInput" class="qa-input mono" type="number" min="0" max="256" value="16" style="width:52px;text-align:right" />
+          <select id="qaPresetAddr" class="qa-input" style="flex:1;min-width:110px" onchange="onQaPresetChange()" title="Chọn nhanh vùng địa chỉ mẫu">
+            <option value="0x0060:16">Raw Test Area (0x0060, 16B)</option>
+            <option value="0x0000:24">Ea Blk#1..2 (0x0000, 24B)</option>
+            <option value="0x0050:16">Immediate Area (0x0050, 16B)</option>
+            <option value="0x0010:16">Dataset Area (0x0010, 16B)</option>
+          </select>
+        </div>
+        <div class="qa-row">
+          <span style="font-size:10.5px;font-weight:700;color:var(--mut)">Data:</span>
+          <input id="qaHexInput" class="qa-input mono" type="text" value="DE AD BE EF CA FE BA BE 11 22 33 44 55 66 77 88" style="flex:1;min-width:160px" title="Dữ liệu Hex truyền vào Eep_Write hoặc Eep_Compare" />
+        </div>
+        <div class="qa-grid">
+          <button class="qa-btn qa-ok" onclick="qaEepRead()">
+            <span>📖 1. Eep_Read</span><span class="mono">0x02</span>
+          </button>
+          <button class="qa-btn" onclick="qaEepWrite()">
+            <span>✍️ 2. Eep_Write</span><span class="mono">0x03</span>
+          </button>
+          <button class="qa-btn qa-pur" onclick="qaEepErase()">
+            <span>🧹 3. Eep_Erase</span><span class="mono">0x04</span>
+          </button>
+          <button class="qa-btn qa-cyan" onclick="qaEepCompare()">
+            <span>🔍 4. Eep_Compare</span><span class="mono">0x05</span>
+          </button>
+          <button id="qaBtnSetMode" class="qa-btn qa-warn" onclick="qaToggleSetMode()">
+            <span>⚡ 5. Eep_SetMode</span><span id="qaTxtMode" class="mono">SLOW</span>
+          </button>
+          <button id="qaBtnCancelOrFault" class="qa-btn qa-err" onclick="qaCancelOrToggleHwFault()">
+            <span id="qaTxtCancelLbl">🛑 6. Tiêm Lỗi HW</span><span id="qaTxtFault" class="mono">OFF</span>
+          </button>
+          <button class="qa-btn" onclick="stepClockTick()">
+            <span>⏱ 7. +5ms MainFn</span><span class="mono">0x09</span>
+          </button>
+          <button class="qa-btn" onclick="qaResetEepInit()">
+            <span>🔄 8. Reset Eep_Init</span><span class="mono">0x00</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- CARD 2: CURRENT SCENARIO SUMMARY & 3 WHAT-IF BUTTONS -->
+    <section class="panel">
+      <div class="panel-hdr">
+        <span class="panel-title">🎬 Kịch Bản Đang Chạy &amp; Thử Nghiệm Nhanh</span>
+        <span id="scenIdBadge" class="panel-sub mono">S1</span>
+      </div>
+      <div class="panel-body">
+        <div id="scenSummaryBox" class="scen-desc-box"></div>
+        <div style="font-size:10.5px;font-weight:700;color:var(--pur);margin-bottom:4px">🧪 Thử Nghiệm Nhanh (1-Click What-If):</div>
+        <div id="whatIfContainer" class="whatif-grid"></div>
+      </div>
+    </section>
+
+    <!-- CARD 3: 6-TAB ECUC CONFIG PANEL (36 PARAMETERS + >1S TOOLTIP) -->
+    <section class="panel">
+      <div class="panel-hdr">
+        <span class="panel-title">⚙️ Cấu Hình ECUC Eep (Hover &gt;1s Xem SWS)</span>
+        <span class="panel-sub">36 Parameters</span>
+      </div>
+      <div class="cfg-tabs">
+        <button id="cfgTabBtn0" class="cfg-tab active" onclick="switchCfgTab(0)">1. EepGeneral</button>
+        <button id="cfgTabBtn1" class="cfg-tab" onclick="switchCfgTab(1)">2. Mode &amp; Chunk</button>
+        <button id="cfgTabBtn2" class="cfg-tab" onclick="switchCfgTab(2)">3. Layout &amp; Units</button>
+        <button id="cfgTabBtn3" class="cfg-tab" onclick="switchCfgTab(3)">4. HW (Int/SPI)</button>
+        <button id="cfgTabBtn4" class="cfg-tab" onclick="switchCfgTab(4)">5. Cbk &amp; Dem</button>
+        <button id="cfgTabBtn5" class="cfg-tab" onclick="switchCfgTab(5)">6. Fault &amp; Tmo</button>
+      </div>
+
+      <!-- TAB 0: EEP GENERAL (7 PARAMS) -->
+      <div id="cfgPane0" class="cfg-pane">
+        <div class="cfg-row" data-cfg-key="EepInitialized">
+          <label class="cfg-lbl" for="cfg_EepInitialized"><span class="cfg-i">ⓘ</span><span class="cfg-name">EepInitialized (Eep_Init)</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_EepInitialized" checked onchange="onConfigInputChanged('EepInitialized')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="EepDevErrorDetect">
+          <label class="cfg-lbl" for="cfg_EepDevErrorDetect"><span class="cfg-i">ⓘ</span><span class="cfg-name">EepDevErrorDetect</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_EepDevErrorDetect" checked onchange="onConfigInputChanged('EepDevErrorDetect')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="EepVersionInfoApi">
+          <label class="cfg-lbl" for="cfg_EepVersionInfoApi"><span class="cfg-i">ⓘ</span><span class="cfg-name">EepVersionInfoApi</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_EepVersionInfoApi" checked onchange="onConfigInputChanged('EepVersionInfoApi')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="EepUseInterrupts">
+          <label class="cfg-lbl" for="cfg_EepUseInterrupts"><span class="cfg-i">ⓘ</span><span class="cfg-name">EepUseInterrupts</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_EepUseInterrupts" onchange="onConfigInputChanged('EepUseInterrupts')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="EepWriteCycleReduction">
+          <label class="cfg-lbl" for="cfg_EepWriteCycleReduction"><span class="cfg-i">ⓘ</span><span class="cfg-name">EepWriteCycleReduction</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_EepWriteCycleReduction" onchange="onConfigInputChanged('EepWriteCycleReduction')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="EepDriverIndex">
+          <label class="cfg-lbl" for="cfg_EepDriverIndex"><span class="cfg-i">ⓘ</span><span class="cfg-name">EepDriverIndex</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_EepDriverIndex" min="0" max="15" value="0" onchange="onConfigInputChanged('EepDriverIndex')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="EepJobCallCycle">
+          <label class="cfg-lbl" for="cfg_EepJobCallCycle"><span class="cfg-i">ⓘ</span><span class="cfg-name">EepJobCallCycle</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_EepJobCallCycle" min="1" max="50" value="5" onchange="onConfigInputChanged('EepJobCallCycle')" /><span style="font-size:10px;color:var(--mut)">ms</span></div>
+        </div>
+      </div>
+
+      <!-- TAB 1: INIT CONFIG & MODE (6 PARAMS) -->
+      <div id="cfgPane1" class="cfg-pane hidden">
+        <div class="cfg-row" data-cfg-key="EepDefaultMode">
+          <label class="cfg-lbl" for="cfg_EepDefaultMode"><span class="cfg-i">ⓘ</span><span class="cfg-name">EepDefaultMode</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_EepDefaultMode" onchange="onConfigInputChanged('EepDefaultMode')">
+              <option value="MEMIF_MODE_SLOW" selected>MEMIF_MODE_SLOW</option>
+              <option value="MEMIF_MODE_FAST">MEMIF_MODE_FAST</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="CurrentMemIfMode">
+          <label class="cfg-lbl" for="cfg_CurrentMemIfMode"><span class="cfg-i">ⓘ</span><span class="cfg-name">CurrentMemIfMode</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_CurrentMemIfMode" onchange="onConfigInputChanged('CurrentMemIfMode')">
+              <option value="MEMIF_MODE_SLOW" selected>MEMIF_MODE_SLOW</option>
+              <option value="MEMIF_MODE_FAST">MEMIF_MODE_FAST</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="EepNormalReadBlockSize">
+          <label class="cfg-lbl" for="cfg_EepNormalReadBlockSize"><span class="cfg-i">ⓘ</span><span class="cfg-name">EepNormalReadBlockSize</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_EepNormalReadBlockSize" min="1" max="64" value="16" onchange="onConfigInputChanged('EepNormalReadBlockSize')" /><span style="font-size:10px;color:var(--mut)">B</span></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="EepNormalWriteBlockSize">
+          <label class="cfg-lbl" for="cfg_EepNormalWriteBlockSize"><span class="cfg-i">ⓘ</span><span class="cfg-name">EepNormalWriteBlockSize</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_EepNormalWriteBlockSize" min="1" max="64" value="8" onchange="onConfigInputChanged('EepNormalWriteBlockSize')" /><span style="font-size:10px;color:var(--mut)">B</span></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="EepFastReadBlockSize">
+          <label class="cfg-lbl" for="cfg_EepFastReadBlockSize"><span class="cfg-i">ⓘ</span><span class="cfg-name">EepFastReadBlockSize</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_EepFastReadBlockSize" min="8" max="256" value="64" onchange="onConfigInputChanged('EepFastReadBlockSize')" /><span style="font-size:10px;color:var(--mut)">B</span></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="EepFastWriteBlockSize">
+          <label class="cfg-lbl" for="cfg_EepFastWriteBlockSize"><span class="cfg-i">ⓘ</span><span class="cfg-name">EepFastWriteBlockSize</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_EepFastWriteBlockSize" min="4" max="128" value="32" onchange="onConfigInputChanged('EepFastWriteBlockSize')" /><span style="font-size:10px;color:var(--mut)">B</span></div>
+        </div>
+      </div>
+
+      <!-- TAB 2: PHYSICAL LAYOUT & UNITS (8 PARAMS) -->
+      <div id="cfgPane2" class="cfg-pane hidden">
+        <div class="cfg-row" data-cfg-key="EepBaseAddress">
+          <label class="cfg-lbl" for="cfg_EepBaseAddress"><span class="cfg-i">ⓘ</span><span class="cfg-name">EepBaseAddress</span></label>
+          <div class="cfg-ctrl"><input type="text" id="cfg_EepBaseAddress" class="mono" value="0x0000" style="width:90px;text-align:right" onchange="onConfigInputChanged('EepBaseAddress')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="EepSize">
+          <label class="cfg-lbl" for="cfg_EepSize"><span class="cfg-i">ⓘ</span><span class="cfg-name">EepSize (Configured)</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_EepSize" min="32" max="256" step="16" value="256" onchange="onConfigInputChanged('EepSize')" /><span style="font-size:10px;color:var(--mut)">B</span></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="EepTotalSize">
+          <label class="cfg-lbl" for="cfg_EepTotalSize"><span class="cfg-i">ⓘ</span><span class="cfg-name">EepTotalSize (HW Max)</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_EepTotalSize" min="64" max="65536" step="64" value="256" onchange="onConfigInputChanged('EepTotalSize')" /><span style="font-size:10px;color:var(--mut)">B</span></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="EepEraseValue">
+          <label class="cfg-lbl" for="cfg_EepEraseValue"><span class="cfg-i">ⓘ</span><span class="cfg-name">EepEraseValue</span></label>
+          <div class="cfg-ctrl"><input type="text" id="cfg_EepEraseValue" class="mono" value="0xFF" style="width:76px;text-align:right" onchange="onConfigInputChanged('EepEraseValue')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="EepReadUnitSize">
+          <label class="cfg-lbl" for="cfg_EepReadUnitSize"><span class="cfg-i">ⓘ</span><span class="cfg-name">EepReadUnitSize</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_EepReadUnitSize" min="1" max="8" value="1" onchange="onConfigInputChanged('EepReadUnitSize')" /><span style="font-size:10px;color:var(--mut)">B</span></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="EepWriteUnitSize">
+          <label class="cfg-lbl" for="cfg_EepWriteUnitSize"><span class="cfg-i">ⓘ</span><span class="cfg-name">EepWriteUnitSize</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_EepWriteUnitSize" min="1" max="16" value="1" onchange="onConfigInputChanged('EepWriteUnitSize')" /><span style="font-size:10px;color:var(--mut)">B</span></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="EepEraseUnitSize">
+          <label class="cfg-lbl" for="cfg_EepEraseUnitSize"><span class="cfg-i">ⓘ</span><span class="cfg-name">EepEraseUnitSize</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_EepEraseUnitSize" min="1" max="32" value="8" onchange="onConfigInputChanged('EepEraseUnitSize')" /><span style="font-size:10px;color:var(--mut)">B</span></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="EepAllowedWriteCycles">
+          <label class="cfg-lbl" for="cfg_EepAllowedWriteCycles"><span class="cfg-i">ⓘ</span><span class="cfg-name">EepAllowedWriteCycles</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_EepAllowedWriteCycles" min="10000" max="1000000" step="10000" value="100000" onchange="onConfigInputChanged('EepAllowedWriteCycles')" /></div>
+        </div>
+      </div>
+
+      <!-- TAB 3: HARDWARE INTERFACE INT / SPI (5 PARAMS) -->
+      <div id="cfgPane3" class="cfg-pane hidden">
+        <div class="cfg-row" data-cfg-key="EepHardwareInterfaceType">
+          <label class="cfg-lbl" for="cfg_EepHardwareInterfaceType"><span class="cfg-i">ⓘ</span><span class="cfg-name">EepHardwareInterfaceType</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_EepHardwareInterfaceType" onchange="onConfigInputChanged('EepHardwareInterfaceType')">
+              <option value="EXTERNAL_SPI_EEPROM" selected>EXTERNAL_SPI_EEPROM</option>
+              <option value="INTERNAL_ONCHIP_EEPROM">INTERNAL_ONCHIP_EEPROM</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="EepSpiSequenceId">
+          <label class="cfg-lbl" for="cfg_EepSpiSequenceId"><span class="cfg-i">ⓘ</span><span class="cfg-name">EepSpiSequenceId</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_EepSpiSequenceId" min="0" max="15" value="0" onchange="onConfigInputChanged('EepSpiSequenceId')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="EepWriteTimeMs">
+          <label class="cfg-lbl" for="cfg_EepWriteTimeMs"><span class="cfg-i">ⓘ</span><span class="cfg-name">EepWriteTimeMs</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_EepWriteTimeMs" min="1" max="50" value="5" onchange="onConfigInputChanged('EepWriteTimeMs')" /><span style="font-size:10px;color:var(--mut)">ms</span></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="EepEraseTimeMs">
+          <label class="cfg-lbl" for="cfg_EepEraseTimeMs"><span class="cfg-i">ⓘ</span><span class="cfg-name">EepEraseTimeMs</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_EepEraseTimeMs" min="1" max="50" value="5" onchange="onConfigInputChanged('EepEraseTimeMs')" /><span style="font-size:10px;color:var(--mut)">ms</span></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="AutoEraseBeforeWrite">
+          <label class="cfg-lbl" for="cfg_AutoEraseBeforeWrite"><span class="cfg-i">ⓘ</span><span class="cfg-name">AutoEraseBeforeWrite</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_AutoEraseBeforeWrite" checked onchange="onConfigInputChanged('AutoEraseBeforeWrite')" /></div>
+        </div>
+      </div>
+
+      <!-- TAB 4: CALLBACKS & DEM (5 PARAMS) -->
+      <div id="cfgPane4" class="cfg-pane hidden">
+        <div class="cfg-row" data-cfg-key="EepJobEndNotificationEnabled">
+          <label class="cfg-lbl" for="cfg_EepJobEndNotificationEnabled"><span class="cfg-i">ⓘ</span><span class="cfg-name">JobEndNotif Enabled</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_EepJobEndNotificationEnabled" checked onchange="onConfigInputChanged('EepJobEndNotificationEnabled')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="EepJobEndNotification">
+          <label class="cfg-lbl" for="cfg_EepJobEndNotification"><span class="cfg-i">ⓘ</span><span class="cfg-name">EepJobEndNotification</span></label>
+          <div class="cfg-ctrl"><input type="text" id="cfg_EepJobEndNotification" class="mono" value="Ea_JobEndNotification" style="width:148px" onchange="onConfigInputChanged('EepJobEndNotification')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="EepJobErrorNotificationEnabled">
+          <label class="cfg-lbl" for="cfg_EepJobErrorNotificationEnabled"><span class="cfg-i">ⓘ</span><span class="cfg-name">JobErrorNotif Enabled</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_EepJobErrorNotificationEnabled" checked onchange="onConfigInputChanged('EepJobErrorNotificationEnabled')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="EepJobErrorNotification">
+          <label class="cfg-lbl" for="cfg_EepJobErrorNotification"><span class="cfg-i">ⓘ</span><span class="cfg-name">EepJobErrorNotification</span></label>
+          <div class="cfg-ctrl"><input type="text" id="cfg_EepJobErrorNotification" class="mono" value="Ea_JobErrorNotification" style="width:148px" onchange="onConfigInputChanged('EepJobErrorNotification')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="EepDemErrorReportingEnabled">
+          <label class="cfg-lbl" for="cfg_EepDemErrorReportingEnabled"><span class="cfg-i">ⓘ</span><span class="cfg-name">EepDemErrorReporting</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_EepDemErrorReportingEnabled" checked onchange="onConfigInputChanged('EepDemErrorReportingEnabled')" /></div>
+        </div>
+      </div>
+
+      <!-- TAB 5: FAULT & TIMEOUT INJECTION (5 PARAMS) -->
+      <div id="cfgPane5" class="cfg-pane hidden">
+        <div class="cfg-row" data-cfg-key="EnableWriteVerification">
+          <label class="cfg-lbl" for="cfg_EnableWriteVerification"><span class="cfg-i">ⓘ</span><span class="cfg-name">EnableWriteVerification</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_EnableWriteVerification" checked onchange="onConfigInputChanged('EnableWriteVerification')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="EnableEraseVerification">
+          <label class="cfg-lbl" for="cfg_EnableEraseVerification"><span class="cfg-i">ⓘ</span><span class="cfg-name">EnableEraseVerification</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_EnableEraseVerification" checked onchange="onConfigInputChanged('EnableEraseVerification')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="InjectHwWriteOrEraseVerifyFail">
+          <label class="cfg-lbl" for="cfg_InjectHwWriteOrEraseVerifyFail"><span class="cfg-i">ⓘ</span><span class="cfg-name">InjectHwVerifyFail (Stuck)</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_InjectHwWriteOrEraseVerifyFail" onchange="onConfigInputChanged('InjectHwWriteOrEraseVerifyFail')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="InjectHwTimeoutStuckBusy">
+          <label class="cfg-lbl" for="cfg_InjectHwTimeoutStuckBusy"><span class="cfg-i">ⓘ</span><span class="cfg-name">InjectHwTimeoutStuckBusy</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_InjectHwTimeoutStuckBusy" onchange="onConfigInputChanged('InjectHwTimeoutStuckBusy')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="TestInvalidParamMode">
+          <label class="cfg-lbl" for="cfg_TestInvalidParamMode"><span class="cfg-i">ⓘ</span><span class="cfg-name">TestInvalidParamMode</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_TestInvalidParamMode" onchange="onConfigInputChanged('TestInvalidParamMode')">
+              <option value="NONE">NONE (Hợp lệ)</option>
+              <option value="INVALID_ADDRESS">Addr &ge; EepSize (0x01)</option>
+              <option value="INVALID_LENGTH">Addr+Len &gt; Size (0x03)</option>
+              <option value="INVALID_DATA">DataPtr = NULL (0x02)</option>
+              <option value="INIT_NULL_PTR">Init(NULL_PTR) (0x09)</option>
+              <option value="VERSION_NULL_PTR">VerInfo(NULL) (0x0A)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div id="cfgValidationBox" style="padding:0 10px 8px"></div>
+    </section>
+  </aside>
+
+  <!-- CENTER COLUMN: PHYSICAL EEPROM HEX MAP, CHUNKING PROGRESS, DUAL 8-BIT REGISTERS, STATE MACHINES & SVG -->
+  <section class="col-center">
+    <!-- PANEL 1: PHYSICAL EEPROM HEX MAP + CHUNK PROGRESS + DUAL 8-BIT REGISTERS -->
+    <section class="panel">
+      <div class="panel-hdr">
+        <span class="panel-title">🗺️ Bản Đồ Ô Nhớ Vật Lý EEPROM (0x0000..0x00FF), Tiến Độ Chunk &amp; 2 Thanh Ghi 8-Bit</span>
+        <span id="eepMapBadge" class="panel-sub mono">Base: 0x0000 | Size: 256B | EraseVal: 0xFF</span>
+      </div>
+      <div class="panel-body tier-split">
+        <!-- TIER 1A-0: CHUNKING & HARDWARE BUS TRACE BANNER -->
+        <div id="eepChunkBanner" class="eep-chunk-banner"></div>
+
+        <!-- TIER 1A-1: PHYSICAL EEPROM 256B HEX MEMORY MAP -->
+        <div class="eep-map-wrap">
+          <div class="eep-map-hdr">
+            <span style="font-weight:700;color:var(--txt)">🧩 Lưới Ô Nhớ Vật Lý EEPROM (16 Rows × 16 Bytes = 32 Pages 8B)</span>
+            <div class="eep-click-mode-bar">
+              <span style="color:var(--mut);font-size:10px">Click ô nhớ:</span>
+              <button id="btnCellClickToggleByte" class="eep-mode-pill active" onclick="setEepCellClickMode('TOGGLE_BYTE')">✏️ Sửa Byte</button>
+              <button id="btnCellClickStuckBit" class="eep-mode-pill" onclick="setEepCellClickMode('STUCK_BIT')">🔥 Gài Stuck Bit</button>
+            </div>
+          </div>
+          <div class="eep-legend">
+            <span class="eep-leg-item"><span class="eep-dot" style="background:var(--cyan)"></span>Active Chunk</span>
+            <span class="eep-leg-item"><span class="eep-dot" style="background:var(--ok)"></span>Verified / Ftr 0x5A</span>
+            <span class="eep-leg-item"><span class="eep-dot" style="background:var(--pri)"></span>Ea Hdr 0xA5</span>
+            <span class="eep-leg-item"><span class="eep-dot" style="background:var(--warn)"></span>Cursor / Inv 0x00</span>
+            <span class="eep-leg-item"><span class="eep-dot" style="background:var(--err)"></span>Stuck Bit / Fail</span>
+            <span class="eep-leg-item"><span class="eep-dot" style="background:var(--mut)"></span>Erased 0xFF</span>
+          </div>
+          <div id="eepMemoryMap" style="overflow-x:auto"></div>
+        </div>
+
+        <!-- TIER 1B: DUAL 8-BIT REGISTERS -->
+        <div class="reg-grid">
+          <div class="reg-card">
+            <div class="reg-top">
+              <span id="regATitle" class="reg-name">Thanh A: Eep_DriverJobStatusByte</span>
+              <span id="regAHex" class="reg-hex mono">0x90</span>
+            </div>
+            <div id="regABits" class="bit-row"></div>
+          </div>
+
+          <div class="reg-card">
+            <div class="reg-top">
+              <span id="regBTitle" class="reg-name">Thanh B: Eep_HwStatusCtrlByte (EESTAT / RDSR)</span>
+              <span id="regBHex" class="reg-hex mono">0x98</span>
+            </div>
+            <div id="regBBits" class="bit-row"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PANEL 2: HARDWARE CYCLE BARS & DUAL STATE MACHINES -->
+    <section class="panel">
+      <div class="panel-hdr">
+        <span class="panel-title">⏳ Giám Sát Chu Kỳ Phần Cứng (Int/SPI) &amp; 2 Máy Trạng Thái Song Song</span>
+        <span id="eepExecBadge" class="state-badge sb-ok">MEMIF_IDLE (t=0ms)</span>
+      </div>
+      <div class="panel-body">
+        <div id="timersGrid" class="timer-grid"></div>
+        <div class="sm-dual">
+          <div class="sm-box">
+            <div class="sm-title">
+              <span>🚦 Eep Driver &amp; Cyclic Job State Machine (SWS_Eep)</span>
+              <span id="smEepDriverLbl" class="mono">MEMIF_IDLE</span>
+            </div>
+            <div id="eepDriverSmDiagram" class="sm-states"></div>
+          </div>
+
+          <div class="sm-box">
+            <div class="sm-title">
+              <span>🔌 EEPROM HW Cell &amp; SPI Transaction SM</span>
+              <span id="smEepHwLbl" class="mono">HW_IDLE_READY</span>
+            </div>
+            <div id="eepHwSmDiagram" class="sm-states"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PANEL 3: INTERACTIVE END-TO-END AUTOSAR EEP ARCHITECTURE SVG -->
+    <section class="panel">
+      <div class="panel-hdr">
+        <span class="panel-title">🏗️ Sơ Đồ Kiến Trúc Tương Tác End-to-End (SWC → RTE → NvM → MemIf → Ea → Eep → Int/SPI HW)</span>
+        <span class="panel-sub">Click từng khối để xem Input / Output &amp; API</span>
+      </div>
+      <div class="panel-body">
+        <div class="arch-wrap">
+          <svg id="eepArchSvg" class="arch-svg" viewBox="0 0 820 405" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <marker id="arrEnd" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                <path d="M 0 1 L 10 5 L 0 9 z" fill="currentColor" />
+              </marker>
+            </defs>
+
+            <!-- ARROWS LAYER (Strictly non-overlapping orthogonal channels) -->
+            <path id="arr_swc_rte" class="flow-arrow" d="M 135 66 L 135 92" marker-end="url(#arrEnd)" />
+            <path id="arr_rte_nvm" class="flow-arrow" d="M 250 119 L 295 119" marker-end="url(#arrEnd)" />
+            <path id="arr_nvm_memif" class="flow-arrow" d="M 410 146 L 410 172" marker-end="url(#arrEnd)" />
+            <path id="arr_memif_ea" class="flow-arrow" d="M 295 198 L 250 198" marker-end="url(#arrEnd)" />
+            <path id="arr_ea_nvm_cbk" class="flow-arrow" stroke-dasharray="4 3" d="M 210 172 L 210 158 L 330 158 L 330 146" marker-end="url(#arrEnd)" />
+            <path id="arr_ea_eep" class="flow-arrow" d="M 135 224 L 135 276 L 245 276" marker-end="url(#arrEnd)" />
+            <path id="arr_eep_ea_cbk" class="flow-arrow" stroke-dasharray="4 3" d="M 245 294 L 115 294 L 115 224" marker-end="url(#arrEnd)" />
+            <path id="arr_ecum_eep" class="flow-arrow" d="M 495 66 L 495 80 L 545 80 L 545 252" marker-end="url(#arrEnd)" />
+            <path id="arr_schm_eep" class="flow-arrow" d="M 685 66 L 685 82 L 808 82 L 808 283 L 575 283" marker-end="url(#arrEnd)" />
+            <path id="arr_eep_det" class="flow-arrow" d="M 575 266 L 685 266 L 685 146" marker-end="url(#arrEnd)" />
+            <path id="arr_eep_hw" class="flow-arrow" d="M 370 314 L 370 342" marker-end="url(#arrEnd)" />
+            <path id="arr_hw_eep" class="flow-arrow" stroke-dasharray="4 3" d="M 450 342 L 450 314" marker-end="url(#arrEnd)" />
+
+            <!-- ROW 1: SWC, ECUM/BSWM, SCHM/OS -->
+            <g id="node_MOD_SWC" class="mod-node" onclick="selectModule('MOD_SWC')">
+              <rect class="mod-rect" x="20" y="12" width="230" height="54" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="135" y="29" text-anchor="middle" fill="var(--pri)" font-weight="700" font-size="11.5">SWC_App / SWC_Diag</text>
+              <text id="svgSub_MOD_SWC" x="135" y="44" text-anchor="middle" fill="var(--mut)" font-size="9.5">Gọi gián tiếp qua RTE → NvM</text>
+              <text x="135" y="57" text-anchor="middle" fill="var(--txt-soft)" font-size="9">Rte_Call_NvMService_Read/Write()</text>
+            </g>
+
+            <g id="node_MOD_ECUM" class="mod-node" onclick="selectModule('MOD_ECUM')">
+              <rect class="mod-rect" x="295" y="12" width="230" height="54" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="410" y="29" text-anchor="middle" fill="var(--ok)" font-weight="700" font-size="11.5">EcuM &amp; BswM (Startup/Mode)</text>
+              <text id="svgSub_MOD_ECUM" x="410" y="44" text-anchor="middle" fill="var(--mut)" font-size="9.5">Eep_Init(&amp;Eep_Config) DONE</text>
+              <text x="410" y="57" text-anchor="middle" fill="var(--txt-soft)" font-size="9">EcuM_AL_DriverInitOne()</text>
+            </g>
+
+            <g id="node_MOD_SCHM" class="mod-node" onclick="selectModule('MOD_SCHM')">
+              <rect class="mod-rect" x="570" y="12" width="230" height="54" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="685" y="29" text-anchor="middle" fill="var(--cyan)" font-weight="700" font-size="11.5">SchM &amp; AUTOSAR OS</text>
+              <text id="svgSub_MOD_SCHM" x="685" y="44" text-anchor="middle" fill="var(--mut)" font-size="9.5">Tick: 5ms | Task_Bsw_Mem</text>
+              <text x="685" y="57" text-anchor="middle" fill="var(--txt-soft)" font-size="9">Eep_MainFunction() / Eep_JobEndIsr</text>
+            </g>
+
+            <!-- ROW 2: RTE, NVM, DET & DEM -->
+            <g id="node_MOD_RTE" class="mod-node" onclick="selectModule('MOD_RTE')">
+              <rect class="mod-rect" x="20" y="92" width="230" height="54" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="135" y="109" text-anchor="middle" fill="var(--acc)" font-weight="700" font-size="11.5">RTE (Runtime Environment)</text>
+              <text id="svgSub_MOD_RTE" x="135" y="124" text-anchor="middle" fill="var(--mut)" font-size="9.5">C/S Port → NvM API Mapping</text>
+              <text x="135" y="137" text-anchor="middle" fill="var(--txt-soft)" font-size="9">(SWC không gọi trực tiếp Eep!)</text>
+            </g>
+
+            <g id="node_MOD_NVM" class="mod-node" onclick="selectModule('MOD_NVM')">
+              <rect class="mod-rect" x="295" y="92" width="230" height="54" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="410" y="109" text-anchor="middle" fill="var(--pur)" font-weight="800" font-size="11.5">NvM (NVRAM Manager)</text>
+              <text id="svgSub_MOD_NVM" x="410" y="124" text-anchor="middle" fill="var(--mut)" font-size="9.5">Queue, CRC, Retry, ReadAll/WriteAll</text>
+              <text x="410" y="137" text-anchor="middle" fill="var(--txt-soft)" font-size="9">MemIf_Read/Write(Dev=0, BlkNo)</text>
+            </g>
+
+            <g id="node_MOD_DET" class="mod-node" onclick="selectModule('MOD_DET')">
+              <rect class="mod-rect" x="570" y="92" width="230" height="54" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="685" y="109" text-anchor="middle" fill="var(--err)" font-weight="700" font-size="11.5">DET (Mod 90) &amp; DEM</text>
+              <text id="svgSub_MOD_DET" x="685" y="124" text-anchor="middle" fill="var(--mut)" font-size="9.5">DET: 0 | DEM: OK</text>
+              <text x="685" y="137" text-anchor="middle" fill="var(--txt-soft)" font-size="9">EEP_E_UNINIT..TIMEOUT / DEM_FAILED</text>
+            </g>
+
+            <!-- ROW 3: EA & MEMIF -->
+            <g id="node_MOD_EA" class="mod-node" onclick="selectModule('MOD_EA')">
+              <rect class="mod-rect" x="20" y="172" width="230" height="52" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="135" y="189" text-anchor="middle" fill="var(--cyan)" font-weight="800" font-size="11.5">Ea (EEPROM Abstraction)</text>
+              <text id="svgSub_MOD_EA" x="135" y="204" text-anchor="middle" fill="var(--mut)" font-size="9.5">Caller trực tiếp duy nhất của Eep</text>
+              <text x="135" y="217" text-anchor="middle" fill="var(--txt-soft)" font-size="9">BlkNo → Eep_Write/Read(Addr, Len)</text>
+            </g>
+
+            <g id="node_MOD_MEMIF" class="mod-node" onclick="selectModule('MOD_MEMIF')">
+              <rect class="mod-rect" x="295" y="172" width="230" height="52" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="410" y="189" text-anchor="middle" fill="var(--warn)" font-weight="800" font-size="11.5">MemIf (Memory Interface)</text>
+              <text id="svgSub_MOD_MEMIF" x="410" y="204" text-anchor="middle" fill="var(--mut)" font-size="9.5">DeviceIdx=0 → Ea_* (vs Fee_*)</text>
+              <text x="410" y="217" text-anchor="middle" fill="var(--txt-soft)" font-size="9">Memory Device Multiplexer</text>
+            </g>
+
+            <!-- ROW 4: EEP DRIVER CORE (FOCAL MODULE) -->
+            <g id="node_MOD_EEP" class="mod-node selected" onclick="selectModule('MOD_EEP')">
+              <rect class="mod-rect" x="245" y="252" width="330" height="62" rx="10" fill="var(--pri-bg)" stroke="var(--pri)" stroke-width="2.2"/>
+              <text x="410" y="271" text-anchor="middle" fill="var(--pri)" font-weight="800" font-size="13">Eep Driver (MCAL · Mod 90 / 0x005A)</text>
+              <text id="svgSub_MOD_EEP1" x="410" y="288" text-anchor="middle" fill="var(--txt)" font-weight="700" font-size="10">Status: MEMIF_IDLE | Result: MEMIF_JOB_OK</text>
+              <text id="svgSub_MOD_EEP2" x="410" y="304" text-anchor="middle" fill="var(--mut)" font-size="9.5">Chunk SLOW: Rd 16B/Wr 8B | WriteVerify &amp; CycleReduction</text>
+            </g>
+
+            <!-- ROW 5: INTERNAL EEPROM / SPI DRIVER & EXTERNAL SPI EEPROM HW -->
+            <g id="node_MOD_SPI_HW" class="mod-node" onclick="selectModule('MOD_SPI_HW')">
+              <rect class="mod-rect" x="175" y="342" width="470" height="50" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="410" y="360" text-anchor="middle" fill="var(--ok)" font-weight="700" font-size="11.5">Spi Driver (Spi_AsyncTransmit) &amp; Physical EEPROM HW (Internal / External)</text>
+              <text id="svgSub_MOD_SPI" x="410" y="376" text-anchor="middle" fill="var(--mut)" font-size="9.5">EXT SPI (Seq=0): WREN 0x06 → WRITE 0x02 → RDSR 0x05 | WIP=0</text>
+            </g>
+          </svg>
+        </div>
+      </div>
+    </section>
+  </section>
+
+  <!-- RIGHT COLUMN: STICKY 4-TAB INSPECTOR -->
+  <aside class="col-right">
+    <section class="panel insp-panel">
+      <div class="insp-tabs">
+        <button id="inspTabBtn0" class="insp-tab active" onclick="switchInspTab(0)">🔍 Bước Hiện Tại</button>
+        <button id="inspTabBtn1" class="insp-tab" onclick="switchInspTab(1)">🧩 Module</button>
+        <button id="inspTabBtn2" class="insp-tab" onclick="switchInspTab(2)">📄 Code C</button>
+        <button id="inspTabBtn3" class="insp-tab" onclick="switchInspTab(3)">📜 API Trace</button>
+      </div>
+      <div id="inspBody" class="insp-body"></div>
+    </section>
+  </aside>
+</main>
+
+<!-- ================= VIEW 2: MULTI-LEVEL HANDBOOK & ABBREVIATION TABLE ================= -->
+<main id="viewHb" class="hb-wrap hidden">
+  <div class="hb-nav1">
+    <button id="hbTab1_0" class="hb-tab1 active" onclick="switchHbTab1(0)">1. Kiến Trúc &amp; Vai Trò Eep</button>
+    <button id="hbTab1_1" class="hb-tab1" onclick="switchHbTab1(1)">2. Địa Chỉ, Chunk &amp; SetMode</button>
+    <button id="hbTab1_2" class="hb-tab1" onclick="switchHbTab1(2)">3. Ghi/Xóa, Verify &amp; Compare</button>
+    <button id="hbTab1_3" class="hb-tab1" onclick="switchHbTab1(3)">4. Internal vs External SPI HW</button>
+    <button id="hbTab1_4" class="hb-tab1" onclick="switchHbTab1(4)">5. So Sánh Eep vs Fls</button>
+    <button id="hbTab1_5" class="hb-tab1" onclick="switchHbTab1(5)">6. API R23-11, Lỗi &amp; 36 ECUC</button>
+    <button id="hbTab1_6" class="hb-tab1" onclick="switchHbTab1(6)">7. Bảng Thuật Ngữ &amp; Search</button>
+  </div>
+
+  <div id="hbNav2" class="hb-nav2"></div>
+
+  <div id="hbAbbrFilterBox" class="abbr-toolbar hidden">
+    <input id="abbrSearchInput" class="abbr-search" type="text" placeholder="🔍 Nhập từ viết tắt, tên thuật ngữ hoặc mã SWS để tìm nhanh... (VD: WIP, Chunk, WriteCycle, Compare, WREN)" oninput="filterAbbreviationTable()" />
+    <div class="cat-pills">
+      <button id="catPill_ALL" class="cat-pill active" onclick="setAbbrCategory('ALL')">Tất cả (52)</button>
+      <button id="catPill_ADDR" class="cat-pill" onclick="setAbbrCategory('ADDR')">⚙️ Eep Core &amp; Addressing</button>
+      <button id="catPill_HW" class="cat-pill" onclick="setAbbrCategory('HW')">🔌 Hardware, SPI &amp; Timing</button>
+      <button id="catPill_STACK" class="cat-pill" onclick="setAbbrCategory('STACK')">📚 Memory Stack (Ea/MemIf/NvM)</button>
+      <button id="catPill_ERR" class="cat-pill" onclick="setAbbrCategory('ERR')">🛡️ Errors: DET, Runtime &amp; Dem</button>
+    </div>
+    <span id="abbrCountBadge" class="step-pill">52 / 52 thuật ngữ</span>
+  </div>
+
+  <div id="hbContentArea"></div>
+</main>
+
+<!-- ================= EXPORT ARXML / C / JSON MODAL ================= -->
+<div id="exportModal" class="modal-overlay hidden" onclick="onExportModalBackdrop(event)">
+  <div class="modal-box">
+    <div class="modal-hdr">
+      <strong style="font-size:13.5px;color:var(--pri)">📦 Xuất Cấu Hình Eep AUTOSAR (ARXML · Eep_Cfg.h · Eep_PBcfg.c · JSON)</strong>
+      <button class="btn btn-sm" onclick="closeExportModal()">✖ Đóng</button>
+    </div>
+    <div class="modal-tabs">
+      <button id="expTab0" class="btn btn-sm btn-pri" onclick="switchExportTab(0)">Eep.arxml</button>
+      <button id="expTab1" class="btn btn-sm" onclick="switchExportTab(1)">Eep_Cfg.h</button>
+      <button id="expTab2" class="btn btn-sm" onclick="switchExportTab(2)">Eep_PBcfg.c</button>
+      <button id="expTab3" class="btn btn-sm" onclick="switchExportTab(3)">Eep_Config.json</button>
+    </div>
+    <div class="modal-body">
+      <pre id="exportCodeArea" class="code-block"></pre>
+    </div>
+    <div class="modal-ftr">
+      <button class="btn" onclick="copyExportCode()">📋 Copy Clipboard</button>
+      <button class="btn btn-ok" onclick="downloadExportCode()">⬇ Tải File Hiện Tại</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= FLOATING TOOLTIP POPUP (>1S HOVER ON ECUC FIELDS) ================= -->
+<div id="cfgTooltipPopup" role="tooltip"></div>
+<script>
