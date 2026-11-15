@@ -422,7 +422,7 @@
       padding: 7px 12px; border-top: 1px solid var(--border); background: var(--panel2);
     }
     .multi-arena { display: grid; gap: 10px; align-items: stretch; }
-    .multi-arena.mode-2 { grid-template-columns: minmax(0, 1fr) 235px minmax(0, 1fr); }
+    .multi-arena.mode-2 { grid-template-columns: minmax(0, 1fr) 280px minmax(0, 1fr); }
     .multi-arena.mode-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
     .multi-arena.mode-3 .multi-bus-col { grid-column: 1 / -1; }
     @media (max-width: 1280px) {
@@ -452,23 +452,96 @@
       background: var(--panel); border: 1px solid var(--border2); border-radius: 12px; padding: 10px; box-shadow: var(--shadow);
     }
     .multi-bus-wire {
-      background: var(--code); border: 1px solid var(--border); border-radius: 9px; padding: 8px;
-      display: flex; flex-direction: column; gap: 6px; align-items: center; text-align: center;
+      flex: 1; min-height: 0; background: var(--code); border: 1px solid var(--border); border-radius: 9px; padding: 8px;
+      display: flex; flex-direction: column; gap: 7px; align-items: stretch;
     }
     .multi-bus-wire.active-tx { border-color: #38bdf8; box-shadow: 0 0 16px rgba(56, 189, 248, 0.25); }
+    .multi-wire-top {
+      display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px;
+    }
     .multi-dir-pill {
       display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 99px;
       font-family: "JetBrains Mono", monospace; font-size: 10.5px; font-weight: 800;
       background: rgba(56, 189, 248, 0.14); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4);
     }
     body.light .multi-dir-pill { color: #0284c7; }
+    .multi-bus-meta {
+      font-family: "JetBrains Mono", monospace; font-size: 10px; font-weight: 700; color: var(--muted);
+      padding: 2px 7px; border-radius: 99px; background: var(--panel2); border: 1px solid var(--border);
+    }
+    .multi-bus-feed {
+      width: 100%; flex: 0 0 auto; display: flex; flex-direction: column; gap: 5px;
+      overflow-y: auto; height: 396px; min-height: 396px; max-height: 396px;
+      padding-right: 2px; text-align: left;
+    }
+    .multi-bus-empty {
+      margin: auto; text-align: center; padding: 10px 8px;
+    }
     .multi-frame-box {
-      width: 100%; background: var(--panel2); border: 1px solid var(--border); border-radius: 8px;
-      padding: 7px 8px; font-family: "JetBrains Mono", monospace; font-size: 10.5px; text-align: left;
+      width: 100%; background: var(--panel2); border: 1px solid var(--border); border-left: 3px solid var(--accent);
+      border-radius: 7px; padding: 5px 8px; font-family: "JetBrains Mono", monospace; font-size: 10px; line-height: 1.35;
+      display: flex; flex-direction: column; gap: 2px; flex-shrink: 0;
+    }
+    .multi-frame-box.ecu-b { border-left-color: var(--accent2); }
+    .multi-frame-box.ecu-c { border-left-color: var(--vio); }
+    .multi-frame-box.is-latest {
+      background: rgba(56, 189, 248, 0.09); border-color: rgba(56, 189, 248, 0.45);
+      border-left-color: var(--accent);
+    }
+    .multi-frame-box.ecu-b.is-latest { border-left-color: var(--accent2); }
+    .multi-frame-box.ecu-c.is-latest { border-left-color: var(--vio); }
+    body.light .multi-frame-box.is-latest { background: rgba(2, 132, 199, 0.07); border-color: rgba(2, 132, 199, 0.42); }
+    .mf-top, .mf-mid, .mf-foot {
+      display: flex; align-items: center; justify-content: space-between; gap: 6px; flex-wrap: wrap;
+    }
+    .mf-seq { font-weight: 800; font-size: 10px; color: var(--dim); min-width: 24px; }
+    .multi-frame-box.is-latest .mf-seq { color: var(--lab-text); }
+    .mf-route {
+      font-size: 10px; font-weight: 800; padding: 1px 6px; border-radius: 5px;
+      background: rgba(56, 189, 248, 0.14); color: var(--lab-text);
+    }
+    .multi-frame-box.ecu-b .mf-route { background: rgba(129, 140, 248, 0.15); color: #818cf8; }
+    .multi-frame-box.ecu-c .mf-route { background: rgba(192, 132, 252, 0.15); color: #c084fc; }
+    body.light .multi-frame-box.ecu-b .mf-route { color: #4f46e5; }
+    body.light .multi-frame-box.ecu-c .mf-route { color: #7e22ce; }
+    .mf-time { font-size: 10px; color: var(--muted); margin-left: auto; font-weight: 700; }
+    .mf-id { font-weight: 800; color: var(--amber-text); }
+    .mf-data { font-weight: 700; color: var(--text); word-break: break-all; }
+    .mf-reason { font-size: 10px; color: var(--muted); }
+    .mf-cbv { font-size: 10px; color: var(--lab-text); }
+    .mf-new {
+      font-size: 9px; font-weight: 800; padding: 1px 5px; border-radius: 4px;
+      background: rgba(56, 189, 248, 0.18); color: var(--lab-text); border: 1px solid rgba(56, 189, 248, 0.4);
+    }
+    @media (min-width: 1080px) {
+      .multi-arena.mode-3 .multi-bus-feed { height: 205px; min-height: 205px; max-height: 205px; }
+      .multi-arena.mode-3 .multi-frame-box {
+        flex-direction: row; flex-wrap: wrap; align-items: center; gap: 6px 12px;
+        padding: 5px 10px; min-height: 30px; font-size: 10.5px;
+      }
+      .multi-arena.mode-3 .mf-top { min-width: 210px; justify-content: flex-start; gap: 7px; flex-wrap: nowrap; }
+      .multi-arena.mode-3 .mf-mid { gap: 8px; flex-wrap: nowrap; }
+      .multi-arena.mode-3 .mf-foot { flex: 1 1 250px; justify-content: space-between; }
+    }
+    .multi-stats-bar {
+      display: flex; flex-direction: column; gap: 5px;
     }
     .multi-stat-row {
       display: flex; align-items: center; justify-content: space-between; gap: 8px;
-      padding: 4px 7px; background: var(--panel2); border: 1px solid var(--border); border-radius: 6px; font-size: 10.5px;
+      padding: 5px 9px; background: var(--panel2); border: 1px solid var(--border); border-radius: 7px; font-size: 10.5px;
+    }
+    @media (min-width: 720px) {
+      .multi-arena.mode-3 .multi-stats-bar {
+        display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px;
+      }
+      .multi-arena.mode-3 .multi-stat-row {
+        padding: 5px 10px;
+      }
+    }
+    @media (min-width: 720px) and (max-width: 1280px) {
+      .multi-arena.mode-2 .multi-stats-bar {
+        display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px;
+      }
     }
     .multi-meta-bar {
       margin-top: 7px; padding: 5px 8px; background: var(--code); border: 1px solid var(--border); border-radius: 7px;

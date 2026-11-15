@@ -42,9 +42,12 @@ function createMultiEcuNode(id, name, shortRole, nodeId, offsetMs, roleClass) {
 let multiState = {
   ecuCount: 2,
   autoWakeupOnRx: true,
+  autoScrollBus: true,
   clockMs: 0,
   autoClockTimer: null,
   lastFrame: null,
+  busFrames: [],
+  busSeq: 0,
   traceLogs: [],
   ecus: [
     createMultiEcuNode("ECU1", "ECU #1", "VCU / BCM", 0x1A, 100, ""),
@@ -181,9 +184,12 @@ function transmitMultiEcuFrame(ecu, reasonLabel) {
   ecu.timers.timeout = ecu.cfg.CanNmTimeoutTime;
   ecu.lastActivity = `Tx ${canIdHex} [${hexArr[0]} ${hexArr[1]} ...]`;
 
+  multiState.busSeq += 1;
   const frame = {
+    seq: multiState.busSeq,
     srcId: ecu.id,
     srcName: ecu.name,
+    roleClass: ecu.roleClass || "",
     srcNodeId: ecu.cfg.CanNmNodeId,
     canIdHex,
     hexArr,
@@ -195,6 +201,10 @@ function transmitMultiEcuFrame(ecu, reasonLabel) {
     reason: reasonLabel
   };
   multiState.lastFrame = frame;
+  multiState.busFrames.push(frame);
+  if (multiState.busFrames.length > 80) {
+    multiState.busFrames.shift();
+  }
 
   addMultiTraceLog(
     "BUS",
@@ -391,7 +401,8 @@ function stepMultiClockTick(deltaMs, skipRender) {
     }
   }
 
-  // Execute queued CAN Bus Transmissions and broadcast to peers
+  // Execute queued CAN Bus Transmissions in CAN ID arbitration order (lowest ID first) and broadcast to peers
+  txDue.sort((a, b) => (a.cfg.CanNmBaseCanId + a.cfg.CanNmNodeId) - (b.cfg.CanNmBaseCanId + b.cfg.CanNmNodeId));
   txDue.forEach(ecu => {
     if (ecu.immBurstActive && ecu.burstLeft > 0) {
       const idxFrame = ecu.cfg.CanNmImmediateNmTransmissions - ecu.burstLeft + 1;
@@ -482,10 +493,20 @@ function updateMultiEcuCfg(idx, key, val) {
   renderMultiEcuView();
 }
 
+function clearMultiBusFrames() {
+  multiState.lastFrame = null;
+  multiState.busFrames = [];
+  multiState.busSeq = 0;
+  updateMultiBusBridgeDom();
+}
+
 function resetMultiEcuSim(keepLogs) {
   stopMultiClock();
   multiState.clockMs = 0;
+  multiState.autoScrollBus = true;
   multiState.lastFrame = null;
+  multiState.busFrames = [];
+  multiState.busSeq = 0;
   if (!keepLogs) multiState.traceLogs = [];
   multiState.ecus = [
     createMultiEcuNode("ECU1", "ECU #1", "VCU / BCM", 0x1A, 100, ""),
@@ -748,23 +769,71 @@ function updateMultiEcuCardDom(ecu, idx) {
   setMultiTextIfChanged(`multiMetaAct_${idx}`, ecu.lastActivity);
 }
 
+function updateMultiBusAutoScrollBtn() {
+  const isOn = !!multiState.autoScrollBus;
+  setMultiClassIfChanged("btnMultiAutoScroll", `btn xs${isOn ? " sky multi-btn-on" : ""}`);
+  setMultiTextIfChanged("btnMultiAutoScroll", isOn ? "⬇ Auto Scroll: BẬT" : "⏸ Auto Scroll: TẮT");
+}
+
+function setMultiBusAutoScroll(enabled, scrollNow) {
+  multiState.autoScrollBus = !!enabled;
+  updateMultiBusAutoScrollBtn();
+  if (multiState.autoScrollBus && scrollNow) {
+    const slot = document.getElementById("multiBusFrameSlot");
+    if (slot) {
+      slot._progScroll = true;
+      slot.scrollTop = slot.scrollHeight;
+      requestAnimationFrame(() => { slot._progScroll = false; });
+    }
+  }
+}
+
+function toggleMultiBusAutoScroll() {
+  setMultiBusAutoScroll(!multiState.autoScrollBus, true);
+}
+
+function handleMultiBusFeedWheel(ev, slot) {
+  if (!multiState.autoScrollBus || !slot) return;
+  if (ev && ev.deltaY < 0 && slot.scrollHeight > slot.clientHeight + 2) {
+    setMultiBusAutoScroll(false, false);
+  }
+}
+
+function handleMultiBusFeedScroll(slot) {
+  if (!multiState.autoScrollBus || !slot) return;
+  const distFromBottom = slot.scrollHeight - slot.scrollTop - slot.clientHeight;
+  if (slot._progScroll && distFromBottom <= 4) return;
+  if (distFromBottom > 4) {
+    setMultiBusAutoScroll(false, false);
+  }
+}
+
 function buildMultiBusBridgeSkeleton() {
+  const autoCls = multiState.autoScrollBus ? " sky multi-btn-on" : "";
+  const autoLbl = multiState.autoScrollBus ? "⬇ Auto Scroll: BẬT" : "⏸ Auto Scroll: TẮT";
   return `
     <div class="multi-bus-col">
       <div class="multi-bus-bridge">
-        <div class="row" style="justify-content:space-between">
+        <div class="row wrap" style="justify-content:space-between; gap:5px">
           <span class="panel-t" style="font-size:11px">🚌 VIRTUAL CAN BUS</span>
-          <span class="badge xs" id="multiBusStatus">IDLE</span>
-        </div>
-
-        <div class="multi-bus-wire" id="multiBusWire">
-          <span class="multi-dir-pill" id="multiBusDir">Bus Đang Rỗi (IDLE)</span>
-          <div id="multiBusFrameSlot" style="width:100%">
-            <div class="muted small" style="padding:8px 4px">Chưa có bản tin NM nào trên bus.<br>Hãy bấm <b>Nw Request</b> trên một ECU!</div>
+          <div class="row wrap" style="gap:4px">
+            <span class="badge xs" id="multiBusStatus">IDLE</span>
+            <button class="btn xs${autoCls}" id="btnMultiAutoScroll" onclick="toggleMultiBusAutoScroll()" title="Bật/Tắt tự động cuộn xuống bản tin mới nhất (tự tắt nếu bạn cuộn)">${autoLbl}</button>
+            <button class="btn xs" id="btnClearMultiBus" onclick="clearMultiBusFrames()" title="Xóa lịch sử bản tin hiển thị trên Virtual CAN Bus" disabled>Xóa Bus</button>
           </div>
         </div>
 
-        <div style="display:flex; flex-direction:column; gap:5px">
+        <div class="multi-bus-wire" id="multiBusWire">
+          <div class="multi-wire-top">
+            <span class="multi-dir-pill" id="multiBusDir">Bus Đang Rỗi (IDLE)</span>
+            <span class="multi-bus-meta" id="multiBusOrderMeta">0 bản tin • Cũ ➔ Mới</span>
+          </div>
+          <div id="multiBusFrameSlot" class="multi-bus-feed" onscroll="handleMultiBusFeedScroll(this)" onwheel="handleMultiBusFeedWheel(event, this)">
+            <div class="muted small multi-bus-empty">Chưa có bản tin NM nào trên bus.<br>Hãy bấm <b>Nw Request</b> trên một ECU!</div>
+          </div>
+        </div>
+
+        <div class="multi-stats-bar">
           <div class="multi-stat-row">
             <span class="muted">ECU đang Network Mode:</span>
             <span class="mono" id="multiBusNetCount" style="font-weight:800; color:#38bdf8">0 / 2</span>
@@ -783,8 +852,37 @@ function buildMultiBusBridgeSkeleton() {
   `;
 }
 
+function formatMultiBusFrameHtml(fr, isLatest, ecuCount) {
+  const cbvHex = "0x" + fr.cbvByte.toString(16).toUpperCase().padStart(2, "0");
+  const routeTxt = ecuCount === 2
+    ? (fr.srcId === "ECU1" ? "ECU #1 ➔ ECU #2" : "ECU #2 ➔ ECU #1")
+    : `${fr.srcName} ➔ Bus`;
+  const roleCls = fr.roleClass ? ` ${fr.roleClass}` : "";
+  return `
+    <div class="multi-frame-box${roleCls}${isLatest ? " is-latest" : ""}">
+      <div class="mf-top">
+        <span class="mf-seq">#${fr.seq}</span>
+        <span class="mf-route">${escapeHtml(routeTxt)}</span>
+        <span class="mf-time">t=${fr.timeMs}ms</span>
+      </div>
+      <div class="mf-mid">
+        <span class="mf-id">ID ${escapeHtml(fr.canIdHex)}</span>
+        <span class="mf-data">[${fr.hexArr.join(" ")}]</span>
+      </div>
+      <div class="mf-foot">
+        <span class="mf-reason">${escapeHtml(fr.reason)}</span>
+        <span class="row" style="gap:5px">
+          <span class="mf-cbv">CBV=${cbvHex} (AWB=${fr.awb ? 1 : 0}, RMR=${fr.rmr ? 1 : 0})</span>
+          ${isLatest ? '<span class="mf-new">MỚI NHẤT</span>' : ""}
+        </span>
+      </div>
+    </div>
+  `;
+}
+
 function updateMultiBusBridgeDom() {
-  const f = multiState.lastFrame;
+  const frames = multiState.busFrames || [];
+  const f = frames.length ? frames[frames.length - 1] : multiState.lastFrame;
   const activeEcus = multiState.ecus.slice(0, multiState.ecuCount);
   const netCount = activeEcus.filter(e => e.mode === "NM_MODE_NETWORK").length;
   const reqCount = activeEcus.filter(e => e.netRequest).length;
@@ -802,25 +900,50 @@ function updateMultiBusBridgeDom() {
   setMultiTextIfChanged("multiBusStatus", f ? "ACTIVE" : "IDLE");
   setMultiClassIfChanged("multiBusWire", `multi-bus-wire${f ? " active-tx" : ""}`);
   setMultiTextIfChanged("multiBusDir", dirLabel);
+  setMultiTextIfChanged("multiBusOrderMeta", `${frames.length} bản tin • Cũ ➔ Mới`);
+
+  updateMultiBusAutoScrollBtn();
+
+  const clearBtn = document.getElementById("btnClearMultiBus");
+  if (clearBtn) {
+    const shouldDisable = frames.length === 0;
+    if (clearBtn.disabled !== shouldDisable) clearBtn.disabled = shouldDisable;
+  }
 
   const slot = document.getElementById("multiBusFrameSlot");
   if (slot) {
-    const fKey = f ? `${f.timeMs}|${f.canIdHex}|${f.hexArr.join(" ")}|${f.reason}|${f.cbvByte}` : "idle";
+    const firstSeq = frames.length ? frames[0].seq : 0;
+    const lastSeq = frames.length ? frames[frames.length - 1].seq : 0;
+    const fKey = frames.length
+      ? `${multiState.ecuCount}|${frames.length}|${firstSeq}|${lastSeq}`
+      : `idle|${multiState.ecuCount}`;
     if (slot.dataset.frameKey !== fKey) {
+      const prevScrollTop = slot.scrollTop;
+      const prevFirstSeq = parseInt(slot.dataset.firstSeq || "0", 10);
+      const prevLen = parseInt(slot.dataset.frameCount || "0", 10);
       slot.dataset.frameKey = fKey;
-      slot.innerHTML = f ? `
-        <div class="multi-frame-box">
-          <div class="row" style="justify-content:space-between; margin-bottom:3px">
-            <span style="font-weight:800; color:#fbbf24">ID ${escapeHtml(f.canIdHex)}</span>
-            <span class="dim">t=${f.timeMs}ms</span>
-          </div>
-          <div style="font-weight:700; color:var(--text); word-break:break-all; margin-bottom:3px">[${f.hexArr.join(" ")}]</div>
-          <div class="muted" style="font-size:10px">${escapeHtml(f.reason)}</div>
-          <div style="margin-top:3px; color:#38bdf8; font-size:10px">CBV=0x${f.cbvByte.toString(16).toUpperCase().padStart(2, "0")} (AWB=${f.awb ? 1 : 0}, RMR=${f.rmr ? 1 : 0})</div>
-        </div>
-      ` : `
-        <div class="muted small" style="padding:8px 4px">Chưa có bản tin NM nào trên bus.<br>Hãy bấm <b>Nw Request</b> trên một ECU!</div>
-      `;
+      slot.dataset.firstSeq = String(firstSeq);
+      slot.dataset.frameCount = String(frames.length);
+      if (frames.length) {
+        slot._progScroll = true;
+        slot.innerHTML = frames
+          .map((fr, i) => formatMultiBusFrameHtml(fr, i === frames.length - 1, multiState.ecuCount))
+          .join("");
+        if (multiState.autoScrollBus) {
+          slot.scrollTop = slot.scrollHeight;
+        } else {
+          let nextTop = prevScrollTop;
+          if (prevLen === 80 && frames.length === 80 && prevFirstSeq > 0 && firstSeq > prevFirstSeq) {
+            const firstBox = slot.querySelector(".multi-frame-box");
+            const stepPx = firstBox ? (firstBox.getBoundingClientRect().height + 5) : 35;
+            nextTop = Math.max(0, prevScrollTop - (firstSeq - prevFirstSeq) * stepPx);
+          }
+          slot.scrollTop = nextTop;
+        }
+        requestAnimationFrame(() => { slot._progScroll = false; });
+      } else {
+        slot.innerHTML = `<div class="muted small multi-bus-empty">Chưa có bản tin NM nào trên bus.<br>Hãy bấm <b>Nw Request</b> trên một ECU!</div>`;
+      }
     }
   }
 
