@@ -8,15 +8,28 @@ let activeModuleKey = "CanNm";
 let activeExportTab = "arxml";
 let tooltipTimer = null;
 
-// 1. RENDER 8-BYTE NM PDU FRAME SLICER
+// 1. RENDER 8-BYTE NM PDU FRAME SLICER (persistent DOM nodes)
 function renderPduFrameGrid() {
   const container = document.getElementById("pduFrameGrid");
   if (!container) return;
 
+  if (container.children.length !== 8) {
+    let initHtml = "";
+    for (let i = 0; i < 8; i++) {
+      initHtml += `
+        <div class="pdu-byte-card" id="pduByteCard_${i}">
+          <div class="pdu-byte-idx">Byte ${i}</div>
+          <div class="pdu-byte-val" id="pduByteVal_${i}">0x00</div>
+          <div class="pdu-byte-lbl" id="pduByteLbl_${i}">User Data</div>
+        </div>
+      `;
+    }
+    container.innerHTML = initHtml;
+  }
+
   const bytes = getPduFrameBytes();
   const hexArr = bytes.map(b => b.toString(16).toUpperCase().padStart(2, "0"));
 
-  let html = "";
   for (let i = 0; i < 8; i++) {
     let cardClass = "";
     let label = "User Data";
@@ -40,52 +53,66 @@ function renderPduFrameGrid() {
       }
     }
 
-    if (!cardClass) {
-      cardClass = "active-usr";
-    }
+    if (!cardClass) cardClass = "active-usr";
 
-    html += `
-      <div class="pdu-byte-card ${cardClass}" title="Byte ${i}: ${label} - Giá trị: 0x${hexArr[i]} (${desc})">
-        <div class="pdu-byte-idx">Byte ${i}</div>
-        <div class="pdu-byte-val">0x${hexArr[i]}</div>
-        <div class="pdu-byte-lbl">${label}</div>
-      </div>
-    `;
+    const card = document.getElementById(`pduByteCard_${i}`);
+    const valEl = document.getElementById(`pduByteVal_${i}`);
+    const lblEl = document.getElementById(`pduByteLbl_${i}`);
+    const nextCls = `pdu-byte-card ${cardClass}`;
+    const nextTitle = `Byte ${i}: ${label} - Giá trị: 0x${hexArr[i]} (${desc})`;
+    const nextVal = `0x${hexArr[i]}`;
+    if (card) {
+      if (card.className !== nextCls) card.className = nextCls;
+      if (card.title !== nextTitle) card.title = nextTitle;
+    }
+    if (valEl && valEl.textContent !== nextVal) valEl.textContent = nextVal;
+    if (lblEl && lblEl.textContent !== label) lblEl.textContent = label;
   }
-  container.innerHTML = html;
 
   const note = document.getElementById("lblPduLayoutNote");
   if (note) {
-    note.innerText = `NidPos: ${ecucConfig.CanNmPduNidPosition} | CbvPos: ${ecucConfig.CanNmPduCbvPosition} | Base: 0x${ecucConfig.CanNmBaseCanId.toString(16).toUpperCase()} | Node: 0x${ecucConfig.CanNmNodeId.toString(16).toUpperCase()}`;
+    const nextNote = `NidPos: ${ecucConfig.CanNmPduNidPosition} | CbvPos: ${ecucConfig.CanNmPduCbvPosition} | Base: 0x${ecucConfig.CanNmBaseCanId.toString(16).toUpperCase()} | Node: 0x${ecucConfig.CanNmNodeId.toString(16).toUpperCase()}`;
+    if (note.innerText !== nextNote) note.innerText = nextNote;
   }
 }
 
-// 2. RENDER DUAL 8-BIT INTERACTIVE REGISTERS
+// 2. RENDER DUAL 8-BIT INTERACTIVE REGISTERS (persistent clickable DOM boxes)
 function render8BitRegisters() {
   // Render Thanh A: CBV Byte
   const cbvRow = document.getElementById("bitRowCbv");
   if (cbvRow) {
+    if (cbvRow.children.length !== 8) {
+      let initHtml = "";
+      for (let i = 7; i >= 0; i--) {
+        const bitMeta = CANNM_CBV_BITS[i];
+        initHtml += `
+          <div class="bit-box" id="cbvBitBox_${i}" onclick="toggleCbvBit(${i})" title="${bitMeta.label} (${bitMeta.name}) - ${bitMeta.desc}">
+            <div class="bit-num">b${i}</div>
+            <div class="bit-val" id="cbvBitVal_${i}">0</div>
+            <div class="bit-name">${bitMeta.name}</div>
+          </div>
+        `;
+      }
+      cbvRow.innerHTML = initHtml;
+    }
+
     const cbvVal = getCbvByteValue();
-    let html = "";
     for (let i = 7; i >= 0; i--) {
       const bitMeta = CANNM_CBV_BITS[i];
       const isSet = (cbvVal & bitMeta.mask) !== 0;
       let onClass = isSet ? "on" : "";
       if (isSet) {
-        if (i === 4) onClass += " ok"; // AWB = green
-        else if (i === 0) onClass += " amb"; // RMR = amber
-        else if (i === 6) onClass += " vio"; // PNI = violet
+        if (i === 4) onClass += " ok";
+        else if (i === 0) onClass += " amb";
+        else if (i === 6) onClass += " vio";
       }
-
-      html += `
-        <div class="bit-box ${onClass}" onclick="toggleCbvBit(${i})" title="${bitMeta.label} (${bitMeta.name}) - ${bitMeta.desc}">
-          <div class="bit-num">b${i}</div>
-          <div class="bit-val">${isSet ? "1" : "0"}</div>
-          <div class="bit-name">${bitMeta.name}</div>
-        </div>
-      `;
+      const box = document.getElementById(`cbvBitBox_${i}`);
+      const valEl = document.getElementById(`cbvBitVal_${i}`);
+      const nextCls = `bit-box${onClass ? " " + onClass : ""}`;
+      const nextBit = isSet ? "1" : "0";
+      if (box && box.className !== nextCls) box.className = nextCls;
+      if (valEl && valEl.textContent !== nextBit) valEl.textContent = nextBit;
     }
-    cbvRow.innerHTML = html;
 
     const cbvBin = document.getElementById("lblCbvBin");
     if (cbvBin) cbvBin.innerText = cbvVal.toString(2).padStart(8, "0") + "b (0x" + cbvVal.toString(16).toUpperCase().padStart(2, "0") + ")";
@@ -100,22 +127,32 @@ function render8BitRegisters() {
   // Render Thanh B: CanNM Engine Status Byte
   const engRow = document.getElementById("bitRowEngine");
   if (engRow) {
+    if (engRow.children.length !== 8) {
+      let initHtml = "";
+      for (let i = 7; i >= 0; i--) {
+        const bitMeta = CANNM_ENGINE_BITS[i];
+        initHtml += `
+          <div class="bit-box" id="engBitBox_${i}" onclick="toggleEngineBit(${i})" title="${bitMeta.label} (${bitMeta.name}) - ${bitMeta.desc}">
+            <div class="bit-num">b${i}</div>
+            <div class="bit-val" id="engBitVal_${i}">0</div>
+            <div class="bit-name">${bitMeta.name}</div>
+          </div>
+        `;
+      }
+      engRow.innerHTML = initHtml;
+    }
+
     const engVal = getEngineByteValue();
-    let html = "";
     for (let i = 7; i >= 0; i--) {
       const bitMeta = CANNM_ENGINE_BITS[i];
       const isSet = (engVal & bitMeta.mask) !== 0;
-      let onClass = isSet ? "on ok" : "";
-
-      html += `
-        <div class="bit-box ${onClass}" onclick="toggleEngineBit(${i})" title="${bitMeta.label} (${bitMeta.name}) - ${bitMeta.desc}">
-          <div class="bit-num">b${i}</div>
-          <div class="bit-val">${isSet ? "1" : "0"}</div>
-          <div class="bit-name">${bitMeta.name}</div>
-        </div>
-      `;
+      const box = document.getElementById(`engBitBox_${i}`);
+      const valEl = document.getElementById(`engBitVal_${i}`);
+      const nextCls = `bit-box${isSet ? " on ok" : ""}`;
+      const nextBit = isSet ? "1" : "0";
+      if (box && box.className !== nextCls) box.className = nextCls;
+      if (valEl && valEl.textContent !== nextBit) valEl.textContent = nextBit;
     }
-    engRow.innerHTML = html;
 
     const engBin = document.getElementById("lblEngineBin");
     if (engBin) engBin.innerText = engVal.toString(2).padStart(8, "0") + "b (0x" + engVal.toString(16).toUpperCase().padStart(2, "0") + ")";
@@ -246,116 +283,128 @@ function renderStateMachine() {
   }
 }
 
-// 5. RENDER SVG ARCHITECTURE DIAGRAM
+// 5. RENDER SVG ARCHITECTURE DIAGRAM (persistent SVG per theme; updates state text in place)
 function renderSvgArchitecture() {
   const container = document.getElementById("svgArchitectureContainer");
   if (!container) return;
 
   const isDark = !document.body.classList.contains("light");
-  const strokeCol = isDark ? "#334155" : "#cbd5e1";
-  const boxBg = isDark ? "#111827" : "#ffffff";
-  const boxActiveBg = isDark ? "#1e293b" : "#f1f5f9";
-  const textCol = isDark ? "#e2e8f0" : "#0f172a";
-  const mutedCol = isDark ? "#8a9ab5" : "#64748b";
+  const themeKey = isDark ? "dark" : "light";
 
-  container.innerHTML = `
-    <svg viewBox="0 0 880 280" width="100%" height="280" xmlns="http://www.w3.org/2000/svg" style="background:${isDark ? '#080d1a' : '#f8fafc'}; border-radius:8px">
-      <defs>
-        <marker id="arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-          <path d="M 0 1 L 8 5 L 0 9 z" fill="#38bdf8"/>
-        </marker>
-        <marker id="arrow-amber" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-          <path d="M 0 1 L 8 5 L 0 9 z" fill="#fbbf24"/>
-        </marker>
-        <marker id="arrow-green" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-          <path d="M 0 1 L 8 5 L 0 9 z" fill="#34d399"/>
-        </marker>
-      </defs>
+  if (container.dataset.themeKey !== themeKey) {
+    container.dataset.themeKey = themeKey;
+    const strokeCol = isDark ? "#334155" : "#cbd5e1";
+    const boxBg = isDark ? "#111827" : "#ffffff";
+    const boxActiveBg = isDark ? "#1e293b" : "#f1f5f9";
+    const textCol = isDark ? "#e2e8f0" : "#0f172a";
+    const mutedCol = isDark ? "#8a9ab5" : "#64748b";
 
-      <!-- Connecting Lines -->
-      <path d="M 120 40 L 120 75" stroke="${strokeCol}" stroke-width="2" marker-end="url(#arrow)"/>
-      <path d="M 120 115 L 120 150" stroke="${strokeCol}" stroke-width="2" marker-end="url(#arrow)"/>
-      <path d="M 120 190 L 120 225" stroke="${strokeCol}" stroke-width="2" marker-end="url(#arrow)"/>
-      <path d="M 175 170 L 250 170" stroke="${strokeCol}" stroke-width="2" marker-end="url(#arrow)"/>
-      <path d="M 360 170 L 440 170" stroke="#38bdf8" stroke-width="2.5" marker-end="url(#arrow)"/>
-      <path d="M 550 170 L 630 170" stroke="${strokeCol}" stroke-width="2" marker-end="url(#arrow)"/>
-      <path d="M 740 170 L 800 170" stroke="${strokeCol}" stroke-width="2" marker-end="url(#arrow)"/>
-      
-      <!-- Feedback lines -->
-      <path d="M 495 145 L 495 95 L 360 95" stroke="#fbbf24" stroke-dasharray="4,4" stroke-width="1.8" fill="none" marker-end="url(#arrow-amber)"/>
-      <path d="M 495 195 L 495 245 L 360 245" stroke="#34d399" stroke-dasharray="4,4" stroke-width="1.8" fill="none" marker-end="url(#arrow-green)"/>
+    container.innerHTML = `
+      <svg viewBox="0 0 880 280" width="100%" height="280" xmlns="http://www.w3.org/2000/svg" style="background:${isDark ? '#080d1a' : '#f8fafc'}; border-radius:8px">
+        <defs>
+          <marker id="arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 1 L 8 5 L 0 9 z" fill="#38bdf8"/>
+          </marker>
+          <marker id="arrow-amber" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 1 L 8 5 L 0 9 z" fill="#fbbf24"/>
+          </marker>
+          <marker id="arrow-green" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 1 L 8 5 L 0 9 z" fill="#34d399"/>
+          </marker>
+        </defs>
 
-      <!-- Node 1: SWC_App -->
-      <g onclick="selectModule('SWC_App')" style="cursor:pointer">
-        <rect x="50" y="10" width="140" height="30" rx="6" fill="${boxBg}" stroke="#38bdf8" stroke-width="1.5"/>
-        <text x="120" y="28" fill="${textCol}" font-size="11" font-weight="700" text-anchor="middle">SWC_App / SWC_PNC</text>
-      </g>
+        <!-- Connecting Lines -->
+        <path d="M 120 40 L 120 75" stroke="${strokeCol}" stroke-width="2" marker-end="url(#arrow)"/>
+        <path d="M 120 115 L 120 150" stroke="${strokeCol}" stroke-width="2" marker-end="url(#arrow)"/>
+        <path d="M 120 190 L 120 225" stroke="${strokeCol}" stroke-width="2" marker-end="url(#arrow)"/>
+        <path d="M 175 170 L 250 170" stroke="${strokeCol}" stroke-width="2" marker-end="url(#arrow)"/>
+        <path d="M 360 170 L 440 170" stroke="#38bdf8" stroke-width="2.5" marker-end="url(#arrow)"/>
+        <path d="M 550 170 L 630 170" stroke="${strokeCol}" stroke-width="2" marker-end="url(#arrow)"/>
+        <path d="M 740 170 L 800 170" stroke="${strokeCol}" stroke-width="2" marker-end="url(#arrow)"/>
+        
+        <!-- Feedback lines -->
+        <path d="M 495 145 L 495 95 L 360 95" stroke="#fbbf24" stroke-dasharray="4,4" stroke-width="1.8" fill="none" marker-end="url(#arrow-amber)"/>
+        <path d="M 495 195 L 495 245 L 360 245" stroke="#34d399" stroke-dasharray="4,4" stroke-width="1.8" fill="none" marker-end="url(#arrow-green)"/>
 
-      <!-- Node 2: RTE & SchM -->
-      <g onclick="selectModule('RTE')" style="cursor:pointer">
-        <rect x="50" y="75" width="140" height="40" rx="6" fill="${boxBg}" stroke="${strokeCol}" stroke-width="1.5"/>
-        <text x="120" y="93" fill="${textCol}" font-size="11" font-weight="700" text-anchor="middle">RTE / SchM</text>
-        <text x="120" y="107" fill="${mutedCol}" font-size="9" text-anchor="middle">CanNm_MainFunction()</text>
-      </g>
+        <!-- Node 1: SWC_App -->
+        <g onclick="selectModule('SWC_App')" style="cursor:pointer">
+          <rect x="50" y="10" width="140" height="30" rx="6" fill="${boxBg}" stroke="#38bdf8" stroke-width="1.5"/>
+          <text x="120" y="28" fill="${textCol}" font-size="11" font-weight="700" text-anchor="middle">SWC_App / SWC_PNC</text>
+        </g>
 
-      <!-- Node 3: ComM -->
-      <g onclick="selectModule('ComM')" style="cursor:pointer">
-        <rect x="50" y="150" width="140" height="40" rx="6" fill="${boxBg}" stroke="#34d399" stroke-width="1.5"/>
-        <text x="120" y="168" fill="${textCol}" font-size="11" font-weight="700" text-anchor="middle">ComM</text>
-        <text x="120" y="182" fill="${mutedCol}" font-size="9" text-anchor="middle">Communication Manager</text>
-      </g>
+        <!-- Node 2: RTE & SchM -->
+        <g onclick="selectModule('RTE')" style="cursor:pointer">
+          <rect x="50" y="75" width="140" height="40" rx="6" fill="${boxBg}" stroke="${strokeCol}" stroke-width="1.5"/>
+          <text x="120" y="93" fill="${textCol}" font-size="11" font-weight="700" text-anchor="middle">RTE / SchM</text>
+          <text x="120" y="107" fill="${mutedCol}" font-size="9" text-anchor="middle">CanNm_MainFunction()</text>
+        </g>
 
-      <!-- Node 4: BswM -->
-      <g onclick="selectModule('BswM')" style="cursor:pointer">
-        <rect x="50" y="225" width="140" height="35" rx="6" fill="${boxBg}" stroke="${strokeCol}" stroke-width="1.5"/>
-        <text x="120" y="243" fill="${textCol}" font-size="10.5" font-weight="700" text-anchor="middle">BswM (Mode Manager)</text>
-      </g>
+        <!-- Node 3: ComM -->
+        <g onclick="selectModule('ComM')" style="cursor:pointer">
+          <rect x="50" y="150" width="140" height="40" rx="6" fill="${boxBg}" stroke="#34d399" stroke-width="1.5"/>
+          <text x="120" y="168" fill="${textCol}" font-size="11" font-weight="700" text-anchor="middle">ComM</text>
+          <text x="120" y="182" fill="${mutedCol}" font-size="9" text-anchor="middle">Communication Manager</text>
+        </g>
 
-      <!-- Node 5: Nm -->
-      <g onclick="selectModule('Nm')" style="cursor:pointer">
-        <rect x="250" y="150" width="110" height="40" rx="6" fill="${boxBg}" stroke="#818cf8" stroke-width="1.5"/>
-        <text x="305" y="168" fill="${textCol}" font-size="11" font-weight="700" text-anchor="middle">Nm Interface</text>
-        <text x="305" y="182" fill="${mutedCol}" font-size="9" text-anchor="middle">Generic NM Bus</text>
-      </g>
+        <!-- Node 4: BswM -->
+        <g onclick="selectModule('BswM')" style="cursor:pointer">
+          <rect x="50" y="225" width="140" height="35" rx="6" fill="${boxBg}" stroke="${strokeCol}" stroke-width="1.5"/>
+          <text x="120" y="243" fill="${textCol}" font-size="10.5" font-weight="700" text-anchor="middle">BswM (Mode Manager)</text>
+        </g>
 
-      <!-- Node 6: CanNM (TRỌNG TÂM - PULSE GLOW) -->
-      <g onclick="selectModule('CanNm')" style="cursor:pointer">
-        <rect x="440" y="140" width="120" height="60" rx="8" fill="${boxActiveBg}" stroke="#38bdf8" stroke-width="2.5" class="pulse-glow"/>
-        <text x="500" y="162" fill="#38bdf8" font-size="12.5" font-weight="800" text-anchor="middle">CanNM Engine</text>
-        <text x="500" y="177" fill="${textCol}" font-size="10" font-weight="700" text-anchor="middle">${simState.mode.replace('NM_MODE_', '')}</text>
-        <text x="500" y="191" fill="${mutedCol}" font-size="9" text-anchor="middle">${simState.subState.replace('NM_STATE_', '')}</text>
-      </g>
+        <!-- Node 5: Nm -->
+        <g onclick="selectModule('Nm')" style="cursor:pointer">
+          <rect x="250" y="150" width="110" height="40" rx="6" fill="${boxBg}" stroke="#818cf8" stroke-width="1.5"/>
+          <text x="305" y="168" fill="${textCol}" font-size="11" font-weight="700" text-anchor="middle">Nm Interface</text>
+          <text x="305" y="182" fill="${mutedCol}" font-size="9" text-anchor="middle">Generic NM Bus</text>
+        </g>
 
-      <!-- Node 7: COM & PduR (User Data TriggerTransmit) -->
-      <g onclick="selectModule('PduR_COM')" style="cursor:pointer">
-        <rect x="250" y="75" width="120" height="40" rx="6" fill="${boxBg}" stroke="#fbbf24" stroke-width="1.5"/>
-        <text x="310" y="93" fill="${textCol}" font-size="10.5" font-weight="700" text-anchor="middle">PduR &amp; COM</text>
-        <text x="310" y="107" fill="${mutedCol}" font-size="9" text-anchor="middle">TriggerTransmit (User Data)</text>
-      </g>
+        <!-- Node 6: CanNM (TRỌNG TÂM - PULSE GLOW) -->
+        <g onclick="selectModule('CanNm')" style="cursor:pointer">
+          <rect x="440" y="140" width="120" height="60" rx="8" fill="${boxActiveBg}" stroke="#38bdf8" stroke-width="2.5" class="pulse-glow"/>
+          <text x="500" y="162" fill="#38bdf8" font-size="12.5" font-weight="800" text-anchor="middle">CanNM Engine</text>
+          <text id="svgCanNmModeTxt" x="500" y="177" fill="${textCol}" font-size="10" font-weight="700" text-anchor="middle"></text>
+          <text id="svgCanNmSubTxt" x="500" y="191" fill="${mutedCol}" font-size="9" text-anchor="middle"></text>
+        </g>
 
-      <!-- Node 8: CanSM -->
-      <g onclick="selectModule('CanSM')" style="cursor:pointer">
-        <rect x="250" y="225" width="120" height="35" rx="6" fill="${boxBg}" stroke="#34d399" stroke-width="1.5"/>
-        <text x="310" y="242" fill="${textCol}" font-size="10.5" font-weight="700" text-anchor="middle">CanSM</text>
-        <text x="310" y="254" fill="${mutedCol}" font-size="8.5" text-anchor="middle">ConfirmPnAvailability()</text>
-      </g>
+        <!-- Node 7: COM & PduR (User Data TriggerTransmit) -->
+        <g onclick="selectModule('PduR_COM')" style="cursor:pointer">
+          <rect x="250" y="75" width="120" height="40" rx="6" fill="${boxBg}" stroke="#fbbf24" stroke-width="1.5"/>
+          <text x="310" y="93" fill="${textCol}" font-size="10.5" font-weight="700" text-anchor="middle">PduR &amp; COM</text>
+          <text x="310" y="107" fill="${mutedCol}" font-size="9" text-anchor="middle">TriggerTransmit (User Data)</text>
+        </g>
 
-      <!-- Node 9: CanIf -->
-      <g onclick="selectModule('CanIf')" style="cursor:pointer">
-        <rect x="630" y="150" width="110" height="40" rx="6" fill="${boxBg}" stroke="${strokeCol}" stroke-width="1.5"/>
-        <text x="685" y="168" fill="${textCol}" font-size="11" font-weight="700" text-anchor="middle">CanIf</text>
-        <text x="685" y="182" fill="${mutedCol}" font-size="9" text-anchor="middle">CAN Interface</text>
-      </g>
+        <!-- Node 8: CanSM -->
+        <g onclick="selectModule('CanSM')" style="cursor:pointer">
+          <rect x="250" y="225" width="120" height="35" rx="6" fill="${boxBg}" stroke="#34d399" stroke-width="1.5"/>
+          <text x="310" y="242" fill="${textCol}" font-size="10.5" font-weight="700" text-anchor="middle">CanSM</text>
+          <text x="310" y="254" fill="${mutedCol}" font-size="8.5" text-anchor="middle">ConfirmPnAvailability()</text>
+        </g>
 
-      <!-- Node 10: Can Driver & Transceiver (PN HW) -->
-      <g onclick="selectModule('CanIf')" style="cursor:pointer">
-        <rect x="800" y="145" width="70" height="50" rx="6" fill="${boxBg}" stroke="#c084fc" stroke-width="1.5"/>
-        <text x="835" y="165" fill="${textCol}" font-size="10" font-weight="700" text-anchor="middle">CanDrv</text>
-        <text x="835" y="178" fill="${textCol}" font-size="10" font-weight="700" text-anchor="middle">&amp; Trcv</text>
-        <text x="835" y="190" fill="${mutedCol}" font-size="8" text-anchor="middle">ISO 11898-6</text>
-      </g>
-    </svg>
-  `;
+        <!-- Node 9: CanIf -->
+        <g onclick="selectModule('CanIf')" style="cursor:pointer">
+          <rect x="630" y="150" width="110" height="40" rx="6" fill="${boxBg}" stroke="${strokeCol}" stroke-width="1.5"/>
+          <text x="685" y="168" fill="${textCol}" font-size="11" font-weight="700" text-anchor="middle">CanIf</text>
+          <text x="685" y="182" fill="${mutedCol}" font-size="9" text-anchor="middle">CAN Interface</text>
+        </g>
+
+        <!-- Node 10: Can Driver & Transceiver (PN HW) -->
+        <g onclick="selectModule('CanIf')" style="cursor:pointer">
+          <rect x="800" y="145" width="70" height="50" rx="6" fill="${boxBg}" stroke="#c084fc" stroke-width="1.5"/>
+          <text x="835" y="165" fill="${textCol}" font-size="10" font-weight="700" text-anchor="middle">CanDrv</text>
+          <text x="835" y="178" fill="${textCol}" font-size="10" font-weight="700" text-anchor="middle">&amp; Trcv</text>
+          <text x="835" y="190" fill="${mutedCol}" font-size="8" text-anchor="middle">ISO 11898-6</text>
+        </g>
+      </svg>
+    `;
+  }
+
+  const modeEl = document.getElementById("svgCanNmModeTxt");
+  const subEl = document.getElementById("svgCanNmSubTxt");
+  const nextMode = simState.mode.replace("NM_MODE_", "");
+  const nextSub = simState.subState.replace("NM_STATE_", "");
+  if (modeEl && modeEl.textContent !== nextMode) modeEl.textContent = nextMode;
+  if (subEl && subEl.textContent !== nextSub) subEl.textContent = nextSub;
 }
 
 function selectModule(modKey) {
@@ -391,6 +440,12 @@ function renderInspector() {
 
     const scen = SCENARIOS[simState.currentScenario];
     const step = scen && scen.steps[simState.currentStep] ? scen.steps[simState.currentStep] : null;
+    const cbvVal = getCbvByteValue();
+    const stepKey = step
+      ? `${simState.currentScenario}|${simState.currentStep}|${simState.mode}|${simState.subState}|${cbvVal}|${ecucConfig.CanNmPnEnabled ? 1 : 0}|${simState.timers.timeout}|${simState.timers.repeatMsg}|${ecucConfig.CanNmTimeoutTime}|${ecucConfig.CanNmRepeatMessageTime}`
+      : "none";
+    if (box.dataset.renderKey === stepKey) return;
+    box.dataset.renderKey = stepKey;
 
     if (!step) {
       box.innerHTML = `<p class="muted">Chưa có kịch bản nào được chọn.</p>`;
@@ -412,7 +467,7 @@ function renderInspector() {
         <table class="tbl">
           <tr><td>CanNM Mode</td><td class="mono" style="color:#38bdf8; font-weight:700">${simState.mode}</td></tr>
           <tr><td>Sub-State</td><td class="mono" style="color:#fbbf24; font-weight:700">${simState.subState}</td></tr>
-          <tr><td>CBV Byte</td><td class="mono">0x${getCbvByteValue().toString(16).toUpperCase()} (AWB=${simState.cbv.awb ? 1 : 0}, RMR=${simState.cbv.rmr ? 1 : 0}, PNI=${simState.cbv.pni || ecucConfig.CanNmPnEnabled ? 1 : 0})</td></tr>
+          <tr><td>CBV Byte</td><td class="mono">0x${cbvVal.toString(16).toUpperCase()} (AWB=${simState.cbv.awb ? 1 : 0}, RMR=${simState.cbv.rmr ? 1 : 0}, PNI=${simState.cbv.pni || ecucConfig.CanNmPnEnabled ? 1 : 0})</td></tr>
           <tr><td>NM-Timeout Timer</td><td class="mono">${simState.timers.timeout} / ${ecucConfig.CanNmTimeoutTime} ms</td></tr>
           <tr><td>RepeatMessageTimer</td><td class="mono">${simState.timers.repeatMsg} / ${ecucConfig.CanNmRepeatMessageTime} ms</td></tr>
         </table>
@@ -422,6 +477,8 @@ function renderInspector() {
     // Sub-tab 1: Module Info
     const box = document.getElementById("moduleDetailBox");
     if (!box) return;
+    if (box.dataset.renderKey === String(activeModuleKey)) return;
+    box.dataset.renderKey = String(activeModuleKey);
 
     const mod = MODULES_INFO[activeModuleKey] || MODULES_INFO.CanNm;
     box.innerHTML = `
@@ -453,7 +510,8 @@ function renderInspector() {
   } else if (activeInspectorTab === 2) {
     // Sub-tab 2: Code C Thực Thi
     const viewer = document.getElementById("codeViewerBox");
-    if (!viewer) return;
+    if (!viewer || viewer.dataset.loaded === "1") return;
+    viewer.dataset.loaded = "1";
 
     viewer.innerText = `/* =========================================================================
  * AUTOSAR BSW Module: CanNm (SWS_CanNm Classic Platform R22-11)
@@ -576,10 +634,16 @@ function renderTraceLog() {
 
   const countBadge = document.getElementById("traceCountBadge");
   if (countBadge) {
-    countBadge.innerText = filterVal === "ALL"
+    const nextBadge = filterVal === "ALL"
       ? `${allLogs.length} sự kiện`
       : `${filtered.length}/${allLogs.length} sự kiện`;
+    if (countBadge.innerText !== nextBadge) countBadge.innerText = nextBadge;
   }
+
+  const head = allLogs[0];
+  const renderKey = `${allLogs.length}|${head ? `${head.time}|${head.sender}|${head.apiName}` : "empty"}|${filterVal}`;
+  if (container.dataset.renderKey === renderKey) return;
+  container.dataset.renderKey = renderKey;
 
   if (filtered.length === 0) {
     const msg = allLogs.length === 0

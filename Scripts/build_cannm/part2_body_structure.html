@@ -713,7 +713,7 @@
   <!-- ==================== VIEW 2: MÔ PHỎNG GIAO TIẾP ĐA ECU (MULTI-ECU CAN BUS) ==================== -->
   <section id="viewMulti" class="hidden">
     <!-- Top Multi-ECU Bus Control & Presets Panel -->
-    <div class="panel">
+    <div class="panel multi-ctrl-panel" id="multiControlPanel">
       <div class="panel-h">
         <div class="row wrap" style="gap:8px">
           <span class="panel-t">🌐 Mô Phỏng Giao Tiếp Mạng Phân Tán Đa ECU (Virtual CAN Bus)</span>
@@ -814,16 +814,17 @@
         <div id="hbAbbrFilterBox" class="hidden" style="margin:10px 0; background:var(--panel2); border:1px solid var(--border); border-radius:10px; padding:10px">
           <div class="row" style="margin-bottom:8px">
             <span class="lbl">🔍 Tìm Kiếm:</span>
-            <input type="text" id="abbrSearchInput" oninput="filterAbbreviationTable()" placeholder="Nhập từ viết tắt, tên tiếng Anh, tiếng Việt, mã SWS... (VD: CBV, AWB, RMR, EIRA, PN)" style="flex:1">
+            <input type="text" id="abbrSearchInput" oninput="filterAbbreviationTable()" onkeydown="if(event.key==='Escape'){clearAbbreviationSearch();}" placeholder="Nhập từ viết tắt, tên tiếng Anh hoặc mô tả tiếng Việt... (VD: CBV, AWB, RMR, EIRA, dong bo)" style="flex:1">
+            <button class="btn xs" id="btnAbbrClear" onclick="clearAbbreviationSearch()" title="Xóa từ khóa tìm kiếm">✕ Xóa</button>
             <span class="badge" id="lblAbbrMatchCount">Đang hiện: 48 / 48 mục</span>
           </div>
           <div class="row wrap" style="gap:5px">
             <span class="muted small">Lọc theo nhóm:</span>
             <button class="btn xs active" id="btnFilterAll" onclick="setAbbrCategoryFilter('ALL')">Tất cả (48)</button>
-            <button class="btn xs" onclick="setAbbrCategoryFilter('CORE')">🎛️ CanNM Core &amp; States (14)</button>
-            <button class="btn xs" onclick="setAbbrCategoryFilter('CBV')">🔢 CBV Bits &amp; Timers (12)</button>
-            <button class="btn xs" onclick="setAbbrCategoryFilter('PN')">🌐 Partial Net (10)</button>
-            <button class="btn xs" onclick="setAbbrCategoryFilter('STACK')">🧩 AUTOSAR Stack (12)</button>
+            <button class="btn xs" onclick="setAbbrCategoryFilter('CORE')">🎛️ CanNM Core &amp; States (13)</button>
+            <button class="btn xs" onclick="setAbbrCategoryFilter('CBV')">🔢 CBV Bits &amp; Timers (10)</button>
+            <button class="btn xs" onclick="setAbbrCategoryFilter('PN')">🌐 Partial Net (7)</button>
+            <button class="btn xs" onclick="setAbbrCategoryFilter('STACK')">🧩 AUTOSAR Stack (18)</button>
           </div>
         </div>
 

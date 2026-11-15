@@ -86,13 +86,14 @@
       display: inline-flex; align-items: center; justify-content: center; gap: 5px;
       padding: 6px 11px; border-radius: 7px; border: 1px solid var(--border2);
       background: var(--panel3); color: var(--text); font-size: 12px; font-weight: 600;
-      cursor: pointer; transition: all .15s; font-family: inherit; white-space: nowrap;
+      cursor: pointer; transition: border-color .15s, background-color .15s, color .15s, box-shadow .15s, filter .15s; font-family: inherit; white-space: nowrap;
     }
-    .btn:hover:not(:disabled) { border-color: var(--accent); transform: translateY(-1px); }
+    .btn:hover:not(:disabled) { border-color: var(--accent); filter: brightness(1.08); box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.25); }
+    .btn:active:not(:disabled) { filter: brightness(0.95); }
     .btn:disabled { opacity: 0.42; cursor: not-allowed; filter: grayscale(0.25); }
     .btn.sm { padding: 4px 9px; font-size: 11.5px; }
     .btn.xs { padding: 2px 7px; font-size: 10.5px; border-radius: 5px; }
-    .btn.primary { background: #0284c7; border-color: #0284c7; color: #fff; }
+    .btn.primary, .btn.active { background: #0284c7; border-color: #0284c7; color: #fff; }
     .btn.indigo { background: #4f46e5; border-color: #4f46e5; color: #fff; }
     .btn.amber { background: rgba(251,191,36,.12); color: #fbbf24; border-color: rgba(251,191,36,.38); }
     .btn.green { background: rgba(52,211,153,.12); color: #34d399; border-color: rgba(52,211,153,.38); }
@@ -205,9 +206,9 @@
     .bit-row { display: grid; grid-template-columns: repeat(8, 1fr); gap: 5px; margin-top: 5px; }
     .bit-box {
       border: 1px solid var(--border2); border-radius: 7px; background: var(--panel2);
-      padding: 5px 3px; text-align: center; cursor: pointer; transition: all .15s; user-select: none;
+      padding: 5px 3px; text-align: center; cursor: pointer; transition: border-color .15s, background-color .15s, box-shadow .15s; user-select: none;
     }
-    .bit-box:hover { border-color: var(--accent); transform: translateY(-1px); }
+    .bit-box:hover { border-color: var(--accent); box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.25); }
     .bit-box.on { border-color: #38bdf8; background: rgba(56, 189, 248, 0.18); box-shadow: 0 0 10px rgba(56, 189, 248, 0.35); }
     .bit-box.on.amb { border-color: #fbbf24; background: rgba(251, 191, 36, 0.22); box-shadow: 0 0 10px rgba(251, 191, 36, 0.4); }
     .bit-box.on.ok { border-color: #34d399; background: rgba(52, 211, 153, 0.22); box-shadow: 0 0 10px rgba(52, 211, 153, 0.35); }
@@ -380,6 +381,13 @@
 
     /* ===================== MULTI-ECU BUS SIMULATION TAB ===================== */
     #viewMulti { max-width: 1980px; margin: 0 auto; width: 100%; padding: 10px 14px; display: flex; flex-direction: column; gap: 10px; }
+    .multi-ctrl-panel {
+      position: sticky; top: var(--multi-sticky-top, 64px); z-index: 30;
+      background: var(--panel); border-color: var(--border2);
+      box-shadow: 0 8px 22px rgba(0, 0, 0, 0.42); overflow: hidden;
+    }
+    body.light .multi-ctrl-panel { box-shadow: 0 8px 18px rgba(15, 23, 42, 0.12); }
+    @media (max-width: 720px), (max-height: 540px) { .multi-ctrl-panel { position: static; } }
     .multi-presets {
       display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
       padding: 7px 12px; border-top: 1px solid var(--border); background: var(--panel2);
@@ -1165,7 +1173,7 @@
   <!-- ==================== VIEW 2: MÔ PHỎNG GIAO TIẾP ĐA ECU (MULTI-ECU CAN BUS) ==================== -->
   <section id="viewMulti" class="hidden">
     <!-- Top Multi-ECU Bus Control & Presets Panel -->
-    <div class="panel">
+    <div class="panel multi-ctrl-panel" id="multiControlPanel">
       <div class="panel-h">
         <div class="row wrap" style="gap:8px">
           <span class="panel-t">🌐 Mô Phỏng Giao Tiếp Mạng Phân Tán Đa ECU (Virtual CAN Bus)</span>
@@ -1266,16 +1274,17 @@
         <div id="hbAbbrFilterBox" class="hidden" style="margin:10px 0; background:var(--panel2); border:1px solid var(--border); border-radius:10px; padding:10px">
           <div class="row" style="margin-bottom:8px">
             <span class="lbl">🔍 Tìm Kiếm:</span>
-            <input type="text" id="abbrSearchInput" oninput="filterAbbreviationTable()" placeholder="Nhập từ viết tắt, tên tiếng Anh, tiếng Việt, mã SWS... (VD: CBV, AWB, RMR, EIRA, PN)" style="flex:1">
+            <input type="text" id="abbrSearchInput" oninput="filterAbbreviationTable()" onkeydown="if(event.key==='Escape'){clearAbbreviationSearch();}" placeholder="Nhập từ viết tắt, tên tiếng Anh hoặc mô tả tiếng Việt... (VD: CBV, AWB, RMR, EIRA, dong bo)" style="flex:1">
+            <button class="btn xs" id="btnAbbrClear" onclick="clearAbbreviationSearch()" title="Xóa từ khóa tìm kiếm">✕ Xóa</button>
             <span class="badge" id="lblAbbrMatchCount">Đang hiện: 48 / 48 mục</span>
           </div>
           <div class="row wrap" style="gap:5px">
             <span class="muted small">Lọc theo nhóm:</span>
             <button class="btn xs active" id="btnFilterAll" onclick="setAbbrCategoryFilter('ALL')">Tất cả (48)</button>
-            <button class="btn xs" onclick="setAbbrCategoryFilter('CORE')">🎛️ CanNM Core &amp; States (14)</button>
-            <button class="btn xs" onclick="setAbbrCategoryFilter('CBV')">🔢 CBV Bits &amp; Timers (12)</button>
-            <button class="btn xs" onclick="setAbbrCategoryFilter('PN')">🌐 Partial Net (10)</button>
-            <button class="btn xs" onclick="setAbbrCategoryFilter('STACK')">🧩 AUTOSAR Stack (12)</button>
+            <button class="btn xs" onclick="setAbbrCategoryFilter('CORE')">🎛️ CanNM Core &amp; States (13)</button>
+            <button class="btn xs" onclick="setAbbrCategoryFilter('CBV')">🔢 CBV Bits &amp; Timers (10)</button>
+            <button class="btn xs" onclick="setAbbrCategoryFilter('PN')">🌐 Partial Net (7)</button>
+            <button class="btn xs" onclick="setAbbrCategoryFilter('STACK')">🧩 AUTOSAR Stack (18)</button>
           </div>
         </div>
 
@@ -3191,15 +3200,28 @@ let activeModuleKey = "CanNm";
 let activeExportTab = "arxml";
 let tooltipTimer = null;
 
-// 1. RENDER 8-BYTE NM PDU FRAME SLICER
+// 1. RENDER 8-BYTE NM PDU FRAME SLICER (persistent DOM nodes)
 function renderPduFrameGrid() {
   const container = document.getElementById("pduFrameGrid");
   if (!container) return;
 
+  if (container.children.length !== 8) {
+    let initHtml = "";
+    for (let i = 0; i < 8; i++) {
+      initHtml += `
+        <div class="pdu-byte-card" id="pduByteCard_${i}">
+          <div class="pdu-byte-idx">Byte ${i}</div>
+          <div class="pdu-byte-val" id="pduByteVal_${i}">0x00</div>
+          <div class="pdu-byte-lbl" id="pduByteLbl_${i}">User Data</div>
+        </div>
+      `;
+    }
+    container.innerHTML = initHtml;
+  }
+
   const bytes = getPduFrameBytes();
   const hexArr = bytes.map(b => b.toString(16).toUpperCase().padStart(2, "0"));
 
-  let html = "";
   for (let i = 0; i < 8; i++) {
     let cardClass = "";
     let label = "User Data";
@@ -3223,52 +3245,66 @@ function renderPduFrameGrid() {
       }
     }
 
-    if (!cardClass) {
-      cardClass = "active-usr";
-    }
+    if (!cardClass) cardClass = "active-usr";
 
-    html += `
-      <div class="pdu-byte-card ${cardClass}" title="Byte ${i}: ${label} - Giá trị: 0x${hexArr[i]} (${desc})">
-        <div class="pdu-byte-idx">Byte ${i}</div>
-        <div class="pdu-byte-val">0x${hexArr[i]}</div>
-        <div class="pdu-byte-lbl">${label}</div>
-      </div>
-    `;
+    const card = document.getElementById(`pduByteCard_${i}`);
+    const valEl = document.getElementById(`pduByteVal_${i}`);
+    const lblEl = document.getElementById(`pduByteLbl_${i}`);
+    const nextCls = `pdu-byte-card ${cardClass}`;
+    const nextTitle = `Byte ${i}: ${label} - Giá trị: 0x${hexArr[i]} (${desc})`;
+    const nextVal = `0x${hexArr[i]}`;
+    if (card) {
+      if (card.className !== nextCls) card.className = nextCls;
+      if (card.title !== nextTitle) card.title = nextTitle;
+    }
+    if (valEl && valEl.textContent !== nextVal) valEl.textContent = nextVal;
+    if (lblEl && lblEl.textContent !== label) lblEl.textContent = label;
   }
-  container.innerHTML = html;
 
   const note = document.getElementById("lblPduLayoutNote");
   if (note) {
-    note.innerText = `NidPos: ${ecucConfig.CanNmPduNidPosition} | CbvPos: ${ecucConfig.CanNmPduCbvPosition} | Base: 0x${ecucConfig.CanNmBaseCanId.toString(16).toUpperCase()} | Node: 0x${ecucConfig.CanNmNodeId.toString(16).toUpperCase()}`;
+    const nextNote = `NidPos: ${ecucConfig.CanNmPduNidPosition} | CbvPos: ${ecucConfig.CanNmPduCbvPosition} | Base: 0x${ecucConfig.CanNmBaseCanId.toString(16).toUpperCase()} | Node: 0x${ecucConfig.CanNmNodeId.toString(16).toUpperCase()}`;
+    if (note.innerText !== nextNote) note.innerText = nextNote;
   }
 }
 
-// 2. RENDER DUAL 8-BIT INTERACTIVE REGISTERS
+// 2. RENDER DUAL 8-BIT INTERACTIVE REGISTERS (persistent clickable DOM boxes)
 function render8BitRegisters() {
   // Render Thanh A: CBV Byte
   const cbvRow = document.getElementById("bitRowCbv");
   if (cbvRow) {
+    if (cbvRow.children.length !== 8) {
+      let initHtml = "";
+      for (let i = 7; i >= 0; i--) {
+        const bitMeta = CANNM_CBV_BITS[i];
+        initHtml += `
+          <div class="bit-box" id="cbvBitBox_${i}" onclick="toggleCbvBit(${i})" title="${bitMeta.label} (${bitMeta.name}) - ${bitMeta.desc}">
+            <div class="bit-num">b${i}</div>
+            <div class="bit-val" id="cbvBitVal_${i}">0</div>
+            <div class="bit-name">${bitMeta.name}</div>
+          </div>
+        `;
+      }
+      cbvRow.innerHTML = initHtml;
+    }
+
     const cbvVal = getCbvByteValue();
-    let html = "";
     for (let i = 7; i >= 0; i--) {
       const bitMeta = CANNM_CBV_BITS[i];
       const isSet = (cbvVal & bitMeta.mask) !== 0;
       let onClass = isSet ? "on" : "";
       if (isSet) {
-        if (i === 4) onClass += " ok"; // AWB = green
-        else if (i === 0) onClass += " amb"; // RMR = amber
-        else if (i === 6) onClass += " vio"; // PNI = violet
+        if (i === 4) onClass += " ok";
+        else if (i === 0) onClass += " amb";
+        else if (i === 6) onClass += " vio";
       }
-
-      html += `
-        <div class="bit-box ${onClass}" onclick="toggleCbvBit(${i})" title="${bitMeta.label} (${bitMeta.name}) - ${bitMeta.desc}">
-          <div class="bit-num">b${i}</div>
-          <div class="bit-val">${isSet ? "1" : "0"}</div>
-          <div class="bit-name">${bitMeta.name}</div>
-        </div>
-      `;
+      const box = document.getElementById(`cbvBitBox_${i}`);
+      const valEl = document.getElementById(`cbvBitVal_${i}`);
+      const nextCls = `bit-box${onClass ? " " + onClass : ""}`;
+      const nextBit = isSet ? "1" : "0";
+      if (box && box.className !== nextCls) box.className = nextCls;
+      if (valEl && valEl.textContent !== nextBit) valEl.textContent = nextBit;
     }
-    cbvRow.innerHTML = html;
 
     const cbvBin = document.getElementById("lblCbvBin");
     if (cbvBin) cbvBin.innerText = cbvVal.toString(2).padStart(8, "0") + "b (0x" + cbvVal.toString(16).toUpperCase().padStart(2, "0") + ")";
@@ -3283,22 +3319,32 @@ function render8BitRegisters() {
   // Render Thanh B: CanNM Engine Status Byte
   const engRow = document.getElementById("bitRowEngine");
   if (engRow) {
+    if (engRow.children.length !== 8) {
+      let initHtml = "";
+      for (let i = 7; i >= 0; i--) {
+        const bitMeta = CANNM_ENGINE_BITS[i];
+        initHtml += `
+          <div class="bit-box" id="engBitBox_${i}" onclick="toggleEngineBit(${i})" title="${bitMeta.label} (${bitMeta.name}) - ${bitMeta.desc}">
+            <div class="bit-num">b${i}</div>
+            <div class="bit-val" id="engBitVal_${i}">0</div>
+            <div class="bit-name">${bitMeta.name}</div>
+          </div>
+        `;
+      }
+      engRow.innerHTML = initHtml;
+    }
+
     const engVal = getEngineByteValue();
-    let html = "";
     for (let i = 7; i >= 0; i--) {
       const bitMeta = CANNM_ENGINE_BITS[i];
       const isSet = (engVal & bitMeta.mask) !== 0;
-      let onClass = isSet ? "on ok" : "";
-
-      html += `
-        <div class="bit-box ${onClass}" onclick="toggleEngineBit(${i})" title="${bitMeta.label} (${bitMeta.name}) - ${bitMeta.desc}">
-          <div class="bit-num">b${i}</div>
-          <div class="bit-val">${isSet ? "1" : "0"}</div>
-          <div class="bit-name">${bitMeta.name}</div>
-        </div>
-      `;
+      const box = document.getElementById(`engBitBox_${i}`);
+      const valEl = document.getElementById(`engBitVal_${i}`);
+      const nextCls = `bit-box${isSet ? " on ok" : ""}`;
+      const nextBit = isSet ? "1" : "0";
+      if (box && box.className !== nextCls) box.className = nextCls;
+      if (valEl && valEl.textContent !== nextBit) valEl.textContent = nextBit;
     }
-    engRow.innerHTML = html;
 
     const engBin = document.getElementById("lblEngineBin");
     if (engBin) engBin.innerText = engVal.toString(2).padStart(8, "0") + "b (0x" + engVal.toString(16).toUpperCase().padStart(2, "0") + ")";
@@ -3429,116 +3475,128 @@ function renderStateMachine() {
   }
 }
 
-// 5. RENDER SVG ARCHITECTURE DIAGRAM
+// 5. RENDER SVG ARCHITECTURE DIAGRAM (persistent SVG per theme; updates state text in place)
 function renderSvgArchitecture() {
   const container = document.getElementById("svgArchitectureContainer");
   if (!container) return;
 
   const isDark = !document.body.classList.contains("light");
-  const strokeCol = isDark ? "#334155" : "#cbd5e1";
-  const boxBg = isDark ? "#111827" : "#ffffff";
-  const boxActiveBg = isDark ? "#1e293b" : "#f1f5f9";
-  const textCol = isDark ? "#e2e8f0" : "#0f172a";
-  const mutedCol = isDark ? "#8a9ab5" : "#64748b";
+  const themeKey = isDark ? "dark" : "light";
 
-  container.innerHTML = `
-    <svg viewBox="0 0 880 280" width="100%" height="280" xmlns="http://www.w3.org/2000/svg" style="background:${isDark ? '#080d1a' : '#f8fafc'}; border-radius:8px">
-      <defs>
-        <marker id="arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-          <path d="M 0 1 L 8 5 L 0 9 z" fill="#38bdf8"/>
-        </marker>
-        <marker id="arrow-amber" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-          <path d="M 0 1 L 8 5 L 0 9 z" fill="#fbbf24"/>
-        </marker>
-        <marker id="arrow-green" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-          <path d="M 0 1 L 8 5 L 0 9 z" fill="#34d399"/>
-        </marker>
-      </defs>
+  if (container.dataset.themeKey !== themeKey) {
+    container.dataset.themeKey = themeKey;
+    const strokeCol = isDark ? "#334155" : "#cbd5e1";
+    const boxBg = isDark ? "#111827" : "#ffffff";
+    const boxActiveBg = isDark ? "#1e293b" : "#f1f5f9";
+    const textCol = isDark ? "#e2e8f0" : "#0f172a";
+    const mutedCol = isDark ? "#8a9ab5" : "#64748b";
 
-      <!-- Connecting Lines -->
-      <path d="M 120 40 L 120 75" stroke="${strokeCol}" stroke-width="2" marker-end="url(#arrow)"/>
-      <path d="M 120 115 L 120 150" stroke="${strokeCol}" stroke-width="2" marker-end="url(#arrow)"/>
-      <path d="M 120 190 L 120 225" stroke="${strokeCol}" stroke-width="2" marker-end="url(#arrow)"/>
-      <path d="M 175 170 L 250 170" stroke="${strokeCol}" stroke-width="2" marker-end="url(#arrow)"/>
-      <path d="M 360 170 L 440 170" stroke="#38bdf8" stroke-width="2.5" marker-end="url(#arrow)"/>
-      <path d="M 550 170 L 630 170" stroke="${strokeCol}" stroke-width="2" marker-end="url(#arrow)"/>
-      <path d="M 740 170 L 800 170" stroke="${strokeCol}" stroke-width="2" marker-end="url(#arrow)"/>
-      
-      <!-- Feedback lines -->
-      <path d="M 495 145 L 495 95 L 360 95" stroke="#fbbf24" stroke-dasharray="4,4" stroke-width="1.8" fill="none" marker-end="url(#arrow-amber)"/>
-      <path d="M 495 195 L 495 245 L 360 245" stroke="#34d399" stroke-dasharray="4,4" stroke-width="1.8" fill="none" marker-end="url(#arrow-green)"/>
+    container.innerHTML = `
+      <svg viewBox="0 0 880 280" width="100%" height="280" xmlns="http://www.w3.org/2000/svg" style="background:${isDark ? '#080d1a' : '#f8fafc'}; border-radius:8px">
+        <defs>
+          <marker id="arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 1 L 8 5 L 0 9 z" fill="#38bdf8"/>
+          </marker>
+          <marker id="arrow-amber" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 1 L 8 5 L 0 9 z" fill="#fbbf24"/>
+          </marker>
+          <marker id="arrow-green" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 1 L 8 5 L 0 9 z" fill="#34d399"/>
+          </marker>
+        </defs>
 
-      <!-- Node 1: SWC_App -->
-      <g onclick="selectModule('SWC_App')" style="cursor:pointer">
-        <rect x="50" y="10" width="140" height="30" rx="6" fill="${boxBg}" stroke="#38bdf8" stroke-width="1.5"/>
-        <text x="120" y="28" fill="${textCol}" font-size="11" font-weight="700" text-anchor="middle">SWC_App / SWC_PNC</text>
-      </g>
+        <!-- Connecting Lines -->
+        <path d="M 120 40 L 120 75" stroke="${strokeCol}" stroke-width="2" marker-end="url(#arrow)"/>
+        <path d="M 120 115 L 120 150" stroke="${strokeCol}" stroke-width="2" marker-end="url(#arrow)"/>
+        <path d="M 120 190 L 120 225" stroke="${strokeCol}" stroke-width="2" marker-end="url(#arrow)"/>
+        <path d="M 175 170 L 250 170" stroke="${strokeCol}" stroke-width="2" marker-end="url(#arrow)"/>
+        <path d="M 360 170 L 440 170" stroke="#38bdf8" stroke-width="2.5" marker-end="url(#arrow)"/>
+        <path d="M 550 170 L 630 170" stroke="${strokeCol}" stroke-width="2" marker-end="url(#arrow)"/>
+        <path d="M 740 170 L 800 170" stroke="${strokeCol}" stroke-width="2" marker-end="url(#arrow)"/>
+        
+        <!-- Feedback lines -->
+        <path d="M 495 145 L 495 95 L 360 95" stroke="#fbbf24" stroke-dasharray="4,4" stroke-width="1.8" fill="none" marker-end="url(#arrow-amber)"/>
+        <path d="M 495 195 L 495 245 L 360 245" stroke="#34d399" stroke-dasharray="4,4" stroke-width="1.8" fill="none" marker-end="url(#arrow-green)"/>
 
-      <!-- Node 2: RTE & SchM -->
-      <g onclick="selectModule('RTE')" style="cursor:pointer">
-        <rect x="50" y="75" width="140" height="40" rx="6" fill="${boxBg}" stroke="${strokeCol}" stroke-width="1.5"/>
-        <text x="120" y="93" fill="${textCol}" font-size="11" font-weight="700" text-anchor="middle">RTE / SchM</text>
-        <text x="120" y="107" fill="${mutedCol}" font-size="9" text-anchor="middle">CanNm_MainFunction()</text>
-      </g>
+        <!-- Node 1: SWC_App -->
+        <g onclick="selectModule('SWC_App')" style="cursor:pointer">
+          <rect x="50" y="10" width="140" height="30" rx="6" fill="${boxBg}" stroke="#38bdf8" stroke-width="1.5"/>
+          <text x="120" y="28" fill="${textCol}" font-size="11" font-weight="700" text-anchor="middle">SWC_App / SWC_PNC</text>
+        </g>
 
-      <!-- Node 3: ComM -->
-      <g onclick="selectModule('ComM')" style="cursor:pointer">
-        <rect x="50" y="150" width="140" height="40" rx="6" fill="${boxBg}" stroke="#34d399" stroke-width="1.5"/>
-        <text x="120" y="168" fill="${textCol}" font-size="11" font-weight="700" text-anchor="middle">ComM</text>
-        <text x="120" y="182" fill="${mutedCol}" font-size="9" text-anchor="middle">Communication Manager</text>
-      </g>
+        <!-- Node 2: RTE & SchM -->
+        <g onclick="selectModule('RTE')" style="cursor:pointer">
+          <rect x="50" y="75" width="140" height="40" rx="6" fill="${boxBg}" stroke="${strokeCol}" stroke-width="1.5"/>
+          <text x="120" y="93" fill="${textCol}" font-size="11" font-weight="700" text-anchor="middle">RTE / SchM</text>
+          <text x="120" y="107" fill="${mutedCol}" font-size="9" text-anchor="middle">CanNm_MainFunction()</text>
+        </g>
 
-      <!-- Node 4: BswM -->
-      <g onclick="selectModule('BswM')" style="cursor:pointer">
-        <rect x="50" y="225" width="140" height="35" rx="6" fill="${boxBg}" stroke="${strokeCol}" stroke-width="1.5"/>
-        <text x="120" y="243" fill="${textCol}" font-size="10.5" font-weight="700" text-anchor="middle">BswM (Mode Manager)</text>
-      </g>
+        <!-- Node 3: ComM -->
+        <g onclick="selectModule('ComM')" style="cursor:pointer">
+          <rect x="50" y="150" width="140" height="40" rx="6" fill="${boxBg}" stroke="#34d399" stroke-width="1.5"/>
+          <text x="120" y="168" fill="${textCol}" font-size="11" font-weight="700" text-anchor="middle">ComM</text>
+          <text x="120" y="182" fill="${mutedCol}" font-size="9" text-anchor="middle">Communication Manager</text>
+        </g>
 
-      <!-- Node 5: Nm -->
-      <g onclick="selectModule('Nm')" style="cursor:pointer">
-        <rect x="250" y="150" width="110" height="40" rx="6" fill="${boxBg}" stroke="#818cf8" stroke-width="1.5"/>
-        <text x="305" y="168" fill="${textCol}" font-size="11" font-weight="700" text-anchor="middle">Nm Interface</text>
-        <text x="305" y="182" fill="${mutedCol}" font-size="9" text-anchor="middle">Generic NM Bus</text>
-      </g>
+        <!-- Node 4: BswM -->
+        <g onclick="selectModule('BswM')" style="cursor:pointer">
+          <rect x="50" y="225" width="140" height="35" rx="6" fill="${boxBg}" stroke="${strokeCol}" stroke-width="1.5"/>
+          <text x="120" y="243" fill="${textCol}" font-size="10.5" font-weight="700" text-anchor="middle">BswM (Mode Manager)</text>
+        </g>
 
-      <!-- Node 6: CanNM (TRỌNG TÂM - PULSE GLOW) -->
-      <g onclick="selectModule('CanNm')" style="cursor:pointer">
-        <rect x="440" y="140" width="120" height="60" rx="8" fill="${boxActiveBg}" stroke="#38bdf8" stroke-width="2.5" class="pulse-glow"/>
-        <text x="500" y="162" fill="#38bdf8" font-size="12.5" font-weight="800" text-anchor="middle">CanNM Engine</text>
-        <text x="500" y="177" fill="${textCol}" font-size="10" font-weight="700" text-anchor="middle">${simState.mode.replace('NM_MODE_', '')}</text>
-        <text x="500" y="191" fill="${mutedCol}" font-size="9" text-anchor="middle">${simState.subState.replace('NM_STATE_', '')}</text>
-      </g>
+        <!-- Node 5: Nm -->
+        <g onclick="selectModule('Nm')" style="cursor:pointer">
+          <rect x="250" y="150" width="110" height="40" rx="6" fill="${boxBg}" stroke="#818cf8" stroke-width="1.5"/>
+          <text x="305" y="168" fill="${textCol}" font-size="11" font-weight="700" text-anchor="middle">Nm Interface</text>
+          <text x="305" y="182" fill="${mutedCol}" font-size="9" text-anchor="middle">Generic NM Bus</text>
+        </g>
 
-      <!-- Node 7: COM & PduR (User Data TriggerTransmit) -->
-      <g onclick="selectModule('PduR_COM')" style="cursor:pointer">
-        <rect x="250" y="75" width="120" height="40" rx="6" fill="${boxBg}" stroke="#fbbf24" stroke-width="1.5"/>
-        <text x="310" y="93" fill="${textCol}" font-size="10.5" font-weight="700" text-anchor="middle">PduR &amp; COM</text>
-        <text x="310" y="107" fill="${mutedCol}" font-size="9" text-anchor="middle">TriggerTransmit (User Data)</text>
-      </g>
+        <!-- Node 6: CanNM (TRỌNG TÂM - PULSE GLOW) -->
+        <g onclick="selectModule('CanNm')" style="cursor:pointer">
+          <rect x="440" y="140" width="120" height="60" rx="8" fill="${boxActiveBg}" stroke="#38bdf8" stroke-width="2.5" class="pulse-glow"/>
+          <text x="500" y="162" fill="#38bdf8" font-size="12.5" font-weight="800" text-anchor="middle">CanNM Engine</text>
+          <text id="svgCanNmModeTxt" x="500" y="177" fill="${textCol}" font-size="10" font-weight="700" text-anchor="middle"></text>
+          <text id="svgCanNmSubTxt" x="500" y="191" fill="${mutedCol}" font-size="9" text-anchor="middle"></text>
+        </g>
 
-      <!-- Node 8: CanSM -->
-      <g onclick="selectModule('CanSM')" style="cursor:pointer">
-        <rect x="250" y="225" width="120" height="35" rx="6" fill="${boxBg}" stroke="#34d399" stroke-width="1.5"/>
-        <text x="310" y="242" fill="${textCol}" font-size="10.5" font-weight="700" text-anchor="middle">CanSM</text>
-        <text x="310" y="254" fill="${mutedCol}" font-size="8.5" text-anchor="middle">ConfirmPnAvailability()</text>
-      </g>
+        <!-- Node 7: COM & PduR (User Data TriggerTransmit) -->
+        <g onclick="selectModule('PduR_COM')" style="cursor:pointer">
+          <rect x="250" y="75" width="120" height="40" rx="6" fill="${boxBg}" stroke="#fbbf24" stroke-width="1.5"/>
+          <text x="310" y="93" fill="${textCol}" font-size="10.5" font-weight="700" text-anchor="middle">PduR &amp; COM</text>
+          <text x="310" y="107" fill="${mutedCol}" font-size="9" text-anchor="middle">TriggerTransmit (User Data)</text>
+        </g>
 
-      <!-- Node 9: CanIf -->
-      <g onclick="selectModule('CanIf')" style="cursor:pointer">
-        <rect x="630" y="150" width="110" height="40" rx="6" fill="${boxBg}" stroke="${strokeCol}" stroke-width="1.5"/>
-        <text x="685" y="168" fill="${textCol}" font-size="11" font-weight="700" text-anchor="middle">CanIf</text>
-        <text x="685" y="182" fill="${mutedCol}" font-size="9" text-anchor="middle">CAN Interface</text>
-      </g>
+        <!-- Node 8: CanSM -->
+        <g onclick="selectModule('CanSM')" style="cursor:pointer">
+          <rect x="250" y="225" width="120" height="35" rx="6" fill="${boxBg}" stroke="#34d399" stroke-width="1.5"/>
+          <text x="310" y="242" fill="${textCol}" font-size="10.5" font-weight="700" text-anchor="middle">CanSM</text>
+          <text x="310" y="254" fill="${mutedCol}" font-size="8.5" text-anchor="middle">ConfirmPnAvailability()</text>
+        </g>
 
-      <!-- Node 10: Can Driver & Transceiver (PN HW) -->
-      <g onclick="selectModule('CanIf')" style="cursor:pointer">
-        <rect x="800" y="145" width="70" height="50" rx="6" fill="${boxBg}" stroke="#c084fc" stroke-width="1.5"/>
-        <text x="835" y="165" fill="${textCol}" font-size="10" font-weight="700" text-anchor="middle">CanDrv</text>
-        <text x="835" y="178" fill="${textCol}" font-size="10" font-weight="700" text-anchor="middle">&amp; Trcv</text>
-        <text x="835" y="190" fill="${mutedCol}" font-size="8" text-anchor="middle">ISO 11898-6</text>
-      </g>
-    </svg>
-  `;
+        <!-- Node 9: CanIf -->
+        <g onclick="selectModule('CanIf')" style="cursor:pointer">
+          <rect x="630" y="150" width="110" height="40" rx="6" fill="${boxBg}" stroke="${strokeCol}" stroke-width="1.5"/>
+          <text x="685" y="168" fill="${textCol}" font-size="11" font-weight="700" text-anchor="middle">CanIf</text>
+          <text x="685" y="182" fill="${mutedCol}" font-size="9" text-anchor="middle">CAN Interface</text>
+        </g>
+
+        <!-- Node 10: Can Driver & Transceiver (PN HW) -->
+        <g onclick="selectModule('CanIf')" style="cursor:pointer">
+          <rect x="800" y="145" width="70" height="50" rx="6" fill="${boxBg}" stroke="#c084fc" stroke-width="1.5"/>
+          <text x="835" y="165" fill="${textCol}" font-size="10" font-weight="700" text-anchor="middle">CanDrv</text>
+          <text x="835" y="178" fill="${textCol}" font-size="10" font-weight="700" text-anchor="middle">&amp; Trcv</text>
+          <text x="835" y="190" fill="${mutedCol}" font-size="8" text-anchor="middle">ISO 11898-6</text>
+        </g>
+      </svg>
+    `;
+  }
+
+  const modeEl = document.getElementById("svgCanNmModeTxt");
+  const subEl = document.getElementById("svgCanNmSubTxt");
+  const nextMode = simState.mode.replace("NM_MODE_", "");
+  const nextSub = simState.subState.replace("NM_STATE_", "");
+  if (modeEl && modeEl.textContent !== nextMode) modeEl.textContent = nextMode;
+  if (subEl && subEl.textContent !== nextSub) subEl.textContent = nextSub;
 }
 
 function selectModule(modKey) {
@@ -3574,6 +3632,12 @@ function renderInspector() {
 
     const scen = SCENARIOS[simState.currentScenario];
     const step = scen && scen.steps[simState.currentStep] ? scen.steps[simState.currentStep] : null;
+    const cbvVal = getCbvByteValue();
+    const stepKey = step
+      ? `${simState.currentScenario}|${simState.currentStep}|${simState.mode}|${simState.subState}|${cbvVal}|${ecucConfig.CanNmPnEnabled ? 1 : 0}|${simState.timers.timeout}|${simState.timers.repeatMsg}|${ecucConfig.CanNmTimeoutTime}|${ecucConfig.CanNmRepeatMessageTime}`
+      : "none";
+    if (box.dataset.renderKey === stepKey) return;
+    box.dataset.renderKey = stepKey;
 
     if (!step) {
       box.innerHTML = `<p class="muted">Chưa có kịch bản nào được chọn.</p>`;
@@ -3595,7 +3659,7 @@ function renderInspector() {
         <table class="tbl">
           <tr><td>CanNM Mode</td><td class="mono" style="color:#38bdf8; font-weight:700">${simState.mode}</td></tr>
           <tr><td>Sub-State</td><td class="mono" style="color:#fbbf24; font-weight:700">${simState.subState}</td></tr>
-          <tr><td>CBV Byte</td><td class="mono">0x${getCbvByteValue().toString(16).toUpperCase()} (AWB=${simState.cbv.awb ? 1 : 0}, RMR=${simState.cbv.rmr ? 1 : 0}, PNI=${simState.cbv.pni || ecucConfig.CanNmPnEnabled ? 1 : 0})</td></tr>
+          <tr><td>CBV Byte</td><td class="mono">0x${cbvVal.toString(16).toUpperCase()} (AWB=${simState.cbv.awb ? 1 : 0}, RMR=${simState.cbv.rmr ? 1 : 0}, PNI=${simState.cbv.pni || ecucConfig.CanNmPnEnabled ? 1 : 0})</td></tr>
           <tr><td>NM-Timeout Timer</td><td class="mono">${simState.timers.timeout} / ${ecucConfig.CanNmTimeoutTime} ms</td></tr>
           <tr><td>RepeatMessageTimer</td><td class="mono">${simState.timers.repeatMsg} / ${ecucConfig.CanNmRepeatMessageTime} ms</td></tr>
         </table>
@@ -3605,6 +3669,8 @@ function renderInspector() {
     // Sub-tab 1: Module Info
     const box = document.getElementById("moduleDetailBox");
     if (!box) return;
+    if (box.dataset.renderKey === String(activeModuleKey)) return;
+    box.dataset.renderKey = String(activeModuleKey);
 
     const mod = MODULES_INFO[activeModuleKey] || MODULES_INFO.CanNm;
     box.innerHTML = `
@@ -3636,7 +3702,8 @@ function renderInspector() {
   } else if (activeInspectorTab === 2) {
     // Sub-tab 2: Code C Thực Thi
     const viewer = document.getElementById("codeViewerBox");
-    if (!viewer) return;
+    if (!viewer || viewer.dataset.loaded === "1") return;
+    viewer.dataset.loaded = "1";
 
     viewer.innerText = `/* =========================================================================
  * AUTOSAR BSW Module: CanNm (SWS_CanNm Classic Platform R22-11)
@@ -3759,10 +3826,16 @@ function renderTraceLog() {
 
   const countBadge = document.getElementById("traceCountBadge");
   if (countBadge) {
-    countBadge.innerText = filterVal === "ALL"
+    const nextBadge = filterVal === "ALL"
       ? `${allLogs.length} sự kiện`
       : `${filtered.length}/${allLogs.length} sự kiện`;
+    if (countBadge.innerText !== nextBadge) countBadge.innerText = nextBadge;
   }
+
+  const head = allLogs[0];
+  const renderKey = `${allLogs.length}|${head ? `${head.time}|${head.sender}|${head.apiName}` : "empty"}|${filterVal}`;
+  if (container.dataset.renderKey === renderKey) return;
+  container.dataset.renderKey = renderKey;
 
   if (filtered.length === 0) {
     const msg = allLogs.length === 0
@@ -5950,25 +6023,41 @@ function renderHandbookContent() {
 }
 
 // 3. ABBREVIATION TABLE RENDERING & LIVE SEARCH BOX
+function normalizeSearchText(str) {
+  return String(str ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/Đ/g, "D")
+    .toLowerCase();
+}
+
 function renderAbbreviationTable() {
   const contentArea = document.getElementById("hbContentArea");
   if (!contentArea) return;
 
   const searchInput = document.getElementById("abbrSearchInput");
-  const query = searchInput ? searchInput.value.trim().toLowerCase() : "";
+  const rawQuery = searchInput ? searchInput.value.trim() : "";
+  const query = rawQuery.toLowerCase();
+  const foldedQuery = normalizeSearchText(rawQuery);
 
-  let filtered = ABBREVIATIONS_DATA.filter(item => {
-    const matchCat = (activeAbbrCategory === "ALL" || item.cat === activeAbbrCategory);
+  const btnClear = document.getElementById("btnAbbrClear");
+  if (btnClear) btnClear.disabled = (rawQuery.length === 0);
+
+  const filtered = ABBREVIATIONS_DATA.filter(item => {
+    const catStr = String(item.cat ?? "");
+    const matchCat = (activeAbbrCategory === "ALL" || catStr === activeAbbrCategory);
     if (!matchCat) return false;
-
     if (!query) return true;
-    return (
-      item.abbr.toLowerCase().includes(query) ||
-      item.full.toLowerCase().includes(query) ||
-      item.vi.toLowerCase().includes(query) ||
-      item.desc.toLowerCase().includes(query) ||
-      item.sws.toLowerCase().includes(query)
-    );
+
+    const abbrStr = String(item.abbr ?? "");
+    const termStr = String(item.full ?? item.term ?? "");
+    const viStr = String(item.vi ?? "");
+    const descStr = String(item.desc ?? "");
+    const swsStr = String(item.sws ?? "");
+    const haystackRaw = `${abbrStr}\n${termStr}\n${viStr}\n${descStr}\n${swsStr}\n${catStr}`.toLowerCase();
+    if (haystackRaw.includes(query)) return true;
+    return normalizeSearchText(haystackRaw).includes(foldedQuery);
   });
 
   const countBadge = document.getElementById("lblAbbrMatchCount");
@@ -5980,12 +6069,10 @@ function renderAbbreviationTable() {
     <table class="tbl">
       <thead>
         <tr>
-          <th style="width:90px">Thuật Ngữ</th>
-          <th style="width:70px">Nhóm</th>
-          <th style="width:220px">Tên Tiếng Anh Chuẩn (Full Name)</th>
-          <th style="width:190px">Giải Thích Tiếng Việt</th>
-          <th>Mô Tả Chức Năng Chi Tiết &amp; Căn Cứ SWS</th>
-          <th style="width:120px">Mã SWS AUTOSAR</th>
+          <th style="width:155px">Thuật Ngữ</th>
+          <th style="width:85px">Nhóm</th>
+          <th style="width:240px">Tên Tiếng Anh Chuẩn (Full Name)</th>
+          <th>Giải Thích Tiếng Việt &amp; Mô Tả Chức Năng</th>
         </tr>
       </thead>
       <tbody>
@@ -5994,8 +6081,8 @@ function renderAbbreviationTable() {
   if (filtered.length === 0) {
     html += `
       <tr>
-        <td colspan="6" style="text-align:center; padding:24px; color:var(--muted)">
-          Không tìm thấy thuật ngữ nào phù hợp với từ khóa: <b>"${escapeHtml(query)}"</b>
+        <td colspan="4" style="text-align:center; padding:24px; color:var(--muted)">
+          Không tìm thấy thuật ngữ nào phù hợp với từ khóa: <b>"${escapeHtml(rawQuery)}"</b>
         </td>
       </tr>
     `;
@@ -6003,18 +6090,20 @@ function renderAbbreviationTable() {
     filtered.forEach(item => {
       let badgeClass = "badge";
       if (item.cat === "CORE") badgeClass += " ok";
-      else if (item.cat === "CBV") badgeClass += " warn";
-      else if (item.cat === "PN") badgeClass += " info";
-      else badgeClass += " purple";
+      else if (item.cat === "CBV") badgeClass += " amb";
+      else if (item.cat === "PN") badgeClass += " vio";
+      else badgeClass += " indigo";
+
+      const abbrStr = String(item.abbr ?? "");
+      const termStr = String(item.full ?? item.term ?? "");
+      const descParts = [item.vi, item.desc, item.sws].filter(Boolean).join(" — ");
 
       html += `
         <tr>
-          <td><span class="mono" style="font-weight:700; color:var(--accent)">${highlightMatch(item.abbr, query)}</span></td>
-          <td><span class="${badgeClass}" style="font-size:10px">${item.cat}</span></td>
-          <td><b>${highlightMatch(item.full, query)}</b></td>
-          <td style="color:var(--text)">${highlightMatch(item.vi, query)}</td>
-          <td style="color:var(--text); line-height:1.45">${highlightMatch(item.desc, query)}</td>
-          <td><span class="badge mono" style="font-size:10px">${highlightMatch(item.sws, query)}</span></td>
+          <td><span class="mono" style="font-weight:700; color:var(--accent)">${highlightMatch(abbrStr, rawQuery)}</span></td>
+          <td><span class="${badgeClass}" style="font-size:10px">${escapeHtml(String(item.cat ?? ""))}</span></td>
+          <td><b>${highlightMatch(termStr, rawQuery)}</b></td>
+          <td style="color:var(--text); line-height:1.45">${highlightMatch(descParts, rawQuery)}</td>
         </tr>
       `;
     });
@@ -6028,13 +6117,23 @@ function renderAbbreviationTable() {
   contentArea.innerHTML = html;
 }
 
+function clearAbbreviationSearch() {
+  const searchInput = document.getElementById("abbrSearchInput");
+  if (searchInput) {
+    searchInput.value = "";
+    searchInput.focus();
+  }
+  renderAbbreviationTable();
+}
+
 function setAbbrCategoryFilter(cat) {
   activeAbbrCategory = cat;
   const buttons = document.querySelectorAll("#hbAbbrFilterBox button");
   buttons.forEach(b => {
-    if (b.getAttribute("onclick") && b.getAttribute("onclick").includes(`'${cat}'`)) {
+    const oc = b.getAttribute("onclick") || "";
+    if (oc.includes(`setAbbrCategoryFilter('${cat}')`)) {
       b.classList.add("active");
-    } else {
+    } else if (oc.includes("setAbbrCategoryFilter(")) {
       b.classList.remove("active");
     }
   });
@@ -6046,10 +6145,20 @@ function filterAbbreviationTable() {
 }
 
 function highlightMatch(text, query) {
-  if (!query || !text) return escapeHtml(text || "");
-  const escapedQuery = escapeRegex(query);
-  const regex = new RegExp(`(${escapedQuery})`, "gi");
-  return escapeHtml(text).replace(regex, "<mark>$1</mark>");
+  const raw = String(text ?? "");
+  if (!query || !raw) return escapeHtml(raw);
+  const regex = new RegExp(escapeRegex(query), "gi");
+  let out = "";
+  let lastIdx = 0;
+  let m;
+  while ((m = regex.exec(raw)) !== null) {
+    if (m[0].length === 0) break;
+    if (m.index > lastIdx) out += escapeHtml(raw.slice(lastIdx, m.index));
+    out += `<mark>${escapeHtml(m[0])}</mark>`;
+    lastIdx = regex.lastIndex;
+  }
+  out += escapeHtml(raw.slice(lastIdx));
+  return out;
 }
 
 function escapeHtml(str) {
@@ -6602,91 +6711,102 @@ function getMultiEcuStateBadge(ecu) {
   return { text: `NETWORK: ${ecu.subState.replace("NM_STATE_", "")}`, cls: "sky" };
 }
 
-function renderMultiTimerBox(label, curVal, maxVal, color) {
-  const safeMax = Math.max(1, maxVal);
-  const pct = Math.min(100, Math.round((curVal / safeMax) * 100));
+function buildMultiTimerBoxSkeleton(idx, key, label) {
   return `
     <div class="timer-card compact" style="margin-bottom:0">
       <div class="timer-h">
-        <span class="mono">${escapeHtml(label)}</span>
-        <span class="mono" style="font-weight:700; color:${color}">${curVal} / ${maxVal} ms</span>
+        <span class="mono" id="multiTimerLbl_${idx}_${key}">${escapeHtml(label)}</span>
+        <span class="mono" id="multiTimerVal_${idx}_${key}" style="font-weight:700">0 / 0 ms</span>
       </div>
-      <div class="timer-track"><div class="timer-bar" style="width:${pct}%; background:${color}"></div></div>
+      <div class="timer-track"><div class="timer-bar" id="multiTimerBar_${idx}_${key}" style="width:0%"></div></div>
     </div>
   `;
 }
 
-function renderMultiEcuCard(ecu, idx) {
-  const stBadge = getMultiEcuStateBadge(ecu);
-  const canIdHex = "0x" + (ecu.cfg.CanNmBaseCanId + ecu.cfg.CanNmNodeId).toString(16).toUpperCase();
-  const cbvHex = "0x" + multiGetCbvByte(ecu).toString(16).toUpperCase().padStart(2, "0");
+function updateMultiTimerBoxDom(idx, key, label, curVal, maxVal, color) {
+  const lblEl = document.getElementById(`multiTimerLbl_${idx}_${key}`);
+  if (lblEl && label && lblEl.textContent !== label) lblEl.textContent = label;
+  const valEl = document.getElementById(`multiTimerVal_${idx}_${key}`);
+  const barEl = document.getElementById(`multiTimerBar_${idx}_${key}`);
+  const nextText = `${curVal} / ${maxVal} ms`;
+  if (valEl) {
+    if (valEl.textContent !== nextText) valEl.textContent = nextText;
+    if (valEl.style.color !== color) valEl.style.color = color;
+  }
+  if (barEl) {
+    const safeMax = Math.max(1, maxVal);
+    const pct = Math.min(100, Math.round((curVal / safeMax) * 100)) + "%";
+    if (barEl.style.width !== pct) barEl.style.width = pct;
+    if (barEl.style.background !== color) barEl.style.background = color;
+  }
+}
 
-  const isBusSleep = ecu.mode === "NM_MODE_BUS_SLEEP";
-  const isPrepSleep = ecu.mode === "NM_MODE_PREPARE_BUS_SLEEP";
-  const isNet = ecu.mode === "NM_MODE_NETWORK";
-  const isRms = isNet && ecu.subState === "NM_STATE_REPEAT_MESSAGE";
-  const isNos = isNet && ecu.subState === "NM_STATE_NORMAL_OPERATION";
-  const isRss = isNet && ecu.subState === "NM_STATE_READY_SLEEP";
+function setMultiTextIfChanged(id, text) {
+  const el = document.getElementById(id);
+  if (el && el.textContent !== text) el.textContent = text;
+}
 
-  const cfgDrawer = ecu.cfgOpen ? `
-    <div class="multi-cfg-drawer">
-      <label>RepeatMsgTime (ms)<input type="number" min="200" step="100" value="${ecu.cfg.CanNmRepeatMessageTime}" onchange="updateMultiEcuCfg(${idx}, 'CanNmRepeatMessageTime', this.value)"></label>
-      <label>TimeoutTime (ms)<input type="number" min="200" step="100" value="${ecu.cfg.CanNmTimeoutTime}" onchange="updateMultiEcuCfg(${idx}, 'CanNmTimeoutTime', this.value)"></label>
-      <label>WaitBusSleep (ms)<input type="number" min="200" step="100" value="${ecu.cfg.CanNmWaitBusSleepTime}" onchange="updateMultiEcuCfg(${idx}, 'CanNmWaitBusSleepTime', this.value)"></label>
-      <label>MsgCycleTime (ms)<input type="number" min="200" step="100" value="${ecu.cfg.CanNmMsgCycleTime}" onchange="updateMultiEcuCfg(${idx}, 'CanNmMsgCycleTime', this.value)"></label>
-      <label>CycleOffset (ms)<input type="number" min="0" step="50" value="${ecu.cfg.CanNmMsgCycleOffset}" onchange="updateMultiEcuCfg(${idx}, 'CanNmMsgCycleOffset', this.value)"></label>
-      <label>Burst Frames<input type="number" min="0" max="10" step="1" value="${ecu.cfg.CanNmImmediateNmTransmissions}" onchange="updateMultiEcuCfg(${idx}, 'CanNmImmediateNmTransmissions', this.value)"></label>
-      <label class="row" style="flex-direction:row; gap:5px; cursor:pointer"><input type="checkbox" ${ecu.cfg.CanNmPassiveModeEnabled ? "checked" : ""} onchange="updateMultiEcuCfg(${idx}, 'CanNmPassiveModeEnabled', this.checked)"> Passive Mode</label>
-      <label class="row" style="flex-direction:row; gap:5px; cursor:pointer"><input type="checkbox" ${ecu.cfg.CanNmImmediateRestartEnabled ? "checked" : ""} onchange="updateMultiEcuCfg(${idx}, 'CanNmImmediateRestartEnabled', this.checked)"> Imm Restart</label>
-      <label class="row" style="flex-direction:row; gap:5px; cursor:pointer"><input type="checkbox" ${ecu.cfg.CanNmNodeDetectionEnabled ? "checked" : ""} onchange="updateMultiEcuCfg(${idx}, 'CanNmNodeDetectionEnabled', this.checked)"> Node Detection</label>
-    </div>
-  ` : "";
+function setMultiClassIfChanged(id, cls) {
+  const el = document.getElementById(id);
+  if (el && el.className !== cls) el.className = cls;
+}
 
+function buildMultiEcuCardSkeleton(ecu, idx) {
   return `
     <div class="panel multi-ecu-panel ${ecu.roleClass}" id="multiEcuCard_${idx}">
       <div class="panel-h">
         <div class="row wrap" style="gap:6px">
-          <span class="panel-t" style="font-size:12px">${escapeHtml(ecu.name)} • ${escapeHtml(ecu.shortRole)}</span>
-          <span class="badge xs">Node 0x${ecu.cfg.CanNmNodeId.toString(16).toUpperCase()} | Tx ${canIdHex}</span>
-          ${ecu.cfg.CanNmPassiveModeEnabled ? `<span class="badge xs vio">PASSIVE</span>` : ""}
-          ${!ecu.commEnabled ? `<span class="badge xs err">TX BLOCKED</span>` : ""}
+          <span class="panel-t" id="multiEcuTitle_${idx}" style="font-size:12px">${escapeHtml(ecu.name)} • ${escapeHtml(ecu.shortRole)}</span>
+          <span class="badge xs" id="multiEcuNodeBadge_${idx}">Node 0x${ecu.cfg.CanNmNodeId.toString(16).toUpperCase()} | Tx 0x${(ecu.cfg.CanNmBaseCanId + ecu.cfg.CanNmNodeId).toString(16).toUpperCase()}</span>
+          <span class="badge xs vio hidden" id="multiFlagPassive_${idx}">PASSIVE</span>
+          <span class="badge xs err hidden" id="multiFlagTxBlocked_${idx}">TX BLOCKED</span>
         </div>
         <div class="row" style="gap:5px">
-          <span class="badge ${stBadge.cls}" id="multiEcuBadge_${idx}">${stBadge.text}</span>
-          <button class="btn xs ${ecu.cfgOpen ? "primary" : ""}" onclick="toggleMultiEcuCfg(${idx})" title="Chỉnh thông số timer / ECUC cho ${escapeHtml(ecu.name)}">⚙</button>
-          <button class="btn xs" onclick="multiEcuAction(${idx}, 'reset')" title="Reset riêng ${escapeHtml(ecu.name)} về BUS-SLEEP">↺</button>
+          <span class="badge ok" id="multiEcuBadge_${idx}">BUS-SLEEP MODE</span>
+          <button class="btn xs" id="btnMultiCfg_${idx}" onclick="toggleMultiEcuCfg(${idx})" title="Chỉnh thông số timer / ECUC cho ${escapeHtml(ecu.name)}">⚙</button>
+          <button class="btn xs" id="btnMultiReset_${idx}" onclick="multiEcuAction(${idx}, 'reset')" title="Reset riêng ${escapeHtml(ecu.name)} về BUS-SLEEP">↺</button>
         </div>
       </div>
 
       <div class="panel-b">
-        <!-- Event Controls for this ECU -->
+        <!-- Event Controls for this ECU (persistent DOM nodes; never recreated on clock ticks) -->
         <div class="multi-ctrl-grid">
-          <button class="btn sm green ${ecu.netRequest ? "multi-btn-on" : ""}" id="btnMultiReq_${idx}" onclick="multiEcuAction(${idx}, 'netReq')" title="CanNm_NetworkRequest()">🟢 Nw Request</button>
-          <button class="btn sm amber ${!ecu.netRequest ? "" : "multi-btn-on"}" id="btnMultiRel_${idx}" onclick="multiEcuAction(${idx}, 'netRel')" title="CanNm_NetworkRelease()">🟡 Release</button>
+          <button class="btn sm green" id="btnMultiReq_${idx}" onclick="multiEcuAction(${idx}, 'netReq')" title="CanNm_NetworkRequest()">🟢 Nw Request</button>
+          <button class="btn sm amber" id="btnMultiRel_${idx}" onclick="multiEcuAction(${idx}, 'netRel')" title="CanNm_NetworkRelease()">🟡 Release</button>
           <button class="btn sm sky" id="btnMultiPas_${idx}" onclick="multiEcuAction(${idx}, 'passive')" title="CanNm_PassiveStartUp()">🔵 PassiveStart</button>
-          <button class="btn sm vio ${ecu.cbv.rmr ? "multi-btn-on" : ""}" id="btnMultiRmr_${idx}" onclick="multiEcuAction(${idx}, 'rmr')" title="CanNm_RepeatMessageRequest() (RMR=1)">🟣 Repeat Msg</button>
-          <button class="btn sm ${ecu.commEnabled ? "" : "red multi-btn-on"}" id="btnMultiComm_${idx}" onclick="multiEcuAction(${idx}, 'toggleComm')" title="CanNm_DisableCommunication / EnableCommunication">${ecu.commEnabled ? "🔇 Dis. Comm" : "🔊 En. Comm"}</button>
+          <button class="btn sm vio" id="btnMultiRmr_${idx}" onclick="multiEcuAction(${idx}, 'rmr')" title="CanNm_RepeatMessageRequest() (RMR=1)">🟣 Repeat Msg</button>
+          <button class="btn sm" id="btnMultiComm_${idx}" onclick="multiEcuAction(${idx}, 'toggleComm')" title="CanNm_DisableCommunication / EnableCommunication">🔇 Dis. Comm</button>
         </div>
 
-        ${cfgDrawer}
+        <div class="multi-cfg-drawer hidden" id="multiCfgDrawer_${idx}">
+          <label>RepeatMsgTime (ms)<input id="multiCfg_${idx}_CanNmRepeatMessageTime" type="number" min="200" step="100" value="${ecu.cfg.CanNmRepeatMessageTime}" onchange="updateMultiEcuCfg(${idx}, 'CanNmRepeatMessageTime', this.value)"></label>
+          <label>TimeoutTime (ms)<input id="multiCfg_${idx}_CanNmTimeoutTime" type="number" min="200" step="100" value="${ecu.cfg.CanNmTimeoutTime}" onchange="updateMultiEcuCfg(${idx}, 'CanNmTimeoutTime', this.value)"></label>
+          <label>WaitBusSleep (ms)<input id="multiCfg_${idx}_CanNmWaitBusSleepTime" type="number" min="200" step="100" value="${ecu.cfg.CanNmWaitBusSleepTime}" onchange="updateMultiEcuCfg(${idx}, 'CanNmWaitBusSleepTime', this.value)"></label>
+          <label>MsgCycleTime (ms)<input id="multiCfg_${idx}_CanNmMsgCycleTime" type="number" min="200" step="100" value="${ecu.cfg.CanNmMsgCycleTime}" onchange="updateMultiEcuCfg(${idx}, 'CanNmMsgCycleTime', this.value)"></label>
+          <label>CycleOffset (ms)<input id="multiCfg_${idx}_CanNmMsgCycleOffset" type="number" min="0" step="50" value="${ecu.cfg.CanNmMsgCycleOffset}" onchange="updateMultiEcuCfg(${idx}, 'CanNmMsgCycleOffset', this.value)"></label>
+          <label>Burst Frames<input id="multiCfg_${idx}_CanNmImmediateNmTransmissions" type="number" min="0" max="10" step="1" value="${ecu.cfg.CanNmImmediateNmTransmissions}" onchange="updateMultiEcuCfg(${idx}, 'CanNmImmediateNmTransmissions', this.value)"></label>
+          <label class="row" style="flex-direction:row; gap:5px; cursor:pointer"><input id="multiCfg_${idx}_CanNmPassiveModeEnabled" type="checkbox" ${ecu.cfg.CanNmPassiveModeEnabled ? "checked" : ""} onchange="updateMultiEcuCfg(${idx}, 'CanNmPassiveModeEnabled', this.checked)"> Passive Mode</label>
+          <label class="row" style="flex-direction:row; gap:5px; cursor:pointer"><input id="multiCfg_${idx}_CanNmImmediateRestartEnabled" type="checkbox" ${ecu.cfg.CanNmImmediateRestartEnabled ? "checked" : ""} onchange="updateMultiEcuCfg(${idx}, 'CanNmImmediateRestartEnabled', this.checked)"> Imm Restart</label>
+          <label class="row" style="flex-direction:row; gap:5px; cursor:pointer"><input id="multiCfg_${idx}_CanNmNodeDetectionEnabled" type="checkbox" ${ecu.cfg.CanNmNodeDetectionEnabled ? "checked" : ""} onchange="updateMultiEcuCfg(${idx}, 'CanNmNodeDetectionEnabled', this.checked)"> Node Detection</label>
+        </div>
 
         <!-- Identical Expanded State Machine Block as Main Tab -->
         <div class="sm-wrap">
-          <div class="sm-node ${isNet ? "active pulse-glow" : ""}">
+          <div class="sm-node" id="multiSmNet_${idx}">
             <div class="sm-mode-head">
               <span style="font-weight:800; font-size:11.5px; color:#38bdf8">3. NETWORK MODE (NM_MODE_NETWORK)</span>
-              <span class="badge xs">NetReq=${ecu.netRequest ? 1 : 0} • CBV=${cbvHex}</span>
+              <span class="badge xs" id="multiSmNetMeta_${idx}">NetReq=0 • CBV=0x00</span>
             </div>
             <div class="sm-subgrid">
-              <div class="sm-subnode ${isRms ? "active" : ""}">
+              <div class="sm-subnode" id="multiSmRms_${idx}">
                 <span class="sm-subtitle">REPEAT_MESSAGE (RMS)</span>
                 <span class="sm-subdesc">RepeatMsgTimer • Burst/RMR</span>
               </div>
-              <div class="sm-subnode ${isNos ? "active" : ""}">
+              <div class="sm-subnode" id="multiSmNos_${idx}">
                 <span class="sm-subtitle">NORMAL_OPERATION (NOS)</span>
                 <span class="sm-subdesc">NetReq=1 • Phát MsgCycle</span>
               </div>
-              <div class="sm-subnode ${isRss ? "active" : ""}">
+              <div class="sm-subnode" id="multiSmRss_${idx}">
                 <span class="sm-subtitle">READY_SLEEP (RSS)</span>
                 <span class="sm-subdesc">NetReq=0 • Đếm Timeout</span>
               </div>
@@ -6704,18 +6824,18 @@ function renderMultiEcuCard(ecu, idx) {
           </div>
 
           <div class="sm-sleep-row">
-            <div class="sm-node ${isBusSleep ? "active pulse-glow" : ""}">
+            <div class="sm-node" id="multiSmSleep_${idx}">
               <div style="font-weight:800; font-size:11px; color:#94a3b8">1. BUS-SLEEP MODE</div>
               <div class="muted small" style="margin-top:2px; font-size:10px">Controller SLEEP, không Tx/Rx.</div>
               <div class="sm-subnode" style="margin-top:5px">Sleep Mode (BUS_SLEEP)</div>
             </div>
 
             <div class="sm-sleep-arrow">
-              <span class="sm-flow-tag err">⬅ 0ms</span>
+              <span class="sm-flow-tag err" id="multiSmWaitArrow_${idx}">⬅ 0ms</span>
               <span class="hint" style="font-size:9px; white-space:nowrap">WaitSleep=0</span>
             </div>
 
-            <div class="sm-node ${isPrepSleep ? "active pulse-glow" : ""}">
+            <div class="sm-node" id="multiSmPrep_${idx}">
               <div style="font-weight:800; font-size:11px; color:#f87171">2. PREPARE BUS-SLEEP</div>
               <div class="muted small" style="margin-top:2px; font-size:10px">Đếm WaitBusSleep, còn nghe bus.</div>
               <div class="sm-subnode" style="margin-top:5px">Prepare Sleep</div>
@@ -6725,29 +6845,127 @@ function renderMultiEcuCard(ecu, idx) {
 
         <!-- Compact Timers Grid -->
         <div class="multi-timers-grid">
-          ${renderMultiTimerBox("RepeatMsgTimer", ecu.timers.repeatMsg, ecu.cfg.CanNmRepeatMessageTime, "#fbbf24")}
-          ${renderMultiTimerBox("NM-TimeoutTimer", ecu.timers.timeout, ecu.cfg.CanNmTimeoutTime, "#38bdf8")}
-          ${renderMultiTimerBox("WaitBusSleepTimer", ecu.timers.waitBusSleep, ecu.cfg.CanNmWaitBusSleepTime, "#f87171")}
-          ${renderMultiTimerBox(
-            ecu.immBurstActive ? `Burst Tx (${ecu.burstLeft} left)` : "MsgCycleTimer",
-            ecu.timers.msgCycle,
-            ecu.immBurstActive ? Math.max(100, ecu.cfg.CanNmImmediateNmCycleTime) : ecu.cfg.CanNmMsgCycleTime,
-            ecu.immBurstActive ? "#c084fc" : "#34d399"
-          )}
+          ${buildMultiTimerBoxSkeleton(idx, "repeat", "RepeatMsgTimer")}
+          ${buildMultiTimerBoxSkeleton(idx, "timeout", "NM-TimeoutTimer")}
+          ${buildMultiTimerBoxSkeleton(idx, "wait", "WaitBusSleepTimer")}
+          ${buildMultiTimerBoxSkeleton(idx, "cycle", "MsgCycleTimer")}
         </div>
 
         <!-- Status Meta Strip -->
         <div class="multi-meta-bar">
-          <span>Wakeup: <b style="color:var(--accent)">${escapeHtml(ecu.wakeupSource)}</b></span>
-          <span>AWB=<b>${ecu.cbv.awb ? 1 : 0}</b> RMR=<b>${ecu.cbv.rmr ? 1 : 0}</b></span>
-          <span class="muted" style="max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">${escapeHtml(ecu.lastActivity)}</span>
+          <span>Wakeup: <b style="color:var(--accent)" id="multiMetaWake_${idx}">None</b></span>
+          <span id="multiMetaCbv_${idx}">AWB=<b>0</b> RMR=<b>0</b></span>
+          <span class="muted" id="multiMetaAct_${idx}" style="max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">Chưa có</span>
         </div>
       </div>
     </div>
   `;
 }
 
-function renderMultiBusBridge() {
+function updateMultiEcuCardDom(ecu, idx) {
+  const stBadge = getMultiEcuStateBadge(ecu);
+  const canIdHex = "0x" + (ecu.cfg.CanNmBaseCanId + ecu.cfg.CanNmNodeId).toString(16).toUpperCase();
+  const cbvHex = "0x" + multiGetCbvByte(ecu).toString(16).toUpperCase().padStart(2, "0");
+
+  const isBusSleep = ecu.mode === "NM_MODE_BUS_SLEEP";
+  const isPrepSleep = ecu.mode === "NM_MODE_PREPARE_BUS_SLEEP";
+  const isNet = ecu.mode === "NM_MODE_NETWORK";
+  const isRms = isNet && ecu.subState === "NM_STATE_REPEAT_MESSAGE";
+  const isNos = isNet && ecu.subState === "NM_STATE_NORMAL_OPERATION";
+  const isRss = isNet && ecu.subState === "NM_STATE_READY_SLEEP";
+
+  setMultiTextIfChanged(`multiEcuNodeBadge_${idx}`, `Node 0x${ecu.cfg.CanNmNodeId.toString(16).toUpperCase()} | Tx ${canIdHex}`);
+  setMultiClassIfChanged(`multiFlagPassive_${idx}`, `badge xs vio${ecu.cfg.CanNmPassiveModeEnabled ? "" : " hidden"}`);
+  setMultiClassIfChanged(`multiFlagTxBlocked_${idx}`, `badge xs err${!ecu.commEnabled ? "" : " hidden"}`);
+  setMultiClassIfChanged(`multiEcuBadge_${idx}`, `badge ${stBadge.cls}`);
+  setMultiTextIfChanged(`multiEcuBadge_${idx}`, stBadge.text);
+  setMultiClassIfChanged(`btnMultiCfg_${idx}`, `btn xs${ecu.cfgOpen ? " primary" : ""}`);
+
+  setMultiClassIfChanged(`btnMultiReq_${idx}`, `btn sm green${ecu.netRequest ? " multi-btn-on" : ""}`);
+  setMultiClassIfChanged(`btnMultiRel_${idx}`, `btn sm amber${!ecu.netRequest && isNet ? " multi-btn-on" : ""}`);
+  setMultiClassIfChanged(`btnMultiRmr_${idx}`, `btn sm vio${ecu.cbv.rmr ? " multi-btn-on" : ""}`);
+  setMultiClassIfChanged(`btnMultiComm_${idx}`, `btn sm${ecu.commEnabled ? "" : " red multi-btn-on"}`);
+  setMultiTextIfChanged(`btnMultiComm_${idx}`, ecu.commEnabled ? "🔇 Dis. Comm" : "🔊 En. Comm");
+
+  setMultiClassIfChanged(`multiCfgDrawer_${idx}`, `multi-cfg-drawer${ecu.cfgOpen ? "" : " hidden"}`);
+  if (ecu.cfgOpen) {
+    ["CanNmRepeatMessageTime", "CanNmTimeoutTime", "CanNmWaitBusSleepTime", "CanNmMsgCycleTime", "CanNmMsgCycleOffset", "CanNmImmediateNmTransmissions"].forEach(k => {
+      const inp = document.getElementById(`multiCfg_${idx}_${k}`);
+      if (inp && document.activeElement !== inp) {
+        const nextVal = String(ecu.cfg[k]);
+        if (inp.value !== nextVal) inp.value = nextVal;
+      }
+    });
+    ["CanNmPassiveModeEnabled", "CanNmImmediateRestartEnabled", "CanNmNodeDetectionEnabled"].forEach(k => {
+      const chk = document.getElementById(`multiCfg_${idx}_${k}`);
+      if (chk && chk.checked !== !!ecu.cfg[k]) chk.checked = !!ecu.cfg[k];
+    });
+  }
+
+  setMultiClassIfChanged(`multiSmNet_${idx}`, `sm-node${isNet ? " active pulse-glow" : ""}`);
+  setMultiTextIfChanged(`multiSmNetMeta_${idx}`, `NetReq=${ecu.netRequest ? 1 : 0} • CBV=${cbvHex}`);
+  setMultiClassIfChanged(`multiSmRms_${idx}`, `sm-subnode${isRms ? " active" : ""}`);
+  setMultiClassIfChanged(`multiSmNos_${idx}`, `sm-subnode${isNos ? " active" : ""}`);
+  setMultiClassIfChanged(`multiSmRss_${idx}`, `sm-subnode${isRss ? " active" : ""}`);
+  setMultiClassIfChanged(`multiSmSleep_${idx}`, `sm-node${isBusSleep ? " active pulse-glow" : ""}`);
+  setMultiClassIfChanged(`multiSmPrep_${idx}`, `sm-node${isPrepSleep ? " active pulse-glow" : ""}`);
+  setMultiTextIfChanged(`multiSmWaitArrow_${idx}`, `⬅ ${isPrepSleep ? ecu.timers.waitBusSleep : 0}ms`);
+
+  updateMultiTimerBoxDom(idx, "repeat", "RepeatMsgTimer", ecu.timers.repeatMsg, ecu.cfg.CanNmRepeatMessageTime, "#fbbf24");
+  updateMultiTimerBoxDom(idx, "timeout", "NM-TimeoutTimer", ecu.timers.timeout, ecu.cfg.CanNmTimeoutTime, "#38bdf8");
+  updateMultiTimerBoxDom(idx, "wait", "WaitBusSleepTimer", ecu.timers.waitBusSleep, ecu.cfg.CanNmWaitBusSleepTime, "#f87171");
+  updateMultiTimerBoxDom(
+    idx,
+    "cycle",
+    ecu.immBurstActive ? `Burst Tx (${ecu.burstLeft} left)` : "MsgCycleTimer",
+    ecu.timers.msgCycle,
+    ecu.immBurstActive ? Math.max(100, ecu.cfg.CanNmImmediateNmCycleTime) : ecu.cfg.CanNmMsgCycleTime,
+    ecu.immBurstActive ? "#c084fc" : "#34d399"
+  );
+
+  setMultiTextIfChanged(`multiMetaWake_${idx}`, ecu.wakeupSource);
+  const cbvSpan = document.getElementById(`multiMetaCbv_${idx}`);
+  const cbvHtml = `AWB=<b>${ecu.cbv.awb ? 1 : 0}</b> RMR=<b>${ecu.cbv.rmr ? 1 : 0}</b>`;
+  if (cbvSpan && cbvSpan.innerHTML !== cbvHtml) cbvSpan.innerHTML = cbvHtml;
+  setMultiTextIfChanged(`multiMetaAct_${idx}`, ecu.lastActivity);
+}
+
+function buildMultiBusBridgeSkeleton() {
+  return `
+    <div class="multi-bus-col">
+      <div class="multi-bus-bridge">
+        <div class="row" style="justify-content:space-between">
+          <span class="panel-t" style="font-size:11px">🚌 VIRTUAL CAN BUS</span>
+          <span class="badge xs" id="multiBusStatus">IDLE</span>
+        </div>
+
+        <div class="multi-bus-wire" id="multiBusWire">
+          <span class="multi-dir-pill" id="multiBusDir">Bus Đang Rỗi (IDLE)</span>
+          <div id="multiBusFrameSlot" style="width:100%">
+            <div class="muted small" style="padding:8px 4px">Chưa có bản tin NM nào trên bus.<br>Hãy bấm <b>Nw Request</b> trên một ECU!</div>
+          </div>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:5px">
+          <div class="multi-stat-row">
+            <span class="muted">ECU đang Network Mode:</span>
+            <span class="mono" id="multiBusNetCount" style="font-weight:800; color:#38bdf8">0 / 2</span>
+          </div>
+          <div class="multi-stat-row">
+            <span class="muted">ECU đang giữ mạng (NetReq):</span>
+            <span class="mono" id="multiBusReqCount" style="font-weight:800; color:#34d399">0 / 2</span>
+          </div>
+          <div class="multi-stat-row">
+            <span class="muted">Điều kiện ngủ chung:</span>
+            <span class="mono" id="multiBusSleepCond" style="font-weight:700; color:#34d399">Sẵn sàng đồng thuận</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function updateMultiBusBridgeDom() {
   const f = multiState.lastFrame;
   const activeEcus = multiState.ecus.slice(0, multiState.ecuCount);
   const netCount = activeEcus.filter(e => e.mode === "NM_MODE_NETWORK").length;
@@ -6762,48 +6980,41 @@ function renderMultiBusBridge() {
     }
   }
 
-  return `
-    <div class="multi-bus-col">
-      <div class="multi-bus-bridge">
-        <div class="row" style="justify-content:space-between">
-          <span class="panel-t" style="font-size:11px">🚌 VIRTUAL CAN BUS</span>
-          <span class="badge xs ${f ? "sky" : ""}">${f ? "ACTIVE" : "IDLE"}</span>
-        </div>
+  setMultiClassIfChanged("multiBusStatus", `badge xs${f ? " sky" : ""}`);
+  setMultiTextIfChanged("multiBusStatus", f ? "ACTIVE" : "IDLE");
+  setMultiClassIfChanged("multiBusWire", `multi-bus-wire${f ? " active-tx" : ""}`);
+  setMultiTextIfChanged("multiBusDir", dirLabel);
 
-        <div class="multi-bus-wire ${f ? "active-tx" : ""}">
-          <span class="multi-dir-pill">${escapeHtml(dirLabel)}</span>
-          ${f ? `
-            <div class="multi-frame-box">
-              <div class="row" style="justify-content:space-between; margin-bottom:3px">
-                <span style="font-weight:800; color:#fbbf24">ID ${escapeHtml(f.canIdHex)}</span>
-                <span class="dim">t=${f.timeMs}ms</span>
-              </div>
-              <div style="font-weight:700; color:var(--text); word-break:break-all; margin-bottom:3px">[${f.hexArr.join(" ")}]</div>
-              <div class="muted" style="font-size:10px">${escapeHtml(f.reason)}</div>
-              <div style="margin-top:3px; color:#38bdf8; font-size:10px">CBV=0x${f.cbvByte.toString(16).toUpperCase().padStart(2, "0")} (AWB=${f.awb ? 1 : 0}, RMR=${f.rmr ? 1 : 0})</div>
-            </div>
-          ` : `
-            <div class="muted small" style="padding:8px 4px">Chưa có bản tin NM nào trên bus.<br>Hãy bấm <b>Nw Request</b> trên một ECU!</div>
-          `}
+  const slot = document.getElementById("multiBusFrameSlot");
+  if (slot) {
+    const fKey = f ? `${f.timeMs}|${f.canIdHex}|${f.hexArr.join(" ")}|${f.reason}|${f.cbvByte}` : "idle";
+    if (slot.dataset.frameKey !== fKey) {
+      slot.dataset.frameKey = fKey;
+      slot.innerHTML = f ? `
+        <div class="multi-frame-box">
+          <div class="row" style="justify-content:space-between; margin-bottom:3px">
+            <span style="font-weight:800; color:#fbbf24">ID ${escapeHtml(f.canIdHex)}</span>
+            <span class="dim">t=${f.timeMs}ms</span>
+          </div>
+          <div style="font-weight:700; color:var(--text); word-break:break-all; margin-bottom:3px">[${f.hexArr.join(" ")}]</div>
+          <div class="muted" style="font-size:10px">${escapeHtml(f.reason)}</div>
+          <div style="margin-top:3px; color:#38bdf8; font-size:10px">CBV=0x${f.cbvByte.toString(16).toUpperCase().padStart(2, "0")} (AWB=${f.awb ? 1 : 0}, RMR=${f.rmr ? 1 : 0})</div>
         </div>
+      ` : `
+        <div class="muted small" style="padding:8px 4px">Chưa có bản tin NM nào trên bus.<br>Hãy bấm <b>Nw Request</b> trên một ECU!</div>
+      `;
+    }
+  }
 
-        <div style="display:flex; flex-direction:column; gap:5px">
-          <div class="multi-stat-row">
-            <span class="muted">ECU đang Network Mode:</span>
-            <span class="mono" style="font-weight:800; color:#38bdf8">${netCount} / ${multiState.ecuCount}</span>
-          </div>
-          <div class="multi-stat-row">
-            <span class="muted">ECU đang giữ mạng (NetReq):</span>
-            <span class="mono" style="font-weight:800; color:#34d399">${reqCount} / ${multiState.ecuCount}</span>
-          </div>
-          <div class="multi-stat-row">
-            <span class="muted">Điều kiện ngủ chung:</span>
-            <span class="mono" style="font-weight:700; color:${reqCount === 0 ? "#34d399" : "#fbbf24"}">${reqCount === 0 ? "Sẵn sàng đồng thuận" : "Chưa (Có ECU giữ)"}</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  `;
+  setMultiTextIfChanged("multiBusNetCount", `${netCount} / ${multiState.ecuCount}`);
+  setMultiTextIfChanged("multiBusReqCount", `${reqCount} / ${multiState.ecuCount}`);
+  const sleepCond = document.getElementById("multiBusSleepCond");
+  if (sleepCond) {
+    const nextTxt = reqCount === 0 ? "Sẵn sàng đồng thuận" : "Chưa (Có ECU giữ)";
+    const nextCol = reqCount === 0 ? "#34d399" : "#fbbf24";
+    if (sleepCond.textContent !== nextTxt) sleepCond.textContent = nextTxt;
+    if (sleepCond.style.color !== nextCol) sleepCond.style.color = nextCol;
+  }
 }
 
 function renderMultiTraceLogs() {
@@ -6821,10 +7032,16 @@ function renderMultiTraceLogs() {
 
   const badge = document.getElementById("multiTraceCountBadge");
   if (badge) {
-    badge.innerText = filterVal === "ALL"
+    const badgeTxt = filterVal === "ALL"
       ? `${allLogs.length} sự kiện`
       : `${filtered.length}/${allLogs.length} sự kiện`;
+    if (badge.innerText !== badgeTxt) badge.innerText = badgeTxt;
   }
+
+  const head = allLogs[0];
+  const renderKey = `${allLogs.length}|${head ? `${head.time}|${head.srcTag}|${head.title}` : "empty"}|${filterVal}`;
+  if (container.dataset.renderKey === renderKey) return;
+  container.dataset.renderKey = renderKey;
 
   if (filtered.length === 0) {
     container.innerHTML = `<p class="muted small" style="padding:12px 6px; text-align:center">Chưa có sự kiện nào trên bus đa ECU. Hãy nhấn nút điều khiển trên ECU #1 / ECU #2 hoặc chọn Kịch bản nhanh ở trên.</p>`;
@@ -6861,33 +7078,63 @@ function clearMultiTraceLogs() {
   renderMultiTraceLogs();
 }
 
+function syncMultiStickyTop() {
+  const hdr = document.querySelector(".hdr");
+  const panel = document.getElementById("multiControlPanel");
+  if (!hdr || !panel) return;
+  const h = Math.ceil(hdr.getBoundingClientRect().height);
+  if (h > 0) {
+    const nextTop = `${h + 6}px`;
+    if (panel.style.getPropertyValue("--multi-sticky-top") !== nextTop) {
+      panel.style.setProperty("--multi-sticky-top", nextTop);
+    }
+  }
+}
+
 function renderMultiEcuView() {
+  syncMultiStickyTop();
   const clk = document.getElementById("lblMultiClock");
-  if (clk) clk.innerText = `t = ${multiState.clockMs} ms`;
+  if (clk) {
+    const nextClk = `t = ${multiState.clockMs} ms`;
+    if (clk.innerText !== nextClk) clk.innerText = nextClk;
+  }
 
   const arena = document.getElementById("multiArena");
   if (!arena) return;
 
-  if (multiState.ecuCount === 2) {
-    arena.className = "multi-arena mode-2";
-    arena.innerHTML =
-      renderMultiEcuCard(multiState.ecus[0], 0) +
-      renderMultiBusBridge() +
-      renderMultiEcuCard(multiState.ecus[1], 1);
-  } else {
-    arena.className = "multi-arena mode-3";
-    arena.innerHTML =
-      renderMultiBusBridge() +
-      renderMultiEcuCard(multiState.ecus[0], 0) +
-      renderMultiEcuCard(multiState.ecus[1], 1) +
-      renderMultiEcuCard(multiState.ecus[2], 2);
+  const modeKey = String(multiState.ecuCount);
+  if (arena.dataset.renderedMode !== modeKey) {
+    arena.dataset.renderedMode = modeKey;
+    if (multiState.ecuCount === 2) {
+      arena.className = "multi-arena mode-2";
+      arena.innerHTML =
+        buildMultiEcuCardSkeleton(multiState.ecus[0], 0) +
+        buildMultiBusBridgeSkeleton() +
+        buildMultiEcuCardSkeleton(multiState.ecus[1], 1);
+    } else {
+      arena.className = "multi-arena mode-3";
+      arena.innerHTML =
+        buildMultiBusBridgeSkeleton() +
+        buildMultiEcuCardSkeleton(multiState.ecus[0], 0) +
+        buildMultiEcuCardSkeleton(multiState.ecus[1], 1) +
+        buildMultiEcuCardSkeleton(multiState.ecus[2], 2);
+    }
   }
 
+  for (let i = 0; i < multiState.ecuCount; i++) {
+    updateMultiEcuCardDom(multiState.ecus[i], i);
+  }
+  updateMultiBusBridgeDom();
   renderMultiTraceLogs();
 }
 
 window.addEventListener("DOMContentLoaded", () => {
   renderMultiEcuView();
+});
+
+window.addEventListener("resize", () => {
+  const mv = document.getElementById("viewMulti");
+  if (mv && !mv.classList.contains("hidden")) syncMultiStickyTop();
 });
 
 </script>

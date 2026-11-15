@@ -529,91 +529,102 @@ function getMultiEcuStateBadge(ecu) {
   return { text: `NETWORK: ${ecu.subState.replace("NM_STATE_", "")}`, cls: "sky" };
 }
 
-function renderMultiTimerBox(label, curVal, maxVal, color) {
-  const safeMax = Math.max(1, maxVal);
-  const pct = Math.min(100, Math.round((curVal / safeMax) * 100));
+function buildMultiTimerBoxSkeleton(idx, key, label) {
   return `
     <div class="timer-card compact" style="margin-bottom:0">
       <div class="timer-h">
-        <span class="mono">${escapeHtml(label)}</span>
-        <span class="mono" style="font-weight:700; color:${color}">${curVal} / ${maxVal} ms</span>
+        <span class="mono" id="multiTimerLbl_${idx}_${key}">${escapeHtml(label)}</span>
+        <span class="mono" id="multiTimerVal_${idx}_${key}" style="font-weight:700">0 / 0 ms</span>
       </div>
-      <div class="timer-track"><div class="timer-bar" style="width:${pct}%; background:${color}"></div></div>
+      <div class="timer-track"><div class="timer-bar" id="multiTimerBar_${idx}_${key}" style="width:0%"></div></div>
     </div>
   `;
 }
 
-function renderMultiEcuCard(ecu, idx) {
-  const stBadge = getMultiEcuStateBadge(ecu);
-  const canIdHex = "0x" + (ecu.cfg.CanNmBaseCanId + ecu.cfg.CanNmNodeId).toString(16).toUpperCase();
-  const cbvHex = "0x" + multiGetCbvByte(ecu).toString(16).toUpperCase().padStart(2, "0");
+function updateMultiTimerBoxDom(idx, key, label, curVal, maxVal, color) {
+  const lblEl = document.getElementById(`multiTimerLbl_${idx}_${key}`);
+  if (lblEl && label && lblEl.textContent !== label) lblEl.textContent = label;
+  const valEl = document.getElementById(`multiTimerVal_${idx}_${key}`);
+  const barEl = document.getElementById(`multiTimerBar_${idx}_${key}`);
+  const nextText = `${curVal} / ${maxVal} ms`;
+  if (valEl) {
+    if (valEl.textContent !== nextText) valEl.textContent = nextText;
+    if (valEl.style.color !== color) valEl.style.color = color;
+  }
+  if (barEl) {
+    const safeMax = Math.max(1, maxVal);
+    const pct = Math.min(100, Math.round((curVal / safeMax) * 100)) + "%";
+    if (barEl.style.width !== pct) barEl.style.width = pct;
+    if (barEl.style.background !== color) barEl.style.background = color;
+  }
+}
 
-  const isBusSleep = ecu.mode === "NM_MODE_BUS_SLEEP";
-  const isPrepSleep = ecu.mode === "NM_MODE_PREPARE_BUS_SLEEP";
-  const isNet = ecu.mode === "NM_MODE_NETWORK";
-  const isRms = isNet && ecu.subState === "NM_STATE_REPEAT_MESSAGE";
-  const isNos = isNet && ecu.subState === "NM_STATE_NORMAL_OPERATION";
-  const isRss = isNet && ecu.subState === "NM_STATE_READY_SLEEP";
+function setMultiTextIfChanged(id, text) {
+  const el = document.getElementById(id);
+  if (el && el.textContent !== text) el.textContent = text;
+}
 
-  const cfgDrawer = ecu.cfgOpen ? `
-    <div class="multi-cfg-drawer">
-      <label>RepeatMsgTime (ms)<input type="number" min="200" step="100" value="${ecu.cfg.CanNmRepeatMessageTime}" onchange="updateMultiEcuCfg(${idx}, 'CanNmRepeatMessageTime', this.value)"></label>
-      <label>TimeoutTime (ms)<input type="number" min="200" step="100" value="${ecu.cfg.CanNmTimeoutTime}" onchange="updateMultiEcuCfg(${idx}, 'CanNmTimeoutTime', this.value)"></label>
-      <label>WaitBusSleep (ms)<input type="number" min="200" step="100" value="${ecu.cfg.CanNmWaitBusSleepTime}" onchange="updateMultiEcuCfg(${idx}, 'CanNmWaitBusSleepTime', this.value)"></label>
-      <label>MsgCycleTime (ms)<input type="number" min="200" step="100" value="${ecu.cfg.CanNmMsgCycleTime}" onchange="updateMultiEcuCfg(${idx}, 'CanNmMsgCycleTime', this.value)"></label>
-      <label>CycleOffset (ms)<input type="number" min="0" step="50" value="${ecu.cfg.CanNmMsgCycleOffset}" onchange="updateMultiEcuCfg(${idx}, 'CanNmMsgCycleOffset', this.value)"></label>
-      <label>Burst Frames<input type="number" min="0" max="10" step="1" value="${ecu.cfg.CanNmImmediateNmTransmissions}" onchange="updateMultiEcuCfg(${idx}, 'CanNmImmediateNmTransmissions', this.value)"></label>
-      <label class="row" style="flex-direction:row; gap:5px; cursor:pointer"><input type="checkbox" ${ecu.cfg.CanNmPassiveModeEnabled ? "checked" : ""} onchange="updateMultiEcuCfg(${idx}, 'CanNmPassiveModeEnabled', this.checked)"> Passive Mode</label>
-      <label class="row" style="flex-direction:row; gap:5px; cursor:pointer"><input type="checkbox" ${ecu.cfg.CanNmImmediateRestartEnabled ? "checked" : ""} onchange="updateMultiEcuCfg(${idx}, 'CanNmImmediateRestartEnabled', this.checked)"> Imm Restart</label>
-      <label class="row" style="flex-direction:row; gap:5px; cursor:pointer"><input type="checkbox" ${ecu.cfg.CanNmNodeDetectionEnabled ? "checked" : ""} onchange="updateMultiEcuCfg(${idx}, 'CanNmNodeDetectionEnabled', this.checked)"> Node Detection</label>
-    </div>
-  ` : "";
+function setMultiClassIfChanged(id, cls) {
+  const el = document.getElementById(id);
+  if (el && el.className !== cls) el.className = cls;
+}
 
+function buildMultiEcuCardSkeleton(ecu, idx) {
   return `
     <div class="panel multi-ecu-panel ${ecu.roleClass}" id="multiEcuCard_${idx}">
       <div class="panel-h">
         <div class="row wrap" style="gap:6px">
-          <span class="panel-t" style="font-size:12px">${escapeHtml(ecu.name)} • ${escapeHtml(ecu.shortRole)}</span>
-          <span class="badge xs">Node 0x${ecu.cfg.CanNmNodeId.toString(16).toUpperCase()} | Tx ${canIdHex}</span>
-          ${ecu.cfg.CanNmPassiveModeEnabled ? `<span class="badge xs vio">PASSIVE</span>` : ""}
-          ${!ecu.commEnabled ? `<span class="badge xs err">TX BLOCKED</span>` : ""}
+          <span class="panel-t" id="multiEcuTitle_${idx}" style="font-size:12px">${escapeHtml(ecu.name)} • ${escapeHtml(ecu.shortRole)}</span>
+          <span class="badge xs" id="multiEcuNodeBadge_${idx}">Node 0x${ecu.cfg.CanNmNodeId.toString(16).toUpperCase()} | Tx 0x${(ecu.cfg.CanNmBaseCanId + ecu.cfg.CanNmNodeId).toString(16).toUpperCase()}</span>
+          <span class="badge xs vio hidden" id="multiFlagPassive_${idx}">PASSIVE</span>
+          <span class="badge xs err hidden" id="multiFlagTxBlocked_${idx}">TX BLOCKED</span>
         </div>
         <div class="row" style="gap:5px">
-          <span class="badge ${stBadge.cls}" id="multiEcuBadge_${idx}">${stBadge.text}</span>
-          <button class="btn xs ${ecu.cfgOpen ? "primary" : ""}" onclick="toggleMultiEcuCfg(${idx})" title="Chỉnh thông số timer / ECUC cho ${escapeHtml(ecu.name)}">⚙</button>
-          <button class="btn xs" onclick="multiEcuAction(${idx}, 'reset')" title="Reset riêng ${escapeHtml(ecu.name)} về BUS-SLEEP">↺</button>
+          <span class="badge ok" id="multiEcuBadge_${idx}">BUS-SLEEP MODE</span>
+          <button class="btn xs" id="btnMultiCfg_${idx}" onclick="toggleMultiEcuCfg(${idx})" title="Chỉnh thông số timer / ECUC cho ${escapeHtml(ecu.name)}">⚙</button>
+          <button class="btn xs" id="btnMultiReset_${idx}" onclick="multiEcuAction(${idx}, 'reset')" title="Reset riêng ${escapeHtml(ecu.name)} về BUS-SLEEP">↺</button>
         </div>
       </div>
 
       <div class="panel-b">
-        <!-- Event Controls for this ECU -->
+        <!-- Event Controls for this ECU (persistent DOM nodes; never recreated on clock ticks) -->
         <div class="multi-ctrl-grid">
-          <button class="btn sm green ${ecu.netRequest ? "multi-btn-on" : ""}" id="btnMultiReq_${idx}" onclick="multiEcuAction(${idx}, 'netReq')" title="CanNm_NetworkRequest()">🟢 Nw Request</button>
-          <button class="btn sm amber ${!ecu.netRequest ? "" : "multi-btn-on"}" id="btnMultiRel_${idx}" onclick="multiEcuAction(${idx}, 'netRel')" title="CanNm_NetworkRelease()">🟡 Release</button>
+          <button class="btn sm green" id="btnMultiReq_${idx}" onclick="multiEcuAction(${idx}, 'netReq')" title="CanNm_NetworkRequest()">🟢 Nw Request</button>
+          <button class="btn sm amber" id="btnMultiRel_${idx}" onclick="multiEcuAction(${idx}, 'netRel')" title="CanNm_NetworkRelease()">🟡 Release</button>
           <button class="btn sm sky" id="btnMultiPas_${idx}" onclick="multiEcuAction(${idx}, 'passive')" title="CanNm_PassiveStartUp()">🔵 PassiveStart</button>
-          <button class="btn sm vio ${ecu.cbv.rmr ? "multi-btn-on" : ""}" id="btnMultiRmr_${idx}" onclick="multiEcuAction(${idx}, 'rmr')" title="CanNm_RepeatMessageRequest() (RMR=1)">🟣 Repeat Msg</button>
-          <button class="btn sm ${ecu.commEnabled ? "" : "red multi-btn-on"}" id="btnMultiComm_${idx}" onclick="multiEcuAction(${idx}, 'toggleComm')" title="CanNm_DisableCommunication / EnableCommunication">${ecu.commEnabled ? "🔇 Dis. Comm" : "🔊 En. Comm"}</button>
+          <button class="btn sm vio" id="btnMultiRmr_${idx}" onclick="multiEcuAction(${idx}, 'rmr')" title="CanNm_RepeatMessageRequest() (RMR=1)">🟣 Repeat Msg</button>
+          <button class="btn sm" id="btnMultiComm_${idx}" onclick="multiEcuAction(${idx}, 'toggleComm')" title="CanNm_DisableCommunication / EnableCommunication">🔇 Dis. Comm</button>
         </div>
 
-        ${cfgDrawer}
+        <div class="multi-cfg-drawer hidden" id="multiCfgDrawer_${idx}">
+          <label>RepeatMsgTime (ms)<input id="multiCfg_${idx}_CanNmRepeatMessageTime" type="number" min="200" step="100" value="${ecu.cfg.CanNmRepeatMessageTime}" onchange="updateMultiEcuCfg(${idx}, 'CanNmRepeatMessageTime', this.value)"></label>
+          <label>TimeoutTime (ms)<input id="multiCfg_${idx}_CanNmTimeoutTime" type="number" min="200" step="100" value="${ecu.cfg.CanNmTimeoutTime}" onchange="updateMultiEcuCfg(${idx}, 'CanNmTimeoutTime', this.value)"></label>
+          <label>WaitBusSleep (ms)<input id="multiCfg_${idx}_CanNmWaitBusSleepTime" type="number" min="200" step="100" value="${ecu.cfg.CanNmWaitBusSleepTime}" onchange="updateMultiEcuCfg(${idx}, 'CanNmWaitBusSleepTime', this.value)"></label>
+          <label>MsgCycleTime (ms)<input id="multiCfg_${idx}_CanNmMsgCycleTime" type="number" min="200" step="100" value="${ecu.cfg.CanNmMsgCycleTime}" onchange="updateMultiEcuCfg(${idx}, 'CanNmMsgCycleTime', this.value)"></label>
+          <label>CycleOffset (ms)<input id="multiCfg_${idx}_CanNmMsgCycleOffset" type="number" min="0" step="50" value="${ecu.cfg.CanNmMsgCycleOffset}" onchange="updateMultiEcuCfg(${idx}, 'CanNmMsgCycleOffset', this.value)"></label>
+          <label>Burst Frames<input id="multiCfg_${idx}_CanNmImmediateNmTransmissions" type="number" min="0" max="10" step="1" value="${ecu.cfg.CanNmImmediateNmTransmissions}" onchange="updateMultiEcuCfg(${idx}, 'CanNmImmediateNmTransmissions', this.value)"></label>
+          <label class="row" style="flex-direction:row; gap:5px; cursor:pointer"><input id="multiCfg_${idx}_CanNmPassiveModeEnabled" type="checkbox" ${ecu.cfg.CanNmPassiveModeEnabled ? "checked" : ""} onchange="updateMultiEcuCfg(${idx}, 'CanNmPassiveModeEnabled', this.checked)"> Passive Mode</label>
+          <label class="row" style="flex-direction:row; gap:5px; cursor:pointer"><input id="multiCfg_${idx}_CanNmImmediateRestartEnabled" type="checkbox" ${ecu.cfg.CanNmImmediateRestartEnabled ? "checked" : ""} onchange="updateMultiEcuCfg(${idx}, 'CanNmImmediateRestartEnabled', this.checked)"> Imm Restart</label>
+          <label class="row" style="flex-direction:row; gap:5px; cursor:pointer"><input id="multiCfg_${idx}_CanNmNodeDetectionEnabled" type="checkbox" ${ecu.cfg.CanNmNodeDetectionEnabled ? "checked" : ""} onchange="updateMultiEcuCfg(${idx}, 'CanNmNodeDetectionEnabled', this.checked)"> Node Detection</label>
+        </div>
 
         <!-- Identical Expanded State Machine Block as Main Tab -->
         <div class="sm-wrap">
-          <div class="sm-node ${isNet ? "active pulse-glow" : ""}">
+          <div class="sm-node" id="multiSmNet_${idx}">
             <div class="sm-mode-head">
               <span style="font-weight:800; font-size:11.5px; color:#38bdf8">3. NETWORK MODE (NM_MODE_NETWORK)</span>
-              <span class="badge xs">NetReq=${ecu.netRequest ? 1 : 0} • CBV=${cbvHex}</span>
+              <span class="badge xs" id="multiSmNetMeta_${idx}">NetReq=0 • CBV=0x00</span>
             </div>
             <div class="sm-subgrid">
-              <div class="sm-subnode ${isRms ? "active" : ""}">
+              <div class="sm-subnode" id="multiSmRms_${idx}">
                 <span class="sm-subtitle">REPEAT_MESSAGE (RMS)</span>
                 <span class="sm-subdesc">RepeatMsgTimer • Burst/RMR</span>
               </div>
-              <div class="sm-subnode ${isNos ? "active" : ""}">
+              <div class="sm-subnode" id="multiSmNos_${idx}">
                 <span class="sm-subtitle">NORMAL_OPERATION (NOS)</span>
                 <span class="sm-subdesc">NetReq=1 • Phát MsgCycle</span>
               </div>
-              <div class="sm-subnode ${isRss ? "active" : ""}">
+              <div class="sm-subnode" id="multiSmRss_${idx}">
                 <span class="sm-subtitle">READY_SLEEP (RSS)</span>
                 <span class="sm-subdesc">NetReq=0 • Đếm Timeout</span>
               </div>
@@ -631,18 +642,18 @@ function renderMultiEcuCard(ecu, idx) {
           </div>
 
           <div class="sm-sleep-row">
-            <div class="sm-node ${isBusSleep ? "active pulse-glow" : ""}">
+            <div class="sm-node" id="multiSmSleep_${idx}">
               <div style="font-weight:800; font-size:11px; color:#94a3b8">1. BUS-SLEEP MODE</div>
               <div class="muted small" style="margin-top:2px; font-size:10px">Controller SLEEP, không Tx/Rx.</div>
               <div class="sm-subnode" style="margin-top:5px">Sleep Mode (BUS_SLEEP)</div>
             </div>
 
             <div class="sm-sleep-arrow">
-              <span class="sm-flow-tag err">⬅ 0ms</span>
+              <span class="sm-flow-tag err" id="multiSmWaitArrow_${idx}">⬅ 0ms</span>
               <span class="hint" style="font-size:9px; white-space:nowrap">WaitSleep=0</span>
             </div>
 
-            <div class="sm-node ${isPrepSleep ? "active pulse-glow" : ""}">
+            <div class="sm-node" id="multiSmPrep_${idx}">
               <div style="font-weight:800; font-size:11px; color:#f87171">2. PREPARE BUS-SLEEP</div>
               <div class="muted small" style="margin-top:2px; font-size:10px">Đếm WaitBusSleep, còn nghe bus.</div>
               <div class="sm-subnode" style="margin-top:5px">Prepare Sleep</div>
@@ -652,29 +663,127 @@ function renderMultiEcuCard(ecu, idx) {
 
         <!-- Compact Timers Grid -->
         <div class="multi-timers-grid">
-          ${renderMultiTimerBox("RepeatMsgTimer", ecu.timers.repeatMsg, ecu.cfg.CanNmRepeatMessageTime, "#fbbf24")}
-          ${renderMultiTimerBox("NM-TimeoutTimer", ecu.timers.timeout, ecu.cfg.CanNmTimeoutTime, "#38bdf8")}
-          ${renderMultiTimerBox("WaitBusSleepTimer", ecu.timers.waitBusSleep, ecu.cfg.CanNmWaitBusSleepTime, "#f87171")}
-          ${renderMultiTimerBox(
-            ecu.immBurstActive ? `Burst Tx (${ecu.burstLeft} left)` : "MsgCycleTimer",
-            ecu.timers.msgCycle,
-            ecu.immBurstActive ? Math.max(100, ecu.cfg.CanNmImmediateNmCycleTime) : ecu.cfg.CanNmMsgCycleTime,
-            ecu.immBurstActive ? "#c084fc" : "#34d399"
-          )}
+          ${buildMultiTimerBoxSkeleton(idx, "repeat", "RepeatMsgTimer")}
+          ${buildMultiTimerBoxSkeleton(idx, "timeout", "NM-TimeoutTimer")}
+          ${buildMultiTimerBoxSkeleton(idx, "wait", "WaitBusSleepTimer")}
+          ${buildMultiTimerBoxSkeleton(idx, "cycle", "MsgCycleTimer")}
         </div>
 
         <!-- Status Meta Strip -->
         <div class="multi-meta-bar">
-          <span>Wakeup: <b style="color:var(--accent)">${escapeHtml(ecu.wakeupSource)}</b></span>
-          <span>AWB=<b>${ecu.cbv.awb ? 1 : 0}</b> RMR=<b>${ecu.cbv.rmr ? 1 : 0}</b></span>
-          <span class="muted" style="max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">${escapeHtml(ecu.lastActivity)}</span>
+          <span>Wakeup: <b style="color:var(--accent)" id="multiMetaWake_${idx}">None</b></span>
+          <span id="multiMetaCbv_${idx}">AWB=<b>0</b> RMR=<b>0</b></span>
+          <span class="muted" id="multiMetaAct_${idx}" style="max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">Chưa có</span>
         </div>
       </div>
     </div>
   `;
 }
 
-function renderMultiBusBridge() {
+function updateMultiEcuCardDom(ecu, idx) {
+  const stBadge = getMultiEcuStateBadge(ecu);
+  const canIdHex = "0x" + (ecu.cfg.CanNmBaseCanId + ecu.cfg.CanNmNodeId).toString(16).toUpperCase();
+  const cbvHex = "0x" + multiGetCbvByte(ecu).toString(16).toUpperCase().padStart(2, "0");
+
+  const isBusSleep = ecu.mode === "NM_MODE_BUS_SLEEP";
+  const isPrepSleep = ecu.mode === "NM_MODE_PREPARE_BUS_SLEEP";
+  const isNet = ecu.mode === "NM_MODE_NETWORK";
+  const isRms = isNet && ecu.subState === "NM_STATE_REPEAT_MESSAGE";
+  const isNos = isNet && ecu.subState === "NM_STATE_NORMAL_OPERATION";
+  const isRss = isNet && ecu.subState === "NM_STATE_READY_SLEEP";
+
+  setMultiTextIfChanged(`multiEcuNodeBadge_${idx}`, `Node 0x${ecu.cfg.CanNmNodeId.toString(16).toUpperCase()} | Tx ${canIdHex}`);
+  setMultiClassIfChanged(`multiFlagPassive_${idx}`, `badge xs vio${ecu.cfg.CanNmPassiveModeEnabled ? "" : " hidden"}`);
+  setMultiClassIfChanged(`multiFlagTxBlocked_${idx}`, `badge xs err${!ecu.commEnabled ? "" : " hidden"}`);
+  setMultiClassIfChanged(`multiEcuBadge_${idx}`, `badge ${stBadge.cls}`);
+  setMultiTextIfChanged(`multiEcuBadge_${idx}`, stBadge.text);
+  setMultiClassIfChanged(`btnMultiCfg_${idx}`, `btn xs${ecu.cfgOpen ? " primary" : ""}`);
+
+  setMultiClassIfChanged(`btnMultiReq_${idx}`, `btn sm green${ecu.netRequest ? " multi-btn-on" : ""}`);
+  setMultiClassIfChanged(`btnMultiRel_${idx}`, `btn sm amber${!ecu.netRequest && isNet ? " multi-btn-on" : ""}`);
+  setMultiClassIfChanged(`btnMultiRmr_${idx}`, `btn sm vio${ecu.cbv.rmr ? " multi-btn-on" : ""}`);
+  setMultiClassIfChanged(`btnMultiComm_${idx}`, `btn sm${ecu.commEnabled ? "" : " red multi-btn-on"}`);
+  setMultiTextIfChanged(`btnMultiComm_${idx}`, ecu.commEnabled ? "🔇 Dis. Comm" : "🔊 En. Comm");
+
+  setMultiClassIfChanged(`multiCfgDrawer_${idx}`, `multi-cfg-drawer${ecu.cfgOpen ? "" : " hidden"}`);
+  if (ecu.cfgOpen) {
+    ["CanNmRepeatMessageTime", "CanNmTimeoutTime", "CanNmWaitBusSleepTime", "CanNmMsgCycleTime", "CanNmMsgCycleOffset", "CanNmImmediateNmTransmissions"].forEach(k => {
+      const inp = document.getElementById(`multiCfg_${idx}_${k}`);
+      if (inp && document.activeElement !== inp) {
+        const nextVal = String(ecu.cfg[k]);
+        if (inp.value !== nextVal) inp.value = nextVal;
+      }
+    });
+    ["CanNmPassiveModeEnabled", "CanNmImmediateRestartEnabled", "CanNmNodeDetectionEnabled"].forEach(k => {
+      const chk = document.getElementById(`multiCfg_${idx}_${k}`);
+      if (chk && chk.checked !== !!ecu.cfg[k]) chk.checked = !!ecu.cfg[k];
+    });
+  }
+
+  setMultiClassIfChanged(`multiSmNet_${idx}`, `sm-node${isNet ? " active pulse-glow" : ""}`);
+  setMultiTextIfChanged(`multiSmNetMeta_${idx}`, `NetReq=${ecu.netRequest ? 1 : 0} • CBV=${cbvHex}`);
+  setMultiClassIfChanged(`multiSmRms_${idx}`, `sm-subnode${isRms ? " active" : ""}`);
+  setMultiClassIfChanged(`multiSmNos_${idx}`, `sm-subnode${isNos ? " active" : ""}`);
+  setMultiClassIfChanged(`multiSmRss_${idx}`, `sm-subnode${isRss ? " active" : ""}`);
+  setMultiClassIfChanged(`multiSmSleep_${idx}`, `sm-node${isBusSleep ? " active pulse-glow" : ""}`);
+  setMultiClassIfChanged(`multiSmPrep_${idx}`, `sm-node${isPrepSleep ? " active pulse-glow" : ""}`);
+  setMultiTextIfChanged(`multiSmWaitArrow_${idx}`, `⬅ ${isPrepSleep ? ecu.timers.waitBusSleep : 0}ms`);
+
+  updateMultiTimerBoxDom(idx, "repeat", "RepeatMsgTimer", ecu.timers.repeatMsg, ecu.cfg.CanNmRepeatMessageTime, "#fbbf24");
+  updateMultiTimerBoxDom(idx, "timeout", "NM-TimeoutTimer", ecu.timers.timeout, ecu.cfg.CanNmTimeoutTime, "#38bdf8");
+  updateMultiTimerBoxDom(idx, "wait", "WaitBusSleepTimer", ecu.timers.waitBusSleep, ecu.cfg.CanNmWaitBusSleepTime, "#f87171");
+  updateMultiTimerBoxDom(
+    idx,
+    "cycle",
+    ecu.immBurstActive ? `Burst Tx (${ecu.burstLeft} left)` : "MsgCycleTimer",
+    ecu.timers.msgCycle,
+    ecu.immBurstActive ? Math.max(100, ecu.cfg.CanNmImmediateNmCycleTime) : ecu.cfg.CanNmMsgCycleTime,
+    ecu.immBurstActive ? "#c084fc" : "#34d399"
+  );
+
+  setMultiTextIfChanged(`multiMetaWake_${idx}`, ecu.wakeupSource);
+  const cbvSpan = document.getElementById(`multiMetaCbv_${idx}`);
+  const cbvHtml = `AWB=<b>${ecu.cbv.awb ? 1 : 0}</b> RMR=<b>${ecu.cbv.rmr ? 1 : 0}</b>`;
+  if (cbvSpan && cbvSpan.innerHTML !== cbvHtml) cbvSpan.innerHTML = cbvHtml;
+  setMultiTextIfChanged(`multiMetaAct_${idx}`, ecu.lastActivity);
+}
+
+function buildMultiBusBridgeSkeleton() {
+  return `
+    <div class="multi-bus-col">
+      <div class="multi-bus-bridge">
+        <div class="row" style="justify-content:space-between">
+          <span class="panel-t" style="font-size:11px">🚌 VIRTUAL CAN BUS</span>
+          <span class="badge xs" id="multiBusStatus">IDLE</span>
+        </div>
+
+        <div class="multi-bus-wire" id="multiBusWire">
+          <span class="multi-dir-pill" id="multiBusDir">Bus Đang Rỗi (IDLE)</span>
+          <div id="multiBusFrameSlot" style="width:100%">
+            <div class="muted small" style="padding:8px 4px">Chưa có bản tin NM nào trên bus.<br>Hãy bấm <b>Nw Request</b> trên một ECU!</div>
+          </div>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:5px">
+          <div class="multi-stat-row">
+            <span class="muted">ECU đang Network Mode:</span>
+            <span class="mono" id="multiBusNetCount" style="font-weight:800; color:#38bdf8">0 / 2</span>
+          </div>
+          <div class="multi-stat-row">
+            <span class="muted">ECU đang giữ mạng (NetReq):</span>
+            <span class="mono" id="multiBusReqCount" style="font-weight:800; color:#34d399">0 / 2</span>
+          </div>
+          <div class="multi-stat-row">
+            <span class="muted">Điều kiện ngủ chung:</span>
+            <span class="mono" id="multiBusSleepCond" style="font-weight:700; color:#34d399">Sẵn sàng đồng thuận</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function updateMultiBusBridgeDom() {
   const f = multiState.lastFrame;
   const activeEcus = multiState.ecus.slice(0, multiState.ecuCount);
   const netCount = activeEcus.filter(e => e.mode === "NM_MODE_NETWORK").length;
@@ -689,48 +798,41 @@ function renderMultiBusBridge() {
     }
   }
 
-  return `
-    <div class="multi-bus-col">
-      <div class="multi-bus-bridge">
-        <div class="row" style="justify-content:space-between">
-          <span class="panel-t" style="font-size:11px">🚌 VIRTUAL CAN BUS</span>
-          <span class="badge xs ${f ? "sky" : ""}">${f ? "ACTIVE" : "IDLE"}</span>
-        </div>
+  setMultiClassIfChanged("multiBusStatus", `badge xs${f ? " sky" : ""}`);
+  setMultiTextIfChanged("multiBusStatus", f ? "ACTIVE" : "IDLE");
+  setMultiClassIfChanged("multiBusWire", `multi-bus-wire${f ? " active-tx" : ""}`);
+  setMultiTextIfChanged("multiBusDir", dirLabel);
 
-        <div class="multi-bus-wire ${f ? "active-tx" : ""}">
-          <span class="multi-dir-pill">${escapeHtml(dirLabel)}</span>
-          ${f ? `
-            <div class="multi-frame-box">
-              <div class="row" style="justify-content:space-between; margin-bottom:3px">
-                <span style="font-weight:800; color:#fbbf24">ID ${escapeHtml(f.canIdHex)}</span>
-                <span class="dim">t=${f.timeMs}ms</span>
-              </div>
-              <div style="font-weight:700; color:var(--text); word-break:break-all; margin-bottom:3px">[${f.hexArr.join(" ")}]</div>
-              <div class="muted" style="font-size:10px">${escapeHtml(f.reason)}</div>
-              <div style="margin-top:3px; color:#38bdf8; font-size:10px">CBV=0x${f.cbvByte.toString(16).toUpperCase().padStart(2, "0")} (AWB=${f.awb ? 1 : 0}, RMR=${f.rmr ? 1 : 0})</div>
-            </div>
-          ` : `
-            <div class="muted small" style="padding:8px 4px">Chưa có bản tin NM nào trên bus.<br>Hãy bấm <b>Nw Request</b> trên một ECU!</div>
-          `}
+  const slot = document.getElementById("multiBusFrameSlot");
+  if (slot) {
+    const fKey = f ? `${f.timeMs}|${f.canIdHex}|${f.hexArr.join(" ")}|${f.reason}|${f.cbvByte}` : "idle";
+    if (slot.dataset.frameKey !== fKey) {
+      slot.dataset.frameKey = fKey;
+      slot.innerHTML = f ? `
+        <div class="multi-frame-box">
+          <div class="row" style="justify-content:space-between; margin-bottom:3px">
+            <span style="font-weight:800; color:#fbbf24">ID ${escapeHtml(f.canIdHex)}</span>
+            <span class="dim">t=${f.timeMs}ms</span>
+          </div>
+          <div style="font-weight:700; color:var(--text); word-break:break-all; margin-bottom:3px">[${f.hexArr.join(" ")}]</div>
+          <div class="muted" style="font-size:10px">${escapeHtml(f.reason)}</div>
+          <div style="margin-top:3px; color:#38bdf8; font-size:10px">CBV=0x${f.cbvByte.toString(16).toUpperCase().padStart(2, "0")} (AWB=${f.awb ? 1 : 0}, RMR=${f.rmr ? 1 : 0})</div>
         </div>
+      ` : `
+        <div class="muted small" style="padding:8px 4px">Chưa có bản tin NM nào trên bus.<br>Hãy bấm <b>Nw Request</b> trên một ECU!</div>
+      `;
+    }
+  }
 
-        <div style="display:flex; flex-direction:column; gap:5px">
-          <div class="multi-stat-row">
-            <span class="muted">ECU đang Network Mode:</span>
-            <span class="mono" style="font-weight:800; color:#38bdf8">${netCount} / ${multiState.ecuCount}</span>
-          </div>
-          <div class="multi-stat-row">
-            <span class="muted">ECU đang giữ mạng (NetReq):</span>
-            <span class="mono" style="font-weight:800; color:#34d399">${reqCount} / ${multiState.ecuCount}</span>
-          </div>
-          <div class="multi-stat-row">
-            <span class="muted">Điều kiện ngủ chung:</span>
-            <span class="mono" style="font-weight:700; color:${reqCount === 0 ? "#34d399" : "#fbbf24"}">${reqCount === 0 ? "Sẵn sàng đồng thuận" : "Chưa (Có ECU giữ)"}</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  `;
+  setMultiTextIfChanged("multiBusNetCount", `${netCount} / ${multiState.ecuCount}`);
+  setMultiTextIfChanged("multiBusReqCount", `${reqCount} / ${multiState.ecuCount}`);
+  const sleepCond = document.getElementById("multiBusSleepCond");
+  if (sleepCond) {
+    const nextTxt = reqCount === 0 ? "Sẵn sàng đồng thuận" : "Chưa (Có ECU giữ)";
+    const nextCol = reqCount === 0 ? "#34d399" : "#fbbf24";
+    if (sleepCond.textContent !== nextTxt) sleepCond.textContent = nextTxt;
+    if (sleepCond.style.color !== nextCol) sleepCond.style.color = nextCol;
+  }
 }
 
 function renderMultiTraceLogs() {
@@ -748,10 +850,16 @@ function renderMultiTraceLogs() {
 
   const badge = document.getElementById("multiTraceCountBadge");
   if (badge) {
-    badge.innerText = filterVal === "ALL"
+    const badgeTxt = filterVal === "ALL"
       ? `${allLogs.length} sự kiện`
       : `${filtered.length}/${allLogs.length} sự kiện`;
+    if (badge.innerText !== badgeTxt) badge.innerText = badgeTxt;
   }
+
+  const head = allLogs[0];
+  const renderKey = `${allLogs.length}|${head ? `${head.time}|${head.srcTag}|${head.title}` : "empty"}|${filterVal}`;
+  if (container.dataset.renderKey === renderKey) return;
+  container.dataset.renderKey = renderKey;
 
   if (filtered.length === 0) {
     container.innerHTML = `<p class="muted small" style="padding:12px 6px; text-align:center">Chưa có sự kiện nào trên bus đa ECU. Hãy nhấn nút điều khiển trên ECU #1 / ECU #2 hoặc chọn Kịch bản nhanh ở trên.</p>`;
@@ -788,31 +896,61 @@ function clearMultiTraceLogs() {
   renderMultiTraceLogs();
 }
 
+function syncMultiStickyTop() {
+  const hdr = document.querySelector(".hdr");
+  const panel = document.getElementById("multiControlPanel");
+  if (!hdr || !panel) return;
+  const h = Math.ceil(hdr.getBoundingClientRect().height);
+  if (h > 0) {
+    const nextTop = `${h + 6}px`;
+    if (panel.style.getPropertyValue("--multi-sticky-top") !== nextTop) {
+      panel.style.setProperty("--multi-sticky-top", nextTop);
+    }
+  }
+}
+
 function renderMultiEcuView() {
+  syncMultiStickyTop();
   const clk = document.getElementById("lblMultiClock");
-  if (clk) clk.innerText = `t = ${multiState.clockMs} ms`;
+  if (clk) {
+    const nextClk = `t = ${multiState.clockMs} ms`;
+    if (clk.innerText !== nextClk) clk.innerText = nextClk;
+  }
 
   const arena = document.getElementById("multiArena");
   if (!arena) return;
 
-  if (multiState.ecuCount === 2) {
-    arena.className = "multi-arena mode-2";
-    arena.innerHTML =
-      renderMultiEcuCard(multiState.ecus[0], 0) +
-      renderMultiBusBridge() +
-      renderMultiEcuCard(multiState.ecus[1], 1);
-  } else {
-    arena.className = "multi-arena mode-3";
-    arena.innerHTML =
-      renderMultiBusBridge() +
-      renderMultiEcuCard(multiState.ecus[0], 0) +
-      renderMultiEcuCard(multiState.ecus[1], 1) +
-      renderMultiEcuCard(multiState.ecus[2], 2);
+  const modeKey = String(multiState.ecuCount);
+  if (arena.dataset.renderedMode !== modeKey) {
+    arena.dataset.renderedMode = modeKey;
+    if (multiState.ecuCount === 2) {
+      arena.className = "multi-arena mode-2";
+      arena.innerHTML =
+        buildMultiEcuCardSkeleton(multiState.ecus[0], 0) +
+        buildMultiBusBridgeSkeleton() +
+        buildMultiEcuCardSkeleton(multiState.ecus[1], 1);
+    } else {
+      arena.className = "multi-arena mode-3";
+      arena.innerHTML =
+        buildMultiBusBridgeSkeleton() +
+        buildMultiEcuCardSkeleton(multiState.ecus[0], 0) +
+        buildMultiEcuCardSkeleton(multiState.ecus[1], 1) +
+        buildMultiEcuCardSkeleton(multiState.ecus[2], 2);
+    }
   }
 
+  for (let i = 0; i < multiState.ecuCount; i++) {
+    updateMultiEcuCardDom(multiState.ecus[i], i);
+  }
+  updateMultiBusBridgeDom();
   renderMultiTraceLogs();
 }
 
 window.addEventListener("DOMContentLoaded", () => {
   renderMultiEcuView();
+});
+
+window.addEventListener("resize", () => {
+  const mv = document.getElementById("viewMulti");
+  if (mv && !mv.classList.contains("hidden")) syncMultiStickyTop();
 });

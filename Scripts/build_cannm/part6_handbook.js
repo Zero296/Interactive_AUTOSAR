@@ -1452,25 +1452,41 @@ function renderHandbookContent() {
 }
 
 // 3. ABBREVIATION TABLE RENDERING & LIVE SEARCH BOX
+function normalizeSearchText(str) {
+  return String(str ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/Đ/g, "D")
+    .toLowerCase();
+}
+
 function renderAbbreviationTable() {
   const contentArea = document.getElementById("hbContentArea");
   if (!contentArea) return;
 
   const searchInput = document.getElementById("abbrSearchInput");
-  const query = searchInput ? searchInput.value.trim().toLowerCase() : "";
+  const rawQuery = searchInput ? searchInput.value.trim() : "";
+  const query = rawQuery.toLowerCase();
+  const foldedQuery = normalizeSearchText(rawQuery);
 
-  let filtered = ABBREVIATIONS_DATA.filter(item => {
-    const matchCat = (activeAbbrCategory === "ALL" || item.cat === activeAbbrCategory);
+  const btnClear = document.getElementById("btnAbbrClear");
+  if (btnClear) btnClear.disabled = (rawQuery.length === 0);
+
+  const filtered = ABBREVIATIONS_DATA.filter(item => {
+    const catStr = String(item.cat ?? "");
+    const matchCat = (activeAbbrCategory === "ALL" || catStr === activeAbbrCategory);
     if (!matchCat) return false;
-
     if (!query) return true;
-    return (
-      item.abbr.toLowerCase().includes(query) ||
-      item.full.toLowerCase().includes(query) ||
-      item.vi.toLowerCase().includes(query) ||
-      item.desc.toLowerCase().includes(query) ||
-      item.sws.toLowerCase().includes(query)
-    );
+
+    const abbrStr = String(item.abbr ?? "");
+    const termStr = String(item.full ?? item.term ?? "");
+    const viStr = String(item.vi ?? "");
+    const descStr = String(item.desc ?? "");
+    const swsStr = String(item.sws ?? "");
+    const haystackRaw = `${abbrStr}\n${termStr}\n${viStr}\n${descStr}\n${swsStr}\n${catStr}`.toLowerCase();
+    if (haystackRaw.includes(query)) return true;
+    return normalizeSearchText(haystackRaw).includes(foldedQuery);
   });
 
   const countBadge = document.getElementById("lblAbbrMatchCount");
@@ -1482,12 +1498,10 @@ function renderAbbreviationTable() {
     <table class="tbl">
       <thead>
         <tr>
-          <th style="width:90px">Thuật Ngữ</th>
-          <th style="width:70px">Nhóm</th>
-          <th style="width:220px">Tên Tiếng Anh Chuẩn (Full Name)</th>
-          <th style="width:190px">Giải Thích Tiếng Việt</th>
-          <th>Mô Tả Chức Năng Chi Tiết &amp; Căn Cứ SWS</th>
-          <th style="width:120px">Mã SWS AUTOSAR</th>
+          <th style="width:155px">Thuật Ngữ</th>
+          <th style="width:85px">Nhóm</th>
+          <th style="width:240px">Tên Tiếng Anh Chuẩn (Full Name)</th>
+          <th>Giải Thích Tiếng Việt &amp; Mô Tả Chức Năng</th>
         </tr>
       </thead>
       <tbody>
@@ -1496,8 +1510,8 @@ function renderAbbreviationTable() {
   if (filtered.length === 0) {
     html += `
       <tr>
-        <td colspan="6" style="text-align:center; padding:24px; color:var(--muted)">
-          Không tìm thấy thuật ngữ nào phù hợp với từ khóa: <b>"${escapeHtml(query)}"</b>
+        <td colspan="4" style="text-align:center; padding:24px; color:var(--muted)">
+          Không tìm thấy thuật ngữ nào phù hợp với từ khóa: <b>"${escapeHtml(rawQuery)}"</b>
         </td>
       </tr>
     `;
@@ -1505,18 +1519,20 @@ function renderAbbreviationTable() {
     filtered.forEach(item => {
       let badgeClass = "badge";
       if (item.cat === "CORE") badgeClass += " ok";
-      else if (item.cat === "CBV") badgeClass += " warn";
-      else if (item.cat === "PN") badgeClass += " info";
-      else badgeClass += " purple";
+      else if (item.cat === "CBV") badgeClass += " amb";
+      else if (item.cat === "PN") badgeClass += " vio";
+      else badgeClass += " indigo";
+
+      const abbrStr = String(item.abbr ?? "");
+      const termStr = String(item.full ?? item.term ?? "");
+      const descParts = [item.vi, item.desc, item.sws].filter(Boolean).join(" — ");
 
       html += `
         <tr>
-          <td><span class="mono" style="font-weight:700; color:var(--accent)">${highlightMatch(item.abbr, query)}</span></td>
-          <td><span class="${badgeClass}" style="font-size:10px">${item.cat}</span></td>
-          <td><b>${highlightMatch(item.full, query)}</b></td>
-          <td style="color:var(--text)">${highlightMatch(item.vi, query)}</td>
-          <td style="color:var(--text); line-height:1.45">${highlightMatch(item.desc, query)}</td>
-          <td><span class="badge mono" style="font-size:10px">${highlightMatch(item.sws, query)}</span></td>
+          <td><span class="mono" style="font-weight:700; color:var(--accent)">${highlightMatch(abbrStr, rawQuery)}</span></td>
+          <td><span class="${badgeClass}" style="font-size:10px">${escapeHtml(String(item.cat ?? ""))}</span></td>
+          <td><b>${highlightMatch(termStr, rawQuery)}</b></td>
+          <td style="color:var(--text); line-height:1.45">${highlightMatch(descParts, rawQuery)}</td>
         </tr>
       `;
     });
@@ -1530,13 +1546,23 @@ function renderAbbreviationTable() {
   contentArea.innerHTML = html;
 }
 
+function clearAbbreviationSearch() {
+  const searchInput = document.getElementById("abbrSearchInput");
+  if (searchInput) {
+    searchInput.value = "";
+    searchInput.focus();
+  }
+  renderAbbreviationTable();
+}
+
 function setAbbrCategoryFilter(cat) {
   activeAbbrCategory = cat;
   const buttons = document.querySelectorAll("#hbAbbrFilterBox button");
   buttons.forEach(b => {
-    if (b.getAttribute("onclick") && b.getAttribute("onclick").includes(`'${cat}'`)) {
+    const oc = b.getAttribute("onclick") || "";
+    if (oc.includes(`setAbbrCategoryFilter('${cat}')`)) {
       b.classList.add("active");
-    } else {
+    } else if (oc.includes("setAbbrCategoryFilter(")) {
       b.classList.remove("active");
     }
   });
@@ -1548,10 +1574,20 @@ function filterAbbreviationTable() {
 }
 
 function highlightMatch(text, query) {
-  if (!query || !text) return escapeHtml(text || "");
-  const escapedQuery = escapeRegex(query);
-  const regex = new RegExp(`(${escapedQuery})`, "gi");
-  return escapeHtml(text).replace(regex, "<mark>$1</mark>");
+  const raw = String(text ?? "");
+  if (!query || !raw) return escapeHtml(raw);
+  const regex = new RegExp(escapeRegex(query), "gi");
+  let out = "";
+  let lastIdx = 0;
+  let m;
+  while ((m = regex.exec(raw)) !== null) {
+    if (m[0].length === 0) break;
+    if (m.index > lastIdx) out += escapeHtml(raw.slice(lastIdx, m.index));
+    out += `<mark>${escapeHtml(m[0])}</mark>`;
+    lastIdx = regex.lastIndex;
+  }
+  out += escapeHtml(raw.slice(lastIdx));
+  return out;
 }
 
 function escapeHtml(str) {
