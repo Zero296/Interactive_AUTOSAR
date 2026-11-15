@@ -1,0 +1,639 @@
+<!-- ================= STICKY UNIFIED HEADER ================= -->
+<header class="hdr">
+  <div class="hdr-row">
+    <div class="brand">
+      <span class="brand-badge">AUTOSAR Classic R23-11</span>
+      <div>
+        <div class="brand-title">TcpIp Interactive Simulator &amp; Technical Handbook</div>
+        <div class="brand-sub">TCP/IP Stack (Mod 170) · Socket/TCP 11-State/UDP · IPv4/IPv6/ARP/AutoIP/DHCP · Zero-Copy DMA · TLS &amp; ONHOLD</div>
+      </div>
+    </div>
+
+    <div class="view-switch" role="tablist">
+      <button id="btnViewSim" class="view-btn active" onclick="switchMainView('sim')">🎛️ Trình Mô Phỏng TcpIp</button>
+      <button id="btnViewHb" class="view-btn" onclick="switchMainView('hb')">📖 Sổ Tay Đa Tầng &amp; Thuật Ngữ</button>
+    </div>
+
+    <div class="hdr-actions">
+      <button class="btn btn-pri" onclick="openExportModal()">📦 Xuất ARXML / Cfg / C</button>
+      <button class="btn btn-ok" onclick="downloadStandaloneHTML()">💾 Tải File .HTML</button>
+      <button id="btnTheme" class="btn" onclick="toggleTheme()">☀️ Light Mode</button>
+    </div>
+  </div>
+
+  <div class="hdr-row">
+    <div class="scen-bar">
+      <label for="scenSelect" style="font-weight:700;font-size:11.5px;color:var(--mut)">Kịch bản:</label>
+      <select id="scenSelect" class="scen-select" onchange="onScenarioSelectChange()">
+        <optgroup label="Nhóm 1: Khởi Động EthSM, Cấp Phát IP, ARP &amp; UDP">
+          <option value="S1">S1: Khởi Động EthSM ➔ RequestComMode(ONLINE) &amp; Cấp Phát IP (Static / AutoIP / DHCP)</option>
+          <option value="S2">S2: Truyền UDP (SOME/IP) Zero-Copy Khi Gặp ARP Cache Miss (PendingQueue ➔ ARP Reply)</option>
+          <option value="S3">S3: Nhận UDP Unicast &amp; Multicast (SOME/IP-SD 224.224.224.245 · IGMP &amp; MAC Filter)</option>
+        </optgroup>
+        <optgroup label="Nhóm 2: TCP 3-Way Handshake, Stream &amp; Đóng FIN/RST">
+          <option value="S4">S4: Bắt Tay TCP 3-Way Handshake (Client Connect &amp; Server Listen ➔ SoAd_TcpAccepted)</option>
+          <option value="S5">S5: Truyền/Nhận TCP Stream Tin Cậy (CopyTxData · Nagle · MSS &amp; TcpIp_TcpReceived)</option>
+          <option value="S6">S6: Đóng Kết Nối TCP: Êm Dịu 4-Way FIN Teardown (TIME_WAIT) vs Hủy Cưỡng Bức RST</option>
+        </optgroup>
+        <optgroup label="Nhóm 3: TCP RTO/Keep-Alive, Phân Mảnh IPv4, ICMP &amp; ChangeParam">
+          <option value="S7">S7: Tự Phục Hồi Mất Gói TCP: Retransmission Timer (RTO), Fast Retransmit &amp; Keep-Alive</option>
+          <option value="S8">S8: Gói Tin Vượt MTU 1500B (UDP 2800B): Phân Mảnh IPv4 (MF/Offset/DF) &amp; Tái Hợp Reassembly</option>
+          <option value="S9">S9: Điều Khiển ICMPv4/v6 (Ping Echo Reply / Port Unreachable) &amp; TcpIp_ChangeParameter()</option>
+        </optgroup>
+        <optgroup label="Nhóm 4: AUTOSAR TLS, Trạng Thái ONHOLD, IdsM &amp; DET/DEM">
+          <option value="S10">S10: Kết Nối Bảo Mật AUTOSAR TLS 1.2/1.3 (DoIP Port 3496 · KeyM X.509 &amp; Csm AEAD)</option>
+          <option value="S11">S11: Mất Đường Truyền PHY Link Tạm Thời: TCPIP_STATE_ONHOLD vs TCPIP_STATE_OFFLINE</option>
+          <option value="S12">S12: Phòng Thủ Tấn Công Mạng (SYN Flood/ARP Spoofing ➔ IdsM), Lỗi Mạng DEM &amp; DET (170)</option>
+        </optgroup>
+      </select>
+
+      <button class="btn btn-sm" onclick="resetCurrentScenario()">⟲ Reset</button>
+      <button id="btnPrevStep" class="btn btn-sm" onclick="prevScenarioStep()" disabled>◀ Lùi</button>
+      <span id="stepIndicator" class="step-pill">Bước 0 / 0</span>
+      <button id="btnNextStep" class="btn btn-sm btn-pri" onclick="nextScenarioStep()">Tiếp ▶</button>
+      <button id="btnAutoPlay" class="btn btn-sm btn-pur" onclick="toggleScenarioAutoPlay()">▶ Tự Chạy</button>
+
+      <div class="clock-box">
+        <span style="font-size:10.5px;color:var(--mut);font-weight:700">Mạng:</span>
+        <span id="clockVal" class="clock-val mono">0 ms</span>
+        <button class="btn btn-sm btn-cyan" onclick="hdrInjectEthRx()" title="Bơm khung Ethernet từ EthIf vào TcpIp_RxIndication()">📥 Inject EthRx</button>
+        <button class="btn btn-sm btn-ok" onclick="hdrTickMainFunction()" title="Chạy +1 chu kỳ TcpIp_MainFunction() cho Timer RTO / TIME_WAIT / ARP / DHCP">⏱️ +1 Tick MainFn</button>
+        <button class="btn btn-sm btn-warn" onclick="hdrTogglePhyLink()" title="Đảo trạng thái EthTrcv PHY Link (UP ↔ DOWN kích hoạt TCPIP_STATE_ONHOLD)">🔌 PHY Link</button>
+        <button class="btn btn-sm btn-err" onclick="hdrInjectSynFlood()" title="Giả lập tấn công SYN Flood kiểm tra SynCookies &amp; IdsM_SetSecurityEvent()">🛡️ SYN Flood</button>
+      </div>
+    </div>
+
+    <div class="hdr-badges">
+      <span id="hdrBadgeCtrl" class="state-badge sb-deact">Ctrl: OFFLINE</span>
+      <span id="hdrBadgeIp" class="state-badge sb-warn">IP: UNASSIGNED</span>
+      <span id="hdrBadgeTcp" class="state-badge sb-cyan">TCP: CLOSED</span>
+      <span id="hdrBadgeArp" class="state-badge sb-ok">ARP: 1 Hit</span>
+    </div>
+  </div>
+</header>
+
+<!-- ================= VIEW 1: INTERACTIVE SIMULATOR (ZERO-SCROLL 3 COLUMNS) ================= -->
+<main id="viewSim" class="workspace">
+
+  <!-- LEFT COLUMN: QUICK ACTIONS + SCENARIO WHAT-IF + 6 ECUC CONFIG TABS -->
+  <aside class="col-left">
+    <!-- CARD 1: QUICK ACTION BAR -->
+    <section class="panel">
+      <div class="panel-hdr">
+        <span class="panel-title">⚡ Điều Khiển API TcpIp Thủ Công (Quick Actions)</span>
+        <span class="panel-sub">SWS_TcpIp R23-11</span>
+      </div>
+      <div class="panel-body">
+        <div class="qa-row">
+          <span style="font-size:10.5px;font-weight:700;color:var(--mut);min-width:44px">Socket:</span>
+          <select id="qaSocketSelect" onchange="onQaTargetChanged('sock')" style="flex:1;background:var(--panel-3);border:1px solid var(--bdr);border-radius:5px;padding:3px 6px;font-size:11px;font-weight:600">
+            <option value="0" selected>Sock_0: TCP DoIP Client/Srv (:49152 ↔ :13400)</option>
+            <option value="1">Sock_1: UDP Unicast SOME/IP (:30490 ↔ .200:30490)</option>
+            <option value="2">Sock_2: UDP Mcast SOME/IP-SD (224.224.224.245:30490)</option>
+            <option value="3">Sock_3: TCP over TLS 1.3 DoIP (:3496 Secure)</option>
+          </select>
+        </div>
+        <div class="qa-row">
+          <span style="font-size:10.5px;font-weight:700;color:var(--mut);min-width:44px">EthRx:</span>
+          <select id="qaRxFrameSelect" onchange="onQaTargetChanged('rx')" style="flex:1;background:var(--panel-3);border:1px solid var(--bdr);border-radius:5px;padding:3px 6px;font-size:11px;font-weight:600">
+            <option value="TCP_SYN_ACK" selected>TCP SYN+ACK (Hoàn tất Handshake Client)</option>
+            <option value="TCP_DATA">TCP Data PSH+ACK (DoIP UDS Payload 64B)</option>
+            <option value="TCP_FIN">TCP FIN+ACK (Remote yêu cầu đóng kết nối)</option>
+            <option value="TCP_RST">TCP RST (Remote hủy kết nối / Refused)</option>
+            <option value="UDP_SOMEIP_SD">UDP Multicast SOME/IP-SD OfferService</option>
+            <option value="ARP_REPLY">ARP Reply (0x0806: Giải quyết ARP Miss)</option>
+            <option value="ICMP_PING">ICMPv4 Echo Request (Ping từ Tester)</option>
+            <option value="ARP_SPOOF">ARP Spoofing Packet (Giả mạo MAC ➔ IdsM)</option>
+          </select>
+        </div>
+        <div class="qa-grid">
+          <button class="qa-btn qa-ok" onclick="qaGetSocketAndBind()">
+            <span>🔌 1. Socket &amp; Bind</span><span class="mono">0x03/05</span>
+          </button>
+          <button class="qa-btn qa-cyan" onclick="qaTcpConnectOrListen()">
+            <span>🤝 2. Connect/Listen</span><span class="mono">0x06/07</span>
+          </button>
+          <button class="qa-btn qa-pri" onclick="qaTcpTransmit()">
+            <span>📤 3. TcpTransmit</span><span class="mono">0x13</span>
+          </button>
+          <button class="qa-btn qa-pur" onclick="qaUdpTransmit()">
+            <span>📨 4. UdpTransmit</span><span class="mono">0x12</span>
+          </button>
+          <button class="qa-btn qa-cyan" onclick="qaRxIndication()">
+            <span>📥 5. RxIndication</span><span class="mono">0x14</span>
+          </button>
+          <button class="qa-btn" onclick="qaTcpReceivedOrChangeParam()">
+            <span>🪟 6. Recvd/ChgPrm</span><span class="mono">0x08/0F</span>
+          </button>
+          <button class="qa-btn qa-warn" onclick="qaCloseSocket()">
+            <span>🔒 7. Close (FIN/RST)</span><span class="mono">0x04</span>
+          </button>
+          <button class="qa-btn qa-err" onclick="qaInjectAction()">
+            <span>⚡ 8. Thực Thi Chế Độ</span><span id="qaTxtFaultKind" class="mono">MODE</span>
+          </button>
+        </div>
+        <div class="qa-row" style="margin-top:6px;margin-bottom:0">
+          <span style="font-size:10.5px;font-weight:700;color:var(--mut)">Chế độ #8:</span>
+          <select id="qaActionMode" onchange="onActionModeChange()" style="flex:1;background:var(--panel-3);border:1px solid var(--bdr);border-radius:5px;padding:2px 6px;font-size:11px;font-weight:600">
+            <option value="CYCLE_COM_MODE">Xoay vòng EthSM Mode (ONLINE ➔ ONHOLD ➔ OFFLINE)</option>
+            <option value="TOGGLE_ARP_MISS">Đảo ARP Cache .200 (HIT ↔ MISS + PendingQueue)</option>
+            <option value="MAIN_FUNCTION_TICK">Chạy 1 Tick TcpIp_MainFunction() (RTO/TIME_WAIT)</option>
+            <option value="SYN_FLOOD_IDSM">Bơm tấn công TCP SYN Flood (SynCookies &amp; IdsM)</option>
+            <option value="DET_FAULT_TEST">Bơm lỗi DET (Invalid SocketId=99 / NULL_PTR)</option>
+            <option value="VER_INFO">Gọi TcpIp_GetVersionInfo() (Module 170 / 0x00AA)</option>
+          </select>
+        </div>
+      </div>
+    </section>
+
+    <!-- CARD 2: CURRENT SCENARIO SUMMARY & 3 WHAT-IF BUTTONS -->
+    <section class="panel">
+      <div class="panel-hdr">
+        <span class="panel-title">🎬 Kịch Bản Đang Chạy &amp; Thử Nghiệm Nhanh</span>
+        <span id="scenIdBadge" class="panel-sub mono">S1</span>
+      </div>
+      <div class="panel-body">
+        <div id="scenSummaryBox" class="scen-desc-box"></div>
+        <div style="font-size:10.5px;font-weight:700;color:var(--pur);margin-bottom:4px">🧪 Thử Nghiệm Nhanh (1-Click What-If):</div>
+        <div id="whatIfContainer" class="whatif-grid"></div>
+      </div>
+    </section>
+
+    <!-- CARD 3: 6-TAB ECUC CONFIG PANEL (36 PARAMETERS + >1S TOOLTIP) -->
+    <section class="panel">
+      <div class="panel-hdr">
+        <span class="panel-title">⚙️ Cấu Hình ECUC TcpIp Stack (Hover &gt;1s Xem SWS)</span>
+        <span class="panel-sub">36 Parameters</span>
+      </div>
+      <div class="cfg-tabs">
+        <button id="cfgTabBtn0" class="cfg-tab active" onclick="switchCfgTab(0)">1. Gen/Ctrl</button>
+        <button id="cfgTabBtn1" class="cfg-tab" onclick="switchCfgTab(1)">2. IP/DHCP</button>
+        <button id="cfgTabBtn2" class="cfg-tab" onclick="switchCfgTab(2)">3. TCP/Tmr</button>
+        <button id="cfgTabBtn3" class="cfg-tab" onclick="switchCfgTab(3)">4. UDP/Sock</button>
+        <button id="cfgTabBtn4" class="cfg-tab" onclick="switchCfgTab(4)">5. ARP/Frag</button>
+        <button id="cfgTabBtn5" class="cfg-tab" onclick="switchCfgTab(5)">6. TLS/IdsM</button>
+      </div>
+
+      <!-- TAB 0: GENERAL & CTRL MODE (6) -->
+      <div id="cfgPane0" class="cfg-pane">
+        <div class="cfg-row" data-cfg-key="TcpIpDevErrorDetect">
+          <label class="cfg-lbl" for="cfg_TcpIpDevErrorDetect"><span class="cfg-i">ⓘ</span><span class="cfg-name">TcpIpDevErrorDetect</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_TcpIpDevErrorDetect" checked onchange="onConfigInputChanged('TcpIpDevErrorDetect')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="TcpIpMainFunctionPeriod">
+          <label class="cfg-lbl" for="cfg_TcpIpMainFunctionPeriod"><span class="cfg-i">ⓘ</span><span class="cfg-name">MainFunctionPeriod</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_TcpIpMainFunctionPeriod" min="1" max="50" value="5" onchange="onConfigInputChanged('TcpIpMainFunctionPeriod')" /><span style="font-size:10px;color:var(--mut)">ms</span></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="TcpIpBufferMemoryPoolZeroCopy">
+          <label class="cfg-lbl" for="cfg_TcpIpBufferMemoryPoolZeroCopy"><span class="cfg-i">ⓘ</span><span class="cfg-name">BufferPoolZeroCopy</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_TcpIpBufferMemoryPoolZeroCopy" checked onchange="onConfigInputChanged('TcpIpBufferMemoryPoolZeroCopy')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="ActiveCtrlState">
+          <label class="cfg-lbl" for="cfg_ActiveCtrlState"><span class="cfg-i">ⓘ</span><span class="cfg-name">ActiveCtrlState</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_ActiveCtrlState" onchange="onConfigInputChanged('ActiveCtrlState')">
+              <option value="TCPIP_STATE_OFFLINE">OFFLINE</option>
+              <option value="TCPIP_STATE_STARTUP">STARTUP</option>
+              <option value="TCPIP_STATE_ONLINE" selected>ONLINE</option>
+              <option value="TCPIP_STATE_ONHOLD">ONHOLD</option>
+              <option value="TCPIP_STATE_SHUTDOWN">SHUTDOWN</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="TcpIpCtrlMtu">
+          <label class="cfg-lbl" for="cfg_TcpIpCtrlMtu"><span class="cfg-i">ⓘ</span><span class="cfg-name">TcpIpCtrlMtu</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_TcpIpCtrlMtu" min="256" max="9000" value="1500" onchange="onConfigInputChanged('TcpIpCtrlMtu')" /><span style="font-size:10px;color:var(--mut)">B</span></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="TcpIpCtrlFramePrioDefault">
+          <label class="cfg-lbl" for="cfg_TcpIpCtrlFramePrioDefault"><span class="cfg-i">ⓘ</span><span class="cfg-name">CtrlFramePrioDefault</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_TcpIpCtrlFramePrioDefault" min="0" max="7" value="4" onchange="onConfigInputChanged('TcpIpCtrlFramePrioDefault')" /><span style="font-size:10px;color:var(--mut)">PCP</span></div>
+        </div>
+      </div>
+
+      <!-- TAB 1: LOCALADDR, DHCP & AUTOIP (6) -->
+      <div id="cfgPane1" class="cfg-pane hidden">
+        <div class="cfg-row" data-cfg-key="SelectedLocalAddrId">
+          <label class="cfg-lbl" for="cfg_SelectedLocalAddrId"><span class="cfg-i">ⓘ</span><span class="cfg-name">SelectedLocalAddrId</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_SelectedLocalAddrId" onchange="onConfigInputChanged('SelectedLocalAddrId')">
+              <option value="0" selected>0: IPv4 Unicast VLAN10</option>
+              <option value="1">1: IPv4 Multicast SD</option>
+              <option value="2">2: IPv6 Link-Local fe80</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="TcpIpAssignmentMethod">
+          <label class="cfg-lbl" for="cfg_TcpIpAssignmentMethod"><span class="cfg-i">ⓘ</span><span class="cfg-name">AssignmentMethod</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_TcpIpAssignmentMethod" onchange="onConfigInputChanged('TcpIpAssignmentMethod')">
+              <option value="TCPIP_IPADDR_ASSIGNMENT_STATIC" selected>STATIC (IPv4 Tĩnh)</option>
+              <option value="TCPIP_IPADDR_ASSIGNMENT_LINKLOCAL_DOIP">LINKLOCAL_DOIP (AutoIP)</option>
+              <option value="TCPIP_IPADDR_ASSIGNMENT_DHCP">DHCPv4 (DORA)</option>
+              <option value="TCPIP_IPADDR_ASSIGNMENT_IPV6_ROUTER">IPV6_ROUTER (NDP RA)</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="TcpIpAssignmentTrigger">
+          <label class="cfg-lbl" for="cfg_TcpIpAssignmentTrigger"><span class="cfg-i">ⓘ</span><span class="cfg-name">AssignmentTrigger</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_TcpIpAssignmentTrigger" onchange="onConfigInputChanged('TcpIpAssignmentTrigger')">
+              <option value="TCPIP_AUTOMATIC" selected>TCPIP_AUTOMATIC</option>
+              <option value="TCPIP_MANUAL">TCPIP_MANUAL</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="TcpIpStaticIpAddress">
+          <label class="cfg-lbl" for="cfg_TcpIpStaticIpAddress"><span class="cfg-i">ⓘ</span><span class="cfg-name">TcpIpStaticIpAddress</span></label>
+          <div class="cfg-ctrl"><input type="text" id="cfg_TcpIpStaticIpAddress" class="mono" value="192.168.10.50/24" style="width:128px" onchange="onConfigInputChanged('TcpIpStaticIpAddress')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="TcpIpAutoIpInitTimeoutMs">
+          <label class="cfg-lbl" for="cfg_TcpIpAutoIpInitTimeoutMs"><span class="cfg-i">ⓘ</span><span class="cfg-name">AutoIpInitTimeout</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_TcpIpAutoIpInitTimeoutMs" min="100" max="5000" value="1000" onchange="onConfigInputChanged('TcpIpAutoIpInitTimeoutMs')" /><span style="font-size:10px;color:var(--mut)">ms</span></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="PersistAutoIpArpToNvM">
+          <label class="cfg-lbl" for="cfg_PersistAutoIpArpToNvM"><span class="cfg-i">ⓘ</span><span class="cfg-name">PersistAutoIpArpToNvM</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_PersistAutoIpArpToNvM" checked onchange="onConfigInputChanged('PersistAutoIpArpToNvM')" /></div>
+        </div>
+      </div>
+
+      <!-- TAB 2: TCP CONFIG & TIMERS (6) -->
+      <div id="cfgPane2" class="cfg-pane hidden">
+        <div class="cfg-row" data-cfg-key="TcpIpTcpEnabled">
+          <label class="cfg-lbl" for="cfg_TcpIpTcpEnabled"><span class="cfg-i">ⓘ</span><span class="cfg-name">TcpIpTcpEnabled</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_TcpIpTcpEnabled" checked onchange="onConfigInputChanged('TcpIpTcpEnabled')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="TcpIpTcpMaxRtx">
+          <label class="cfg-lbl" for="cfg_TcpIpTcpMaxRtx"><span class="cfg-i">ⓘ</span><span class="cfg-name">TcpIpTcpMaxRtx</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_TcpIpTcpMaxRtx" min="1" max="12" value="3" onchange="onConfigInputChanged('TcpIpTcpMaxRtx')" /><span style="font-size:10px;color:var(--mut)">lần</span></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="TcpIpTcpRetransmissionTimeoutMs">
+          <label class="cfg-lbl" for="cfg_TcpIpTcpRetransmissionTimeoutMs"><span class="cfg-i">ⓘ</span><span class="cfg-name">TcpRetransTimeout (RTO)</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_TcpIpTcpRetransmissionTimeoutMs" min="50" max="5000" value="200" onchange="onConfigInputChanged('TcpIpTcpRetransmissionTimeoutMs')" /><span style="font-size:10px;color:var(--mut)">ms</span></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="TcpIpTcpNagleEnabled">
+          <label class="cfg-lbl" for="cfg_TcpIpTcpNagleEnabled"><span class="cfg-i">ⓘ</span><span class="cfg-name">TcpIpTcpNagleEnabled</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_TcpIpTcpNagleEnabled" onchange="onConfigInputChanged('TcpIpTcpNagleEnabled')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="TcpIpTcpKeepAliveEnabled">
+          <label class="cfg-lbl" for="cfg_TcpIpTcpKeepAliveEnabled"><span class="cfg-i">ⓘ</span><span class="cfg-name">TcpIpTcpKeepAliveEnabled</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_TcpIpTcpKeepAliveEnabled" checked onchange="onConfigInputChanged('TcpIpTcpKeepAliveEnabled')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="TcpIpTcpReceiveWindowMax">
+          <label class="cfg-lbl" for="cfg_TcpIpTcpReceiveWindowMax"><span class="cfg-i">ⓘ</span><span class="cfg-name">TcpReceiveWindowMax</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_TcpIpTcpReceiveWindowMax" min="512" max="65535" value="4096" onchange="onConfigInputChanged('TcpIpTcpReceiveWindowMax')" /><span style="font-size:10px;color:var(--mut)">B</span></div>
+        </div>
+      </div>
+
+      <!-- TAB 3: UDP, SOCKET & PAYLOAD (6) -->
+      <div id="cfgPane3" class="cfg-pane hidden">
+        <div class="cfg-row" data-cfg-key="SelectedSocketProfile">
+          <label class="cfg-lbl" for="cfg_SelectedSocketProfile"><span class="cfg-i">ⓘ</span><span class="cfg-name">SelectedSocketProfile</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_SelectedSocketProfile" onchange="onConfigInputChanged('SelectedSocketProfile')">
+              <option value="0" selected>Sock_0: TCP DoIP 13400</option>
+              <option value="1">Sock_1: UDP SOME/IP 30490</option>
+              <option value="2">Sock_2: UDP Mcast SD</option>
+              <option value="3">Sock_3: TCP TLS 3496</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="RemoteIpAndPortEndpoint">
+          <label class="cfg-lbl" for="cfg_RemoteIpAndPortEndpoint"><span class="cfg-i">ⓘ</span><span class="cfg-name">RemoteIpAndPort</span></label>
+          <div class="cfg-ctrl"><input type="text" id="cfg_RemoteIpAndPortEndpoint" class="mono" value="192.168.10.100:13400" style="width:142px" onchange="onConfigInputChanged('RemoteIpAndPortEndpoint')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="TxPayloadByteLength">
+          <label class="cfg-lbl" for="cfg_TxPayloadByteLength"><span class="cfg-i">ⓘ</span><span class="cfg-name">TxPayloadByteLength</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_TxPayloadByteLength" min="1" max="8192" value="64" onchange="onConfigInputChanged('TxPayloadByteLength')" /><span style="font-size:10px;color:var(--mut)">B</span></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="ForceCopyTxDataViaSoAd">
+          <label class="cfg-lbl" for="cfg_ForceCopyTxDataViaSoAd"><span class="cfg-i">ⓘ</span><span class="cfg-name">ForceCopyTxDataViaSoAd</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_ForceCopyTxDataViaSoAd" checked onchange="onConfigInputChanged('ForceCopyTxDataViaSoAd')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="TcpCloseAbortWithRst">
+          <label class="cfg-lbl" for="cfg_TcpCloseAbortWithRst"><span class="cfg-i">ⓘ</span><span class="cfg-name">TcpCloseAbortWithRst</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_TcpCloseAbortWithRst" onchange="onConfigInputChanged('TcpCloseAbortWithRst')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="TxRxPayloadPreviewHex">
+          <label class="cfg-lbl" for="cfg_TxRxPayloadPreviewHex"><span class="cfg-i">ⓘ</span><span class="cfg-name">PayloadPreviewHex</span></label>
+          <div class="cfg-ctrl"><input type="text" id="cfg_TxRxPayloadPreviewHex" class="mono" value="02 FD 80 01 00 00 00 08" style="width:136px" onchange="onConfigInputChanged('TxRxPayloadPreviewHex')" /></div>
+        </div>
+      </div>
+
+      <!-- TAB 4: IPV4/IPV6, ARP, FRAG & ICMP (6) -->
+      <div id="cfgPane4" class="cfg-pane hidden">
+        <div class="cfg-row" data-cfg-key="TcpIpArpTableEntryTimeoutSec">
+          <label class="cfg-lbl" for="cfg_TcpIpArpTableEntryTimeoutSec"><span class="cfg-i">ⓘ</span><span class="cfg-name">ArpTableTimeoutSec</span></label>
+          <div class="cfg-ctrl"><input type="number" id="cfg_TcpIpArpTableEntryTimeoutSec" min="5" max="600" value="60" onchange="onConfigInputChanged('TcpIpArpTableEntryTimeoutSec')" /><span style="font-size:10px;color:var(--mut)">s</span></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="SimulateArpCacheMiss">
+          <label class="cfg-lbl" for="cfg_SimulateArpCacheMiss"><span class="cfg-i">ⓘ</span><span class="cfg-name">SimulateArpCacheMiss</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_SimulateArpCacheMiss" onchange="onConfigInputChanged('SimulateArpCacheMiss')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="TcpIpIpReassemblyAndFragEnabled">
+          <label class="cfg-lbl" for="cfg_TcpIpIpReassemblyAndFragEnabled"><span class="cfg-i">ⓘ</span><span class="cfg-name">IpReassemblyAndFrag</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_TcpIpIpReassemblyAndFragEnabled" checked onchange="onConfigInputChanged('TcpIpIpReassemblyAndFragEnabled')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="SetIpDontFragmentFlagDf">
+          <label class="cfg-lbl" for="cfg_SetIpDontFragmentFlagDf"><span class="cfg-i">ⓘ</span><span class="cfg-name">SetIpDontFragment (DF)</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_SetIpDontFragmentFlagDf" checked onchange="onConfigInputChanged('SetIpDontFragmentFlagDf')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="TcpIpIcmpEchoReplyEnabled">
+          <label class="cfg-lbl" for="cfg_TcpIpIcmpEchoReplyEnabled"><span class="cfg-i">ⓘ</span><span class="cfg-name">IcmpEchoReplyEnabled</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_TcpIpIcmpEchoReplyEnabled" checked onchange="onConfigInputChanged('TcpIpIcmpEchoReplyEnabled')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="HwChecksumOffloadEnabled">
+          <label class="cfg-lbl" for="cfg_HwChecksumOffloadEnabled"><span class="cfg-i">ⓘ</span><span class="cfg-name">HwChecksumOffload</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_HwChecksumOffloadEnabled" checked onchange="onConfigInputChanged('HwChecksumOffloadEnabled')" /></div>
+        </div>
+      </div>
+
+      <!-- TAB 5: TLS, IDSM, DEM & DET (6) -->
+      <div id="cfgPane5" class="cfg-pane hidden">
+        <div class="cfg-row" data-cfg-key="TcpIpTlsConnectionEnabled">
+          <label class="cfg-lbl" for="cfg_TcpIpTlsConnectionEnabled"><span class="cfg-i">ⓘ</span><span class="cfg-name">TcpIpTlsConnection</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_TcpIpTlsConnectionEnabled" onchange="onConfigInputChanged('TcpIpTlsConnectionEnabled')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="ChangeParamIdSelector">
+          <label class="cfg-lbl" for="cfg_ChangeParamIdSelector"><span class="cfg-i">ⓘ</span><span class="cfg-name">ChangeParamIdSelector</span></label>
+          <div class="cfg-ctrl">
+            <select id="cfg_ChangeParamIdSelector" onchange="onConfigInputChanged('ChangeParamIdSelector')">
+              <option value="TCPIP_PARAMID_FRAMEPRIO" selected>FRAMEPRIO (VLAN PCP)</option>
+              <option value="TCPIP_PARAMID_TTL">TTL (IP Time-To-Live)</option>
+              <option value="TCPIP_PARAMID_TCP_NAGLE">TCP_NAGLE (Toggle)</option>
+              <option value="TCPIP_PARAMID_TCP_KEEPALIVE">TCP_KEEPALIVE (Toggle)</option>
+              <option value="TCPIP_PARAMID_TLS_CONNECTION_ASSIGNMENT">TLS_CONNECTION_ASSIGN</option>
+            </select>
+          </div>
+        </div>
+        <div class="cfg-row" data-cfg-key="TcpIpSynCookiesEnabled">
+          <label class="cfg-lbl" for="cfg_TcpIpSynCookiesEnabled"><span class="cfg-i">ⓘ</span><span class="cfg-name">TcpIpSynCookiesEnabled</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_TcpIpSynCookiesEnabled" checked onchange="onConfigInputChanged('TcpIpSynCookiesEnabled')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="EnableIdsMSecurityReporting">
+          <label class="cfg-lbl" for="cfg_EnableIdsMSecurityReporting"><span class="cfg-i">ⓘ</span><span class="cfg-name">EnableIdsMSecurity</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_EnableIdsMSecurityReporting" checked onchange="onConfigInputChanged('EnableIdsMSecurityReporting')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="SimulateNetworkFaultForDem">
+          <label class="cfg-lbl" for="cfg_SimulateNetworkFaultForDem"><span class="cfg-i">ⓘ</span><span class="cfg-name">SimulateFaultForDem</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_SimulateNetworkFaultForDem" onchange="onConfigInputChanged('SimulateNetworkFaultForDem')" /></div>
+        </div>
+        <div class="cfg-row" data-cfg-key="PassInvalidSocketOrNullForDet">
+          <label class="cfg-lbl" for="cfg_PassInvalidSocketOrNullForDet"><span class="cfg-i">ⓘ</span><span class="cfg-name">InjectInvalidDetTest</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_PassInvalidSocketOrNullForDet" onchange="onConfigInputChanged('PassInvalidSocketOrNullForDet')" /></div>
+        </div>
+      </div>
+
+      <div id="cfgValidationBox" style="padding:0 10px 8px"></div>
+    </section>
+  </aside>
+
+  <!-- CENTER COLUMN: PACKET HEADER, SOCKET TABLE, ARP CACHE, DUAL 8-BIT, STATE MACHINES, SVG -->
+  <section class="col-center">
+    <!-- PANEL 1: PACKET HEADER ANATOMY, SOCKET TABLE, ARP CACHE & DUAL 8-BIT -->
+    <section class="panel">
+      <div class="panel-hdr">
+        <span class="panel-title">🌐 Giải Phẫu Packet Header, Socket Table, ARP/NDP Cache &amp; 2 Thanh Ghi 8-Bit</span>
+        <div style="display:flex;align-items:center;gap:5px">
+          <button id="btnTogglePhyLink" class="btn btn-sm btn-ok" onclick="togglePhyLinkQuick()" title="Đảo trạng thái EthTrcv PHY Link (UP ↔ DOWN kích hoạt TCPIP_STATE_ONHOLD)">PHY: UP</button>
+          <button id="btnToggleArpMiss" class="btn btn-sm btn-cyan" onclick="toggleArpMissQuick()" title="Đảo trạng thái ARP Cache cho 192.168.10.200 (HIT ↔ MISS)">ARP .200: HIT</button>
+        </div>
+      </div>
+      <div class="panel-body tier-split">
+        <!-- TIER 1A: L2/L3/L4 HEADER STRIP + SOCKET TABLE & ARP/IP ASSIGNMENT -->
+        <div id="pktAnatomyBox" class="pkt-strip"></div>
+        <div class="net-split-grid">
+          <div id="socketTableBox" class="net-card"></div>
+          <div id="arpIpBox" class="net-card"></div>
+        </div>
+
+        <!-- TIER 1B: DUAL 8-BIT REGISTERS -->
+        <div class="reg-grid">
+          <div class="reg-card">
+            <div class="reg-top">
+              <span id="regATitle" class="reg-name">Thanh A: TcpIp_CtrlIpStatusByte (Ctrl/IP/ARP/ZeroCopy/TLS)</span>
+              <span id="regAHex" class="reg-hex mono">0xAC</span>
+            </div>
+            <div id="regABits" class="bit-row"></div>
+          </div>
+
+          <div class="reg-card">
+            <div class="reg-top">
+              <span id="regBTitle" class="reg-name">Thanh B: TcpIp_TcpFlagsByte (IP DF/MF &amp; TCP 6 Flags)</span>
+              <span id="regBHex" class="reg-hex mono">0x80</span>
+            </div>
+            <div id="regBBits" class="bit-row"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PANEL 2: LIVE TIMERS/COUNTERS & DUAL STATE MACHINES -->
+    <section class="panel">
+      <div class="panel-hdr">
+        <span class="panel-title">🚦 Giám Sát Bộ Đếm &amp; 2 Máy Trạng Thái Song Song (`TcpIp_StateType` &amp; `TCP 11-State FSM`)</span>
+        <span id="tcpipPanel2Badge" class="panel-sub mono">Ctrl0: TCPIP_STATE_ONLINE | Sock_0: CLOSED</span>
+      </div>
+      <div class="panel-body">
+        <div id="timersGrid" class="timer-grid"></div>
+        <div class="sm-dual">
+          <div class="sm-box">
+            <div class="sm-title">
+              <span>🎛️ TcpIp_StateType (SWS_TcpIp_00075)</span>
+              <span id="smCtrlLbl" class="mono">TCPIP_STATE_ONLINE</span>
+            </div>
+            <div id="ctrlSmDiagram" class="sm-states"></div>
+          </div>
+
+          <div class="sm-box">
+            <div class="sm-title">
+              <span>🔁 TCP 11-State FSM (RFC 793 / SWS_TcpIp)</span>
+              <span id="smTcpLbl" class="mono">Sock_0: CLOSED</span>
+            </div>
+            <div id="tcpSmDiagram" class="sm-states-grid3"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PANEL 3: INTERACTIVE END-TO-END AUTOMOTIVE ETHERNET STACK SVG -->
+    <section class="panel">
+      <div class="panel-hdr">
+        <span class="panel-title">🏗️ Kiến Trúc Tương Tác End-to-End Automotive Ethernet Stack (AUTOSAR Classic R23-11)</span>
+        <span class="panel-sub">Click bất kỳ Module nào để xem Input / Output &amp; API ở Inspector bên phải</span>
+      </div>
+      <div class="panel-body">
+        <div class="arch-wrap">
+          <svg id="tcpipArchSvg" class="arch-svg" viewBox="0 0 840 426" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <marker id="arrEnd" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                <path d="M 0 1 L 10 5 L 0 9 z" fill="currentColor" />
+              </marker>
+            </defs>
+
+            <!-- ARROWS LAYER -->
+            <path id="arr_swc_rte" class="flow-arrow" d="M 248 41 L 273 41" marker-end="url(#arrEnd)" />
+            <path id="arr_rte_ethsm" class="flow-arrow" d="M 525 41 L 553 41" marker-end="url(#arrEnd)" />
+            <path id="arr_rte_upper" class="flow-arrow" d="M 350 70 L 245 95" marker-end="url(#arrEnd)" />
+            <path id="arr_upper_soad" class="flow-arrow" d="M 338 128 L 368 128" marker-end="url(#arrEnd)" />
+            <path id="arr_soad_tcpip" class="flow-arrow" d="M 465 160 L 465 190" marker-end="url(#arrEnd)" />
+            <path id="arr_tcpip_soad" class="flow-arrow" d="M 510 190 L 510 160" marker-end="url(#arrEnd)" />
+            <path id="arr_ethsm_tcpip" class="flow-arrow" d="M 655 70 C 655 135, 620 175, 578 205" marker-end="url(#arrEnd)" />
+            <path id="arr_tcpip_sec" class="flow-arrow" d="M 565 192 C 600 170, 635 152, 665 142" marker-end="url(#arrEnd)" />
+            <path id="arr_tcpip_diag" class="flow-arrow" d="M 580 227 L 613 227" marker-end="url(#arrEnd)" />
+            <path id="arr_tcpip_ethif" class="flow-arrow" d="M 285 262 L 285 296" marker-end="url(#arrEnd)" />
+            <path id="arr_ethif_tcpip" class="flow-arrow" d="M 335 296 L 335 262" marker-end="url(#arrEnd)" />
+            <path id="arr_ethif_eth" class="flow-arrow" d="M 460 331 L 493 331" marker-end="url(#arrEnd)" />
+            <path id="arr_eth_bus" class="flow-arrow" d="M 655 364 L 655 388" marker-end="url(#arrEnd)" />
+
+            <!-- ROW 1: SWC, RTE/SCHM, ETHSM/COMM -->
+            <g id="node_MOD_SWC" class="mod-node" onclick="selectModule('MOD_SWC')">
+              <rect class="mod-rect" x="18" y="12" width="230" height="58" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="133" y="32" text-anchor="middle" fill="var(--pri)" font-weight="700" font-size="11.5">SWC_SomeIp &amp; SWC_Diag</text>
+              <text id="svgSub_MOD_SWC" x="133" y="47" text-anchor="middle" fill="var(--mut)" font-size="9.5">App Layer | No Direct TcpIp Call</text>
+              <text x="133" y="61" text-anchor="middle" fill="var(--txt-soft)" font-size="9">Rte_Write() / Rte_Call_ComM()</text>
+            </g>
+
+            <g id="node_MOD_RTE" class="mod-node" onclick="selectModule('MOD_RTE')">
+              <rect class="mod-rect" x="275" y="12" width="250" height="58" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="400" y="32" text-anchor="middle" fill="var(--acc)" font-weight="700" font-size="11.5">RTE &amp; SchM ExclusiveArea</text>
+              <text id="svgSub_MOD_RTE" x="400" y="47" text-anchor="middle" fill="var(--mut)" font-size="9.5">Protect SocketTable / ARP vs Rx ISR</text>
+              <text x="400" y="61" text-anchor="middle" fill="var(--txt-soft)" font-size="9">SchM_Enter_TcpIp_EXCLUSIVE_AREA_0</text>
+            </g>
+
+            <g id="node_MOD_ETHSM" class="mod-node" onclick="selectModule('MOD_ETHSM')">
+              <rect class="mod-rect" x="555" y="12" width="265" height="58" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="687" y="32" text-anchor="middle" fill="var(--ok)" font-weight="700" font-size="11.5">EthSM / ComM / BswM</text>
+              <text id="svgSub_MOD_ETHSM" x="687" y="47" text-anchor="middle" fill="var(--mut)" font-size="9.5">Ctrl0: ONLINE | PHY: UP</text>
+              <text x="687" y="61" text-anchor="middle" fill="var(--txt-soft)" font-size="9">TcpIp_RequestComMode / ModeInd</text>
+            </g>
+
+            <!-- ROW 2: UPPER SERVICES, SOAD, CSM/KEYM -->
+            <g id="node_MOD_UPPER" class="mod-node" onclick="selectModule('MOD_UPPER')">
+              <rect class="mod-rect" x="18" y="96" width="320" height="64" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="178" y="116" text-anchor="middle" fill="var(--cyan)" font-weight="800" font-size="11.5">Com / LdCom / Dcm / Sd / DoIP / UdpNm</text>
+              <text id="svgSub_MOD_UPPER" x="178" y="132" text-anchor="middle" fill="var(--mut)" font-size="9.5">PduR · SecOC · ISO 13400 DoIP · SOME/IP-SD</text>
+              <text x="178" y="148" text-anchor="middle" fill="var(--txt-soft)" font-size="9">SoAd_IfTransmit() / SoAd_TpTransmit()</text>
+            </g>
+
+            <g id="node_MOD_SOAD" class="mod-node" onclick="selectModule('MOD_SOAD')">
+              <rect class="mod-rect" x="370" y="96" width="265" height="64" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="502" y="116" text-anchor="middle" fill="var(--pur)" font-weight="800" font-size="11.5">SoAd (Socket Adaptor · SWS_SoAd)</text>
+              <text id="svgSub_MOD_SOAD" x="502" y="132" text-anchor="middle" fill="var(--mut)" font-size="9.5">PduId ↔ SoConId ↔ SocketId | Header</text>
+              <text x="502" y="148" text-anchor="middle" fill="var(--txt-soft)" font-size="9">SoAd_CopyTxData / RxInd / TcpAccepted</text>
+            </g>
+
+            <g id="node_MOD_SEC" class="mod-node" onclick="selectModule('MOD_SEC')">
+              <rect class="mod-rect" x="665" y="96" width="155" height="64" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="742" y="116" text-anchor="middle" fill="var(--warn)" font-weight="700" font-size="11">Csm &amp; KeyM (TLS)</text>
+              <text id="svgSub_MOD_SEC" x="742" y="132" text-anchor="middle" fill="var(--mut)" font-size="9">TLS: OFF (Plaintext)</text>
+              <text x="742" y="148" text-anchor="middle" fill="var(--txt-soft)" font-size="9">X.509 · AEAD Encrypt</text>
+            </g>
+
+            <!-- ROW 3: TCPIP CORE & NVM/DET/DEM/IDSM -->
+            <g id="node_MOD_TCPIP" class="mod-node selected" onclick="selectModule('MOD_TCPIP')">
+              <rect class="mod-rect" x="150" y="192" width="430" height="70" rx="10" fill="var(--pri-bg)" stroke="var(--pri)" stroke-width="2.2"/>
+              <text x="365" y="213" text-anchor="middle" fill="var(--pri)" font-weight="800" font-size="13">TcpIp Core Engine (SWS_TcpIp · Mod 170)</text>
+              <text id="svgSub_MOD_TCPIP1" x="365" y="231" text-anchor="middle" fill="var(--txt)" font-weight="700" font-size="10">IP: 192.168.10.50 | TCP/UDP/IPv4/ARP/ICMP/DHCP/TLS</text>
+              <text id="svgSub_MOD_TCPIP2" x="365" y="248" text-anchor="middle" fill="var(--mut)" font-size="9.5">SockTable[4] · ArpCache · Fragmentation · RTO &amp; Sliding Window</text>
+            </g>
+
+            <g id="node_MOD_DIAG" class="mod-node" onclick="selectModule('MOD_DIAG')">
+              <rect class="mod-rect" x="615" y="192" width="205" height="70" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="717" y="213" text-anchor="middle" fill="var(--err)" font-weight="700" font-size="11.5">NvM · DET · DEM · IdsM</text>
+              <text id="svgSub_MOD_DIAG" x="717" y="231" text-anchor="middle" fill="var(--mut)" font-size="9.5">DET: 0 | DEM: 0 | IdsM: 0</text>
+              <text x="717" y="248" text-anchor="middle" fill="var(--txt-soft)" font-size="9">NvM AutoIP · SynFlood · Mod 170</text>
+            </g>
+
+            <!-- ROW 4: ETHIF & ETH/ETHTRCV -->
+            <g id="node_MOD_ETHIF" class="mod-node" onclick="selectModule('MOD_ETHIF')">
+              <rect class="mod-rect" x="150" y="298" width="310" height="66" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="305" y="318" text-anchor="middle" fill="var(--ok)" font-weight="700" font-size="11.5">EthIf (Zero-Copy DMA · 802.1Q VLAN)</text>
+              <text id="svgSub_MOD_ETHIF1" x="305" y="335" text-anchor="middle" fill="var(--mut)" font-size="9.5">VLAN 10 · PCP: 4 · FrameType: 0x0800</text>
+              <text x="305" y="351" text-anchor="middle" fill="var(--txt-soft)" font-size="9">EthIf_ProvideTxBuffer() / EthIf_Transmit()</text>
+            </g>
+
+            <g id="node_MOD_ETH" class="mod-node" onclick="selectModule('MOD_ETH')">
+              <rect class="mod-rect" x="495" y="298" width="325" height="66" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="657" y="318" text-anchor="middle" fill="var(--cyan)" font-weight="700" font-size="11.5">Eth (MCAL MAC) &amp; EthTrcv (PHY Link)</text>
+              <text id="svgSub_MOD_ETH1" x="657" y="335" text-anchor="middle" fill="var(--mut)" font-size="9.5">PHY: ACTIVE 1000BASE-T1 · HW Csum: ON</text>
+              <text x="657" y="351" text-anchor="middle" fill="var(--txt-soft)" font-size="9">DMA Ring · Eth_RxIrq · EthTrcv_GetLinkState</text>
+            </g>
+
+            <rect x="190" y="390" width="460" height="24" rx="12" fill="var(--panel-3)" stroke="var(--bdr)" stroke-width="1.2"/>
+            <text id="svgBusLineTxt" x="420" y="406" text-anchor="middle" fill="var(--pri)" font-weight="800" font-size="10">Automotive Ethernet Physical Wire (100BASE-T1 / 1000BASE-T1 · MTU 1500B)</text>
+          </svg>
+        </div>
+      </div>
+    </section>
+  </section>
+
+  <!-- RIGHT COLUMN: STICKY 4-TAB INSPECTOR -->
+  <aside class="col-right">
+    <section class="panel insp-panel">
+      <div class="insp-tabs">
+        <button id="inspTabBtn0" class="insp-tab active" onclick="switchInspTab(0)">🔍 Bước Hiện Tại</button>
+        <button id="inspTabBtn1" class="insp-tab" onclick="switchInspTab(1)">🧩 Module</button>
+        <button id="inspTabBtn2" class="insp-tab" onclick="switchInspTab(2)">📄 Code C</button>
+        <button id="inspTabBtn3" class="insp-tab" onclick="switchInspTab(3)">📜 API Trace</button>
+      </div>
+      <div id="inspBody" class="insp-body"></div>
+    </section>
+  </aside>
+</main>
+
+<!-- ================= VIEW 2: MULTI-LEVEL HANDBOOK & ABBREVIATION TABLE ================= -->
+<main id="viewHb" class="hb-wrap hidden">
+  <div class="hb-nav1">
+    <button id="hbTab1_0" class="hb-tab1 active" onclick="switchHbTab1(0)">1. Kiến Trúc Ethernet &amp; SoAd</button>
+    <button id="hbTab1_1" class="hb-tab1" onclick="switchHbTab1(1)">2. Giao Thức TCP &amp; FSM</button>
+    <button id="hbTab1_2" class="hb-tab1" onclick="switchHbTab1(2)">3. UDP, Zero-Copy &amp; VLAN</button>
+    <button id="hbTab1_3" class="hb-tab1" onclick="switchHbTab1(3)">4. IPv4/v6, ARP, DHCP &amp; MTU</button>
+    <button id="hbTab1_4" class="hb-tab1" onclick="switchHbTab1(4)">5. ONHOLD, TLS &amp; Bảo Mật IdsM</button>
+    <button id="hbTab1_5" class="hb-tab1" onclick="switchHbTab1(5)">6. API R23-11, ECUC &amp; Thực Chiến</button>
+    <button id="hbTab1_6" class="hb-tab1" onclick="switchHbTab1(6)">7. Bảng Thuật Ngữ &amp; Search</button>
+  </div>
+
+  <div id="hbNav2" class="hb-nav2"></div>
+
+  <div id="hbAbbrFilterBox" class="abbr-toolbar hidden">
+    <input id="abbrSearchInput" class="abbr-search" type="text" placeholder="🔍 Tìm kiếm thuật ngữ AUTOSAR TcpIp (VD: Socket, SoAd, Zero-Copy, ONHOLD, MSS, RTO, AutoIP, TLS, 170...)" oninput="filterAbbreviationTable()" />
+    <div class="cat-pills">
+      <button id="catPill_ALL" class="cat-pill active" onclick="setAbbrCategory('ALL')">Tất cả (58)</button>
+      <button id="catPill_CORE" class="cat-pill" onclick="setAbbrCategory('CORE')">🌐 Socket, SoAd &amp; Core</button>
+      <button id="catPill_TCP" class="cat-pill" onclick="setAbbrCategory('TCP')">🔁 TCP FSM &amp; Timers</button>
+      <button id="catPill_UDP_IP" class="cat-pill" onclick="setAbbrCategory('UDP_IP')">📡 UDP, IP, ARP &amp; DHCP</button>
+      <button id="catPill_SEC_DMA" class="cat-pill" onclick="setAbbrCategory('SEC_DMA')">⚡ Zero-Copy, VLAN &amp; TLS</button>
+      <button id="catPill_API" class="cat-pill" onclick="setAbbrCategory('API')">📜 APIs, ECUC &amp; DET/DEM</button>
+    </div>
+    <span id="abbrCountBadge" class="step-pill">58 thuật ngữ</span>
+  </div>
+
+  <div id="hbContentArea"></div>
+</main>
+
+<!-- ================= EXPORT ARXML / C / JSON MODAL ================= -->
+<div id="exportModal" class="modal-overlay hidden" onclick="onExportModalBackdrop(event)">
+  <div class="modal-box">
+    <div class="modal-hdr">
+      <strong style="font-size:13.5px;color:var(--pri)">📦 Xuất Cấu Hình TcpIp AUTOSAR (ARXML · TcpIp_Cfg.h · TcpIp_Lcfg.c · JSON)</strong>
+      <button class="btn btn-sm" onclick="closeExportModal()">✖ Đóng</button>
+    </div>
+    <div class="modal-tabs">
+      <button id="expTab0" class="btn btn-sm btn-pri" onclick="switchExportTab(0)">TcpIp.arxml</button>
+      <button id="expTab1" class="btn btn-sm" onclick="switchExportTab(1)">TcpIp_Cfg.h</button>
+      <button id="expTab2" class="btn btn-sm" onclick="switchExportTab(2)">TcpIp_Lcfg.c</button>
+      <button id="expTab3" class="btn btn-sm" onclick="switchExportTab(3)">TcpIp_Config.json</button>
+    </div>
+    <div class="modal-body">
+      <pre id="exportCodeArea" class="code-block"></pre>
+    </div>
+    <div class="modal-ftr">
+      <button class="btn" onclick="copyExportCode()">📋 Copy Clipboard</button>
+      <button class="btn btn-ok" onclick="downloadExportCode()">⬇ Tải File Hiện Tại</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= FLOATING TOOLTIP POPUP (>1S HOVER ON ECUC FIELDS) ================= -->
+<div id="cfgTooltipPopup" role="tooltip"></div>
+<script>

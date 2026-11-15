@@ -1,0 +1,842 @@
+<header class="hdr">
+  <div class="hdr-row-1">
+    <div class="brand-group">
+      <div class="brand-badge">XFRM</div>
+      <div class="brand-text" title="AUTOSAR Xfrm Transformer Stack Simulator — ComXf (#175) • SomeIpXf (#174) • E2EXf (#176) — ASWS R23-11">
+        <span class="brand-title">AUTOSAR Xfrm Simulator</span>
+        <span class="brand-sub">ComXf #175 • SomeIpXf #174 • E2EXf #176 — R23-11</span>
+      </div>
+      <div class="view-tabs" role="tablist">
+        <button id="btnViewSim" class="view-tab active" onclick="switchMainView('sim')">🎛️ Mô phỏng &amp; Cấu hình</button>
+        <button id="btnViewHb" class="view-tab" onclick="switchMainView('hb')">📖 Sổ tay &amp; Thuật ngữ</button>
+      </div>
+    </div>
+
+    <div class="hdr-actions-group">
+      <div class="status-pills">
+        <span id="hdrChainPill" class="st-pill info">CHAIN: COMXF+E2E</span>
+        <span id="hdrRteRetPill" class="st-pill ok">RTE: 0x00 OK</span>
+        <span id="hdrE2eRetPill" class="st-pill ok">E2E: 0x00 VALID</span>
+        <span id="hdrBufPill" class="st-pill purple">IN_PLACE | 0B Shift</span>
+      </div>
+      <button id="btnThemeToggle" class="hdr-btn" onclick="toggleTheme()" title="Chuyển chế độ Sáng / Tối">☀️ Sáng</button>
+      <button class="hdr-btn" onclick="openExportModal()" title="Xuất cấu hình ARXML / Xfrm_Cfg.h / Rte_Xfrm.c / JSON">📦 Xuất</button>
+      <button class="hdr-btn" onclick="downloadStandaloneHTML()" title="Tải xuống bản HTML độc lập">💾 Tải</button>
+    </div>
+  </div>
+
+  <div class="hdr-row-2">
+    <div class="scn-select-wrap">
+      <label class="scn-select-lbl" for="scnSelect">🎬 Kịch bản:</label>
+      <select id="scnSelect" class="scn-select" onchange="loadScenario(this.value)" aria-label="Chọn kịch bản mô phỏng AUTOSAR Xfrm">
+        <optgroup label="Nhóm 1: ComXf (#175) + E2EXf (#176) Trên CAN / COM">
+          <option value="S1">S1. ComXf (#175): Đóng gói Bit, Endianness, FillPattern &amp; SignalGroupArray</option>
+          <option value="S2">S2. Chuỗi ComXf ➔ E2EXf (Profile 05): CRC-16 Tx &amp; Inverse Rx</option>
+          <option value="S3">S3. So sánh Bộ đệm In-Place (HeaderShift Zero-Copy) vs Out-of-Place</option>
+        </optgroup>
+        <optgroup label="Nhóm 2: SomeIpXf (#174) + E2EXf (#176) Trên Ethernet / LdCom">
+          <option value="S4">S4. SomeIpXf (#174): Struct Phức hợp, Dynamic Array, LengthField &amp; Alignment</option>
+          <option value="S5">S5. Mã hóa mở rộng TLV (WireType + DataId) &amp; Tương thích V1 ↔ V2 OTA</option>
+          <option value="S6">S6. Chuỗi SomeIpXf ➔ E2EXf Profile 04 (12B) / Profile 07 (20B, CRC-32/64)</option>
+        </optgroup>
+        <optgroup label="Nhóm 3: Client-Server RPC Qua SomeIpXf &amp; ExtractProtocolHeaderFields">
+          <option value="S7">S7. Client-Server RPC: Rte_Call ➔ REQUEST (0x00) ➔ RESPONSE (0x80) ➔ Rte_Result</option>
+          <option value="S8">S8. SomeIpXf_ExtractProtocolHeaderFields(): Phân luồng REQUEST / RESPONSE / ERROR</option>
+          <option value="S9">S9. Lỗi nghiệp vụ Server (Application Error 0x81) vs Lỗi hạ tầng Transformer</option>
+        </optgroup>
+        <optgroup label="Nhóm 4: Bơm Lỗi E2EXf, SomeIpXf &amp; Hàng Rào Lỗi DET">
+          <option value="S10">S10. Giải phẫu 2-Nibble E2EXf_Inv: REPEATED/WRONGSEQ ➔ Soft 0x8A vs INVALID 0x88</option>
+          <option value="S11">S11. Bơm lỗi CRC (0x30) &amp; SomeIpXf Header (0x87 / 0x88 / 0x89 Abort Chain)</option>
+          <option value="S12">S12. Kiểm thử toàn diện DET (0x01 / 0x04 / Runtime 0x05) &amp; GetVersionInfo()</option>
+        </optgroup>
+      </select>
+    </div>
+
+    <div class="stepper-group">
+      <button id="btnStepPrev" class="step-btn" onclick="prevStep()">◀ Lùi</button>
+      <span id="stepIndicator" class="step-ind">Bước 0/4 (Init)</span>
+      <button id="btnStepNext" class="step-btn" onclick="nextStep()">Tiếp ▶</button>
+      <button id="btnAutoPlay" class="step-btn play" onclick="toggleAutoPlay()">▶ Auto</button>
+      <button class="step-btn" onclick="resetCurrentScenario()">↺ Reset</button>
+    </div>
+  </div>
+</header>
+
+<!-- ==================== VIEW 1: INTERACTIVE SIMULATOR ==================== -->
+<main id="viewSim" class="view-container active">
+  <div class="workspace">
+
+    <!-- LEFT COLUMN: QUICK ACTIONS + WHAT-IFS + 6-TAB ECUC CONFIG (36 PARAMS) -->
+    <section class="col-left">
+
+      <!-- Card 1: Quick Action Bar (Topmost Zero-Scroll Controls) -->
+      <div class="panel">
+        <div class="panel-hdr">
+          <span class="panel-title">⚡ Điều Khiển Sự Kiện Nhanh (SWC / RTE / Bus)</span>
+          <span class="panel-sub">Zero-Scroll</span>
+        </div>
+        <div class="qa-grid">
+          <button class="qa-btn tx" onclick="api_runTxChain()">
+            <span class="qa-btn-t">📤 1. Chạy Tx Chain</span>
+            <span class="qa-btn-s">Serializer ➔ E2EXf ➔ Bus</span>
+          </button>
+          <button class="qa-btn rx" onclick="api_runRxInvChain()">
+            <span class="qa-btn-t">📥 2. Chạy Rx InvChain</span>
+            <span class="qa-btn-s">E2EXf_Inv ➔ Deserializer</span>
+          </button>
+          <button class="qa-btn mode" onclick="api_toggleTransformerFamily()">
+            <span class="qa-btn-t">🔄 3. ComXf ↔ SomeIpXf</span>
+            <span class="qa-btn-s">CAN (COM) ↔ Eth (LdCom)</span>
+          </button>
+          <button class="qa-btn rx" onclick="api_extractProtocolHeader()">
+            <span class="qa-btn-t">🔍 4. ExtractHeader()</span>
+            <span class="qa-btn-s">SWS_SomeIpXf_00171</span>
+          </button>
+          <button class="qa-btn mode" onclick="api_toggleBufferAndEndian()">
+            <span class="qa-btn-t">⚡ 5. InPlace / Endian</span>
+            <span class="qa-btn-s">HeaderShift &amp; ByteOrder</span>
+          </button>
+          <button class="qa-btn tx" onclick="api_toggleTlvAndIncDyn()">
+            <span class="qa-btn-t">🏷️ 6. TLV &amp; +1 DynObj</span>
+            <span class="qa-btn-s">WireType+DataId / Array</span>
+          </button>
+          <button class="qa-btn fault" onclick="api_injectE2eFaultMenu()">
+            <span class="qa-btn-t">💥 7. Bơm Lỗi E2E</span>
+            <span class="qa-btn-s">CRC / Repeat / Jump +5</span>
+          </button>
+          <button class="qa-btn det" onclick="api_injectSomeIpOrDet()">
+            <span class="qa-btn-t">🚨 8. Lỗi SomeIp &amp; DET</span>
+            <span class="qa-btn-s">0x87 / Trunc / NULL_PTR</span>
+          </button>
+        </div>
+        <div class="qa-substrip">
+          <button class="mini-chip danger" onclick="api_injectE2ECrcToggle()">❌ Đảo CRC</button>
+          <button class="mini-chip danger" onclick="api_injectRepeatCounter()">🔁 Lặp Cnt (0x10)</button>
+          <button class="mini-chip danger" onclick="api_injectJumpSeq()">⏭️ Nhảy Seq +5 (0x20)</button>
+          <button class="mini-chip" onclick="api_resetE2eSm()">♻️ Reset E2E SM</button>
+          <button class="mini-chip" onclick="api_callGetVersionInfo()">ℹ️ GetVersionInfo()</button>
+        </div>
+      </div>
+
+      <!-- Card 2: Active Scenario Summary & 3 What-Ifs -->
+      <div class="panel">
+        <div class="panel-hdr">
+          <span class="panel-title">🧪 Kịch Bản &amp; Thử Nghiệm What-If</span>
+          <span id="scnBadgeId" class="panel-sub">S1</span>
+        </div>
+        <div class="scn-summary-box">
+          <div id="scnTitleText" class="scn-summary-title">S1. Tuần tự hóa Struct với ComXf (#175)</div>
+          <div id="scnSummaryText">Đóng gói VehicleSpeed, SteerAngle, Gear theo Big-Endian &amp; ComXfFillPattern qua Com_SendSignalGroupArray().</div>
+        </div>
+        <div id="whatIfContainer" class="whatif-list"></div>
+      </div>
+
+      <!-- Card 3: 6-Tab ECUC Configurator (Exact 36 Params + Tooltip >1s) -->
+      <div class="panel">
+        <div class="panel-hdr">
+          <span class="panel-title">⚙️ Cấu Hình ECUC Xfrm (36 Tham Số)</span>
+          <span class="panel-sub">Hover &gt;1s xem chi tiết</span>
+        </div>
+
+        <div class="cfg-tabs">
+          <button id="cfgTabBtn_0" class="cfg-tab active" onclick="switchCfgTab(0)">1. General</button>
+          <button id="cfgTabBtn_1" class="cfg-tab" onclick="switchCfgTab(1)">2. ComXf</button>
+          <button id="cfgTabBtn_2" class="cfg-tab" onclick="switchCfgTab(2)">3. SomeIpXf</button>
+          <button id="cfgTabBtn_3" class="cfg-tab" onclick="switchCfgTab(3)">4. Dyn/TLV</button>
+          <button id="cfgTabBtn_4" class="cfg-tab" onclick="switchCfgTab(4)">5. E2EXf</button>
+          <button id="cfgTabBtn_5" class="cfg-tab" onclick="switchCfgTab(5)">6. Fault/DET</button>
+        </div>
+
+        <!-- Tab 0: General & Chain -->
+        <div id="cfgPane_0" class="cfg-pane active">
+          <div class="cfg-row" data-cfg-key="XfrmDevErrorDetect">
+            <div class="cfg-label-wrap">
+              <span class="cfg-name">XfrmDevErrorDetect</span>
+              <span class="cfg-hint">Bật kiểm tra DET cho ComXf/SomeIpXf/E2EXf</span>
+            </div>
+            <div class="cfg-ctrl"><input type="checkbox" id="cfg_XfrmDevErrorDetect" onchange="onConfigInputChanged('XfrmDevErrorDetect')" /></div>
+          </div>
+          <div class="cfg-row" data-cfg-key="ActiveTransformerChainPreset">
+            <div class="cfg-label-wrap">
+              <span class="cfg-name">ActiveTransformerChainPreset</span>
+              <span class="cfg-hint">Chuỗi DataTransformation đang kích hoạt</span>
+            </div>
+            <div class="cfg-ctrl">
+              <select id="cfg_ActiveTransformerChainPreset" onchange="onConfigInputChanged('ActiveTransformerChainPreset')">
+                <option value="COMXF_ONLY">COMXF_ONLY</option>
+                <option value="COMXF_E2E_P05">COMXF_E2E_P05</option>
+                <option value="COMXF_E2E_P01">COMXF_E2E_P01</option>
+                <option value="SOMEIPXF_ONLY">SOMEIPXF_ONLY</option>
+                <option value="SOMEIPXF_E2E_P04">SOMEIPXF_E2E_P04</option>
+                <option value="SOMEIPXF_E2E_P07">SOMEIPXF_E2E_P07</option>
+              </select>
+            </div>
+          </div>
+          <div class="cfg-row" data-cfg-key="XfrmBufferComputationMode">
+            <div class="cfg-label-wrap">
+              <span class="cfg-name">XfrmBufferComputationMode</span>
+              <span class="cfg-hint">IN_PLACE (HeaderShift) vs OUT_OF_PLACE</span>
+            </div>
+            <div class="cfg-ctrl">
+              <select id="cfg_XfrmBufferComputationMode" onchange="onConfigInputChanged('XfrmBufferComputationMode')">
+                <option value="IN_PLACE">IN_PLACE</option>
+                <option value="OUT_OF_PLACE">OUT_OF_PLACE</option>
+              </select>
+            </div>
+          </div>
+          <div class="cfg-row" data-cfg-key="XfrmAllocatedRteBufferSize">
+            <div class="cfg-label-wrap">
+              <span class="cfg-name">XfrmAllocatedRteBufferSize</span>
+              <span class="cfg-hint">Dung lượng mảng đệm RTE cấp phát (Bytes)</span>
+            </div>
+            <div class="cfg-ctrl"><input type="number" id="cfg_XfrmAllocatedRteBufferSize" min="4" max="256" onchange="onConfigInputChanged('XfrmAllocatedRteBufferSize')" /></div>
+          </div>
+          <div class="cfg-row" data-cfg-key="RteForwardSoftErrorToSwc">
+            <div class="cfg-label-wrap">
+              <span class="cfg-name">RteForwardSoftErrorToSwc</span>
+              <span class="cfg-hint">Giao payload khi E2E trả Soft Error (0x8A)</span>
+            </div>
+            <div class="cfg-ctrl"><input type="checkbox" id="cfg_RteForwardSoftErrorToSwc" onchange="onConfigInputChanged('RteForwardSoftErrorToSwc')" /></div>
+          </div>
+          <div class="cfg-row" data-cfg-key="XfrmInitializedState">
+            <div class="cfg-label-wrap">
+              <span class="cfg-name">XfrmInitializedState</span>
+              <span class="cfg-hint">Trạng thái đã gọi &lt;Mip&gt;_Init()</span>
+            </div>
+            <div class="cfg-ctrl"><input type="checkbox" id="cfg_XfrmInitializedState" onchange="onConfigInputChanged('XfrmInitializedState')" /></div>
+          </div>
+        </div>
+
+        <!-- Tab 1: ComXf & SignalGroup -->
+        <div id="cfgPane_1" class="cfg-pane">
+          <div class="cfg-row" data-cfg-key="ComXfSignalEndianness">
+            <div class="cfg-label-wrap">
+              <span class="cfg-name">ComXfSignalEndianness</span>
+              <span class="cfg-hint">Motorola (Big-Endian) vs Intel (Little-Endian)</span>
+            </div>
+            <div class="cfg-ctrl">
+              <select id="cfg_ComXfSignalEndianness" onchange="onConfigInputChanged('ComXfSignalEndianness')">
+                <option value="BIG_ENDIAN">BIG_ENDIAN</option>
+                <option value="LITTLE_ENDIAN">LITTLE_ENDIAN</option>
+              </select>
+            </div>
+          </div>
+          <div class="cfg-row" data-cfg-key="ComXfUnusedBitFillPatternHex">
+            <div class="cfg-label-wrap">
+              <span class="cfg-name">ComXfUnusedBitFillPatternHex</span>
+              <span class="cfg-hint">Byte điền vào các bit trống (SWS_ComXf)</span>
+            </div>
+            <div class="cfg-ctrl">
+              <select id="cfg_ComXfUnusedBitFillPatternHex" onchange="onConfigInputChanged('ComXfUnusedBitFillPatternHex')">
+                <option value="0xFF">0xFF</option>
+                <option value="0x00">0x00</option>
+                <option value="0xAA">0xAA</option>
+                <option value="0x55">0x55</option>
+              </select>
+            </div>
+          </div>
+          <div class="cfg-row" data-cfg-key="SwcInputVehicleSpeedKmh">
+            <div class="cfg-label-wrap">
+              <span class="cfg-name">SwcInputVehicleSpeedKmh</span>
+              <span class="cfg-hint">uint16 Speed * 0.1 km/h (VD: 1205 = 120.5)</span>
+            </div>
+            <div class="cfg-ctrl"><input type="number" id="cfg_SwcInputVehicleSpeedKmh" min="0" max="4000" onchange="onConfigInputChanged('SwcInputVehicleSpeedKmh')" /></div>
+          </div>
+          <div class="cfg-row" data-cfg-key="SwcInputSteerAngleDeg">
+            <div class="cfg-label-wrap">
+              <span class="cfg-name">SwcInputSteerAngleDeg</span>
+              <span class="cfg-hint">sint16 Steer * 0.1 deg (VD: -120 = 0xFF88)</span>
+            </div>
+            <div class="cfg-ctrl"><input type="number" id="cfg_SwcInputSteerAngleDeg" min="-1800" max="1800" onchange="onConfigInputChanged('SwcInputSteerAngleDeg')" /></div>
+          </div>
+          <div class="cfg-row" data-cfg-key="SwcInputGearPosition">
+            <div class="cfg-label-wrap">
+              <span class="cfg-name">SwcInputGearPosition</span>
+              <span class="cfg-hint">uint4 Gear (0..15) đóng gói vào nibble thấp</span>
+            </div>
+            <div class="cfg-ctrl"><input type="number" id="cfg_SwcInputGearPosition" min="0" max="15" onchange="onConfigInputChanged('SwcInputGearPosition')" /></div>
+          </div>
+          <div class="cfg-row" data-cfg-key="ComSendSignalGroupArrayEnable">
+            <div class="cfg-label-wrap">
+              <span class="cfg-name">ComSendSignalGroupArrayEnable</span>
+              <span class="cfg-hint">Dùng Com_SendSignalGroupArray() thay vì Signal đơn</span>
+            </div>
+            <div class="cfg-ctrl"><input type="checkbox" id="cfg_ComSendSignalGroupArrayEnable" onchange="onConfigInputChanged('ComSendSignalGroupArrayEnable')" /></div>
+          </div>
+        </div>
+
+        <!-- Tab 2: SomeIpXf & Header -->
+        <div id="cfgPane_2" class="cfg-pane">
+          <div class="cfg-row" data-cfg-key="SomeIpXfServiceAndMethodIdHex">
+            <div class="cfg-label-wrap">
+              <span class="cfg-name">SomeIpXfServiceAndMethodIdHex</span>
+              <span class="cfg-hint">8B SoAd Header: ServiceID:MethodID</span>
+            </div>
+            <div class="cfg-ctrl"><input type="text" id="cfg_SomeIpXfServiceAndMethodIdHex" onchange="onConfigInputChanged('SomeIpXfServiceAndMethodIdHex')" /></div>
+          </div>
+          <div class="cfg-row" data-cfg-key="SomeIpXfClientAndSessionIdHex">
+            <div class="cfg-label-wrap">
+              <span class="cfg-name">SomeIpXfClientAndSessionIdHex</span>
+              <span class="cfg-hint">Byte 0..3 SomeIpXf Header (RequestId)</span>
+            </div>
+            <div class="cfg-ctrl"><input type="text" id="cfg_SomeIpXfClientAndSessionIdHex" onchange="onConfigInputChanged('SomeIpXfClientAndSessionIdHex')" /></div>
+          </div>
+          <div class="cfg-row" data-cfg-key="SomeIpXfProtocolVersion">
+            <div class="cfg-label-wrap">
+              <span class="cfg-name">SomeIpXfProtocolVersion</span>
+              <span class="cfg-hint">Byte 4 (Chuẩn SOME/IP = 0x01)</span>
+            </div>
+            <div class="cfg-ctrl"><input type="number" id="cfg_SomeIpXfProtocolVersion" min="0" max="255" onchange="onConfigInputChanged('SomeIpXfProtocolVersion')" /></div>
+          </div>
+          <div class="cfg-row" data-cfg-key="SomeIpXfInterfaceVersion">
+            <div class="cfg-label-wrap">
+              <span class="cfg-name">SomeIpXfInterfaceVersion</span>
+              <span class="cfg-hint">Byte 5 Interface Major Version (VD: 1)</span>
+            </div>
+            <div class="cfg-ctrl"><input type="number" id="cfg_SomeIpXfInterfaceVersion" min="0" max="255" onchange="onConfigInputChanged('SomeIpXfInterfaceVersion')" /></div>
+          </div>
+          <div class="cfg-row" data-cfg-key="SomeIpXfMessageType">
+            <div class="cfg-label-wrap">
+              <span class="cfg-name">SomeIpXfMessageType</span>
+              <span class="cfg-hint">Byte 6 MessageType (NOTIF/REQ/RESP/ERR)</span>
+            </div>
+            <div class="cfg-ctrl">
+              <select id="cfg_SomeIpXfMessageType" onchange="onConfigInputChanged('SomeIpXfMessageType')">
+                <option value="NOTIFICATION_0x02">NOTIFICATION (0x02)</option>
+                <option value="REQUEST_0x00">REQUEST (0x00)</option>
+                <option value="REQUEST_NO_RETURN_0x01">REQ_NO_RET (0x01)</option>
+                <option value="RESPONSE_0x80">RESPONSE (0x80)</option>
+                <option value="ERROR_0x81">ERROR (0x81)</option>
+              </select>
+            </div>
+          </div>
+          <div class="cfg-row" data-cfg-key="SomeIpXfStructAlignmentBytes">
+            <div class="cfg-label-wrap">
+              <span class="cfg-name">SomeIpXfStructAlignmentBytes</span>
+              <span class="cfg-hint">Bội số Alignment chèn byte AlignPad</span>
+            </div>
+            <div class="cfg-ctrl">
+              <select id="cfg_SomeIpXfStructAlignmentBytes" onchange="onConfigInputChanged('SomeIpXfStructAlignmentBytes')">
+                <option value="1">1 Byte</option>
+                <option value="2">2 Bytes</option>
+                <option value="4">4 Bytes</option>
+                <option value="8">8 Bytes</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 3: Dynamic Array & TLV -->
+        <div id="cfgPane_3" class="cfg-pane">
+          <div class="cfg-row" data-cfg-key="SomeIpXfLengthFieldSize">
+            <div class="cfg-label-wrap">
+              <span class="cfg-name">SomeIpXfLengthFieldSize</span>
+              <span class="cfg-hint">Kích thước trường Length trước mảng động</span>
+            </div>
+            <div class="cfg-ctrl">
+              <select id="cfg_SomeIpXfLengthFieldSize" onchange="onConfigInputChanged('SomeIpXfLengthFieldSize')">
+                <option value="1">1 Byte (8-bit)</option>
+                <option value="2">2 Bytes (16-bit)</option>
+                <option value="4">4 Bytes (32-bit)</option>
+              </select>
+            </div>
+          </div>
+          <div class="cfg-row" data-cfg-key="SomeIpXfDynamicArrayElementCount">
+            <div class="cfg-label-wrap">
+              <span class="cfg-name">SomeIpXfDynamicArrayElementCount</span>
+              <span class="cfg-hint">Số phần tử RadarObj[N] hiện tại (0..8)</span>
+            </div>
+            <div class="cfg-ctrl"><input type="number" id="cfg_SomeIpXfDynamicArrayElementCount" min="0" max="8" onchange="onConfigInputChanged('SomeIpXfDynamicArrayElementCount')" /></div>
+          </div>
+          <div class="cfg-row" data-cfg-key="SomeIpXfEnableTlvEncoding">
+            <div class="cfg-label-wrap">
+              <span class="cfg-name">SomeIpXfEnableTlvEncoding</span>
+              <span class="cfg-hint">Bật thẻ Tag 16-bit [WireType | DataId]</span>
+            </div>
+            <div class="cfg-ctrl"><input type="checkbox" id="cfg_SomeIpXfEnableTlvEncoding" onchange="onConfigInputChanged('SomeIpXfEnableTlvEncoding')" /></div>
+          </div>
+          <div class="cfg-row" data-cfg-key="SomeIpXfTlvWireType">
+            <div class="cfg-label-wrap">
+              <span class="cfg-name">SomeIpXfTlvWireType</span>
+              <span class="cfg-hint">Bit 14..12 của Tag quy định cách đọc độ dài</span>
+            </div>
+            <div class="cfg-ctrl">
+              <select id="cfg_SomeIpXfTlvWireType" onchange="onConfigInputChanged('SomeIpXfTlvWireType')">
+                <option value="0_8BIT_BASE">0 (8-bit Base)</option>
+                <option value="1_16BIT_BASE">1 (16-bit Base)</option>
+                <option value="2_32BIT_BASE">2 (32-bit Base)</option>
+                <option value="3_64BIT_BASE">3 (64-bit Base)</option>
+                <option value="4_LEN_1B">4 (Complex +1B Len)</option>
+                <option value="5_LEN_2B">5 (Complex +2B Len)</option>
+                <option value="6_LEN_4B">6 (Complex +4B Len)</option>
+              </select>
+            </div>
+          </div>
+          <div class="cfg-row" data-cfg-key="SomeIpXfUnrecognizedTlvBehavior">
+            <div class="cfg-label-wrap">
+              <span class="cfg-name">SomeIpXfUnrecognizedTlvBehavior</span>
+              <span class="cfg-hint">Hành vi khi gặp DataId lạ (V2 ➔ V1)</span>
+            </div>
+            <div class="cfg-ctrl">
+              <select id="cfg_SomeIpXfUnrecognizedTlvBehavior" onchange="onConfigInputChanged('SomeIpXfUnrecognizedTlvBehavior')">
+                <option value="IGNORE_SKIP_UNKNOWN_TAG">IGNORE_SKIP_UNKNOWN_TAG</option>
+                <option value="REPORT_MALFORMED_HARD_ERR">REPORT_MALFORMED_HARD_ERR</option>
+              </select>
+            </div>
+          </div>
+          <div class="cfg-row" data-cfg-key="SomeIpXfStringEncoding">
+            <div class="cfg-label-wrap">
+              <span class="cfg-name">SomeIpXfStringEncoding</span>
+              <span class="cfg-hint">Mã hóa chuỗi ký tự UTF-8 / UTF-16</span>
+            </div>
+            <div class="cfg-ctrl">
+              <select id="cfg_SomeIpXfStringEncoding" onchange="onConfigInputChanged('SomeIpXfStringEncoding')">
+                <option value="UTF8_DYNAMIC_LEN">UTF8_DYNAMIC_LEN</option>
+                <option value="UTF8_FIXED_16B">UTF8_FIXED_16B</option>
+                <option value="UTF16_BE_DYNAMIC">UTF16_BE_DYNAMIC</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 4: E2EXf Safety Profile -->
+        <div id="cfgPane_4" class="cfg-pane">
+          <div class="cfg-row" data-cfg-key="E2EXfActiveProfile">
+            <div class="cfg-label-wrap">
+              <span class="cfg-name">E2EXfActiveProfile</span>
+              <span class="cfg-hint">Profile E2E (NONE, P01=2B, P05=3B, P04=12B, P07=20B)</span>
+            </div>
+            <div class="cfg-ctrl">
+              <select id="cfg_E2EXfActiveProfile" onchange="onConfigInputChanged('E2EXfActiveProfile')">
+                <option value="NONE">NONE (Không E2E)</option>
+                <option value="PROFILE_01">PROFILE_01 (2B, CRC-8)</option>
+                <option value="PROFILE_05">PROFILE_05 (3B, CRC-16)</option>
+                <option value="PROFILE_04">PROFILE_04 (12B, CRC-32P4)</option>
+                <option value="PROFILE_07">PROFILE_07 (20B, CRC-64)</option>
+              </select>
+            </div>
+          </div>
+          <div class="cfg-row" data-cfg-key="E2EXfDataIdHex">
+            <div class="cfg-label-wrap">
+              <span class="cfg-name">E2EXfDataIdHex</span>
+              <span class="cfg-hint">DataID định danh duy nhất cho gói an toàn</span>
+            </div>
+            <div class="cfg-ctrl"><input type="text" id="cfg_E2EXfDataIdHex" onchange="onConfigInputChanged('E2EXfDataIdHex')" /></div>
+          </div>
+          <div class="cfg-row" data-cfg-key="E2EXfHeaderBitOffset">
+            <div class="cfg-label-wrap">
+              <span class="cfg-name">E2EXfHeaderBitOffset</span>
+              <span class="cfg-hint">Offset đầu E2E Header tính theo Bit</span>
+            </div>
+            <div class="cfg-ctrl"><input type="number" id="cfg_E2EXfHeaderBitOffset" min="0" max="64" step="8" onchange="onConfigInputChanged('E2EXfHeaderBitOffset')" /></div>
+          </div>
+          <div class="cfg-row" data-cfg-key="E2EXfMaxDeltaCounter">
+            <div class="cfg-label-wrap">
+              <span class="cfg-name">E2EXfMaxDeltaCounter</span>
+              <span class="cfg-hint">Bước nhảy Delta Counter tối đa cho phép</span>
+            </div>
+            <div class="cfg-ctrl"><input type="number" id="cfg_E2EXfMaxDeltaCounter" min="0" max="15" onchange="onConfigInputChanged('E2EXfMaxDeltaCounter')" /></div>
+          </div>
+          <div class="cfg-row" data-cfg-key="E2EXfMinOkStateValid">
+            <div class="cfg-label-wrap">
+              <span class="cfg-name">E2EXfMinOkStateValid</span>
+              <span class="cfg-hint">Số khung OK tối thiểu lên E2E_SM_VALID</span>
+            </div>
+            <div class="cfg-ctrl"><input type="number" id="cfg_E2EXfMinOkStateValid" min="1" max="10" onchange="onConfigInputChanged('E2EXfMinOkStateValid')" /></div>
+          </div>
+          <div class="cfg-row" data-cfg-key="E2EXfMaxErrorStateValid">
+            <div class="cfg-label-wrap">
+              <span class="cfg-name">E2EXfMaxErrorStateValid</span>
+              <span class="cfg-hint">Số khung lỗi cho phép ở VALID trước khi INVALID</span>
+            </div>
+            <div class="cfg-ctrl"><input type="number" id="cfg_E2EXfMaxErrorStateValid" min="0" max="10" onchange="onConfigInputChanged('E2EXfMaxErrorStateValid')" /></div>
+          </div>
+        </div>
+
+        <!-- Tab 5: Faults & DET -->
+        <div id="cfgPane_5" class="cfg-pane">
+          <div class="cfg-row" data-cfg-key="InjectE2ECrcCorruption">
+            <div class="cfg-label-wrap">
+              <span class="cfg-name">InjectE2ECrcCorruption</span>
+              <span class="cfg-hint">Làm hỏng mã CRC (E2E_P_ERROR = 0x30)</span>
+            </div>
+            <div class="cfg-ctrl"><input type="checkbox" id="cfg_InjectE2ECrcCorruption" onchange="onConfigInputChanged('InjectE2ECrcCorruption')" /></div>
+          </div>
+          <div class="cfg-row" data-cfg-key="InjectE2ECounterFaultMode">
+            <div class="cfg-label-wrap">
+              <span class="cfg-name">InjectE2ECounterFaultMode</span>
+              <span class="cfg-hint">Bơm lỗi Counter (Bình thường / Lặp / Nhảy +5)</span>
+            </div>
+            <div class="cfg-ctrl">
+              <select id="cfg_InjectE2ECounterFaultMode" onchange="onConfigInputChanged('InjectE2ECounterFaultMode')">
+                <option value="NORMAL_INC_PLUS_1">NORMAL_INC_PLUS_1</option>
+                <option value="REPEATED_DELTA_0">REPEATED_DELTA_0</option>
+                <option value="JUMP_SEQ_PLUS_5">JUMP_SEQ_PLUS_5</option>
+              </select>
+            </div>
+          </div>
+          <div class="cfg-row" data-cfg-key="InjectSomeIpHeaderFault">
+            <div class="cfg-label-wrap">
+              <span class="cfg-name">InjectSomeIpHeaderFault</span>
+              <span class="cfg-hint">Bơm lỗi Header SOME/IP (0x87 / 0x88 / 0x8A)</span>
+            </div>
+            <div class="cfg-ctrl">
+              <select id="cfg_InjectSomeIpHeaderFault" onchange="onConfigInputChanged('InjectSomeIpHeaderFault')">
+                <option value="NONE">NONE</option>
+                <option value="WRONG_PROTOCOL_VER">WRONG_PROTOCOL_VER (0x87)</option>
+                <option value="WRONG_INTERFACE_VER">WRONG_INTERFACE_VER (0x88)</option>
+                <option value="WRONG_MESSAGE_TYPE">WRONG_MESSAGE_TYPE (0x8A)</option>
+              </select>
+            </div>
+          </div>
+          <div class="cfg-row" data-cfg-key="InjectTruncatedBufferBytes">
+            <div class="cfg-label-wrap">
+              <span class="cfg-name">InjectTruncatedBufferBytes</span>
+              <span class="cfg-hint">Cắt ngắn Buffer gây Malformed (0x89 + DET 0x05)</span>
+            </div>
+            <div class="cfg-ctrl"><input type="checkbox" id="cfg_InjectTruncatedBufferBytes" onchange="onConfigInputChanged('InjectTruncatedBufferBytes')" /></div>
+          </div>
+          <div class="cfg-row" data-cfg-key="PassNullPtrOrUninitForDetTest">
+            <div class="cfg-label-wrap">
+              <span class="cfg-name">PassNullPtrOrUninitForDetTest</span>
+              <span class="cfg-hint">Truyền NULL_PTR gây DET XFRM_E_PARAM_POINTER</span>
+            </div>
+            <div class="cfg-ctrl"><input type="checkbox" id="cfg_PassNullPtrOrUninitForDetTest" onchange="onConfigInputChanged('PassNullPtrOrUninitForDetTest')" /></div>
+          </div>
+          <div class="cfg-row" data-cfg-key="E2ESmWindowClearOnReset">
+            <div class="cfg-label-wrap">
+              <span class="cfg-name">E2ESmWindowClearOnReset</span>
+              <span class="cfg-hint">Xóa cửa sổ E2E_SMCheck khi Reset kịch bản</span>
+            </div>
+            <div class="cfg-ctrl"><input type="checkbox" id="cfg_E2ESmWindowClearOnReset" onchange="onConfigInputChanged('E2ESmWindowClearOnReset')" /></div>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- CENTER COLUMN: PIPELINE + BYTE-STREAM MAP + DUAL 8-BIT REGISTERS + METRICS/SM + INTERACTIVE SVG -->
+    <section class="col-center">
+
+      <!-- Panel 1: Pipeline Anatomy, Buffer Layout, Interactive Byte-Stream Map & Dual 8-Bit Registers -->
+      <div class="panel">
+        <div class="panel-hdr">
+          <span class="panel-title">🧬 Panel 1 — Chuỗi Đường Ống Xfrm, Bản Đồ Byte-Stream &amp; Thanh Ghi 8-Bit</span>
+          <span id="p1ChainDirTag" class="panel-sub">TX FORWARD</span>
+        </div>
+
+        <!-- 4-Stage Pipeline Cards -->
+        <div id="chainPipelineGrid" class="chain-pipeline"></div>
+
+        <!-- Buffer Region Allocation Bar (In-Place HeaderShift vs Out-of-Place Copy) -->
+        <div id="bufAllocBar" class="buf-alloc-bar"></div>
+
+        <!-- Interactive Byte-Stream Map -->
+        <div class="bytestream-wrap">
+          <div class="bs-hdr">
+            <span class="panel-title" style="font-size:11px;">🧱 Bản Đồ Bộ Nhớ <code style="font-family:var(--mono);color:var(--accent);">Rte_XfrmBuffer[]</code> (Click vào ô Byte để làm hỏng/khôi phục 1-bit!)</span>
+            <div class="bs-legend">
+              <span class="leg-dot"><span class="leg-sq" style="background:var(--teal);"></span>E2E Hdr</span>
+              <span class="leg-dot"><span class="leg-sq" style="background:var(--accent);"></span>SOME/IP 8B</span>
+              <span class="leg-dot"><span class="leg-sq" style="background:var(--purple);"></span>TLV Tag</span>
+              <span class="leg-dot"><span class="leg-sq" style="background:var(--amber);"></span>LenField</span>
+              <span class="leg-dot"><span class="leg-sq" style="background:var(--green);"></span>Payload</span>
+              <span class="leg-dot"><span class="leg-sq" style="background:var(--border-strong);"></span>Pad/Fill</span>
+            </div>
+          </div>
+          <div id="byteStreamGrid" class="byte-grid"></div>
+        </div>
+
+        <!-- Dual 8-Bit Registers -->
+        <div class="reg-grid">
+          <div class="reg-card">
+            <div class="reg-hdr">
+              <span class="reg-name">Reg A: Xfrm_ReturnErrorByte</span>
+              <span id="regAHex" class="reg-hex">0x01</span>
+            </div>
+            <div id="regABits" class="bit-row"></div>
+            <div class="reg-foot">
+              <span id="regAFootLeft">RTE: RTE_E_OK (0x00)</span>
+              <span id="regAFootRight">E2E 2-Nibble: 0x00 (OK | VALID)</span>
+            </div>
+          </div>
+
+          <div class="reg-card">
+            <div class="reg-hdr">
+              <span class="reg-name">Reg B: Xfrm_ChainPipelineByte</span>
+              <span id="regBHex" class="reg-hex">0x8C</span>
+            </div>
+            <div id="regBBits" class="bit-row"></div>
+            <div class="reg-foot">
+              <span id="regBFootLeft">Mode: COMXF + IN_PLACE</span>
+              <span id="regBFootRight">Endian: BIG | DET: 0</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Panel 2: Live Metrics & Parallel State Machines -->
+      <div class="panel">
+        <div class="panel-hdr">
+          <span class="panel-title">📊 Panel 2 — Chỉ Số Runtime &amp; Máy Trạng Thái Song Song</span>
+          <span id="simClockBadge" class="panel-sub">t = 0 ms</span>
+        </div>
+
+        <div class="metrics-grid">
+          <div class="metric-box">
+            <div class="metric-lbl">Buffer / HeaderShift</div>
+            <div id="mBufVal" class="metric-val">8B / 0B</div>
+            <div id="mBufSub" class="metric-sub">Allocated: 64B</div>
+          </div>
+          <div class="metric-box">
+            <div class="metric-lbl">E2E Counter &amp; Delta</div>
+            <div id="mCntVal" class="metric-val">0 / Δ1</div>
+            <div id="mCntSub" class="metric-sub">Profile: NONE</div>
+          </div>
+          <div class="metric-box">
+            <div class="metric-lbl">E2E SM Window</div>
+            <div id="mSmVal" class="metric-val">0 OK / 0 Err</div>
+            <div id="mSmSub" class="metric-sub">MinOK:2 | MaxErr:1</div>
+          </div>
+          <div class="metric-box">
+            <div class="metric-lbl">CPU Copy Overhead</div>
+            <div id="mCopyVal" class="metric-val">0B memcpy</div>
+            <div id="mCopySub" class="metric-sub">Zero-Copy Active</div>
+          </div>
+        </div>
+
+        <div class="sm-dual">
+          <div class="sm-card">
+            <div class="sm-title">
+              <span>🔀 RTE Transformer Chain FSM</span>
+              <span id="smChainLabel" style="color:var(--accent);">IDLE</span>
+            </div>
+            <div id="smChainStates" class="sm-states"></div>
+          </div>
+          <div class="sm-card">
+            <div class="sm-title">
+              <span>🛡️ E2E_SMCheck() Window FSM</span>
+              <span id="smE2eLabel" style="color:var(--green);">E2E_SM_VALID</span>
+            </div>
+            <div id="smE2eStates" class="sm-states"></div>
+            <div id="e2eWindowStrip" class="e2e-win-strip"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Panel 3: Interactive End-to-End Architecture SVG -->
+      <div class="panel">
+        <div class="panel-hdr">
+          <span class="panel-title">🗺️ Panel 3 — Kiến Trúc Tương Tác AUTOSAR Xfrm (Click Vào Module Để Xem I/O)</span>
+          <span id="svgFlowBanner" class="panel-sub">Idle — Sẵn sàng</span>
+        </div>
+
+        <div class="arch-wrap">
+          <svg id="archSvg" viewBox="0 0 920 350" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <marker id="arr-green" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                <path d="M 0 1 L 10 5 L 0 9 z" fill="var(--green)" />
+              </marker>
+              <marker id="arr-accent" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                <path d="M 0 1 L 10 5 L 0 9 z" fill="var(--accent)" />
+              </marker>
+              <marker id="arr-red" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                <path d="M 0 1 L 10 5 L 0 9 z" fill="var(--red)" />
+              </marker>
+              <marker id="arr-muted" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                <path d="M 0 1 L 10 5 L 0 9 z" fill="var(--svg-edge)" />
+              </marker>
+            </defs>
+
+            <!-- Background Layer Bands -->
+            <rect x="8" y="8" width="904" height="88" rx="8" fill="var(--svg-sub-bg)" stroke="var(--border)" stroke-dasharray="4 3" />
+            <text x="16" y="21" font-size="9.5" font-weight="700" font-family="ui-monospace, Consolas, monospace" fill="var(--text-muted)">APPLICATION &amp; RTE GLUE LAYER</text>
+
+            <rect x="8" y="106" width="904" height="122" rx="8" fill="var(--svg-sub-bg)" stroke="var(--border)" stroke-dasharray="4 3" />
+            <text x="16" y="120" font-size="9.5" font-weight="700" font-family="ui-monospace, Consolas, monospace" fill="var(--text-muted)">BSW TRANSFORMER SERVICE CLUSTER (STATELESS SERIALIZATION + E2E PROTECTION)</text>
+
+            <rect x="8" y="242" width="904" height="102" rx="8" fill="var(--svg-sub-bg)" stroke="var(--border)" stroke-dasharray="4 3" />
+            <text x="16" y="255" font-size="9.5" font-weight="700" font-family="ui-monospace, Consolas, monospace" fill="var(--text-muted)">COM SERVICES, PDU ROUTER &amp; COMMUNICATION DRIVERS (CAN / ETHERNET)</text>
+
+            <!-- Signal Flow Paths -->
+            <path id="path_SWC_RTE" class="flow-path" d="M 254 58 L 316 58" marker-end="url(#arr-muted)" />
+            <path id="path_RTE_Det" class="flow-path" d="M 600 58 L 672 58" marker-end="url(#arr-muted)" />
+
+            <path id="path_RTE_ComXf" class="flow-path" d="M 360 92 L 360 114 L 149 114 L 149 136" marker-end="url(#arr-muted)" />
+            <path id="path_RTE_SomeIpXf" class="flow-path" d="M 460 92 L 460 136" marker-end="url(#arr-muted)" />
+            <path id="path_RTE_E2EXf" class="flow-path" d="M 560 92 L 560 114 L 771 114 L 771 136" marker-end="url(#arr-muted)" />
+
+            <path id="path_ComXf_E2EXf" class="flow-path" d="M 225 214 L 225 224 L 700 224 L 700 214" marker-end="url(#arr-muted)" />
+            <path id="path_SomeIpXf_E2EXf" class="flow-path" d="M 585 176 L 642 176" marker-end="url(#arr-muted)" />
+
+            <path id="path_ComXf_Com" class="flow-path" d="M 115 214 L 115 262" marker-end="url(#arr-muted)" />
+            <path id="path_SomeIpXf_LdCom" class="flow-path" d="M 460 214 L 460 262" marker-end="url(#arr-muted)" />
+            <path id="path_E2EXf_Com" class="flow-path" d="M 745 214 L 745 232 L 195 232 L 195 262" marker-end="url(#arr-muted)" />
+            <path id="path_E2EXf_LdCom" class="flow-path" d="M 771 214 L 771 236 L 530 236 L 530 262" marker-end="url(#arr-muted)" />
+
+            <path id="path_Com_BusIf" class="flow-path" d="M 274 300 L 320 300 L 320 338 L 620 338 L 620 315 L 642 315" marker-end="url(#arr-muted)" />
+            <path id="path_LdCom_BusIf" class="flow-path" d="M 585 294 L 642 294" marker-end="url(#arr-muted)" />
+
+            <!-- 9 Clickable AUTOSAR Modules -->
+            <!-- 1. SWC -->
+            <g id="svgMod_SWC" class="mod-box" onclick="selectModule('SWC')">
+              <rect class="mod-rect" x="24" y="28" width="230" height="62" rx="7" fill="var(--svg-node-bg)" stroke="var(--green)" stroke-width="1.6" />
+              <text x="139" y="47" text-anchor="middle" font-size="11.5" font-weight="700" font-family="ui-monospace, Consolas, monospace" fill="var(--green)">SWC (Sender / Client)</text>
+              <text x="139" y="63" text-anchor="middle" font-size="10" font-family="Segoe UI, sans-serif" fill="var(--text-dim)">Rte_Write / Rte_Call</text>
+              <text id="svgSub_SWC" x="139" y="79" text-anchor="middle" font-size="9.5" font-family="ui-monospace, Consolas, monospace" fill="var(--text-muted)">App Struct Ready</text>
+            </g>
+
+            <!-- 2. RTE -->
+            <g id="svgMod_RTE" class="mod-box selected" onclick="selectModule('RTE')">
+              <rect class="mod-rect" x="320" y="28" width="280" height="62" rx="7" fill="var(--svg-node-bg)" stroke="var(--accent)" stroke-width="1.8" />
+              <text x="460" y="47" text-anchor="middle" font-size="11.5" font-weight="700" font-family="ui-monospace, Consolas, monospace" fill="var(--accent)">RTE Orchestrator (Glue)</text>
+              <text x="460" y="63" text-anchor="middle" font-size="10" font-family="Segoe UI, sans-serif" fill="var(--text-dim)">Buffer Shift &amp; Soft/Hard Overlay</text>
+              <text id="svgSub_RTE" x="460" y="79" text-anchor="middle" font-size="9.5" font-family="ui-monospace, Consolas, monospace" fill="var(--text-muted)">Chain: Tx Forward | Ret: 0x00</text>
+            </g>
+
+            <!-- 3. DET -->
+            <g id="svgMod_Det" class="mod-box" onclick="selectModule('Det')">
+              <rect class="mod-rect" x="676" y="28" width="220" height="62" rx="7" fill="var(--svg-node-bg)" stroke="var(--red)" stroke-width="1.5" />
+              <text x="786" y="47" text-anchor="middle" font-size="11.5" font-weight="700" font-family="ui-monospace, Consolas, monospace" fill="var(--red)">DET (ModuleId 15)</text>
+              <text x="786" y="63" text-anchor="middle" font-size="10" font-family="Segoe UI, sans-serif" fill="var(--text-dim)">Dev &amp; Runtime Errors</text>
+              <text id="svgSub_Det" x="786" y="79" text-anchor="middle" font-size="9.5" font-family="ui-monospace, Consolas, monospace" fill="var(--text-muted)">Errors: 0 (Clean)</text>
+            </g>
+
+            <!-- 4. ComXf -->
+            <g id="svgMod_ComXf" class="mod-box" onclick="selectModule('ComXf')">
+              <rect class="mod-rect" x="24" y="140" width="250" height="72" rx="7" fill="var(--svg-node-bg)" stroke="var(--teal)" stroke-width="1.7" />
+              <text x="149" y="160" text-anchor="middle" font-size="11.5" font-weight="700" font-family="ui-monospace, Consolas, monospace" fill="var(--teal)">ComXf (ModuleId 175)</text>
+              <text x="149" y="177" text-anchor="middle" font-size="10" font-family="Segoe UI, sans-serif" fill="var(--text-dim)">SignalGroup Pack &amp; Endian</text>
+              <text id="svgSub_ComXf" x="149" y="196" text-anchor="middle" font-size="9.5" font-family="ui-monospace, Consolas, monospace" fill="var(--text-muted)">Active: Tx | Fill=0xFF</text>
+            </g>
+
+            <!-- 5. SomeIpXf -->
+            <g id="svgMod_SomeIpXf" class="mod-box" onclick="selectModule('SomeIpXf')">
+              <rect class="mod-rect" x="335" y="140" width="250" height="72" rx="7" fill="var(--svg-node-bg)" stroke="var(--purple)" stroke-width="1.7" />
+              <text x="460" y="160" text-anchor="middle" font-size="11.5" font-weight="700" font-family="ui-monospace, Consolas, monospace" fill="var(--purple)">SomeIpXf (ModuleId 174)</text>
+              <text x="460" y="177" text-anchor="middle" font-size="10" font-family="Segoe UI, sans-serif" fill="var(--text-dim)">8B Hdr, TLV, DynArr &amp; RPC</text>
+              <text id="svgSub_SomeIpXf" x="460" y="196" text-anchor="middle" font-size="9.5" font-family="ui-monospace, Consolas, monospace" fill="var(--text-muted)">Standby | TLV=OFF</text>
+            </g>
+
+            <!-- 6. E2EXf -->
+            <g id="svgMod_E2EXf" class="mod-box" onclick="selectModule('E2EXf')">
+              <rect class="mod-rect" x="646" y="140" width="250" height="72" rx="7" fill="var(--svg-node-bg)" stroke="var(--amber)" stroke-width="1.7" />
+              <text x="771" y="160" text-anchor="middle" font-size="11.5" font-weight="700" font-family="ui-monospace, Consolas, monospace" fill="var(--amber)">E2EXf (ModuleId 176)</text>
+              <text x="771" y="177" text-anchor="middle" font-size="10" font-family="Segoe UI, sans-serif" fill="var(--text-dim)">P01/P04/P05/P07 &amp; SMCheck</text>
+              <text id="svgSub_E2EXf" x="771" y="196" text-anchor="middle" font-size="9.5" font-family="ui-monospace, Consolas, monospace" fill="var(--text-muted)">Profile: NONE</text>
+            </g>
+
+            <!-- 7. COM -->
+            <g id="svgMod_Com" class="mod-box" onclick="selectModule('Com')">
+              <rect class="mod-rect" x="24" y="266" width="250" height="68" rx="7" fill="var(--svg-node-bg)" stroke="var(--border-strong)" stroke-width="1.5" />
+              <text x="149" y="286" text-anchor="middle" font-size="11.5" font-weight="700" font-family="ui-monospace, Consolas, monospace" fill="var(--text)">AUTOSAR COM (#50)</text>
+              <text x="149" y="302" text-anchor="middle" font-size="10" font-family="Segoe UI, sans-serif" fill="var(--text-dim)">Send/ReceiveSignalGroupArray</text>
+              <text id="svgSub_Com" x="149" y="320" text-anchor="middle" font-size="9.5" font-family="ui-monospace, Consolas, monospace" fill="var(--text-muted)">CAN I-PDU Array (8B)</text>
+            </g>
+
+            <!-- 8. LdCom -->
+            <g id="svgMod_LdCom" class="mod-box" onclick="selectModule('LdCom')">
+              <rect class="mod-rect" x="335" y="266" width="250" height="68" rx="7" fill="var(--svg-node-bg)" stroke="var(--border-strong)" stroke-width="1.5" />
+              <text x="460" y="286" text-anchor="middle" font-size="11.5" font-weight="700" font-family="ui-monospace, Consolas, monospace" fill="var(--text)">LdCom (ModuleId 49)</text>
+              <text x="460" y="302" text-anchor="middle" font-size="10" font-family="Segoe UI, sans-serif" fill="var(--text-dim)">Large Data Direct Pass-Through</text>
+              <text id="svgSub_LdCom" x="460" y="320" text-anchor="middle" font-size="9.5" font-family="ui-monospace, Consolas, monospace" fill="var(--text-muted)">PduInfoPtr Pass-Thru</text>
+            </g>
+
+            <!-- 9. BusIf (PduR + CanIf / SoAd) -->
+            <g id="svgMod_BusIf" class="mod-box" onclick="selectModule('BusIf')">
+              <rect class="mod-rect" x="646" y="266" width="250" height="68" rx="7" fill="var(--svg-node-bg)" stroke="var(--border-strong)" stroke-width="1.5" />
+              <text x="771" y="286" text-anchor="middle" font-size="11.5" font-weight="700" font-family="ui-monospace, Consolas, monospace" fill="var(--text)">PduR ➔ CanIf / SoAd</text>
+              <text x="771" y="302" text-anchor="middle" font-size="10" font-family="Segoe UI, sans-serif" fill="var(--text-dim)">CAN-FD / 16B SOME/IP Frame</text>
+              <text id="svgSub_BusIf" x="771" y="320" text-anchor="middle" font-size="9.5" font-family="ui-monospace, Consolas, monospace" fill="var(--text-muted)">Physical Bus Ready</text>
+            </g>
+          </svg>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- RIGHT COLUMN: STICKY 4-TAB INSPECTOR -->
+    <aside class="col-right">
+      <div class="panel insp-panel">
+        <div class="insp-tabs">
+          <button id="inspTabBtn_current" class="insp-tab active" onclick="switchInspTab('current')">🔍 Bước Hiện Tại</button>
+          <button id="inspTabBtn_module" class="insp-tab" onclick="switchInspTab('module')">🧩 Module</button>
+          <button id="inspTabBtn_code" class="insp-tab" onclick="switchInspTab('code')">💻 Code C</button>
+          <button id="inspTabBtn_trace" class="insp-tab" onclick="switchInspTab('trace')">📜 API Trace</button>
+        </div>
+        <div class="insp-body">
+          <div id="inspPane_current" class="insp-pane active"></div>
+          <div id="inspPane_module" class="insp-pane"></div>
+          <div id="inspPane_code" class="insp-pane"></div>
+          <div id="inspPane_trace" class="insp-pane"></div>
+        </div>
+      </div>
+    </aside>
+
+  </div>
+</main>
+
+<!-- ==================== VIEW 2: 2-LEVEL HANDBOOK & ABBREVIATION GLOSSARY ==================== -->
+<main id="viewHb" class="view-container">
+  <div class="hb-wrap">
+    <div id="hbNav1" class="hb-nav1">
+      <button id="hbTab1_0" class="hb-tab1 active" onclick="selectHandbookMainTab(0)">1. Kiến trúc Xfrm &amp; RTE</button>
+      <button id="hbTab1_1" class="hb-tab1" onclick="selectHandbookMainTab(1)">2. ComXf (#175) &amp; COM</button>
+      <button id="hbTab1_2" class="hb-tab1" onclick="selectHandbookMainTab(2)">3. SomeIpXf (#174), TLV &amp; RPC</button>
+      <button id="hbTab1_3" class="hb-tab1" onclick="selectHandbookMainTab(3)">4. E2EXf (#176) &amp; 2-Nibble</button>
+      <button id="hbTab1_4" class="hb-tab1" onclick="selectHandbookMainTab(4)">5. InPlace, 0x88/0x8A &amp; LdCom</button>
+      <button id="hbTab1_5" class="hb-tab1" onclick="selectHandbookMainTab(5)">6. API R23-11, DET &amp; Bẫy Thực Chiến</button>
+      <button id="hbTab1_6" class="hb-tab1" onclick="selectHandbookMainTab(6)">🔤 Thuật Ngữ / Abbreviation (58)</button>
+    </div>
+
+    <!-- Level 2 Sub-topic Pills (Visible for Main Tabs 0..5) -->
+    <div id="hbNav2" class="hb-nav2"></div>
+
+    <!-- Abbreviation Search & Filter Toolbar (Visible only on Tab 7 = index 6) -->
+    <div id="hbAbbrFilterBox" class="abbr-toolbar" style="display:none;">
+      <div class="abbr-search-row">
+        <input id="abbrSearchInput" class="abbr-search-input" type="text" placeholder="🔍 Nhập từ viết tắt, tên hàm API, thuật ngữ Anh/Việt hoặc mã SWS để tìm nhanh... (VD: TLV, In-Place, 0x88, E2E)" oninput="onAbbrSearchInput()" />
+        <button class="hdr-btn" onclick="clearAbbrFilter()">✖ Xóa bộ lọc</button>
+        <span id="abbrMatchCount" class="st-pill info">58 / 58 mục</span>
+      </div>
+      <div id="abbrCatBar" class="abbr-cats">
+        <button id="abbrCatBtn_ALL" class="abbr-cat-btn active" onclick="setAbbrCategory('ALL')">Tất cả (58)</button>
+        <button id="abbrCatBtn_CORE" class="abbr-cat-btn" onclick="setAbbrCategory('CORE')">🔀 Xfrm Core &amp; RTE (12)</button>
+        <button id="abbrCatBtn_COM" class="abbr-cat-btn" onclick="setAbbrCategory('COM')">📦 ComXf &amp; SigGrp (10)</button>
+        <button id="abbrCatBtn_SOMEIP" class="abbr-cat-btn" onclick="setAbbrCategory('SOMEIP')">🌐 SomeIpXf, TLV &amp; RPC (14)</button>
+        <button id="abbrCatBtn_E2E" class="abbr-cat-btn" onclick="setAbbrCategory('E2E')">🛡️ E2EXf &amp; SMCheck (12)</button>
+        <button id="abbrCatBtn_API" class="abbr-cat-btn" onclick="setAbbrCategory('API')">📜 APIs, Errors &amp; ECUC (10)</button>
+      </div>
+    </div>
+
+    <article id="hbArticleContent" class="hb-content-card"></article>
+  </div>
+</main>
+
+<!-- ==================== FLOATING HOVER TOOLTIP (>1000ms) ==================== -->
+<div id="cfgTooltipPopup" role="tooltip"></div>
+
+<!-- ==================== EXPORT ARXML / C / JSON MODAL ==================== -->
+<div id="exportModal" class="modal-overlay" onclick="if(event.target===this) closeExportModal()">
+  <div class="modal-box">
+    <div class="modal-hdr">
+      <strong style="font-size:13px; color:var(--text);">📦 Xuất Cấu Hình AUTOSAR Xfrm (R23-11 Artifacts)</strong>
+      <button class="hdr-btn" onclick="closeExportModal()">✖ Đóng</button>
+    </div>
+    <div class="modal-tabs">
+      <button id="expTab_arxml" class="modal-tab active" onclick="switchExportTab('arxml')">Xfrm.arxml</button>
+      <button id="expTab_cfg_h" class="modal-tab" onclick="switchExportTab('cfg_h')">Xfrm_Cfg.h</button>
+      <button id="expTab_rte_c" class="modal-tab" onclick="switchExportTab('rte_c')">Rte_Xfrm.c</button>
+      <button id="expTab_json" class="modal-tab" onclick="switchExportTab('json')">Xfrm_Config.json</button>
+    </div>
+    <div class="modal-body">
+      <pre id="exportCodePre" class="modal-pre"></pre>
+    </div>
+    <div class="modal-ftr">
+      <button class="hdr-btn primary" onclick="copyExportCode()">📋 Copy Nội Dung</button>
+      <button class="hdr-btn success" onclick="downloadActiveExportFile()">💾 Tải File Này</button>
+    </div>
+  </div>
+</div>
+
+<script>

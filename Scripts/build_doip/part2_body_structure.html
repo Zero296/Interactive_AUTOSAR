@@ -1,0 +1,492 @@
+<!-- ==================== STICKY 2-ROW HEADER ==================== -->
+<header class="app-header">
+  <div class="hdr-row1">
+    <div class="brand-box">
+      <div class="brand-logo">DoIP</div>
+      <div>
+        <div class="brand-title">AUTOSAR Classic DoIP Interactive Simulator</div>
+        <div class="brand-sub">ModuleId = 173 (0x00AD) | SWS_DoIP R23-11 | ISO 13400-2:2012 &amp; 2019</div>
+      </div>
+    </div>
+    <div class="hdr-nav">
+      <button id="btnViewSim" class="view-tab active" onclick="switchMainView('sim')">🧪 Mô Phỏng Tương Tác</button>
+      <button id="btnViewHb" class="view-tab" onclick="switchMainView('handbook')">📚 Sổ Tay &amp; Thuật Ngữ DoIP</button>
+      <button id="themeToggleBtn" class="hdr-btn" onclick="toggleTheme()" title="Chuyển chế độ Sáng/Tối">☀️ Light</button>
+      <button id="btnResetSim" class="hdr-btn" onclick="resetCurrentScenario()" title="Khởi tạo lại kịch bản hiện tại">🔄 Reset</button>
+      <button id="btnExportOpen" class="hdr-btn" onclick="openExportModal()">📦 Xuất ARXML / Cfg / C</button>
+      <button id="btnDownloadHtml" class="hdr-btn pri" onclick="downloadStandaloneHTML()">⬇️ Tải .HTML</button>
+    </div>
+  </div>
+  <div class="hdr-row2">
+    <div class="stepper-grp">
+      <select id="scenarioSelect" class="sc-select" onchange="loadScenario(this.value)" aria-label="Chọn kịch bản DoIP"></select>
+      <button id="btnPrevStep" class="step-btn" onclick="prevScenarioStep()">◀ Bước trước</button>
+      <span id="stepIndicator" class="step-badge">Bước 0 / 0</span>
+      <button id="btnNextStep" class="step-btn" onclick="nextScenarioStep()">Bước tiếp ▶</button>
+      <button id="btnAutoPlay" class="step-btn play" onclick="toggleScenarioAutoPlay()">▶️ Tự chạy</button>
+      <span class="step-badge" id="clockVal" title="Đồng hồ mô phỏng (ms)">0 ms</span>
+    </div>
+    <div class="live-badges">
+      <span id="hdrBadgeActLine" class="state-badge sb-err">ActLine: OFF</span>
+      <span id="hdrBadgeIp" class="state-badge sb-err">IP: UNASSIGNED</span>
+      <span id="hdrBadgeTcp" class="state-badge sb-cyan">TCP: 0/3</span>
+      <span id="hdrBadgeRouting" class="state-badge sb-muted">Routing: NONE</span>
+      <span id="hdrBadgeDet" class="state-badge sb-ok">DET/IdsM: 0</span>
+    </div>
+  </div>
+</header>
+
+<!-- ==================== VIEW 1: INTERACTIVE 3-COLUMN WORKSPACE ==================== -->
+<main id="viewSim" class="workspace">
+
+  <!-- LEFT COLUMN (375px): QUICK ACTIONS + SCENARIO + 36 ECUC CONFIGS -->
+  <aside class="col-left">
+
+    <!-- CARD 1: QUICK ACTION BAR (8 BUTTONS) -->
+    <section class="panel">
+      <div class="panel-hdr">
+        <div class="panel-title">⚡ Thao Tác Nhanh &amp; Bơm Sự Kiện</div>
+        <span class="panel-sub">Zero-Scroll Control</span>
+      </div>
+      <div class="qa-grid">
+        <button id="btnQaActLine" class="qa-btn" onclick="qaToggleActLine()"><span>🔌 ActLine</span><span id="qaTxtActLine" class="qa-mini">ON/OFF</span></button>
+        <button id="btnQaAssignIp" class="qa-btn rx" onclick="qaToggleIpAssign()"><span>🌐 Assign IP</span><span id="qaTxtIpAssign" class="qa-mini">DHCP</span></button>
+        <button id="btnQaUdpReq" class="qa-btn tx" onclick="qaSendUdpRequest()"><span>📡 UDP Req</span><span id="qaTxtUdpType" class="qa-mini">0x0001</span></button>
+        <button id="btnQaTcpRout" class="qa-btn pur" onclick="qaTcpRoutingAct()"><span>🔐 TCP Rout</span><span id="qaTxtTcpAct" class="qa-mini">0x0005</span></button>
+        <button id="btnQaAlive" class="qa-btn" onclick="qaAliveCheckRsp()"><span>💓 Alive Rsp</span><span class="qa-mini">0x0008</span></button>
+        <button id="btnQaDiag" class="qa-btn tx" onclick="qaInjectDiag0x8001()"><span>💉 UDS 0x8001</span><span id="qaTxtDiagTgt" class="qa-mini">0x1001</span></button>
+        <button id="btnQaTick" class="qa-btn" onclick="qaStepMainFunction()"><span>⏱️ +1 Tick</span><span id="qaTxtTick" class="qa-mini">MainFn</span></button>
+        <button id="btnQaDet" class="qa-btn err" onclick="qaDetOrClear()"><span>🚨 DET / Ver</span><span class="qa-mini">Mod 173</span></button>
+      </div>
+      <div class="qa-selectors">
+        <div>
+          <span class="qa-sel-lbl">UDP PayloadType</span>
+          <select id="qaUdpSelect" class="qa-select" onchange="onQaSelectorChange()">
+            <option value="0x0001">0x0001 VID Req</option>
+            <option value="0x0002">0x0002 VID+EID</option>
+            <option value="0x0003">0x0003 VID+VIN</option>
+            <option value="0x4001">0x4001 EntitySt</option>
+            <option value="0x4003">0x4003 PowerMod</option>
+          </select>
+        </div>
+        <div>
+          <span class="qa-sel-lbl">TCP Auth Mode</span>
+          <select id="qaTcpModeSelect" class="qa-select" onchange="onQaSelectorChange()">
+            <option value="0x00">0x00 Default</option>
+            <option value="0x01">0x01 WWH-OBD</option>
+            <option value="0xE0">0xE0 OEM Auth</option>
+            <option value="TLS">TLS Port 3496</option>
+          </select>
+        </div>
+        <div>
+          <span class="qa-sel-lbl">UDS Diag Target</span>
+          <select id="qaDiagTargetSelect" class="qa-select" onchange="onQaSelectorChange()">
+            <option value="DCM">0x1001 Dcm</option>
+            <option value="CANTP">0x2001 CanTp GW</option>
+            <option value="BAD_TA">0x9999 Unknown</option>
+            <option value="BAD_XOR">Bad Header XOR</option>
+            <option value="TP_4KB">4KB Flash TP</option>
+          </select>
+        </div>
+      </div>
+    </section>
+
+    <!-- CARD 2: SCENARIO SUMMARY & WHAT-IF (1-CLICK) -->
+    <section class="panel">
+      <div class="panel-hdr">
+        <div class="panel-title">🎬 Kịch Bản &amp; Thử Nghiệm What-If</div>
+        <span id="scGroupBadge" class="panel-sub">Group 1</span>
+      </div>
+      <div class="sc-card-box">
+        <div id="scTitle" style="font-weight:700;font-size:12px;color:var(--pri);">S1: Startup...</div>
+        <div id="scSummary" class="sc-summary">...</div>
+        <div id="whatIfBtns" class="whatif-row"></div>
+      </div>
+    </section>
+
+    <!-- CARD 3: 36 ECUC CONFIGS ACROSS 6 SUB-TABS -->
+    <section class="panel">
+      <div class="panel-hdr">
+        <div class="panel-title">⚙️ Cấu Hình ECUC DoIP (36 Tham Số)</div>
+        <span class="panel-sub">Rê chuột &gt;1s xem tooltip</span>
+      </div>
+      <div class="cfg-tabs">
+        <button id="cfgTabBtn0" class="cfg-tab-btn active" onclick="switchCfgTab(0)">General (6)</button>
+        <button id="cfgTabBtn1" class="cfg-tab-btn" onclick="switchCfgTab(1)">UDP/VID (6)</button>
+        <button id="cfgTabBtn2" class="cfg-tab-btn" onclick="switchCfgTab(2)">TCP/Time (7)</button>
+        <button id="cfgTabBtn3" class="cfg-tab-btn" onclick="switchCfgTab(3)">Auth/SWC (6)</button>
+        <button id="cfgTabBtn4" class="cfg-tab-btn" onclick="switchCfgTab(4)">PduR/GW (6)</button>
+        <button id="cfgTabBtn5" class="cfg-tab-btn" onclick="switchCfgTab(5)">Inject (5)</button>
+      </div>
+
+      <!-- TAB 0: GENERAL & IDENTIFICATION (6 FIELDS) -->
+      <div id="cfgPane0" class="cfg-list">
+        <div class="cfg-row" data-cfg-key="DoIPDevErrorDetect"><label class="cfg-lbl" for="cfg_DoIPDevErrorDetect"><span class="cfg-info-icon" onclick="showCfgTooltipNow('DoIPDevErrorDetect', this)">ⓘ</span>DoIPDevErrorDetect</label><div class="cfg-ctrl"><input type="checkbox" id="cfg_DoIPDevErrorDetect" onchange="onConfigInputChanged('DoIPDevErrorDetect')"></div></div>
+        <div class="cfg-row" data-cfg-key="DoIPVersionInfoApi"><label class="cfg-lbl" for="cfg_DoIPVersionInfoApi"><span class="cfg-info-icon" onclick="showCfgTooltipNow('DoIPVersionInfoApi', this)">ⓘ</span>DoIPVersionInfoApi</label><div class="cfg-ctrl"><input type="checkbox" id="cfg_DoIPVersionInfoApi" onchange="onConfigInputChanged('DoIPVersionInfoApi')"></div></div>
+        <div class="cfg-row" data-cfg-key="DoIPActivationLinePinMode"><label class="cfg-lbl" for="cfg_DoIPActivationLinePinMode"><span class="cfg-info-icon" onclick="showCfgTooltipNow('DoIPActivationLinePinMode', this)">ⓘ</span>ActivationLinePinMode</label><div class="cfg-ctrl"><select id="cfg_DoIPActivationLinePinMode" onchange="onConfigInputChanged('DoIPActivationLinePinMode')"><option value="ACTIVE">ACTIVE</option><option value="INACTIVE">INACTIVE</option></select></div></div>
+        <div class="cfg-row" data-cfg-key="DoIPLogicalAddressHex"><label class="cfg-lbl" for="cfg_DoIPLogicalAddressHex"><span class="cfg-info-icon" onclick="showCfgTooltipNow('DoIPLogicalAddressHex', this)">ⓘ</span>DoIPLogicalAddress</label><div class="cfg-ctrl"><input type="text" id="cfg_DoIPLogicalAddressHex" onchange="onConfigInputChanged('DoIPLogicalAddressHex')"></div></div>
+        <div class="cfg-row" data-cfg-key="DoIPEidMacHex"><label class="cfg-lbl" for="cfg_DoIPEidMacHex"><span class="cfg-info-icon" onclick="showCfgTooltipNow('DoIPEidMacHex', this)">ⓘ</span>DoIPEid (MAC 6B)</label><div class="cfg-ctrl"><input type="text" id="cfg_DoIPEidMacHex" onchange="onConfigInputChanged('DoIPEidMacHex')"></div></div>
+        <div class="cfg-row" data-cfg-key="DoIPVinString"><label class="cfg-lbl" for="cfg_DoIPVinString"><span class="cfg-info-icon" onclick="showCfgTooltipNow('DoIPVinString', this)">ⓘ</span>DoIPVin (17 ASCII)</label><div class="cfg-ctrl"><input type="text" id="cfg_DoIPVinString" onchange="onConfigInputChanged('DoIPVinString')"></div></div>
+      </div>
+
+      <!-- TAB 1: UDP VEHICLE ANNOUNCEMENT & VID (6 FIELDS) -->
+      <div id="cfgPane1" class="cfg-list hidden">
+        <div class="cfg-row" data-cfg-key="DoIPVehicleAnnounceCount"><label class="cfg-lbl" for="cfg_DoIPVehicleAnnounceCount"><span class="cfg-info-icon" onclick="showCfgTooltipNow('DoIPVehicleAnnounceCount', this)">ⓘ</span>AnnounceRepetitionNum</label><div class="cfg-ctrl"><input type="number" id="cfg_DoIPVehicleAnnounceCount" min="0" max="10" onchange="onConfigInputChanged('DoIPVehicleAnnounceCount')"></div></div>
+        <div class="cfg-row" data-cfg-key="DoIPVehicleAnnounceIntervalMs"><label class="cfg-lbl" for="cfg_DoIPVehicleAnnounceIntervalMs"><span class="cfg-info-icon" onclick="showCfgTooltipNow('DoIPVehicleAnnounceIntervalMs', this)">ⓘ</span>AnnounceInterval (ms)</label><div class="cfg-ctrl"><input type="number" id="cfg_DoIPVehicleAnnounceIntervalMs" min="50" max="5000" step="50" onchange="onConfigInputChanged('DoIPVehicleAnnounceIntervalMs')"></div></div>
+        <div class="cfg-row" data-cfg-key="DoIPInitialVehicleAnnounceDelayMs"><label class="cfg-lbl" for="cfg_DoIPInitialVehicleAnnounceDelayMs"><span class="cfg-info-icon" onclick="showCfgTooltipNow('DoIPInitialVehicleAnnounceDelayMs', this)">ⓘ</span>InitialAnnounceTime (ms)</label><div class="cfg-ctrl"><input type="number" id="cfg_DoIPInitialVehicleAnnounceDelayMs" min="0" max="2000" step="50" onchange="onConfigInputChanged('DoIPInitialVehicleAnnounceDelayMs')"></div></div>
+        <div class="cfg-row" data-cfg-key="DoIPFurtherActionByteHex"><label class="cfg-lbl" for="cfg_DoIPFurtherActionByteHex"><span class="cfg-info-icon" onclick="showCfgTooltipNow('DoIPFurtherActionByteHex', this)">ⓘ</span>FurtherActionByte</label><div class="cfg-ctrl"><select id="cfg_DoIPFurtherActionByteHex" onchange="onConfigInputChanged('DoIPFurtherActionByteHex')"><option value="0x00">0x00 No Action</option><option value="0x10">0x10 Routing Auth</option><option value="0x11">0x11 OEM Specific</option></select></div></div>
+        <div class="cfg-row" data-cfg-key="DoIPVinGidSyncStatus"><label class="cfg-lbl" for="cfg_DoIPVinGidSyncStatus"><span class="cfg-info-icon" onclick="showCfgTooltipNow('DoIPVinGidSyncStatus', this)">ⓘ</span>DoIPVinGidSyncStatus</label><div class="cfg-ctrl"><input type="checkbox" id="cfg_DoIPVinGidSyncStatus" onchange="onConfigInputChanged('DoIPVinGidSyncStatus')"></div></div>
+        <div class="cfg-row" data-cfg-key="DoIPUseMacForGid"><label class="cfg-lbl" for="cfg_DoIPUseMacForGid"><span class="cfg-info-icon" onclick="showCfgTooltipNow('DoIPUseMacForGid', this)">ⓘ</span>DoIPUseMacForGid</label><div class="cfg-ctrl"><input type="checkbox" id="cfg_DoIPUseMacForGid" onchange="onConfigInputChanged('DoIPUseMacForGid')"></div></div>
+      </div>
+
+      <!-- TAB 2: TCP SOCKETS & TIMERS (7 FIELDS) -->
+      <div id="cfgPane2" class="cfg-list hidden">
+        <div class="cfg-row" data-cfg-key="DoIPMaxTesterConnections"><label class="cfg-lbl" for="cfg_DoIPMaxTesterConnections"><span class="cfg-info-icon" onclick="showCfgTooltipNow('DoIPMaxTesterConnections', this)">ⓘ</span>MaxTesterConnections</label><div class="cfg-ctrl"><input type="number" id="cfg_DoIPMaxTesterConnections" min="1" max="5" onchange="onConfigInputChanged('DoIPMaxTesterConnections')"></div></div>
+        <div class="cfg-row" data-cfg-key="DoIPInitialInactivityTimeMs"><label class="cfg-lbl" for="cfg_DoIPInitialInactivityTimeMs"><span class="cfg-info-icon" onclick="showCfgTooltipNow('DoIPInitialInactivityTimeMs', this)">ⓘ</span>InitialInactivityTime (ms)</label><div class="cfg-ctrl"><input type="number" id="cfg_DoIPInitialInactivityTimeMs" min="200" max="20000" step="100" onchange="onConfigInputChanged('DoIPInitialInactivityTimeMs')"></div></div>
+        <div class="cfg-row" data-cfg-key="DoIPGeneralInactivityTimeMs"><label class="cfg-lbl" for="cfg_DoIPGeneralInactivityTimeMs"><span class="cfg-info-icon" onclick="showCfgTooltipNow('DoIPGeneralInactivityTimeMs', this)">ⓘ</span>GeneralInactivityTime (ms)</label><div class="cfg-ctrl"><input type="number" id="cfg_DoIPGeneralInactivityTimeMs" min="5000" max="600000" step="5000" onchange="onConfigInputChanged('DoIPGeneralInactivityTimeMs')"></div></div>
+        <div class="cfg-row" data-cfg-key="DoIPAliveCheckResponseTimeoutMs"><label class="cfg-lbl" for="cfg_DoIPAliveCheckResponseTimeoutMs"><span class="cfg-info-icon" onclick="showCfgTooltipNow('DoIPAliveCheckResponseTimeoutMs', this)">ⓘ</span>AliveCheckTimeout (ms)</label><div class="cfg-ctrl"><input type="number" id="cfg_DoIPAliveCheckResponseTimeoutMs" min="100" max="5000" step="50" onchange="onConfigInputChanged('DoIPAliveCheckResponseTimeoutMs')"></div></div>
+        <div class="cfg-row" data-cfg-key="DoIPMainFunctionPeriodMs"><label class="cfg-lbl" for="cfg_DoIPMainFunctionPeriodMs"><span class="cfg-info-icon" onclick="showCfgTooltipNow('DoIPMainFunctionPeriodMs', this)">ⓘ</span>MainFunctionPeriod (ms)</label><div class="cfg-ctrl"><input type="number" id="cfg_DoIPMainFunctionPeriodMs" min="1" max="100" onchange="onConfigInputChanged('DoIPMainFunctionPeriodMs')"></div></div>
+        <div class="cfg-row" data-cfg-key="DoIPHostNameSizeMax"><label class="cfg-lbl" for="cfg_DoIPHostNameSizeMax"><span class="cfg-info-icon" onclick="showCfgTooltipNow('DoIPHostNameSizeMax', this)">ⓘ</span>DoIPHostNameSizeMax</label><div class="cfg-ctrl"><input type="number" id="cfg_DoIPHostNameSizeMax" min="8" max="64" onchange="onConfigInputChanged('DoIPHostNameSizeMax')"></div></div>
+        <div class="cfg-row" data-cfg-key="DoIPEnableTlsPort3496"><label class="cfg-lbl" for="cfg_DoIPEnableTlsPort3496"><span class="cfg-info-icon" onclick="showCfgTooltipNow('DoIPEnableTlsPort3496', this)">ⓘ</span>EnableTlsPort3496</label><div class="cfg-ctrl"><input type="checkbox" id="cfg_DoIPEnableTlsPort3496" onchange="onConfigInputChanged('DoIPEnableTlsPort3496')"></div></div>
+      </div>
+
+      <!-- TAB 3: ROUTING ACTIVATION & SWC AUTH (6 FIELDS) -->
+      <div id="cfgPane3" class="cfg-list hidden">
+        <div class="cfg-row" data-cfg-key="DoIPMaxByteArrayLength"><label class="cfg-lbl" for="cfg_DoIPMaxByteArrayLength"><span class="cfg-info-icon" onclick="showCfgTooltipNow('DoIPMaxByteArrayLength', this)">ⓘ</span>MaxByteArrayLength (B)</label><div class="cfg-ctrl"><input type="number" id="cfg_DoIPMaxByteArrayLength" min="64" max="65535" step="64" onchange="onConfigInputChanged('DoIPMaxByteArrayLength')"></div></div>
+        <div class="cfg-row" data-cfg-key="DoIPAuthCallbackMode"><label class="cfg-lbl" for="cfg_DoIPAuthCallbackMode"><span class="cfg-info-icon" onclick="showCfgTooltipNow('DoIPAuthCallbackMode', this)">ⓘ</span>AuthCallbackMode</label><div class="cfg-ctrl"><select id="cfg_DoIPAuthCallbackMode" onchange="onConfigInputChanged('DoIPAuthCallbackMode')"><option value="RTE_SYNC_OK">RTE_SYNC_OK</option><option value="RTE_ASYNC_PENDING">RTE_ASYNC_PENDING</option><option value="RTE_DENIED">RTE_DENIED</option><option value="NONE">NONE</option></select></div></div>
+        <div class="cfg-row" data-cfg-key="DoIPConfCallbackRequired"><label class="cfg-lbl" for="cfg_DoIPConfCallbackRequired"><span class="cfg-info-icon" onclick="showCfgTooltipNow('DoIPConfCallbackRequired', this)">ⓘ</span>ConfCallbackRequired</label><div class="cfg-ctrl"><input type="checkbox" id="cfg_DoIPConfCallbackRequired" onchange="onConfigInputChanged('DoIPConfCallbackRequired')"></div></div>
+        <div class="cfg-row" data-cfg-key="DoIPRoutingActivationNumHex"><label class="cfg-lbl" for="cfg_DoIPRoutingActivationNumHex"><span class="cfg-info-icon" onclick="showCfgTooltipNow('DoIPRoutingActivationNumHex', this)">ⓘ</span>RoutingActivationType</label><div class="cfg-ctrl"><select id="cfg_DoIPRoutingActivationNumHex" onchange="onConfigInputChanged('DoIPRoutingActivationNumHex')"><option value="0x00">0x00 Default</option><option value="0x01">0x01 WWH-OBD</option><option value="0xE0">0xE0 OEM Auth</option></select></div></div>
+        <div class="cfg-row" data-cfg-key="DoIPSourceAddressTester1Hex"><label class="cfg-lbl" for="cfg_DoIPSourceAddressTester1Hex"><span class="cfg-info-icon" onclick="showCfgTooltipNow('DoIPSourceAddressTester1Hex', this)">ⓘ</span>Tester1SourceAddr</label><div class="cfg-ctrl"><input type="text" id="cfg_DoIPSourceAddressTester1Hex" onchange="onConfigInputChanged('DoIPSourceAddressTester1Hex')"></div></div>
+        <div class="cfg-row" data-cfg-key="DoIPSourceAddressTester2Hex"><label class="cfg-lbl" for="cfg_DoIPSourceAddressTester2Hex"><span class="cfg-info-icon" onclick="showCfgTooltipNow('DoIPSourceAddressTester2Hex', this)">ⓘ</span>Tester2SourceAddr</label><div class="cfg-ctrl"><input type="text" id="cfg_DoIPSourceAddressTester2Hex" onchange="onConfigInputChanged('DoIPSourceAddressTester2Hex')"></div></div>
+      </div>
+
+      <!-- TAB 4: TARGET CHANNELS & GATEWAY (6 FIELDS) -->
+      <div id="cfgPane4" class="cfg-list hidden">
+        <div class="cfg-row" data-cfg-key="DoIPLocalDcmTargetHex"><label class="cfg-lbl" for="cfg_DoIPLocalDcmTargetHex"><span class="cfg-info-icon" onclick="showCfgTooltipNow('DoIPLocalDcmTargetHex', this)">ⓘ</span>LocalDcmTargetAddr</label><div class="cfg-ctrl"><input type="text" id="cfg_DoIPLocalDcmTargetHex" onchange="onConfigInputChanged('DoIPLocalDcmTargetHex')"></div></div>
+        <div class="cfg-row" data-cfg-key="DoIPGwCanTpTargetHex"><label class="cfg-lbl" for="cfg_DoIPGwCanTpTargetHex"><span class="cfg-info-icon" onclick="showCfgTooltipNow('DoIPGwCanTpTargetHex', this)">ⓘ</span>GwCanTpTargetAddr</label><div class="cfg-ctrl"><input type="text" id="cfg_DoIPGwCanTpTargetHex" onchange="onConfigInputChanged('DoIPGwCanTpTargetHex')"></div></div>
+        <div class="cfg-row" data-cfg-key="DoIPFuncGroupTargetHex"><label class="cfg-lbl" for="cfg_DoIPFuncGroupTargetHex"><span class="cfg-info-icon" onclick="showCfgTooltipNow('DoIPFuncGroupTargetHex', this)">ⓘ</span>FuncGroupTargetAddr</label><div class="cfg-ctrl"><input type="text" id="cfg_DoIPFuncGroupTargetHex" onchange="onConfigInputChanged('DoIPFuncGroupTargetHex')"></div></div>
+        <div class="cfg-row" data-cfg-key="DoIPUseHeaderNackOnInvalidLen"><label class="cfg-lbl" for="cfg_DoIPUseHeaderNackOnInvalidLen"><span class="cfg-info-icon" onclick="showCfgTooltipNow('DoIPUseHeaderNackOnInvalidLen', this)">ⓘ</span>UseHeaderNackOnLen</label><div class="cfg-ctrl"><input type="checkbox" id="cfg_DoIPUseHeaderNackOnInvalidLen" onchange="onConfigInputChanged('DoIPUseHeaderNackOnInvalidLen')"></div></div>
+        <div class="cfg-row" data-cfg-key="DoIPEnableDiagAck0x8002"><label class="cfg-lbl" for="cfg_DoIPEnableDiagAck0x8002"><span class="cfg-info-icon" onclick="showCfgTooltipNow('DoIPEnableDiagAck0x8002', this)">ⓘ</span>EnableDiagAck0x8002</label><div class="cfg-ctrl"><input type="checkbox" id="cfg_DoIPEnableDiagAck0x8002" onchange="onConfigInputChanged('DoIPEnableDiagAck0x8002')"></div></div>
+        <div class="cfg-row" data-cfg-key="DoIPMaxTpChunkBytes"><label class="cfg-lbl" for="cfg_DoIPMaxTpChunkBytes"><span class="cfg-info-icon" onclick="showCfgTooltipNow('DoIPMaxTpChunkBytes', this)">ⓘ</span>MaxTpChunkBytes (MSS)</label><div class="cfg-ctrl"><input type="number" id="cfg_DoIPMaxTpChunkBytes" min="64" max="4096" step="64" onchange="onConfigInputChanged('DoIPMaxTpChunkBytes')"></div></div>
+      </div>
+
+      <!-- TAB 5: RUNTIME INJECTION & IDSM SECURITY (5 FIELDS) -->
+      <div id="cfgPane5" class="cfg-list hidden">
+        <div class="cfg-row" data-cfg-key="InjectedProtoVerHex"><label class="cfg-lbl" for="cfg_InjectedProtoVerHex"><span class="cfg-info-icon" onclick="showCfgTooltipNow('InjectedProtoVerHex', this)">ⓘ</span>InjectedProtoVer</label><div class="cfg-ctrl"><input type="text" id="cfg_InjectedProtoVerHex" onchange="onConfigInputChanged('InjectedProtoVerHex')"></div></div>
+        <div class="cfg-row" data-cfg-key="InjectedInvVerHex"><label class="cfg-lbl" for="cfg_InjectedInvVerHex"><span class="cfg-info-icon" onclick="showCfgTooltipNow('InjectedInvVerHex', this)">ⓘ</span>InjectedInvVer (~Ver)</label><div class="cfg-ctrl"><input type="text" id="cfg_InjectedInvVerHex" onchange="onConfigInputChanged('InjectedInvVerHex')"></div></div>
+        <div class="cfg-row" data-cfg-key="InjectedDiagPayloadLen"><label class="cfg-lbl" for="cfg_InjectedDiagPayloadLen"><span class="cfg-info-icon" onclick="showCfgTooltipNow('InjectedDiagPayloadLen', this)">ⓘ</span>InjectedPayloadLen</label><div class="cfg-ctrl"><input type="number" id="cfg_InjectedDiagPayloadLen" min="0" max="100000" onchange="onConfigInputChanged('InjectedDiagPayloadLen')"></div></div>
+        <div class="cfg-row" data-cfg-key="InjectedDiagDataHex"><label class="cfg-lbl" for="cfg_InjectedDiagDataHex"><span class="cfg-info-icon" onclick="showCfgTooltipNow('InjectedDiagDataHex', this)">ⓘ</span>InjectedUdsDataHex</label><div class="cfg-ctrl"><input type="text" id="cfg_InjectedDiagDataHex" onchange="onConfigInputChanged('InjectedDiagDataHex')"></div></div>
+        <div class="cfg-row" data-cfg-key="DoIPEnableIdsMSecurityEvents"><label class="cfg-lbl" for="cfg_DoIPEnableIdsMSecurityEvents"><span class="cfg-info-icon" onclick="showCfgTooltipNow('DoIPEnableIdsMSecurityEvents', this)">ⓘ</span>EnableIdsMSecEvents</label><div class="cfg-ctrl"><input type="checkbox" id="cfg_DoIPEnableIdsMSecurityEvents" onchange="onConfigInputChanged('DoIPEnableIdsMSecurityEvents')"></div></div>
+      </div>
+
+      <div id="cfgValidationBanner"></div>
+    </section>
+  </aside>
+
+  <!-- CENTER COLUMN: FRAME ANATOMY + TCP POOL + REGISTERS + STATE MACHINES + SVG -->
+  <section class="col-center">
+
+    <!-- PANEL 1: ISO 13400-2 FRAME ANATOMY + TCP CONN TABLE + DUAL 8-BIT REGISTERS -->
+    <section class="panel">
+      <div class="panel-hdr">
+        <div class="panel-title">🧩 Giải Phẫu Khung ISO 13400-2, Bảng TCP Socket Pool &amp; Thanh Ghi 8-Bit</div>
+        <span id="frameDirBadge" class="panel-sub">Idle</span>
+      </div>
+
+      <!-- 8-BYTE GENERIC HEADER STRIP -->
+      <div id="doipHeaderStrip" class="doip-hdr-grid">
+        <div id="hdrCellVer" class="hdr-byte-cell ok"><div class="hdr-byte-lbl">Byte 0: ProtoVer</div><div class="hdr-byte-val">0x02</div><div class="hdr-byte-sub">ISO 13400-2:2012</div></div>
+        <div id="hdrCellInv" class="hdr-byte-cell ok"><div class="hdr-byte-lbl">Byte 1: InvVer</div><div class="hdr-byte-val">0xFD</div><div class="hdr-byte-sub">~Ver = 0xFD</div></div>
+        <div id="hdrCellType" class="hdr-byte-cell ok"><div class="hdr-byte-lbl">Bytes 2..3: PayloadType</div><div class="hdr-byte-val">0x0004</div><div class="hdr-byte-sub">Vehicle Announce</div></div>
+        <div id="hdrCellLen" class="hdr-byte-cell ok"><div class="hdr-byte-lbl">Bytes 4..7: PayloadLen</div><div class="hdr-byte-val">33 B</div><div class="hdr-byte-sub">0x00000021</div></div>
+      </div>
+
+      <div class="doip-pay-bar">
+        <span id="doipPayloadPreview">Payload: [Waiting for DoIP Frame...]</span>
+        <span id="doipXorBadge" class="xor-pill ok">XOR: 0x02 ^ 0xFD = 0xFF (VALID)</span>
+      </div>
+
+      <!-- DOIP_TCPCONNTABLE LIVE SOCKET POOL MATRIX -->
+      <div class="conn-tbl-wrap">
+        <table class="conn-tbl">
+          <thead>
+            <tr>
+              <th>SoConId</th>
+              <th>Port</th>
+              <th>Tester SA</th>
+              <th>Routing State</th>
+              <th>T_Init (2s)</th>
+              <th>T_Gen (300s)</th>
+              <th>T_Alive (0.5s)</th>
+              <th>TP Buf</th>
+            </tr>
+          </thead>
+          <tbody id="doipTcpConnTbody"></tbody>
+        </table>
+      </div>
+
+      <!-- DUAL 8-BIT REGISTERS -->
+      <div class="reg-pair">
+        <div class="reg-box">
+          <div class="reg-hdr">
+            <span class="reg-name">Reg A: DoIP_NodeRoutingStatusByte</span>
+            <span id="regAHex" class="reg-hex">0x00</span>
+          </div>
+          <div id="regABits" class="bits-8"></div>
+        </div>
+        <div class="reg-box">
+          <div class="reg-hdr">
+            <span class="reg-name">Reg B: DoIP_HeaderDiagStatusByte</span>
+            <span id="regBHex" class="reg-hex">0x00</span>
+          </div>
+          <div id="regBBits" class="bits-8"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PANEL 2: DUAL PARALLEL STATE MACHINES & ISO 13400-2 TIMERS -->
+    <section class="panel">
+      <div class="panel-hdr">
+        <div class="panel-title">🔄 Máy Trạng Thái Kép &amp; Bộ Định Thời ISO 13400-2</div>
+        <span class="panel-sub">SWS_DoIP R23-11 State Synchronization</span>
+      </div>
+      <div class="sm-dual">
+        <div class="sm-card">
+          <div class="sm-title"><span>1. DoIP Activation &amp; IP State</span><span id="smNodeLabel" class="mono">UNINIT</span></div>
+          <div id="smNodePills" class="sm-pills"></div>
+        </div>
+        <div class="sm-card">
+          <div class="sm-title"><span>2. Active TCP Socket &amp; Routing State</span><span id="smTcpLabel" class="mono">SOCKET_CLOSED</span></div>
+          <div id="smTcpPills" class="sm-pills"></div>
+        </div>
+      </div>
+      <div id="doipTimerStrip" class="timer-strip">
+        <div id="tmrBoxAnn" class="tmr-box"><div class="tmr-lbl">T_Announce (3×500ms)</div><div id="tmrValAnn" class="tmr-val">IDLE</div></div>
+        <div id="tmrBoxInit" class="tmr-box"><div class="tmr-lbl">T_Initial_Inactivity (2000ms)</div><div id="tmrValInit" class="tmr-val">STOPPED</div></div>
+        <div id="tmrBoxGen" class="tmr-box"><div class="tmr-lbl">T_General_Inactivity (300s)</div><div id="tmrValGen" class="tmr-val">STOPPED</div></div>
+        <div id="tmrBoxAlive" class="tmr-box"><div class="tmr-lbl">T_Alive_Check (500ms)</div><div id="tmrValAlive" class="tmr-val">STOPPED</div></div>
+      </div>
+    </section>
+
+    <!-- PANEL 3: FULL ETHERNET-TO-CAN INTERACTIVE ARCHITECTURE SVG -->
+    <section class="panel">
+      <div class="panel-hdr">
+        <div class="panel-title">🗺️ Kiến Trúc Tương Tác AUTOSAR DoIP (Click từng khối để xem I/O)</div>
+        <span id="svgSelectedBadge" class="panel-sub">Selected: MOD_DOIP</span>
+      </div>
+      <svg id="doipArchSvg" class="arch-svg" viewBox="0 0 960 455" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <marker id="arrPri" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M0,1 L9,5 L0,9 z" fill="#38bdf8"/>
+          </marker>
+          <marker id="arrOk" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M0,1 L9,5 L0,9 z" fill="#22c55e"/>
+          </marker>
+          <marker id="arrErr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M0,1 L9,5 L0,9 z" fill="#ef4444"/>
+          </marker>
+          <marker id="arrPur" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M0,1 L9,5 L0,9 z" fill="#a855f7"/>
+          </marker>
+          <marker id="arrMuted" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M0,1 L9,5 L0,9 z" fill="#475569"/>
+          </marker>
+        </defs>
+
+        <!-- CONNECTION ARROWS -->
+        <path id="arr_bswm_doip" class="svg-arrow" d="M 195 152 L 208 152 L 208 232 L 220 232" marker-end="url(#arrMuted)"/>
+        <path id="arr_doip_det" class="svg-arrow" d="M 220 282 L 195 282" marker-end="url(#arrMuted)"/>
+        <path id="arr_tester_soad" class="svg-arrow" d="M 195 397 L 220 397" marker-end="url(#arrMuted)"/>
+        <path id="arr_soad_doip_rx" class="svg-arrow" d="M 455 356 L 455 324" marker-end="url(#arrMuted)"/>
+        <path id="arr_doip_soad_tx" class="svg-arrow" d="M 675 324 L 675 356" marker-end="url(#arrMuted)"/>
+        <path id="arr_doip_rte" class="svg-arrow" d="M 360 214 L 360 184" marker-end="url(#arrMuted)"/>
+        <path id="arr_rte_swc" class="svg-arrow" d="M 360 118 L 360 92" marker-end="url(#arrMuted)"/>
+        <path id="arr_doip_pdur" class="svg-arrow" d="M 700 214 L 700 184" marker-end="url(#arrMuted)"/>
+        <path id="arr_pdur_dcm" class="svg-arrow" d="M 622 118 L 622 92" marker-end="url(#arrMuted)"/>
+        <path id="arr_dcm_rte" class="svg-arrow" d="M 530 54 L 500 54" marker-end="url(#arrMuted)"/>
+        <path id="arr_pdur_cantp" class="svg-arrow" d="M 842 118 L 842 92" marker-end="url(#arrMuted)"/>
+
+        <!-- ROW 1: SWC, DCM, CANTP GATEWAY -->
+        <g id="node_MOD_SWC" class="svg-node" onclick="selectModule('MOD_SWC')">
+          <rect class="box" x="220" y="16" width="280" height="76"/>
+          <text class="svg-title" x="234" y="36">SWC Layer (Application)</text>
+          <text class="svg-sub" x="234" y="54">SWC_DoIPAuth: Auth / Conf / PwrMode</text>
+          <text class="svg-sub" x="234" y="70">SWC_Diag: UDS 0x22 DID / 0x36 Flash</text>
+          <text id="svgSwcAuthBadge" class="svg-badge" x="424" y="36">SYNC_OK</text>
+        </g>
+
+        <g id="node_MOD_DCM" class="svg-node" onclick="selectModule('MOD_DCM')">
+          <rect class="box" x="530" y="16" width="185" height="76"/>
+          <text class="svg-title" x="542" y="36">Dcm (Local UDS)</text>
+          <text class="svg-sub" x="542" y="54">Diag Com Manager</text>
+          <text id="svgDcmBadge" class="svg-badge" x="542" y="72">TA=0x1001 Idle</text>
+        </g>
+
+        <g id="node_MOD_CANTP_GW" class="svg-node" onclick="selectModule('MOD_CANTP_GW')">
+          <rect class="box" x="745" y="16" width="195" height="76"/>
+          <text class="svg-title" x="757" y="36">CanTp + CanIf GW</text>
+          <text class="svg-sub" x="757" y="54">Edge Gateway CAN-FD</text>
+          <text id="svgGwBadge" class="svg-badge" x="757" y="72">TA=0x2001 Ready</text>
+        </g>
+
+        <!-- ROW 2: BSWM, RTE, PDUR -->
+        <g id="node_MOD_BSWM" class="svg-node" onclick="selectModule('MOD_BSWM')">
+          <rect class="box" x="20" y="118" width="175" height="66"/>
+          <text class="svg-title" x="32" y="138">BswM / EcuM</text>
+          <text class="svg-sub" x="32" y="155">Activation Line Ctrl</text>
+          <text id="svgBswmBadge" class="svg-badge" x="32" y="172">ActLine: OFF</text>
+        </g>
+
+        <g id="node_MOD_RTE" class="svg-node" onclick="selectModule('MOD_RTE')">
+          <rect class="box" x="220" y="118" width="280" height="66"/>
+          <text class="svg-title" x="234" y="138">RTE (DoIP Direct &amp; Dcm)</text>
+          <text class="svg-sub" x="234" y="155">Rte_Call_DoIP_Auth / Conf / GID</text>
+          <text class="svg-sub" x="234" y="171">Dcm ↔ SWC_Diag Port Routing</text>
+        </g>
+
+        <g id="node_MOD_PDUR" class="svg-node" onclick="selectModule('MOD_PDUR')">
+          <rect class="box" x="530" y="118" width="410" height="66"/>
+          <text class="svg-title" x="544" y="138">PduR (Diagnostic TP Router)</text>
+          <text class="svg-sub" x="544" y="155">StartOfReception / CopyRxData / CopyTxData / TxConfirm</text>
+          <text id="svgPdurBadge" class="svg-badge" x="544" y="172">Route: 0x1001-&gt;Dcm | 0x2001-&gt;CanTp</text>
+        </g>
+
+        <!-- ROW 3: DET/IDSM + HERO DOIP -->
+        <g id="node_MOD_LOWER_DET" class="svg-node" onclick="selectModule('MOD_LOWER_DET')">
+          <rect class="box" x="20" y="214" width="175" height="110"/>
+          <text class="svg-title" x="32" y="236">DET &amp; IdsM</text>
+          <text class="svg-sub" x="32" y="254">ModuleId = 173</text>
+          <text class="svg-sub" x="32" y="271">0x01 UNINIT / 0x02 PARM</text>
+          <text class="svg-sub" x="32" y="288">Security NACK Monitor</text>
+          <text id="svgDetBadge" class="svg-badge" x="32" y="309">Events: 0</text>
+        </g>
+
+        <g id="node_MOD_DOIP" class="svg-node hero selected" onclick="selectModule('MOD_DOIP')">
+          <rect class="box" x="220" y="214" width="720" height="110"/>
+          <text class="svg-title" x="236" y="235">DoIP — Diagnostics over IP (ModuleId = 173 / 0x00AD | SWS_DoIP R23-11)</text>
+          <text id="svgDoipHeroBadge" class="svg-badge" x="790" y="235">STATE: UNINIT</text>
+
+          <rect x="234" y="246" width="164" height="66" rx="5" fill="rgba(56,189,248,0.08)" stroke="#38bdf8" stroke-width="1"/>
+          <text class="svg-title" x="244" y="264">Generic Header 8B</text>
+          <text class="svg-sub" x="244" y="281">Ver ^ InvVer == 0xFF</text>
+          <text class="svg-sub" x="244" y="297">0x0000 NACK Guard</text>
+
+          <rect x="410" y="246" width="166" height="66" rx="5" fill="rgba(20,184,166,0.08)" stroke="#14b8a6" stroke-width="1"/>
+          <text class="svg-title" x="420" y="264">UDP Discovery</text>
+          <text class="svg-sub" x="420" y="281">0x0004 x3 Announce</text>
+          <text class="svg-sub" x="420" y="297">0x0001..03 / 0x4001..04</text>
+
+          <rect x="588" y="246" width="170" height="66" rx="5" fill="rgba(168,85,247,0.08)" stroke="#a855f7" stroke-width="1"/>
+          <text class="svg-title" x="598" y="264">TCP Pool &amp; Alive</text>
+          <text class="svg-sub" x="598" y="281">0x0005/06 Routing Act</text>
+          <text class="svg-sub" x="598" y="297">0x0007/08 &amp; 3 Timers</text>
+
+          <rect x="770" y="246" width="156" height="66" rx="5" fill="rgba(34,197,94,0.08)" stroke="#22c55e" stroke-width="1"/>
+          <text class="svg-title" x="780" y="264">Diag 0x8001 &amp; TP</text>
+          <text class="svg-sub" x="780" y="281">0x8002 ACK / 0x8003</text>
+          <text class="svg-sub" x="780" y="297">4KB TP CopyRx/Tx</text>
+        </g>
+
+        <!-- ROW 4: EXTERNAL TESTER & SOAD / TCPIP / ETHIF -->
+        <g id="node_EXT_TESTER" class="svg-node" onclick="selectModule('MOD_SOAD')">
+          <rect class="box" x="20" y="356" width="175" height="82"/>
+          <text class="svg-title" x="32" y="378">External Tester</text>
+          <text class="svg-sub" x="32" y="395">ISO 13400-2 Client</text>
+          <text class="svg-sub" x="32" y="411">UDP 13400 / TCP 13400</text>
+          <text id="svgTesterBadge" class="svg-badge" x="32" y="427">SA=0x0E00 (TLS:3496)</text>
+        </g>
+
+        <g id="node_MOD_SOAD" class="svg-node" onclick="selectModule('MOD_SOAD')">
+          <rect class="box" x="220" y="356" width="720" height="82"/>
+          <text class="svg-title" x="236" y="378">SoAd + TcpIp + EthIf (Ethernet Lower Stack)</text>
+          <text class="svg-sub" x="236" y="396">IfRxIndication (UDP) | TpStartOfReception / TpCopyRxData / TpCopyTxData (TCP 13400 / TLS 3496)</text>
+          <text id="svgSoadBadge" class="svg-badge" x="236" y="416">LocalIP: UNASSIGNED | Active SoCon: 0</text>
+          <text class="svg-sub" x="620" y="416">DoIP_SoConModeChg() | DoIP_LocalIpAddrAssignmentChg()</text>
+        </g>
+      </svg>
+
+      <!-- HARDWARE / TESTER TRIGGER STRIP -->
+      <div class="hw-strip">
+        <button class="hw-btn" onclick="api_DoIP_ActivationLineSwitch(true);syncInputsFromConfig();renderAll();">🔌 ActLine HIGH</button>
+        <button class="hw-btn" onclick="api_DoIP_LocalIpAddrAssignmentChg(true);syncInputsFromConfig();renderAll();">🌐 DHCP IP Ready</button>
+        <button class="hw-btn" onclick="api_DoIP_SendVehicleAnnouncement();syncInputsFromConfig();renderAll();">📣 Announce 0x0004</button>
+        <button class="hw-btn" onclick="api_DoIP_TcpRoutingActivation('0x0E00', cfg.DoIPRoutingActivationNumHex, cfg.DoIPEnableTlsPort3496);syncInputsFromConfig();renderAll();">🔐 Connect + Activate</button>
+        <button class="hw-btn" onclick="api_DoIP_DiagRequest0x8001(cfg.DoIPLocalDcmTargetHex);syncInputsFromConfig();renderAll();">💬 UDS ➔ Dcm</button>
+        <button class="hw-btn" onclick="api_DoIP_DiagRequest0x8001(cfg.DoIPGwCanTpTargetHex);syncInputsFromConfig();renderAll();">🌉 UDS ➔ CanTp GW</button>
+        <button class="hw-btn warn" onclick="api_DoIP_HeaderNackTest('BAD_XOR');syncInputsFromConfig();renderAll();">💥 Bad XOR 0x0000</button>
+        <button class="hw-btn warn" onclick="api_DoIP_MainFunction(2000);syncInputsFromConfig();renderAll();">⏳ +2000ms Timeout</button>
+      </div>
+    </section>
+
+  </section>
+
+  <!-- RIGHT COLUMN (440px): 4-TAB INSPECTOR -->
+  <aside class="col-right">
+    <section class="panel insp-panel">
+      <div class="insp-tabs">
+        <button id="inspTab0" class="insp-tab active" onclick="switchInspTab(0)">🔍 Bước Này</button>
+        <button id="inspTab1" class="insp-tab" onclick="switchInspTab(1)">🧩 Module</button>
+        <button id="inspTab2" class="insp-tab" onclick="switchInspTab(2)">💻 Code C</button>
+        <button id="inspTab3" class="insp-tab" onclick="switchInspTab(3)">📡 API Trace</button>
+      </div>
+      <div id="inspBody" class="insp-body"></div>
+    </section>
+  </aside>
+
+</main>
+
+<!-- ==================== VIEW 2: HANDBOOK (6x4) & ABBREVIATION DICTIONARY ==================== -->
+<section id="viewHb" class="hb-wrap hidden">
+  <div class="hb-nav1">
+    <button id="hbTab1_0" class="hb-tab1 active" onclick="switchHbTab1(0)">1. Kiến Trúc &amp; Header 8B</button>
+    <button id="hbTab1_1" class="hb-tab1" onclick="switchHbTab1(1)">2. Startup &amp; UDP VID</button>
+    <button id="hbTab1_2" class="hb-tab1" onclick="switchHbTab1(2)">3. TCP &amp; SWC Auth/TLS</button>
+    <button id="hbTab1_3" class="hb-tab1" onclick="switchHbTab1(3)">4. Alive Check &amp; Timers</button>
+    <button id="hbTab1_4" class="hb-tab1" onclick="switchHbTab1(4)">5. UDS 0x8001 &amp; CanTp GW</button>
+    <button id="hbTab1_5" class="hb-tab1" onclick="switchHbTab1(5)">6. API R23-11, DET &amp; Debug</button>
+    <button id="hbTab1_6" class="hb-tab1" onclick="switchHbTab1(6)">7. Bảng Thuật Ngữ (60+)</button>
+  </div>
+
+  <div id="hbNav2" class="hb-nav2"></div>
+
+  <div id="hbAbbrFilterBox" class="abbr-toolbar hidden">
+    <input id="abbrSearchInput" class="abbr-search" type="text" placeholder="🔍 Tìm thuật ngữ DoIP / AUTOSAR / ISO 13400-2 (VD: 0x8001, Alive, SoConId, XOR, SWC, TLS)..." oninput="filterAbbreviationTable()">
+    <div class="abbr-pills">
+      <button id="catPill_ALL" class="abbr-pill active" onclick="setAbbrCategory('ALL')">Tất cả</button>
+      <button id="catPill_CORE" class="abbr-pill" onclick="setAbbrCategory('CORE')">CORE</button>
+      <button id="catPill_UDP" class="abbr-pill" onclick="setAbbrCategory('UDP')">UDP/VID</button>
+      <button id="catPill_TCP" class="abbr-pill" onclick="setAbbrCategory('TCP')">TCP/Auth</button>
+      <button id="catPill_TP_GW" class="abbr-pill" onclick="setAbbrCategory('TP_GW')">TP/Gateway</button>
+      <button id="catPill_API" class="abbr-pill" onclick="setAbbrCategory('API')">API/DET</button>
+    </div>
+    <span id="abbrCountBadge" class="step-badge">64 mục</span>
+  </div>
+
+  <div id="hbContentArea"></div>
+</section>
+
+<!-- ==================== EXPORT MODAL ==================== -->
+<div id="exportModal" class="modal-overlay hidden" onclick="if(event.target===this) closeExportModal()">
+  <div class="modal-box">
+    <div class="modal-hdr">
+      <strong style="font-size:14px;">📦 Xuất Cấu Hình AUTOSAR DoIP (Module 173 | SWS_DoIP R23-11)</strong>
+      <button class="hdr-btn" onclick="closeExportModal()">✖ Đóng</button>
+    </div>
+    <div class="modal-tabs">
+      <button id="expTab0" class="view-tab active" onclick="switchExportTab('arxml')">DoIP.arxml</button>
+      <button id="expTab1" class="view-tab" onclick="switchExportTab('h')">DoIP_Cfg.h</button>
+      <button id="expTab2" class="view-tab" onclick="switchExportTab('c')">DoIP_Lcfg.c</button>
+      <button id="expTab3" class="view-tab" onclick="switchExportTab('json')">DoIP_Config.json</button>
+      <button class="hdr-btn pri" style="margin-left:auto;" onclick="copyCurrentExport()">📋 Copy</button>
+      <button class="hdr-btn" onclick="downloadCurrentExportFile()">⬇️ Lưu File</button>
+    </div>
+    <div class="modal-content">
+      <pre id="exportCodePre" class="code-box"></pre>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== FLOATING TOOLTIP POPUP (>1s HOVER LIKE DEM) ==================== -->
+<div id="cfgTooltipPopup" class="cfg-tooltip"></div>
+
+<script>

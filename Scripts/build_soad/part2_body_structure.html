@@ -1,0 +1,721 @@
+  <!-- ================= STICKY COMPACT UNIFIED HEADER ================= -->
+  <header class="hdr">
+    <div class="hdr-row hdr-row-1">
+      <div class="brand">
+        <div class="brand-logo">SoAd</div>
+        <span class="brand-title">AUTOSAR Classic SoAd</span>
+        <span class="brand-sub" title="Release R22-11 / R23-11 · ModuleId 56 (0x0038) · SWS_SoAd">R22-11 · ID 56</span>
+      </div>
+
+      <div class="view-switch" role="tablist">
+        <button id="btnViewSim" class="view-btn active" onclick="switchMainView('sim')">⚡ Simulator</button>
+        <button id="btnViewHb" class="view-btn" onclick="switchMainView('hb')">📘 SWS Handbook</button>
+      </div>
+
+      <div class="hdr-tools">
+        <button class="btn btn-sm" onclick="openExportModal('arxml')" title="Xuất AUTOSAR ECUC ARXML">📄 ARXML</button>
+        <button class="btn btn-sm" onclick="openExportModal('cfgh')" title="Xuất SoAd_Cfg.h">⚙ Cfg.h</button>
+        <button class="btn btn-sm" onclick="openExportModal('lcfgc')" title="Xuất SoAd_Lcfg.c">🧩 Lcfg.c</button>
+        <button class="btn btn-sm" onclick="openExportModal('json')" title="Xuất JSON snapshot">🗂 JSON</button>
+        <button class="btn btn-sm btn-green" onclick="downloadStandaloneHTML()" title="Tải bản HTML chạy offline">💾 .HTML</button>
+        <button id="btnThemeToggle" class="btn btn-sm" onclick="toggleTheme()">☀ Light</button>
+      </div>
+    </div>
+
+    <div id="hdrRow2" class="hdr-row hdr-row-2">
+      <div class="scen-bar">
+        <label for="scenarioSelect" style="font-size:10.5px;font-weight:700;color:var(--text-dim)">Kịch bản:</label>
+        <select id="scenarioSelect" class="sel-compact" onchange="selectScenarioById(this.value)" style="max-width:190px"></select>
+        <button class="btn btn-sm" onclick="resetSimulationState()" title="Reset / SoAd_Init()">🔄 Init</button>
+        <button id="btnPrevStep" class="btn btn-sm" onclick="prevScenarioStep()" title="Bước trước">⏮</button>
+        <button id="btnNextStep" class="btn btn-sm btn-primary" onclick="nextScenarioStep()">▶ Step</button>
+        <button id="btnAutoPlay" class="btn btn-sm btn-cyan" onclick="toggleAutoPlay()">⏯ Auto</button>
+        <span id="stepBadge" class="pill-badge info">Step 0/4</span>
+      </div>
+
+      <div class="tcpip-bar">
+        <span style="font-size:10px;font-weight:700;color:var(--text-dim)">TcpIp:</span>
+        <button class="btn btn-sm btn-cyan" onclick="triggerHeaderTcpIpRx()" title="Kích hoạt SoAd_RxIndication()">📥 RxInd</button>
+        <button class="btn btn-sm btn-green" onclick="triggerHeaderTcpConn()" title="Kích hoạt TcpConnected / TcpAccepted">🤝 TCP Conn</button>
+        <button class="btn btn-sm" onclick="triggerHeaderTcpIpTxConf()" title="Kích hoạt SoAd_TxConfirmation()">📤 TxConf</button>
+        <button class="btn btn-sm btn-red" onclick="triggerHeaderTcpRstFin()" title="Kích hoạt SoAd_TcpIpEvent (RST/FIN)">⚡ RST/FIN</button>
+        <button class="btn btn-sm btn-amber" onclick="triggerHeaderLocalIpToggle()" title="Đảo trạng thái LocalIp ASSIGNED/UNASSIGNED">🌐 IP Chg</button>
+      </div>
+
+      <div class="hdr-badges">
+        <span id="hdrSoConBadge" class="pill-badge warn">SoCon0: OFFLINE</span>
+        <span id="hdrIpBadge" class="pill-badge ok">IpAddr: ASSIGNED</span>
+        <span id="hdrNpduBadge" class="pill-badge info">nPdu: 0B</span>
+        <span id="hdrRgBadge" class="pill-badge purple">RG_0: EN</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ================= VIEW 1: ZERO-SCROLL 3-COLUMN SIMULATOR ================= -->
+  <main id="viewSim" class="workspace">
+    <!-- LEFT COLUMN: QUICK ACTIONS, SCENARIO, 6-TAB ECUC CONFIG -->
+    <section class="col-pane col-left">
+      <!-- Card 1: 8 Quick Actions -->
+      <div class="card">
+        <div class="card-hdr">
+          <div class="card-title">⚡ Quick Actions — Standard AUTOSAR SoAd APIs</div>
+          <span class="card-sub">Bấm để gọi trực tiếp</span>
+        </div>
+        <div class="qa-grid">
+          <button class="qa-btn" onclick="qaIfTransmit()">
+            <span class="qa-fn">SoAd_IfTransmit()</span>
+            <span class="qa-meta">API 0x03 · IF / nPdu Tx</span>
+          </button>
+          <button class="qa-btn" onclick="qaTpTransmit()">
+            <span class="qa-fn">SoAd_TpTransmit()</span>
+            <span class="qa-meta">API 0x05 · TP Stream Tx</span>
+          </button>
+          <button class="qa-btn" onclick="qaRxIndication()">
+            <span class="qa-fn">SoAd_RxIndication()</span>
+            <span class="qa-meta">API 0x12 · Inject Profile</span>
+          </button>
+          <button class="qa-btn" onclick="qaToggleOpenCloseSoCon()">
+            <span class="qa-fn">Open / CloseSoCon()</span>
+            <span class="qa-meta">API 0x09 / 0x0A</span>
+          </button>
+          <button class="qa-btn" onclick="qaEnableAndTriggerRg()">
+            <span class="qa-fn">EnableRouting / Trig</span>
+            <span class="qa-meta">API 0x0F / 0x10 / 0x04</span>
+          </button>
+          <button class="qa-btn" onclick="qaSetRemoteAddr()">
+            <span class="qa-fn">SetRemoteAddr / Uniq</span>
+            <span class="qa-meta">API 0x11 / 0x1E</span>
+          </button>
+          <button class="qa-btn" onclick="qaMainFunction()">
+            <span class="qa-fn">SoAd_MainFunction()</span>
+            <span class="qa-meta">API 0x19 · Flush &amp; Timer</span>
+          </button>
+          <button class="qa-btn" onclick="toggleFaultMenu()">
+            <span class="qa-fn">Fault / Event Menu ▾</span>
+            <span class="qa-meta">DET, RST, Meas, Ver</span>
+          </button>
+        </div>
+
+        <div id="faultMenuWrap" class="fault-menu-wrap">
+          <button class="btn btn-sm btn-red" onclick="qaFaultAction('TCP_RESET')">⚡ TCP_RESET</button>
+          <button class="btn btn-sm btn-amber" onclick="qaFaultAction('LOCAL_IP_TOGGLE')">🌐 IP Unassign/Assign</button>
+          <button class="btn btn-sm btn-red" onclick="qaFaultAction('DET_UNKNOWN_HDR')">🛡 Unknown HeaderId</button>
+          <button class="btn btn-sm btn-cyan" onclick="qaFaultAction('MEAS_DATA')">📊 Get&amp;ResetMeasData</button>
+          <button class="btn btn-sm" onclick="qaFaultAction('VER_INFO')">ℹ GetVersionInfo</button>
+          <button class="btn btn-sm btn-purple" onclick="qaFaultAction('CHANGE_PARAM')">🎛 ChangeParameter</button>
+        </div>
+      </div>
+
+      <!-- Card 2: Scenario Brief & 3 What-Ifs -->
+      <div class="card">
+        <div class="card-hdr">
+          <div class="card-title">🎬 Active Scenario &amp; What-If Probes</div>
+          <span id="scenGroupTag" class="pill-badge info">Nhóm A</span>
+        </div>
+        <div id="scenSummary" class="scen-desc">Chọn kịch bản từ thanh tiêu đề hoặc bấm Step để mô phỏng từng bước.</div>
+        <div id="scenStepTitle" style="font-size:11.5px;font-weight:700;color:var(--green);margin-bottom:6px">Trạng thái: Sẵn sàng (Init)</div>
+        <div class="whatif-row" id="whatIfRow"></div>
+        <div class="step-progress" id="stepProgress"></div>
+      </div>
+
+      <!-- Card 3: 6-Tab ECUC Configuration (36 Fields) -->
+      <div class="card">
+        <div class="card-hdr">
+          <div class="card-title">⚙ ECUC SoAd Configuration (36 Fields)</div>
+          <span class="card-sub">Hover &gt;1s xem chi tiết SWS</span>
+        </div>
+
+        <div class="cfg-tabs">
+          <button id="cfgTab0" class="cfg-tab active" onclick="switchCfgTab(0)">1. General/Buf</button>
+          <button id="cfgTab1" class="cfg-tab" onclick="switchCfgTab(1)">2. SoConGrp/Proto</button>
+          <button id="cfgTab2" class="cfg-tab" onclick="switchCfgTab(2)">3. SoCon/RemAddr</button>
+          <button id="cfgTab3" class="cfg-tab" onclick="switchCfgTab(3)">4. PduRoute/nPdu</button>
+          <button id="cfgTab4" class="cfg-tab" onclick="switchCfgTab(4)">5. SockRoute/Rx</button>
+          <button id="cfgTab5" class="cfg-tab" onclick="switchCfgTab(5)">6. RG / SD / DET</button>
+        </div>
+
+        <!-- Tab 0: 1. General/Buf -->
+        <div id="cfgPane0" class="cfg-pane active">
+          <div class="cfg-row" data-cfg-key="SoAdDevErrorDetect">
+            <div class="cfg-label"><span class="cfg-name">SoAdDevErrorDetect</span><span class="cfg-hint">Bật kiểm tra lỗi DET phát triển</span></div>
+            <div class="cfg-ctrl"><input type="checkbox" id="cfg_SoAdDevErrorDetect" onchange="onConfigInputChanged('SoAdDevErrorDetect')" /></div>
+          </div>
+          <div class="cfg-row" data-cfg-key="SoAdMainFunctionPeriodMs">
+            <div class="cfg-label"><span class="cfg-name">SoAdMainFunctionPeriodMs</span><span class="cfg-hint">Chu kỳ MainFunction (1..100 ms)</span></div>
+            <div class="cfg-ctrl"><input type="number" id="cfg_SoAdMainFunctionPeriodMs" min="1" max="100" step="1" onchange="onConfigInputChanged('SoAdMainFunctionPeriodMs')" /></div>
+          </div>
+          <div class="cfg-row" data-cfg-key="SoAdGetAndResetMeasurementDataApi">
+            <div class="cfg-label"><span class="cfg-name">SoAdGetAndResetMeasurementDataApi</span><span class="cfg-hint">Cung cấp API đếm drop UDP/TCP</span></div>
+            <div class="cfg-ctrl"><input type="checkbox" id="cfg_SoAdGetAndResetMeasurementDataApi" onchange="onConfigInputChanged('SoAdGetAndResetMeasurementDataApi')" /></div>
+          </div>
+          <div class="cfg-row" data-cfg-key="SoAdVersionInfoApi">
+            <div class="cfg-label"><span class="cfg-name">SoAdVersionInfoApi</span><span class="cfg-hint">Cung cấp SoAd_GetVersionInfo()</span></div>
+            <div class="cfg-ctrl"><input type="checkbox" id="cfg_SoAdVersionInfoApi" onchange="onConfigInputChanged('SoAdVersionInfoApi')" /></div>
+          </div>
+          <div class="cfg-row" data-cfg-key="SoAdSoConMax">
+            <div class="cfg-label"><span class="cfg-name">SoAdSoConMax</span><span class="cfg-hint">Số Socket Connection tối đa (1..64)</span></div>
+            <div class="cfg-ctrl"><input type="number" id="cfg_SoAdSoConMax" min="1" max="64" step="1" onchange="onConfigInputChanged('SoAdSoConMax')" /></div>
+          </div>
+          <div class="cfg-row" data-cfg-key="SoAdEnableSecurityEventReporting">
+            <div class="cfg-label"><span class="cfg-name">SoAdEnableSecurityEventReporting</span><span class="cfg-hint">Báo cáo IdsM khi drop gói</span></div>
+            <div class="cfg-ctrl"><input type="checkbox" id="cfg_SoAdEnableSecurityEventReporting" onchange="onConfigInputChanged('SoAdEnableSecurityEventReporting')" /></div>
+          </div>
+        </div>
+
+        <!-- Tab 1: 2. SoConGrp/Proto -->
+        <div id="cfgPane1" class="cfg-pane">
+          <div class="cfg-row" data-cfg-key="SelectedSoConId">
+            <div class="cfg-label"><span class="cfg-name">SelectedSoConId</span><span class="cfg-hint">Socket Connection đang thao tác</span></div>
+            <div class="cfg-ctrl">
+              <select id="cfg_SelectedSoConId" onchange="onConfigInputChanged('SelectedSoConId')">
+                <option value="0">SoCon_0 (SOME/IP UDP)</option>
+                <option value="1">SoCon_1 (DoIP TCP Srv)</option>
+                <option value="2">SoCon_2 (SD Multicast)</option>
+                <option value="3">SoCon_3 (TCP Client Ext)</option>
+              </select>
+            </div>
+          </div>
+          <div class="cfg-row" data-cfg-key="SoAdPduHeaderEnable">
+            <div class="cfg-label"><span class="cfg-name">SoAdPduHeaderEnable</span><span class="cfg-hint">Chèn/tách 8-byte Header (ID+Len)</span></div>
+            <div class="cfg-ctrl"><input type="checkbox" id="cfg_SoAdPduHeaderEnable" onchange="onConfigInputChanged('SoAdPduHeaderEnable')" /></div>
+          </div>
+          <div class="cfg-row" data-cfg-key="SoAdSocketAutomaticSoConSetup">
+            <div class="cfg-label"><span class="cfg-name">SoAdSocketAutomaticSoConSetup</span><span class="cfg-hint">Tự động mở SoCon khi LocalIp ASSIGNED</span></div>
+            <div class="cfg-ctrl"><input type="checkbox" id="cfg_SoAdSocketAutomaticSoConSetup" onchange="onConfigInputChanged('SoAdSocketAutomaticSoConSetup')" /></div>
+          </div>
+          <div class="cfg-row" data-cfg-key="SoAdSocketProtocolChoice">
+            <div class="cfg-label"><span class="cfg-name">SoAdSocketProtocolChoice</span><span class="cfg-hint">Giao thức UDP hoặc TCP cho SoCon</span></div>
+            <div class="cfg-ctrl">
+              <select id="cfg_SoAdSocketProtocolChoice" onchange="onConfigInputChanged('SoAdSocketProtocolChoice')">
+                <option value="UDP">UDP</option>
+                <option value="TCP">TCP</option>
+              </select>
+            </div>
+          </div>
+          <div class="cfg-row" data-cfg-key="SoAdSocketTcpInitiate">
+            <div class="cfg-label"><span class="cfg-name">SoAdSocketTcpInitiate</span><span class="cfg-hint">TRUE=TCP Client Connect / FALSE=Listen</span></div>
+            <div class="cfg-ctrl"><input type="checkbox" id="cfg_SoAdSocketTcpInitiate" onchange="onConfigInputChanged('SoAdSocketTcpInitiate')" /></div>
+          </div>
+          <div class="cfg-row" data-cfg-key="SoAdSocketTcpNoDelayAndKeepAlive">
+            <div class="cfg-label"><span class="cfg-name">SoAdSocketTcpNoDelayAndKeepAlive</span><span class="cfg-hint">Tắt Nagle &amp; bật TCP KeepAlive</span></div>
+            <div class="cfg-ctrl"><input type="checkbox" id="cfg_SoAdSocketTcpNoDelayAndKeepAlive" onchange="onConfigInputChanged('SoAdSocketTcpNoDelayAndKeepAlive')" /></div>
+          </div>
+        </div>
+
+        <!-- Tab 2: 3. SoCon/RemAddr -->
+        <div id="cfgPane2" class="cfg-pane">
+          <div class="cfg-row" data-cfg-key="ActiveLocalIpAddrState">
+            <div class="cfg-label"><span class="cfg-name">ActiveLocalIpAddrState</span><span class="cfg-hint">Trạng thái IP cục bộ từ TcpIp</span></div>
+            <div class="cfg-ctrl">
+              <select id="cfg_ActiveLocalIpAddrState" onchange="onConfigInputChanged('ActiveLocalIpAddrState')">
+                <option value="TCPIP_IPADDR_STATE_ASSIGNED">ASSIGNED</option>
+                <option value="TCPIP_IPADDR_STATE_ONHOLD">ONHOLD</option>
+                <option value="TCPIP_IPADDR_STATE_UNASSIGNED">UNASSIGNED</option>
+              </select>
+            </div>
+          </div>
+          <div class="cfg-row" data-cfg-key="SoAdSocketLocalAddressAndPort">
+            <div class="cfg-label"><span class="cfg-name">SoAdSocketLocalAddressAndPort</span><span class="cfg-hint">Local IPv4:Port của ECU</span></div>
+            <div class="cfg-ctrl"><input type="text" id="cfg_SoAdSocketLocalAddressAndPort" onchange="onConfigInputChanged('SoAdSocketLocalAddressAndPort')" /></div>
+          </div>
+          <div class="cfg-row" data-cfg-key="SoAdSocketRemoteAddressAndPort">
+            <div class="cfg-label"><span class="cfg-name">SoAdSocketRemoteAddressAndPort</span><span class="cfg-hint">Remote IP:Port hoặc ANY:ANY</span></div>
+            <div class="cfg-ctrl"><input type="text" id="cfg_SoAdSocketRemoteAddressAndPort" onchange="onConfigInputChanged('SoAdSocketRemoteAddressAndPort')" /></div>
+          </div>
+          <div class="cfg-row" data-cfg-key="SoAdSocketMsgAcceptanceFilterEnabled">
+            <div class="cfg-label"><span class="cfg-name">SoAdSocketMsgAcceptanceFilterEnabled</span><span class="cfg-hint">Lọc nguồn gói đến qua Best-Match</span></div>
+            <div class="cfg-ctrl"><input type="checkbox" id="cfg_SoAdSocketMsgAcceptanceFilterEnabled" onchange="onConfigInputChanged('SoAdSocketMsgAcceptanceFilterEnabled')" /></div>
+          </div>
+          <div class="cfg-row" data-cfg-key="SoAdSocketUdpAliveSupervisionTimeoutEn">
+            <div class="cfg-label"><span class="cfg-name">SoAdSocketUdpAliveSupervisionTimeoutEn</span><span class="cfg-hint">Giám sát timeout UDP KeepAlive</span></div>
+            <div class="cfg-ctrl"><input type="checkbox" id="cfg_SoAdSocketUdpAliveSupervisionTimeoutEn" onchange="onConfigInputChanged('SoAdSocketUdpAliveSupervisionTimeoutEn')" /></div>
+          </div>
+          <div class="cfg-row" data-cfg-key="SoAdSocketFramePriorityVlanPcp">
+            <div class="cfg-label"><span class="cfg-name">SoAdSocketFramePriorityVlanPcp</span><span class="cfg-hint">Mức ưu tiên IEEE 802.1Q PCP (0..7)</span></div>
+            <div class="cfg-ctrl"><input type="number" id="cfg_SoAdSocketFramePriorityVlanPcp" min="0" max="7" step="1" onchange="onConfigInputChanged('SoAdSocketFramePriorityVlanPcp')" /></div>
+          </div>
+        </div>
+
+        <!-- Tab 3: 4. PduRoute/nPdu -->
+        <div id="cfgPane3" class="cfg-pane">
+          <div class="cfg-row" data-cfg-key="SelectedTxPduRouteId">
+            <div class="cfg-label"><span class="cfg-name">SelectedTxPduRouteId</span><span class="cfg-hint">Tuyến PduRoute phát đi</span></div>
+            <div class="cfg-ctrl">
+              <select id="cfg_SelectedTxPduRouteId" onchange="onConfigInputChanged('SelectedTxPduRouteId')">
+                <option value="PduRoute_0">PduRoute_0 (SOME/IP IF)</option>
+                <option value="PduRoute_1">PduRoute_1 (DoIP TP)</option>
+                <option value="PduRoute_2">PduRoute_2 (SD Unicast/MC)</option>
+                <option value="PduRoute_3A">PduRoute_3A (nPdu Sig A)</option>
+                <option value="PduRoute_3B">PduRoute_3B (nPdu Sig B)</option>
+              </select>
+            </div>
+          </div>
+          <div class="cfg-row" data-cfg-key="SoAdTxPduHeaderIdHex">
+            <div class="cfg-label"><span class="cfg-name">SoAdTxPduHeaderIdHex</span><span class="cfg-hint">Header ID 32-bit ghi vào frame Tx</span></div>
+            <div class="cfg-ctrl"><input type="text" id="cfg_SoAdTxPduHeaderIdHex" onchange="onConfigInputChanged('SoAdTxPduHeaderIdHex')" /></div>
+          </div>
+          <div class="cfg-row" data-cfg-key="SoAdTxUpperLayerType">
+            <div class="cfg-label"><span class="cfg-name">SoAdTxUpperLayerType</span><span class="cfg-hint">Giao diện IF hoặc TP với tầng trên</span></div>
+            <div class="cfg-ctrl">
+              <select id="cfg_SoAdTxUpperLayerType" onchange="onConfigInputChanged('SoAdTxUpperLayerType')">
+                <option value="IF">IF (Interface)</option>
+                <option value="TP">TP (Transport Protocol)</option>
+              </select>
+            </div>
+          </div>
+          <div class="cfg-row" data-cfg-key="SoAdTxUdpTriggerMode">
+            <div class="cfg-label"><span class="cfg-name">SoAdTxUdpTriggerMode</span><span class="cfg-hint">ALWAYS (xả ngay) / NEVER (gom nPdu)</span></div>
+            <div class="cfg-ctrl">
+              <select id="cfg_SoAdTxUdpTriggerMode" onchange="onConfigInputChanged('SoAdTxUdpTriggerMode')">
+                <option value="SOAD_TRIGGER_ALWAYS">SOAD_TRIGGER_ALWAYS</option>
+                <option value="SOAD_TRIGGER_NEVER">SOAD_TRIGGER_NEVER</option>
+              </select>
+            </div>
+          </div>
+          <div class="cfg-row" data-cfg-key="SoAdTxUdpTriggerTimeoutMs">
+            <div class="cfg-label"><span class="cfg-name">SoAdTxUdpTriggerTimeoutMs</span><span class="cfg-hint">Timeout xả nPdu UDP (0..500 ms)</span></div>
+            <div class="cfg-ctrl"><input type="number" id="cfg_SoAdTxUdpTriggerTimeoutMs" min="0" max="500" step="5" onchange="onConfigInputChanged('SoAdTxUdpTriggerTimeoutMs')" /></div>
+          </div>
+          <div class="cfg-row" data-cfg-key="SoAdSocketTcpImmediateTpTxConfirmation">
+            <div class="cfg-label"><span class="cfg-name">SoAdSocketTcpImmediateTpTxConfirmation</span><span class="cfg-hint">Báo TpTxConfirmation sớm (không chờ ACK)</span></div>
+            <div class="cfg-ctrl"><input type="checkbox" id="cfg_SoAdSocketTcpImmediateTpTxConfirmation" onchange="onConfigInputChanged('SoAdSocketTcpImmediateTpTxConfirmation')" /></div>
+          </div>
+        </div>
+
+        <!-- Tab 4: 5. SockRoute/Rx -->
+        <div id="cfgPane4" class="cfg-pane">
+          <div class="cfg-row" data-cfg-key="SelectedRxPacketProfile">
+            <div class="cfg-label"><span class="cfg-name">SelectedRxPacketProfile</span><span class="cfg-hint">Mẫu gói tin Rx giả lập từ TcpIp</span></div>
+            <div class="cfg-ctrl">
+              <select id="cfg_SelectedRxPacketProfile" onchange="onConfigInputChanged('SelectedRxPacketProfile')">
+                <option value="PKT_A">PKT_A: Single PDU (8B Hdr)</option>
+                <option value="PKT_B">PKT_B: Multi-PDU nPdu (2 PDU)</option>
+                <option value="PKT_C">PKT_C: Fragmented TCP TP</option>
+                <option value="PKT_D">PKT_D: Sticky TCP (2 PDU)</option>
+                <option value="PKT_E">PKT_E: Unknown HeaderId</option>
+                <option value="PKT_F">PKT_F: Raw PDU (No Header)</option>
+              </select>
+            </div>
+          </div>
+          <div class="cfg-row" data-cfg-key="SoAdRxPduHeaderIdExpectedHex">
+            <div class="cfg-label"><span class="cfg-name">SoAdRxPduHeaderIdExpectedHex</span><span class="cfg-hint">Header ID kỳ vọng của SocketRouteRx</span></div>
+            <div class="cfg-ctrl"><input type="text" id="cfg_SoAdRxPduHeaderIdExpectedHex" onchange="onConfigInputChanged('SoAdRxPduHeaderIdExpectedHex')" /></div>
+          </div>
+          <div class="cfg-row" data-cfg-key="SoAdRxUpperLayerTarget">
+            <div class="cfg-label"><span class="cfg-name">SoAdRxUpperLayerTarget</span><span class="cfg-hint">Module tầng trên nhận RxPDU</span></div>
+            <div class="cfg-ctrl">
+              <select id="cfg_SoAdRxUpperLayerTarget" onchange="onConfigInputChanged('SoAdRxUpperLayerTarget')">
+                <option value="PDUR">PduR (LdCom/Com/Dcm)</option>
+                <option value="SD">Sd (SOME/IP-SD)</option>
+                <option value="DOIP">DoIP (Diagnostics)</option>
+                <option value="UDPNM">UdpNm (Network Mgmt)</option>
+                <option value="XCP">Xcp (Calibration)</option>
+                <option value="CDD">Cdd (Complex Driver)</option>
+              </select>
+            </div>
+          </div>
+          <div class="cfg-row" data-cfg-key="InjectedRxPayloadLengthBytes">
+            <div class="cfg-label"><span class="cfg-name">InjectedRxPayloadLengthBytes</span><span class="cfg-hint">Độ dài payload gói Rx (4..4096 B)</span></div>
+            <div class="cfg-ctrl"><input type="number" id="cfg_InjectedRxPayloadLengthBytes" min="4" max="4096" step="4" onchange="onConfigInputChanged('InjectedRxPayloadLengthBytes')" /></div>
+          </div>
+          <div class="cfg-row" data-cfg-key="SoAdRxBufferMaxCapacityBytes">
+            <div class="cfg-label"><span class="cfg-name">SoAdRxBufferMaxCapacityBytes</span><span class="cfg-hint">Dung lượng SoAdRxBuffer TCP (64..4096 B)</span></div>
+            <div class="cfg-ctrl"><input type="number" id="cfg_SoAdRxBufferMaxCapacityBytes" min="64" max="4096" step="64" onchange="onConfigInputChanged('SoAdRxBufferMaxCapacityBytes')" /></div>
+          </div>
+          <div class="cfg-row" data-cfg-key="SoAdSocketUdpStrictHeaderLenCheck">
+            <div class="cfg-label"><span class="cfg-name">SoAdSocketUdpStrictHeaderLenCheck</span><span class="cfg-hint">Kiểm tra nghiêm ngặt PduLength vs UDP len</span></div>
+            <div class="cfg-ctrl"><input type="checkbox" id="cfg_SoAdSocketUdpStrictHeaderLenCheck" onchange="onConfigInputChanged('SoAdSocketUdpStrictHeaderLenCheck')" /></div>
+          </div>
+        </div>
+
+        <!-- Tab 5: 6. RG / SD / DET -->
+        <div id="cfgPane5" class="cfg-pane">
+          <div class="cfg-row" data-cfg-key="SelectedRoutingGroupId">
+            <div class="cfg-label"><span class="cfg-name">SelectedRoutingGroupId</span><span class="cfg-hint">RoutingGroup điều khiển bật/tắt luồng</span></div>
+            <div class="cfg-ctrl">
+              <select id="cfg_SelectedRoutingGroupId" onchange="onConfigInputChanged('SelectedRoutingGroupId')">
+                <option value="RG_0">RG_0 (EventGrp Service 0x10)</option>
+                <option value="RG_1">RG_1 (Camera Diag Stream)</option>
+                <option value="RG_2">RG_2 (Sd Offer/Subscribe)</option>
+              </select>
+            </div>
+          </div>
+          <div class="cfg-row" data-cfg-key="SoAdRoutingGroupIsEnabledAfterInit">
+            <div class="cfg-label"><span class="cfg-name">SoAdRoutingGroupIsEnabledAfterInit</span><span class="cfg-hint">Cho phép RG ngay sau SoAd_Init()</span></div>
+            <div class="cfg-ctrl"><input type="checkbox" id="cfg_SoAdRoutingGroupIsEnabledAfterInit" onchange="onConfigInputChanged('SoAdRoutingGroupIsEnabledAfterInit')" /></div>
+          </div>
+          <div class="cfg-row" data-cfg-key="SoAdRoutingGroupTxTriggerable">
+            <div class="cfg-label"><span class="cfg-name">SoAdRoutingGroupTxTriggerable</span><span class="cfg-hint">Hỗ trợ SoAd_IfRoutingGroupTransmit()</span></div>
+            <div class="cfg-ctrl"><input type="checkbox" id="cfg_SoAdRoutingGroupTxTriggerable" onchange="onConfigInputChanged('SoAdRoutingGroupTxTriggerable')" /></div>
+          </div>
+          <div class="cfg-row" data-cfg-key="SimulateTcpIpBufferBusyOrNoBufs">
+            <div class="cfg-label"><span class="cfg-name">SimulateTcpIpBufferBusyOrNoBufs</span><span class="cfg-hint">Ép TcpIp trả BUFREQ_E_BUSY / E_NOT_OK</span></div>
+            <div class="cfg-ctrl"><input type="checkbox" id="cfg_SimulateTcpIpBufferBusyOrNoBufs" onchange="onConfigInputChanged('SimulateTcpIpBufferBusyOrNoBufs')" /></div>
+          </div>
+          <div class="cfg-row" data-cfg-key="PassInvalidArgOrUninitForDetTest">
+            <div class="cfg-label"><span class="cfg-name">PassInvalidArgOrUninitForDetTest</span><span class="cfg-hint">Chèn PduId sai/NULL ptr để test DET</span></div>
+            <div class="cfg-ctrl"><input type="checkbox" id="cfg_PassInvalidArgOrUninitForDetTest" onchange="onConfigInputChanged('PassInvalidArgOrUninitForDetTest')" /></div>
+          </div>
+          <div class="cfg-row" data-cfg-key="InjectedTcpIpEventType">
+            <div class="cfg-label"><span class="cfg-name">InjectedTcpIpEventType</span><span class="cfg-hint">Loại sự kiện socket từ TcpIp_Event</span></div>
+            <div class="cfg-ctrl">
+              <select id="cfg_InjectedTcpIpEventType" onchange="onConfigInputChanged('InjectedTcpIpEventType')">
+                <option value="TCPIP_TCP_RESET">TCPIP_TCP_RESET</option>
+                <option value="TCPIP_TCP_CLOSED">TCPIP_TCP_CLOSED</option>
+                <option value="TCPIP_TCP_FIN_RECEIVED">TCPIP_TCP_FIN_RECEIVED</option>
+                <option value="TCPIP_UDP_CLOSED">TCPIP_UDP_CLOSED</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div id="cfgWarnBanner" class="cfg-warn-banner"></div>
+      </div>
+    </section>
+
+    <!-- CENTER COLUMN: PANEL 1 (8B HEADER + SOCON/BUFFERS + DUAL REGS), PANEL 2 (COUNTERS + DUAL SM), PANEL 3 (SVG STACK) -->
+    <section class="col-pane col-center">
+      <!-- PANEL 1 -->
+      <div class="card">
+        <div class="card-hdr">
+          <div class="card-title">📦 Panel 1 — 8-Byte PDU Header, Best-Match Table, nPdu/Stream Buffers &amp; Dual 8-Bit Registers</div>
+          <button class="btn btn-sm" onclick="togglePduHeaderInline()" id="btnToggleHdr">Header: ON</button>
+        </div>
+
+        <!-- Tier 1A: 8-Byte PDU Header Anatomy -->
+        <div id="pduHeaderStrip" class="hdr-pdu-strip"></div>
+
+        <!-- Tier 1B: SoCon Best-Match Table + nPdu/TCP Stream Buffer -->
+        <div class="p1-split">
+          <div class="sub-box">
+            <div class="sub-box-title">
+              <span>🎯 SoCon Table &amp; Best-Match / RoutingGroup</span>
+              <span id="bestMatchNote" class="mono" style="color:var(--accent)">Ready</span>
+            </div>
+            <table class="socon-table">
+              <thead>
+                <tr>
+                  <th>SoCon</th>
+                  <th>Proto</th>
+                  <th>Remote IP:Port</th>
+                  <th>Mode</th>
+                  <th>RG</th>
+                </tr>
+              </thead>
+              <tbody id="soConTableBody"></tbody>
+            </table>
+          </div>
+
+          <div class="sub-box buf-card">
+            <div class="sub-box-title">
+              <span>🧺 nPdu UDP Tx Buffer &amp; TCP Rx Stream Buffer</span>
+              <span id="npduTimerLabel" class="mono" style="color:var(--amber)">Timeout: 0ms</span>
+            </div>
+            <div class="buf-meter-row">
+              <div class="buf-meter-hdr">
+                <span>nPdu Bundle Queue (UDP)</span>
+                <span id="npduCountText" class="mono">0 PDUs / 0 B</span>
+              </div>
+              <div class="buf-bar-bg"><div id="npduBarFill" class="buf-bar-fill" style="width:0%"></div></div>
+              <div id="npduChunks" class="chunk-strip"></div>
+            </div>
+
+            <div class="buf-meter-row">
+              <div class="buf-meter-hdr">
+                <span>SoAdRxBuffer (TCP Stream)</span>
+                <span id="rxBufText" class="mono">0 / 2048 B</span>
+              </div>
+              <div class="buf-bar-bg"><div id="rxBufFill" class="buf-bar-fill" style="width:0%"></div></div>
+              <div id="rxStreamStatus" style="font-size:10px;color:var(--text-dim)">IDLE — Không có mảnh PDU dở dang</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tier 2: Dual 8-Bit Registers -->
+        <div class="reg-grid">
+          <div class="reg-card">
+            <div class="reg-hdr">
+              <span class="reg-name">Thanh A · SoAd_SoConStateByte (Active SoCon)</span>
+              <span id="regAHex" class="reg-hex">0x00</span>
+            </div>
+            <div id="regAGrid" class="bit-grid"></div>
+          </div>
+
+          <div class="reg-card">
+            <div class="reg-hdr">
+              <span class="reg-name">Thanh B · SoAd_PduRoutingByte (Last Op)</span>
+              <span id="regBHex" class="reg-hex">0x00</span>
+            </div>
+            <div id="regBGrid" class="bit-grid"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PANEL 2 -->
+      <div class="card">
+        <div class="card-hdr">
+          <div class="card-title">⏱ Panel 2 — Live Counters, Timers &amp; Dual State Machines</div>
+          <span id="simClockBadge" class="pill-badge info">t = 0 ms</span>
+        </div>
+
+        <div class="counter-grid">
+          <div class="cnt-card">
+            <div class="cnt-lbl">Tx / Rx PDUs</div>
+            <div id="cntTxRx" class="cnt-val">0 / 0</div>
+            <div id="cntTxRxSub" class="cnt-sub">IF: 0 · TP: 0</div>
+          </div>
+          <div class="cnt-card">
+            <div class="cnt-lbl">nPdu Trigger Timer</div>
+            <div id="cntNpduTimer" class="cnt-val">IDLE</div>
+            <div id="cntNpduSub" class="cnt-sub">Bundled: 0 frames</div>
+          </div>
+          <div class="cnt-card">
+            <div class="cnt-lbl">TcpIp Socket / Dropped</div>
+            <div id="cntDrops" class="cnt-val">0 drops</div>
+            <div id="cntDropsSub" class="cnt-sub">TCP:0 · UDP:0</div>
+          </div>
+          <div class="cnt-card">
+            <div class="cnt-lbl">DET &amp; Security Events</div>
+            <div id="cntDet" class="cnt-val">0 DET</div>
+            <div id="cntDetSub" class="cnt-sub">IdsM Sev: 0</div>
+          </div>
+        </div>
+
+        <div class="sm-dual">
+          <div class="sm-card">
+            <div class="sm-title">
+              <span>SM 1 · SoAd_SoConModeType (Active Socket)</span>
+              <span id="smSoConOwner" class="mono">OpenCnt:0</span>
+            </div>
+            <div class="sm-flow" id="smSoConFlow">
+              <div id="smNodeOffline" class="sm-node active-err">OFFLINE</div>
+              <span class="sm-arrow">⇄</span>
+              <div id="smNodeReconnect" class="sm-node">RECONNECT</div>
+              <span class="sm-arrow">⇄</span>
+              <div id="smNodeOnline" class="sm-node">ONLINE</div>
+            </div>
+          </div>
+
+          <div class="sm-card">
+            <div class="sm-title">
+              <span>SM 2 · IF / nPdu / TP / TCP Rx Pipeline State</span>
+              <span id="smPipeProto" class="mono">UDP</span>
+            </div>
+            <div class="sm-flow" id="smPipeFlow">
+              <div id="smPipeIdle" class="sm-node active">IDLE</div>
+              <span class="sm-arrow">→</span>
+              <div id="smPipeNpdu" class="sm-node">nPDU_WAIT</div>
+              <span class="sm-arrow">→</span>
+              <div id="smPipeTp" class="sm-node">TP_COPY</div>
+              <span class="sm-arrow">→</span>
+              <div id="smPipeReasm" class="sm-node">RX_REASM</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PANEL 3 -->
+      <div class="card">
+        <div class="card-hdr">
+          <div class="card-title">🌐 Panel 3 — Automotive Ethernet Stack (Click Module để Inspect)</div>
+          <span id="svgFlowCaption" class="card-sub">Bấm khối kiến trúc hoặc chạy API để thấy đường dữ liệu</span>
+        </div>
+
+        <div class="arch-wrap">
+          <svg id="soadArchSvg" class="arch-svg" viewBox="0 0 920 355" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <marker id="arrAccent" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+                <path d="M0,0 L8,4 L0,8 Z" fill="#38bdf8" />
+              </marker>
+              <marker id="arrGreen" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+                <path d="M0,0 L8,4 L0,8 Z" fill="#10b981" />
+              </marker>
+              <marker id="arrPurple" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+                <path d="M0,0 L8,4 L0,8 Z" fill="#a78bfa" />
+              </marker>
+              <marker id="arrAmber" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+                <path d="M0,0 L8,4 L0,8 Z" fill="#f59e0b" />
+              </marker>
+              <marker id="arrRed" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+                <path d="M0,0 L8,4 L0,8 Z" fill="#f43f5e" />
+              </marker>
+              <marker id="arrCyan" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+                <path d="M0,0 L8,4 L0,8 Z" fill="#22d3ee" />
+              </marker>
+            </defs>
+
+            <!-- Layer bands -->
+            <rect x="10" y="8" width="900" height="58" rx="8" fill="rgba(56,189,248,0.06)" stroke="var(--border)" />
+            <text x="20" y="24" font-size="10.5" font-weight="700" fill="var(--text-muted)">APPLICATION &amp; RTE LAYER</text>
+
+            <rect x="10" y="74" width="900" height="72" rx="8" fill="rgba(167,139,250,0.07)" stroke="var(--border)" />
+            <text x="20" y="90" font-size="10.5" font-weight="700" fill="var(--text-muted)">UPPER BSW SERVICES (PduR, Sd, DoIP, UdpNm, Xcp, EthSM)</text>
+
+            <rect x="10" y="156" width="900" height="92" rx="8" fill="rgba(16,185,129,0.08)" stroke="var(--border-strong)" />
+            <text x="20" y="172" font-size="10.5" font-weight="700" fill="var(--green)">SOCKET ADAPTOR (SoAd · ModuleId 56)</text>
+
+            <rect x="10" y="258" width="900" height="88" rx="8" fill="rgba(245,158,11,0.07)" stroke="var(--border)" />
+            <text x="20" y="274" font-size="10.5" font-weight="700" fill="var(--text-muted)">TCPIP, ETHIF / PHY &amp; DIAGNOSTIC SECURITY (Det / IdsM)</text>
+
+            <!-- Top Row Modules -->
+            <g id="svgMod_MOD_SWC" class="mod-node" onclick="selectArchModule('MOD_SWC')">
+              <rect x="165" y="18" width="235" height="40" rx="7" fill="var(--bg-card)" stroke="var(--border-strong)" stroke-width="1.5" />
+              <text x="282" y="35" text-anchor="middle" font-size="12" font-weight="700" fill="var(--text-main)">SW-C (Client / Server / Signal)</text>
+              <text x="282" y="50" text-anchor="middle" font-size="10" fill="var(--text-dim)">Service-Oriented App &amp; Com Signals</text>
+            </g>
+
+            <g id="svgMod_MOD_RTE" class="mod-node" onclick="selectArchModule('MOD_RTE')">
+              <rect x="470" y="18" width="270" height="40" rx="7" fill="var(--bg-card)" stroke="var(--border-strong)" stroke-width="1.5" />
+              <text x="605" y="35" text-anchor="middle" font-size="12" font-weight="700" fill="var(--text-main)">RTE + SomeIpXf / E2EXf</text>
+              <text x="605" y="50" text-anchor="middle" font-size="10" fill="var(--text-dim)">Serialize SOME/IP Payload &amp; SchM</text>
+            </g>
+
+            <!-- Upper BSW Modules -->
+            <g id="svgMod_MOD_PDUR" class="mod-node" onclick="selectArchModule('MOD_PDUR')">
+              <rect x="24" y="96" width="205" height="42" rx="7" fill="var(--bg-card)" stroke="var(--accent)" stroke-width="1.5" />
+              <text x="126" y="114" text-anchor="middle" font-size="11.5" font-weight="700" fill="var(--accent)">PduR / LdCom / Com / Dcm</text>
+              <text x="126" y="129" text-anchor="middle" font-size="10" fill="var(--text-dim)">IF &amp; TP Upper PDU Router</text>
+            </g>
+
+            <g id="svgMod_MOD_SD" class="mod-node" onclick="selectArchModule('MOD_SD')">
+              <rect x="245" y="96" width="205" height="42" rx="7" fill="var(--bg-card)" stroke="var(--purple)" stroke-width="1.5" />
+              <text x="347" y="114" text-anchor="middle" font-size="11.5" font-weight="700" fill="var(--purple)">Sd (Service Discovery)</text>
+              <text x="347" y="129" text-anchor="middle" font-size="10" fill="var(--text-dim)">EnableRouting / OpenSoCon</text>
+            </g>
+
+            <g id="svgMod_MOD_UL_DIRECT" class="mod-node" onclick="selectArchModule('MOD_UL_DIRECT')">
+              <rect x="466" y="96" width="215" height="42" rx="7" fill="var(--bg-card)" stroke="var(--cyan)" stroke-width="1.5" />
+              <text x="573" y="114" text-anchor="middle" font-size="11.5" font-weight="700" fill="var(--cyan)">DoIP / UdpNm / Xcp / CDD</text>
+              <text x="573" y="129" text-anchor="middle" font-size="10" fill="var(--text-dim)">Direct SoAd Upper Layers</text>
+            </g>
+
+            <g id="svgMod_MOD_ETHSM" class="mod-node" onclick="selectArchModule('MOD_ETHSM')">
+              <rect x="697" y="96" width="200" height="42" rx="7" fill="var(--bg-card)" stroke="var(--amber)" stroke-width="1.5" />
+              <text x="797" y="114" text-anchor="middle" font-size="11.5" font-weight="700" fill="var(--amber)">EthSM / ComM / BswM</text>
+              <text x="797" y="129" text-anchor="middle" font-size="10" fill="var(--text-dim)">SoConModeChg Observer</text>
+            </g>
+
+            <!-- Core SoAd Module -->
+            <g id="svgMod_MOD_SOAD" class="mod-node selected" onclick="selectArchModule('MOD_SOAD')">
+              <rect x="95" y="178" width="730" height="60" rx="9" fill="var(--bg-card-alt)" stroke="var(--green)" stroke-width="2" />
+              <text x="460" y="199" text-anchor="middle" font-size="13.5" font-weight="800" fill="var(--green)">SoAd Core · Socket Adaptor (ModuleId 56)</text>
+              <text x="460" y="216" text-anchor="middle" font-size="10.5" fill="var(--text-main)">PduRoute | SocketRoute | 8B Header | Best-Match | nPdu Buffer | SoAdRxBuffer | RoutingGroup</text>
+              <text id="svgSoadLiveLine" x="460" y="231" text-anchor="middle" font-size="10" font-weight="700" fill="var(--cyan)">Active: SoCon_0 | Header=ON | RG_0=EN | Mode=OFFLINE</text>
+            </g>
+
+            <!-- Lower Modules -->
+            <g id="svgMod_MOD_TCPIP" class="mod-node" onclick="selectArchModule('MOD_TCPIP')">
+              <rect x="115" y="282" width="320" height="54" rx="7" fill="var(--bg-card)" stroke="var(--amber)" stroke-width="1.6" />
+              <text x="275" y="302" text-anchor="middle" font-size="12" font-weight="700" fill="var(--amber)">TcpIp (UDP / TCP / DHCP / IPv4)</text>
+              <text x="275" y="318" text-anchor="middle" font-size="10" fill="var(--text-dim)">TcpIp_UdpTransmit / TcpTransmit / Bind / Connect</text>
+              <text x="275" y="331" text-anchor="middle" font-size="9.5" fill="var(--text-dim)">Callbacks: RxIndication, TcpConnected, TcpIpEvent</text>
+            </g>
+
+            <g id="svgMod_MOD_ETHHW_DET" class="mod-node" onclick="selectArchModule('MOD_ETHHW_DET')">
+              <rect x="485" y="282" width="335" height="54" rx="7" fill="var(--bg-card)" stroke="var(--red)" stroke-width="1.6" />
+              <text x="652" y="302" text-anchor="middle" font-size="12" font-weight="700" fill="var(--red)">EthIf / EthTrcv / Bus &amp; Det / IdsM</text>
+              <text x="652" y="318" text-anchor="middle" font-size="10" fill="var(--text-dim)">100/1000BASE-T1 Wire Frames &amp; VLAN 802.1Q</text>
+              <text x="652" y="331" text-anchor="middle" font-size="9.5" fill="var(--text-dim)">Det_ReportError / RuntimeError · IdsM SecEvent</text>
+            </g>
+
+            <!-- Animated Flow Arrows -->
+            <line id="arrowSwcRte" class="flow-arrow" x1="400" y1="38" x2="466" y2="38" stroke="#38bdf8" stroke-width="2" marker-end="url(#arrAccent)" />
+            <path id="arrowRtePduR" class="flow-arrow" d="M540,58 L540,70 L140,70 L140,94" fill="none" stroke="#38bdf8" stroke-width="2" marker-end="url(#arrAccent)" />
+            <line id="arrowPduRSoadTx" class="flow-arrow" x1="126" y1="138" x2="126" y2="176" stroke="#10b981" stroke-width="2" marker-end="url(#arrGreen)" />
+            <line id="arrowSoadPduRRx" class="flow-arrow" x1="175" y1="178" x2="175" y2="140" stroke="#38bdf8" stroke-width="2" marker-end="url(#arrAccent)" />
+            <line id="arrowSdSoad" class="flow-arrow" x1="347" y1="138" x2="347" y2="176" stroke="#a78bfa" stroke-width="2" marker-end="url(#arrPurple)" />
+            <line id="arrowUlSoad" class="flow-arrow" x1="573" y1="138" x2="573" y2="176" stroke="#22d3ee" stroke-width="2" marker-end="url(#arrCyan)" />
+            <line id="arrowSoadEthSM" class="flow-arrow" x1="797" y1="178" x2="797" y2="140" stroke="#f59e0b" stroke-width="2" marker-end="url(#arrAmber)" />
+            <line id="arrowSoadTcpIpTx" class="flow-arrow" x1="230" y1="238" x2="230" y2="280" stroke="#10b981" stroke-width="2" marker-end="url(#arrGreen)" />
+            <line id="arrowTcpIpSoadRx" class="flow-arrow" x1="320" y1="282" x2="320" y2="240" stroke="#38bdf8" stroke-width="2" marker-end="url(#arrAccent)" />
+            <line id="arrowTcpIpEthBus" class="flow-arrow" x1="435" y1="309" x2="483" y2="309" stroke="#f59e0b" stroke-width="2" marker-end="url(#arrAmber)" />
+            <line id="arrowSoadDet" class="flow-arrow" x1="652" y1="238" x2="652" y2="280" stroke="#f43f5e" stroke-width="2" marker-end="url(#arrRed)" />
+          </svg>
+        </div>
+      </div>
+    </section>
+
+    <!-- RIGHT COLUMN: STICKY 4-TAB INSPECTOR -->
+    <aside class="col-right">
+      <div class="insp-panel">
+        <div class="insp-tabs">
+          <button id="inspTab0" class="insp-tab active" onclick="switchInspTab(0)">🔍 Module</button>
+          <button id="inspTab1" class="insp-tab" onclick="switchInspTab(1)">📡 API Trace</button>
+          <button id="inspTab2" class="insp-tab" onclick="switchInspTab(2)">⚠ DET/Meas</button>
+          <button id="inspTab3" class="insp-tab" onclick="switchInspTab(3)">🧠 Bit/ECUC</button>
+        </div>
+
+        <div class="insp-body">
+          <!-- Pane 0: Module Inspector -->
+          <div id="inspPane0" class="insp-pane active">
+            <div id="moduleInspectorContent" class="mod-detail-card"></div>
+          </div>
+
+          <!-- Pane 1: API Call Sequence Trace -->
+          <div id="inspPane1" class="insp-pane">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span style="font-size:11.5px;font-weight:700;color:var(--text-dim)">Live AUTOSAR API Call Trace</span>
+              <button class="btn btn-sm" onclick="clearApiTrace()">🧹 Clear Log</button>
+            </div>
+            <div id="traceList" style="display:flex;flex-direction:column;gap:6px"></div>
+          </div>
+
+          <!-- Pane 2: DET, Runtime Errors & Measurement Data -->
+          <div id="inspPane2" class="insp-pane">
+            <div class="meas-grid" id="measDataCards"></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px">
+              <span style="font-size:11.5px;font-weight:700;color:var(--red)">DET / Runtime / IdsM Log</span>
+              <button class="btn btn-sm btn-cyan" onclick="qaFaultAction('MEAS_DATA')">📊 Reset Meas Counters</button>
+            </div>
+            <div id="detLogList" style="display:flex;flex-direction:column;gap:6px"></div>
+          </div>
+
+          <!-- Pane 3: Bit & Active ECUC Diff -->
+          <div id="inspPane3" class="insp-pane">
+            <div class="mod-detail-card" id="bitDiffSummary"></div>
+            <div class="mod-detail-card" id="activePduSnapshot"></div>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <!-- ================= VIEW 2: MULTI-LEVEL HANDBOOK & ABBREVIATION SEARCH ================= -->
+  <main id="viewHb" class="hb-shell">
+    <div id="hbTabsL1" class="hb-tabs-l1"></div>
+    <div id="hbTabsL2" class="hb-tabs-l2"></div>
+    <div id="hbContent" class="hb-content"></div>
+    <div id="hbAbbrPane" class="hb-content" style="display:none">
+      <div class="hb-topic-title">7. Bảng Tra cứu Thuật ngữ &amp; Viết tắt AUTOSAR SoAd</div>
+      <div class="abbr-toolbar">
+        <div class="abbr-search-wrap">
+          <input id="abbrSearchInput" type="text" class="abbr-search"
+                 placeholder="🔍 Tìm kiếm theo từ viết tắt, tên đầy đủ hoặc mô tả (vd: nPdu, Best-Match, CopyTxData, HeaderId)..."
+                 oninput="onAbbrSearchInput(this.value)" />
+          <span id="abbrCountLabel" class="pill-badge info"></span>
+        </div>
+        <div id="abbrPillsRow" class="abbr-pills"></div>
+      </div>
+      <div id="abbrTableHost"></div>
+    </div>
+  </main>
+
+  <!-- ================= FLOATING >1000ms ECUC TOOLTIP ================= -->
+  <div id="cfgTooltipPopup"></div>
+
+  <!-- ================= EXPORT MODAL ================= -->
+  <div id="exportModal" class="modal-overlay" onclick="if(event.target===this) closeExportModal()">
+    <div class="modal-box">
+      <div class="modal-hdr">
+        <span id="exportModalTitle" style="font-weight:700;font-size:13px">Generated AUTOSAR Artifact</span>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-sm btn-primary" onclick="copyExportContent()">📋 Copy</button>
+          <button class="btn btn-sm btn-green" onclick="downloadExportContent()">⬇ Save File</button>
+          <button class="btn btn-sm btn-red" onclick="closeExportModal()">✖ Close</button>
+        </div>
+      </div>
+      <div class="modal-body">
+        <pre id="exportModalPre" class="modal-pre"></pre>
+      </div>
+    </div>
+  </div>
