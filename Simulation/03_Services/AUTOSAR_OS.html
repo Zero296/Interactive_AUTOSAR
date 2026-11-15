@@ -12,12 +12,18 @@
       --accent:#2dd4bf; --accent2:#818cf8; --ok:#34d399; --warn:#fbbf24; --err:#f87171; --vio:#c084fc;
       --code:#020617; --node:#111a2e; --shadow:0 6px 24px rgba(0,0,0,.35);
       --lab-text:#5eead4; --amber-text:#fcd34d; --grid:rgba(148,163,184,.10);
+      --hb-bg:#070d19; --hb-card:#0e1726; --hb-card2:#131f34; --hb-bdr:#24324a;
+      --hb-txt:#e2e8f0; --hb-mut:#94a3b8; --hb-pri:#38bdf8; --hb-acc:#2dd4bf;
+      --hb-ok:#34d399; --hb-warn:#fbbf24; --hb-err:#f87171; --hb-pur:#c084fc; --hb-org:#fb923c;
     }
     body.light{
       --bg:#eef2f7; --panel:#ffffff; --panel2:#f6f8fb; --panel3:#eef2f7;
       --border:#d5dde8; --border2:#c3cfdf; --text:#0f172a; --muted:#475569; --dim:#7b8aa0;
       --code:#f3f6fa; --node:#ffffff; --shadow:0 6px 18px rgba(15,23,42,.08);
       --lab-text:#0f766e; --amber-text:#92400e; --accent:#0d9488; --grid:rgba(71,85,105,.12);
+      --hb-bg:#f8fafc; --hb-card:#ffffff; --hb-card2:#f1f5f9; --hb-bdr:#cbd5e1;
+      --hb-txt:#0f172a; --hb-mut:#475569; --hb-pri:#0284c7; --hb-acc:#0d9488;
+      --hb-ok:#059669; --hb-warn:#b45309; --hb-err:#dc2626; --hb-pur:#7e22ce; --hb-org:#ea580c;
     }
     *{box-sizing:border-box}
     html,body{margin:0;padding:0}
@@ -32,32 +38,32 @@
     ::-webkit-scrollbar-thumb:hover{background:rgba(148,163,184,.85)}
 
     /* ===================== HEADER ===================== */
-    .hdr{position:sticky;top:0;z-index:30;background:var(--panel);border-bottom:1px solid var(--border);box-shadow:var(--shadow)}
-    .hdr-in{max-width:1960px;margin:0 auto;padding:8px 12px;display:flex;flex-direction:column;gap:7px}
-    .hdr-row{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px}
-    .hdr-row2{border-top:1px solid var(--border);padding-top:7px}
-    .brand{display:flex;align-items:center;gap:10px}
-    .logo{width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,#14b8a6,#0e7490);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:13px;box-shadow:0 4px 14px rgba(20,184,166,.35)}
-    h1{font-size:15px;margin:0;font-weight:800;letter-spacing:-.01em}
+    .hdr{position:sticky;top:0;z-index:30;background:var(--panel);border-bottom:1px solid var(--border);box-shadow:var(--shadow);flex:none}
+    .hdr-in{max-width:1960px;margin:0 auto;padding:5px 10px;display:flex;flex-direction:column;gap:5px}
+    .hdr-row{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px}
+    .hdr-row2{border-top:1px solid var(--border);padding-top:5px}
+    .brand{display:flex;align-items:center;gap:8px}
+    .logo{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,#14b8a6,#0e7490);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:11.5px;box-shadow:0 3px 10px rgba(20,184,166,.32);flex:none}
+    h1{font-size:13.5px;margin:0;font-weight:800;letter-spacing:-.01em}
     .sub{font-size:11px;color:var(--muted)}
-    .badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:6px;font-size:10.5px;font-weight:700;background:rgba(45,212,191,.12);color:#5eead4;border:1px solid rgba(45,212,191,.35);white-space:nowrap}
+    .badge{display:inline-flex;align-items:center;padding:2px 7px;border-radius:6px;font-size:10px;font-weight:700;background:rgba(45,212,191,.12);color:#5eead4;border:1px solid rgba(45,212,191,.35);white-space:nowrap}
     body.light .badge{color:#0f766e}
     .badge.amb{background:rgba(245,158,11,.13);color:#fbbf24;border-color:rgba(245,158,11,.35)}
     body.light .badge.amb{color:#b45309}
     .badge.err{background:rgba(248,113,113,.15);color:#f87171;border-color:rgba(248,113,113,.4)}
     body.light .badge.err{color:#b91c1c}
-    .lbl{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-right:2px}
-    .ctrl{display:flex;align-items:center;gap:5px;background:var(--panel2);border:1px solid var(--border);padding:4px 6px;border-radius:9px;flex-wrap:wrap}
+    .lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-right:2px;white-space:nowrap}
+    .ctrl{display:flex;align-items:center;gap:4px;background:var(--panel2);border:1px solid var(--border);padding:3px 5px;border-radius:8px;flex-wrap:wrap}
     .vtabs{display:flex;gap:4px}
-    .vtab{padding:6px 12px;border-radius:8px;border:1px solid var(--border2);background:var(--panel2);color:var(--muted);font-weight:700;font-size:12px;cursor:pointer;font-family:inherit;transition:all .15s}
+    .vtab{padding:4px 10px;border-radius:7px;border:1px solid var(--border2);background:var(--panel2);color:var(--muted);font-weight:700;font-size:11.5px;cursor:pointer;font-family:inherit;transition:all .15s}
     .vtab.active{background:rgba(45,212,191,.15);border-color:#2dd4bf;color:var(--text)}
 
     /* ===================== BUTTONS & FORM ===================== */
     .row{display:flex;align-items:center;gap:6px}
     .wrap{flex-wrap:wrap}
-    .btn{display:inline-flex;align-items:center;justify-content:center;gap:5px;padding:6px 11px;border-radius:7px;border:1px solid var(--border2);background:var(--panel3);color:var(--text);font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;font-family:inherit;white-space:nowrap}
+    .btn{display:inline-flex;align-items:center;justify-content:center;gap:4px;padding:4px 9px;border-radius:7px;border:1px solid var(--border2);background:var(--panel3);color:var(--text);font-size:11.5px;font-weight:600;cursor:pointer;transition:all .15s;font-family:inherit;white-space:nowrap}
     .btn:hover{border-color:var(--accent);transform:translateY(-1px)}
-    .btn.sm{padding:4px 9px;font-size:11.5px}
+    .btn.sm{padding:3px 8px;font-size:11px}
     .btn.xs{padding:2px 7px;font-size:10.5px;border-radius:5px}
     .btn.primary{background:#0f766e;border-color:#0f766e;color:#fff}
     .btn.indigo{background:#4f46e5;border-color:#4f46e5;color:#fff}
@@ -68,11 +74,9 @@
     .btn.sky{background:rgba(56,189,248,.12);color:#38bdf8;border-color:rgba(56,189,248,.38)}
     body.light .btn.amber{color:#b45309} body.light .btn.green{color:#047857} body.light .btn.vio{color:#7e22ce} body.light .btn.red{color:#b91c1c} body.light .btn.sky{color:#0369a1}
     .w100{width:100%}
-    .scn-wrap{display:flex;flex-wrap:wrap;gap:4px;max-width:1150px}
-    .scn-btn{padding:4px 8px;border-radius:6px;font-size:11px;font-weight:600;border:1px solid var(--border2);background:var(--panel2);color:var(--muted);cursor:pointer;transition:all .15s;font-family:inherit;white-space:nowrap}
-    .scn-btn:hover{color:var(--text);border-color:var(--accent)}
-    .scn-btn.active{background:rgba(45,212,191,.16);border-color:#2dd4bf;color:#5eead4}
-    body.light .scn-btn.active{color:#0f766e}
+    .scn-sel-wrap{display:flex;align-items:center;gap:6px;flex:1 1 260px;min-width:220px;max-width:440px}
+    select.scn-sel{flex:1;width:auto;min-width:190px;padding:4px 8px;font-size:11.5px;font-weight:700;font-family:inherit;border-radius:7px;background:var(--panel2);border-color:var(--border2);cursor:pointer}
+    select.scn-sel:hover{border-color:var(--accent)}
     select.sm-sel{width:auto;padding:3px 5px;font-size:11px}
     input[type=text],input[type=number],select,textarea{width:100%;background:var(--code);border:1px solid var(--border2);color:var(--text);border-radius:6px;padding:5px 7px;font-size:12px;font-family:"JetBrains Mono",Consolas,monospace}
     textarea{resize:vertical;min-height:75px;line-height:1.5;font-size:11.3px}
@@ -80,6 +84,7 @@
     input[type=checkbox]{accent-color:#2dd4bf;width:14px;height:14px;cursor:pointer}
     .f{display:flex;flex-direction:column;gap:3px;margin-bottom:7px;border-radius:7px;padding:1px}
     .f>label{font-size:11px;color:var(--muted);font-weight:600}
+    .has-tip>label,.ck.has-tip .nm,.has-tip>.dest-h>span:first-child{text-decoration:underline dotted rgba(148,163,184,.48);text-underline-offset:2px}
     .hint{font-size:10.5px;color:var(--dim)}
     .ck{display:flex;align-items:flex-start;gap:8px;padding:6px 8px;border:1px solid var(--border);border-radius:7px;background:var(--panel2);margin-bottom:6px;cursor:pointer;transition:border-color .15s}
     .ck:hover{border-color:var(--border2)}
@@ -104,21 +109,35 @@
     .mini.c0{color:#38bdf8;border-color:rgba(56,189,248,.45)}
     .mini.c1{color:#f472b6;border-color:rgba(244,114,182,.45)}
 
-    /* ===================== LAYOUT ===================== */
-    main{display:grid;grid-template-columns:360px minmax(0,1fr) 430px;gap:10px;padding:10px;max-width:1960px;width:100%;margin:0 auto;flex:1;align-items:start}
-    @media (max-width:1420px){main{grid-template-columns:340px minmax(0,1fr)} main>section:last-child{grid-column:1/-1}}
+    /* ===================== LAYOUT & INDEPENDENT COLUMN SCROLL ===================== */
+    main{display:grid;grid-template-columns:minmax(310px,355px) minmax(0,1fr) minmax(350px,420px);gap:10px;padding:8px 10px;max-width:1960px;width:100%;margin:0 auto;flex:1;align-items:start}
+    @media (max-width:1179px){main{grid-template-columns:340px minmax(0,1fr)} main>section:last-child{grid-column:1/-1}}
     @media (max-width:980px){main{grid-template-columns:1fr}}
     .col{display:flex;flex-direction:column;gap:10px;min-width:0}
     .panel{background:var(--panel);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow);min-width:0}
-    .panel-h{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 12px;border-bottom:1px solid var(--border);flex-wrap:wrap}
+    .panel-h{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 11px;border-bottom:1px solid var(--border);flex-wrap:wrap}
     .panel-t{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--accent)}
     .panel-t .muted{text-transform:none;letter-spacing:0;font-weight:600}
-    .panel-b{padding:10px 12px}
+    .panel-b{padding:9px 11px}
     .g2c{display:grid;grid-template-columns:1.2fr 1fr;gap:10px}
     @media (max-width:1180px){.g2c{grid-template-columns:1fr}}
-    .sticky-r{position:sticky;top:112px;max-height:calc(100vh - 122px);display:flex;flex-direction:column}
+    .sticky-r{position:sticky;top:88px;max-height:calc(100vh - 98px);display:flex;flex-direction:column}
     .sticky-r .panel-b{overflow:auto}
-    @media (max-width:1420px){.sticky-r{position:static;max-height:none}}
+    @media (max-width:1179px){.sticky-r{position:static;max-height:none}}
+    @media (min-width:1180px){
+      html,body{height:100%;overflow:hidden}
+      body{height:100vh;overflow:hidden}
+      .hdr{position:relative}
+      main#viewSim{flex:1;min-height:0;overflow:hidden;align-items:stretch}
+      main#viewSim>section.col{min-height:0;height:100%;overflow-y:auto;overflow-x:hidden;padding-right:3px;scrollbar-gutter:stable}
+      main#viewSim>section.col:last-child{overflow:hidden;padding-right:0}
+      main#viewSim .sticky-r{position:static;max-height:none;flex:1;min-height:0}
+      main#viewSim .sticky-r .panel-b{flex:1;min-height:0;overflow-y:auto}
+      #viewHb{flex:1;min-height:0;overflow:hidden;padding:8px 10px}
+      .hbk{height:100%;align-items:stretch}
+      .hb-nav{position:static;max-height:100%;overflow-y:auto}
+      .hb-main{height:100%;overflow-y:auto}
+    }
     .muted{color:var(--muted)} .dim{color:var(--dim)} .small{font-size:11px} .mt8{margin-top:8px} .mt4{margin-top:4px}
     .hidden{display:none !important}
     .tabs{display:flex;gap:2px;background:var(--panel2);padding:3px;border-radius:8px;border:1px solid var(--border);flex-wrap:wrap}
@@ -312,24 +331,60 @@
 
     /* ===================== HANDBOOK VIEW ===================== */
     #viewHb{max-width:1960px;width:100%;margin:0 auto;padding:10px;flex:1}
-    .hbk{display:grid;grid-template-columns:260px 1fr;gap:12px;align-items:start}
+    .hbk{display:grid;grid-template-columns:270px 1fr;gap:12px;align-items:start}
     @media (max-width:860px){.hbk{grid-template-columns:1fr}}
     .hb-nav{position:sticky;top:112px;display:flex;flex-direction:column;gap:3px;background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:8px}
-    .hb-nav button{display:block;text-align:left;padding:6px 9px;border-radius:6px;color:var(--muted);background:transparent;border:0;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s}
-    .hb-nav button:hover{background:var(--panel3);color:var(--text)}
-    .hb-nav button.active{background:rgba(45,212,191,.14);color:var(--text);box-shadow:inset 3px 0 0 #2dd4bf}
+    .hb-search-box{position:relative;margin-bottom:5px}
+    #hbSearch{padding-right:26px}
+    .hb-clr{position:absolute;right:5px;top:50%;transform:translateY(-50%);border:0;background:transparent;color:var(--muted);cursor:pointer;font-size:13px;line-height:1;padding:2px 5px;border-radius:4px}
+    .hb-clr:hover{color:var(--text);background:var(--panel3)}
+    .hb-search-meta{display:flex;align-items:center;justify-content:space-between;gap:6px;font-size:11px;padding:5px 7px;margin-bottom:6px;border-radius:6px;background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.35);color:var(--amber-text)}
+    .hb-nav .hb-tab-btn{display:block;text-align:left;padding:6px 9px;border-radius:6px;color:var(--muted);background:transparent;border:0;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s;width:100%}
+    .hb-nav .hb-tab-btn:hover{background:var(--panel3);color:var(--text)}
+    .hb-nav .hb-tab-btn.active{background:rgba(45,212,191,.14);color:var(--text);box-shadow:inset 3px 0 0 #2dd4bf}
     .hb-main{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px 18px;min-width:0}
     .hb-sec{margin-bottom:22px}
     .hb-sec h3{color:var(--accent);font-size:16px;margin:0 0 8px;padding-bottom:5px;border-bottom:1px solid var(--border)}
-    .hb-sec h4{font-size:13px;margin:14px 0 5px;color:#fbbf24}
+    .hb-sec h4{font-size:13px;margin:14px 0 6px;color:#fbbf24}
     body.light .hb-sec h4{color:#b45309}
-    .hb-sec p,.hb-sec li{font-size:12.5px;line-height:1.55}
+    .hb-sec p,.hb-sec li{font-size:12.5px;line-height:1.58}
     .hb-sec ul,.hb-sec ol{padding-left:20px;margin:4px 0}
+    .hb-subtabs{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 12px;padding-bottom:8px;border-bottom:1px solid var(--border)}
+    .hb-stab{padding:5px 11px;border-radius:7px;border:1px solid var(--border2);background:var(--panel2);color:var(--muted);font-size:11.5px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s}
+    .hb-stab:hover{color:var(--text);border-color:var(--accent)}
+    .hb-stab.active{background:rgba(45,212,191,.16);border-color:#2dd4bf;color:var(--lab-text)}
+    .hb-block{margin-bottom:16px}
+    .hb-grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:8px 0}
+    @media (max-width:980px){.hb-grid2{grid-template-columns:1fr}}
+    .hb-card{border:1px solid var(--border);border-radius:9px;padding:10px 12px;background:var(--panel2)}
+    .hb-card h5{margin:0 0 6px;font-size:12.5px;color:var(--text)}
+    .hb-callout{border-left:3px solid var(--accent);background:var(--panel2);padding:8px 11px;border-radius:0 8px 8px 0;margin:8px 0;font-size:12px;line-height:1.55}
+    .hb-callout.warn{border-color:#fbbf24;background:rgba(251,191,36,.07)}
+    .hb-callout.ok{border-color:#34d399;background:rgba(52,211,153,.07)}
+    .hb-callout.err{border-color:#f87171;background:rgba(248,113,113,.07)}
+    .hb-fig{margin:10px 0 14px;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:var(--panel2)}
+    .hb-svg{display:block;width:100%;max-width:940px;height:auto;margin:0 auto;border-radius:8px;border:1px solid var(--hb-bdr);background:var(--hb-bg)}
+    .hb-svg text{font-family:"Segoe UI",Inter,Roboto,"Helvetica Neue",Arial,sans-serif}
+    .hb-svg .mono{font-family:"JetBrains Mono","Cascadia Code",Consolas,monospace}
+    .hb-figcap{font-size:11px;color:var(--muted);text-align:center;margin-top:6px;font-style:italic}
+    .hb-search-banner{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;padding:8px 12px;margin-bottom:14px;border-radius:8px;background:rgba(251,191,36,.09);border:1px solid rgba(251,191,36,.35);font-size:12px}
+    .hb-tab-grp{padding-bottom:14px;margin-bottom:18px;border-bottom:1px dashed var(--border2)}
+    .hb-tab-grp:last-child{border-bottom:0;margin-bottom:0;padding-bottom:0}
+    .hb-tab-tag{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;font-size:10.5px;font-weight:700;background:rgba(45,212,191,.13);color:var(--lab-text);border:1px solid rgba(45,212,191,.35);margin-bottom:8px;cursor:pointer;font-family:inherit}
+    .hb-tab-tag:hover{background:rgba(45,212,191,.22)}
+    .hb-nohit{padding:24px 16px;text-align:center;border:1px dashed var(--border2);border-radius:10px;background:var(--panel2);color:var(--muted)}
     table.hbt{width:100%;border-collapse:collapse;font-size:11.5px;margin:8px 0}
     table.hbt th,table.hbt td{border:1px solid var(--border);padding:6px 8px;text-align:left;vertical-align:top}
     table.hbt th{background:var(--panel2);color:var(--muted);font-size:10.5px;text-transform:uppercase;letter-spacing:.04em}
     table.hbt td code{white-space:nowrap}
-    mark{background:rgba(251,191,36,.38);color:inherit;border-radius:2px}
+    mark,mark.hb-hl{background:rgba(251,191,36,.38);color:#fef08a;padding:0 2px;border-radius:3px;box-shadow:inset 0 -1.5px 0 rgba(245,158,11,.9);font-weight:700}
+    mark.hb-hl.cur{background:#f59e0b;color:#020617;box-shadow:0 0 0 2px rgba(251,191,36,.75)}
+    body.light mark,body.light mark.hb-hl{background:#fde047;color:#0f172a;box-shadow:inset 0 -1.5px 0 #ca8a04}
+    body.light mark.hb-hl.cur{background:#f59e0b;color:#fff;box-shadow:0 0 0 2px rgba(217,119,6,.65)}
+    .hb-svg-hl{fill:#fde047;font-weight:800;text-decoration:underline}
+    .hb-svg-hl.cur{fill:#fb923c}
+    body.light .hb-svg-hl{fill:#b45309}
+    body.light .hb-svg-hl.cur{fill:#c2410c}
 
     /* ===================== MODALS ===================== */
     .modal-bg{position:fixed;inset:0;background:rgba(2,6,23,.72);display:none;align-items:center;justify-content:center;z-index:100;padding:18px}
@@ -340,7 +395,13 @@
     #toast{position:fixed;bottom:18px;right:18px;background:var(--panel);border:1px solid var(--accent);color:var(--text);padding:9px 14px;border-radius:9px;box-shadow:var(--shadow);font-size:12px;opacity:0;transform:translateY(10px);transition:all .25s;pointer-events:none;z-index:200;max-width:420px}
     #toast.show{opacity:1;transform:none}
     #toast.err{border-color:#f87171}
-    footer{text-align:center;font-size:10.5px;color:var(--dim);padding:8px 10px 14px}
+    .cfg-tip{position:fixed;z-index:260;max-width:340px;padding:8px 10px;border-radius:9px;background:var(--panel);border:1px solid var(--accent);box-shadow:0 12px 32px rgba(0,0,0,.45);font-size:11.5px;line-height:1.45;color:var(--text);pointer-events:none;opacity:0;transform:translateY(4px);transition:opacity .15s,transform .15s}
+    .cfg-tip.show{opacity:1;transform:none}
+    .cfg-tip-h{font-weight:800;font-size:11.5px;color:var(--accent);margin-bottom:3px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+    .cfg-tip-ecuc{font-family:"JetBrains Mono",Consolas,monospace;font-size:9.5px;padding:1px 5px;border-radius:4px;background:var(--panel3);color:var(--muted);border:1px solid var(--border)}
+    .cfg-tip-b{color:var(--text);font-size:11.2px}
+    .cfg-tip-eff{margin-top:4px;font-size:10.5px;color:var(--amber-text)}
+    footer{text-align:center;font-size:10px;color:var(--dim);padding:4px 10px 6px;border-top:1px solid var(--border);background:var(--panel);flex:none}
   </style>
 </head>
 <body>
@@ -349,41 +410,41 @@
   <header class="hdr">
     <div class="hdr-in">
       <div class="hdr-row">
-        <div class="brand">
+        <div class="brand" title="Mô phỏng nhân AUTOSAR OS: Task & Scheduling • Event 8-Bit • Resource (PCP) • Counter/Alarm • Schedule Table • ISR Cat1/Cat2 • Hook • Timing Protection • Multicore">
           <div class="logo mono">OS</div>
-          <div>
-            <div class="row wrap">
-              <h1>AUTOSAR OS Interactive Simulator</h1>
-              <span class="badge mono">SWS_OS • Classic R4.x • OSEK/VDX OS 2.2.3</span>
-            </div>
-            <div class="sub">Mô phỏng nhân AUTOSAR OS: Task &amp; Scheduling • Event 8-Bit • Resource (PCP) • Counter/Alarm • Schedule Table • ISR Cat1/Cat2 • Hook • Timing Protection • Multicore (Spinlock/IOC)</div>
+          <div class="row wrap" style="gap:7px">
+            <h1>AUTOSAR OS Interactive Simulator</h1>
+            <span class="badge mono">SWS_OS • Classic R4.x • OSEK/VDX 2.2.3</span>
           </div>
         </div>
-        <div class="row wrap">
+        <div class="row wrap" style="gap:5px">
           <div class="vtabs">
             <button class="vtab active" id="vtSim" onclick="switchView('sim')">🧪 Mô phỏng</button>
             <button class="vtab" id="vtHb" onclick="switchView('hb')">📖 Sổ tay tra cứu</button>
           </div>
-          <button class="btn vio" onclick="openPreview()">🧾 ARXML / Os_Cfg.h / Code / JSON</button>
-          <button class="btn green" onclick="exportHtml()" title="Tải toàn bộ trình mô phỏng (kèm cấu hình hiện tại) thành 1 file .html chạy offline">💾 Tải file .HTML</button>
-          <button class="btn" onclick="toggleTheme()" title="Đổi giao diện Sáng / Tối">🌗</button>
+          <button class="btn sm vio" onclick="openPreview()">🧾 ARXML / Os_Cfg.h / Code / JSON</button>
+          <button class="btn sm green" onclick="exportHtml()" title="Tải toàn bộ trình mô phỏng (kèm cấu hình hiện tại) thành 1 file .html chạy offline">💾 Tải file .HTML</button>
+          <button class="btn sm" onclick="toggleTheme()" title="Đổi giao diện Sáng / Tối">🌗</button>
         </div>
       </div>
       <div class="hdr-row hdr-row2" id="simCtrlRow">
-        <div class="scn-wrap" id="scnBar"></div>
+        <div class="scn-sel-wrap">
+          <span class="lbl">🎬 Kịch bản:</span>
+          <select id="scnSelect" class="scn-sel" onchange="loadScenario(Number(this.value))" title="Chọn kịch bản mô phỏng AUTOSAR OS"></select>
+        </div>
         <div class="ctrl">
-          <button class="btn sm" onclick="resetSim()" title="Về bước đầu (phím Home)">↺ Reset</button>
+          <button class="btn sm" onclick="resetSim()" title="Về trạng thái khởi tạo Step 0 (phím Home)">↺ Reset</button>
           <button class="btn sm" onclick="stepBack()" title="Phím ←">◀ Lùi</button>
-          <button class="btn sm primary" id="btnPlay" onclick="togglePlay()" title="Phím Space">▶ Chạy tự động</button>
+          <button class="btn sm primary" id="btnPlay" onclick="togglePlay()" title="Phím Space">▶ Chạy</button>
           <button class="btn sm indigo" onclick="stepNext()" title="Phím →">Bước tiếp ▶</button>
-          <button class="btn sm" onclick="jumpTick(1)" title="Nhảy tới tick kế tiếp (phím ↓)">⏩ +1 tick</button>
+          <button class="btn sm" onclick="jumpTick(1)" title="Nhảy tới tick kế tiếp (phím ↓)">⏩ +1t</button>
           <select id="speedSel" class="sm-sel" title="Tốc độ chạy tự động">
             <option value="2600">0.5×</option>
             <option value="1500" selected>1×</option>
             <option value="800">2×</option>
             <option value="350">4×</option>
           </select>
-          <span class="badge mono" id="stepBadge">Bước 1/1</span>
+          <span class="badge mono" id="stepBadge">Bước 0/0</span>
           <span class="badge amb mono" id="tickBadge">t = 0</span>
         </div>
       </div>
@@ -564,13 +625,23 @@
   <section id="viewHb" class="hidden">
     <div class="hbk">
       <nav class="hb-nav" id="hbNav">
-        <input type="text" id="hbSearch" placeholder="🔎 Tìm: API, E_OS_..., tham số..." style="margin-bottom:6px" oninput="filterHandbook(this.value)">
-        <button class="active" onclick="switchHandbookTab(0)">1. I/O &amp; Xử Lý Của Từng Module</button>
-        <button onclick="switchHandbookTab(1)">2. Task State Machine &amp; Lập Lịch</button>
-        <button onclick="switchHandbookTab(2)">3. EventMask 8-Bit, RTE &amp; PCP</button>
-        <button onclick="switchHandbookTab(3)">4. Counter, Alarm &amp; Schedule Table</button>
-        <button onclick="switchHandbookTab(4)">5. ISR Cat1/2, Hooks, Timing Protection &amp; MC</button>
-        <button onclick="switchHandbookTab(5)">6. Từ Điển API, StatusType &amp; ECUC</button>
+        <div class="hb-search-box">
+          <input type="text" id="hbSearch" placeholder="🔎 Tìm: API, PCP, Preemptive, E_OS_..." oninput="filterHandbook(this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();jumpHbMatch(event.shiftKey?-1:1);}else if(event.key==='Escape'){clearHandbookSearch();}">
+          <button type="button" id="hbClrBtn" class="hb-clr hidden" title="Xóa tìm kiếm (Esc)" onclick="clearHandbookSearch()">✕</button>
+        </div>
+        <div id="hbSearchMeta" class="hb-search-meta hidden">
+          <span id="hbSearchCnt">0 kết quả</span>
+          <span class="row" style="gap:3px">
+            <button type="button" class="btn xs" title="Kết quả trước (Shift+Enter)" onclick="jumpHbMatch(-1)">◀</button>
+            <button type="button" class="btn xs" title="Kết quả tiếp (Enter)" onclick="jumpHbMatch(1)">▶</button>
+          </span>
+        </div>
+        <button type="button" class="hb-tab-btn active" onclick="switchHandbookTab(0)">1. I/O &amp; Xử Lý Của Từng Module</button>
+        <button type="button" class="hb-tab-btn" onclick="switchHandbookTab(1)">2. Task State, Full / Non-Preemptive</button>
+        <button type="button" class="hb-tab-btn" onclick="switchHandbookTab(2)">3. EventMask 8-Bit, RTE &amp; Priority Ceiling (PCP)</button>
+        <button type="button" class="hb-tab-btn" onclick="switchHandbookTab(3)">4. Counter, Alarm &amp; Schedule Table</button>
+        <button type="button" class="hb-tab-btn" onclick="switchHandbookTab(4)">5. ISR Cat1/2, Hooks, Timing Protection &amp; MC</button>
+        <button type="button" class="hb-tab-btn" onclick="switchHandbookTab(5)">6. Từ Điển API, StatusType &amp; ECUC</button>
       </nav>
       <div class="hb-main" id="hbContent"></div>
     </div>
@@ -603,6 +674,7 @@
   </div>
 
   <div id="toast"></div>
+  <div id="cfgTooltip" class="cfg-tip" role="tooltip"></div>
 
   <!-- Cấu hình được nhúng khi xuất file .HTML (null = dùng mặc định) -->
   <script id="preloadCfg" type="application/json">null</script>
@@ -1496,6 +1568,7 @@ function simulateKernel(cfg) {
   let osInterruptLockDepth = 0; // SuspendOSInterrupts nesting count
   let faultLat = false;
   let hookActive = false;
+  let osStarted = false;
   let runningTask = { 0: null, 1: null };
   let runningIsr = { 0: null, 1: null };
 
@@ -1533,7 +1606,7 @@ function simulateKernel(cfg) {
     const intLocked = interruptLockDepth > 0 || osInterruptLockDepth > 0;
 
     let osRaw = 0;
-    if (true) osRaw |= (1 << 0); // OS_ON
+    if (osStarted) osRaw |= (1 << 0); // OS_ON
     if (inIsr2) osRaw |= (1 << 1);
     if (inIsr1) osRaw |= (1 << 2);
     if (intLocked) osRaw |= (1 << 3);
@@ -1564,7 +1637,7 @@ function simulateKernel(cfg) {
         hex: hx(osRaw),
         bin: bin8(osRaw),
         flags: {
-          OS_ON: true,
+          OS_ON: osStarted,
           IN_ISR2: inIsr2,
           IN_ISR1: inIsr1,
           INT_LOCKED: intLocked,
@@ -1758,8 +1831,27 @@ function simulateKernel(cfg) {
     }
   }
 
-  // ===================== SIMULATION BOOTSTRAP (STEP 0 / t = 0) =====================
+  // ===================== INITIAL STATE (STEP 0 / BEFORE StartOS) =====================
   const bootMode = cfg.general.appMode || 'OSDEFAULTAPPMODE';
+  addStep({
+    tick: 0,
+    phase: 'FLOW',
+    kind: 'Init',
+    title: `0. Init State: Trạng thái khởi tạo (Chưa chạy StartOS)`,
+    narrative: `Hệ thống đang ở trạng thái ban đầu (Step 0 — Init State) sau Reset phần cứng: toàn bộ Task ở trạng thái <code>SUSPENDED</code>, thanh ghi EventMask = <code>0x00</code>, nhân AUTOSAR OS chưa khởi chạy. Nhấn <b>Bước tiếp ▶</b> hoặc <b>▶ Chạy</b> để bắt đầu gọi <code>StartOS()</code> ở Bước 1.`,
+    activeNodes: [],
+    activeEdges: [],
+    apiCall: null,
+    io: {
+      in: { from: 'MCU Reset / ECUC Config', desc: `Cấu hình tĩnh đã nạp (${(cfg.tasks || []).length} Tasks, ${(cfg.resources || []).length} Resources, AppMode = ${bootMode})` },
+      internal: { desc: 'Trạng thái ban đầu trước khi khởi chạy OS Kernel', logic: 'OS_STARTED = 0, All Tasks = SUSPENDED, EventMask = 0x00' },
+      out: { to: 'EcuM ➔ StartOS() (Bước 1)', desc: 'Chờ nhấn "Bước tiếp ▶" để thực thi Bước 1' }
+    },
+    usedCfg: []
+  });
+
+  // ===================== SIMULATION BOOTSTRAP (STEP 1 / t = 0) =====================
+  osStarted = true;
   addStep({
     tick: 0,
     phase: 'BOOT',
@@ -3325,17 +3417,25 @@ window.addEventListener('DOMContentLoaded', () => {
   buildScenarioButtons();
   setupTabs();
   setupKeyboardShortcuts();
+  initConfigTooltips();
   loadScenario(0);
+  window.addEventListener('resize', () => {
+    const viewSim = $('#viewSim');
+    if (viewSim && !viewSim.classList.contains('hidden')) {
+      syncTimelineScroll();
+      syncGanttScroll();
+    }
+  });
 });
 
-/* ---------- Header Scenario Bar & Setup ---------- */
+/* ---------- Header Scenario Dropdown & Setup ---------- */
 function buildScenarioButtons() {
-  const bar = $('#scnBar');
-  bar.innerHTML = SCENARIOS.map((s, idx) => `
-    <button class="scn-btn ${idx === 0 ? 'active' : ''}" id="btnScn_${idx}" onclick="loadScenario(${idx})" title="${esc(s.title)}">
-      ${esc(s.name)}
-    </button>
-  `).join('');
+  const sel = $('#scnSelect');
+  if (!sel) return;
+  sel.innerHTML = SCENARIOS.map((s, idx) =>
+    `<option value="${idx}" title="${esc(s.title)}">${esc(s.name)}</option>`
+  ).join('');
+  sel.value = String(curScnIdx);
 }
 
 function loadScenario(idx) {
@@ -3343,7 +3443,8 @@ function loadScenario(idx) {
   curStepIdx = 0;
   if (isPlaying) togglePlay();
 
-  $$('.scn-btn').forEach((b, i) => b.classList.toggle('active', i === idx));
+  const sel = $('#scnSelect');
+  if (sel) sel.value = String(idx);
   const scn = SCENARIOS[idx];
   $('#scnTitle').textContent = scn.title;
   $('#scnDesc').innerHTML = scn.desc;
@@ -3395,13 +3496,13 @@ function renderManualActions() {
   box.innerHTML = `
     <div style="display:flex;flex-direction:column;gap:6px">
       <!-- 1. ActivateTask -->
-      <div class="row" style="gap:4px">
+      <div class="row has-tip" data-tip-key="manual_act" style="gap:4px">
         <select id="manActTaskSel" class="sm-sel" style="flex:1">${taskOptions}</select>
         <button class="btn xs sky" onclick="injectManualAction('ACTIVATE')">⚡ ActivateTask</button>
       </div>
 
       <!-- 2. SetEvent -->
-      <div class="row" style="gap:4px">
+      <div class="row has-tip" data-tip-key="manual_evt" style="gap:4px">
         <select id="manEvtTaskSel" class="sm-sel" style="flex:1">${extTaskOptions}</select>
         <select id="manEvtMaskSel" class="sm-sel" style="width:85px">
           <option value="1">Bit 0 (0x01)</option>
@@ -3417,15 +3518,15 @@ function renderManualActions() {
       </div>
 
       <!-- 3. Trigger ISR -->
-      <div class="row" style="gap:4px">
+      <div class="row has-tip" data-tip-key="manual_isr" style="gap:4px">
         <select id="manIsrSel" class="sm-sel" style="flex:1">${isrOptions}</select>
         <button class="btn xs amber" onclick="injectManualAction('ISR')">🚨 Bắn Ngắt</button>
       </div>
 
       <!-- 4. Budget Overrun & Clear -->
       <div class="row" style="gap:4px">
-        <button class="btn xs red" style="flex:1" onclick="injectManualAction('OVERRUN')">💥 Ép Quá Hạn Budget</button>
-        <button class="btn xs" onclick="injectManualAction('CLEAR')">🧹 Xóa Thủ Công</button>
+        <button class="btn xs red has-tip" data-tip-key="manual_overrun" style="flex:1" onclick="injectManualAction('OVERRUN')">💥 Ép Quá Hạn Budget</button>
+        <button class="btn xs has-tip" data-tip-key="manual_clear" onclick="injectManualAction('CLEAR')">🧹 Xóa Thủ Công</button>
       </div>
     </div>
   `;
@@ -3482,10 +3583,10 @@ function rebuild(resetToStart) {
 }
 
 function updateUI() {
-  const total = steps.length || 1;
+  const total = Math.max(0, steps.length - 1);
   const cur = steps[curStepIdx] || {};
 
-  $('#stepBadge').textContent = `Bước ${curStepIdx + 1}/${total}`;
+  $('#stepBadge').textContent = `Bước ${curStepIdx}/${total}`;
   $('#tickBadge').textContent = `t = ${cur.tick != null ? cur.tick : 0}`;
 
   renderTimeline();
@@ -3522,8 +3623,8 @@ function resetSim() {
 
 function jumpTick(delta) {
   const curTick = steps[curStepIdx]?.tick || 0;
-  const targetTick = curTick + delta;
-  const idx = steps.findIndex(s => s.tick >= targetTick);
+  const targetTick = Math.max(0, curTick + delta);
+  const idx = steps.findIndex((s, i) => s.tick >= targetTick && (curStepIdx !== 0 || delta !== 0 || i > 0));
   if (idx !== -1) {
     curStepIdx = idx;
     updateUI();
@@ -3542,7 +3643,7 @@ function togglePlay() {
   isPlaying = !isPlaying;
   const btn = $('#btnPlay');
   if (isPlaying) {
-    btn.innerHTML = '⏸ Tạm dừng';
+    btn.innerHTML = '⏸ Dừng';
     btn.classList.remove('primary');
     btn.classList.add('amber');
     playTimer = setInterval(() => {
@@ -3554,7 +3655,7 @@ function togglePlay() {
       }
     }, playSpeed);
   } else {
-    btn.innerHTML = '▶ Chạy tự động';
+    btn.innerHTML = '▶ Chạy';
     btn.classList.add('primary');
     btn.classList.remove('amber');
     if (playTimer) clearInterval(playTimer);
@@ -3581,14 +3682,70 @@ function setupKeyboardShortcuts() {
   });
 }
 
+/* ---------- Horizontal Viewport Auto-Shift Helpers ---------- */
+/**
+ * Shifts horizontal container scrollLeft only as needed so [elLeft, elLeft + elWidth]
+ * sits completely inside the visible viewport without disturbing vertical scroll.
+ */
+function ensureHorizVisible(container, elLeft, elWidth, pad = 16) {
+  if (!container) return;
+  const viewW = container.clientWidth;
+  const maxScroll = Math.max(0, container.scrollWidth - viewW);
+  if (viewW <= 0 || maxScroll <= 0) return;
+
+  const curScroll = container.scrollLeft;
+  const safePad = Math.min(pad, Math.max(4, Math.floor((viewW - elWidth) / 2)));
+  let nextScroll = null;
+
+  if (elWidth >= viewW - 8) {
+    if (elLeft < curScroll || elLeft > curScroll + 8) nextScroll = elLeft;
+  } else if (elLeft < curScroll + safePad) {
+    nextScroll = elLeft - safePad;
+  } else if (elLeft + elWidth > curScroll + viewW - safePad) {
+    nextScroll = elLeft + elWidth - viewW + safePad;
+  }
+
+  if (nextScroll !== null) {
+    const clamped = Math.max(0, Math.min(maxScroll, Math.round(nextScroll)));
+    if (clamped !== Math.round(curScroll)) {
+      container.scrollLeft = clamped;
+    }
+  }
+}
+
+/** Shifts #timeline horizontally so the active step chip is fully in view. */
+function syncTimelineScroll() {
+  const tl = $('#timeline');
+  if (!tl) return;
+  const curEl = tl.children[curStepIdx];
+  if (!curEl) return;
+  const tlRect = tl.getBoundingClientRect();
+  const elRect = curEl.getBoundingClientRect();
+  const elLeft = (elRect.left - tlRect.left) + tl.scrollLeft;
+  ensureHorizVisible(tl, elLeft, elRect.width, 16);
+}
+
 /* ---------- Timeline Component ---------- */
 function renderTimeline() {
   const tl = $('#timeline');
-  tl.innerHTML = steps.map((s, idx) => `
-    <div class="tli p-${s.phase} ${idx === curStepIdx ? 'cur' : (idx < curStepIdx ? 'past' : '')}" onclick="goToStep(${idx})" title="Tick ${s.tick}: ${esc(s.title)}">
-      <span class="tag ${s.phase}">${s.phase}</span> t=${s.tick}: ${esc(s.title.split(':')[1] || s.title)}
-    </div>
-  `).join('');
+  if (!tl) return;
+  if (tl._stepsRef !== steps) {
+    tl._stepsRef = steps;
+    tl.scrollLeft = 0;
+    tl.innerHTML = steps.map((s, idx) => `
+      <div class="tli p-${s.phase} ${idx === curStepIdx ? 'cur' : (idx < curStepIdx ? 'past' : '')}" onclick="goToStep(${idx})" title="Bước ${idx} (t=${s.tick}): ${esc(s.title)}">
+        <span class="tag ${s.phase}">${idx === 0 ? 'INIT' : s.phase}</span> ${idx === 0 ? 'Bước 0: Init State' : `t=${s.tick}: ${esc(s.title.split(':')[1] || s.title)}`}
+      </div>
+    `).join('');
+  } else {
+    const kids = tl.children;
+    for (let i = 0; i < kids.length; i++) {
+      const el = kids[i];
+      el.classList.toggle('cur', i === curStepIdx);
+      el.classList.toggle('past', i < curStepIdx);
+    }
+  }
+  syncTimelineScroll();
 }
 
 /* ---------- SVG Architecture Diagram ---------- */
@@ -3674,7 +3831,7 @@ function renderSvg() {
   $('#narr').innerHTML = `
     <div style="font-size:18px">💬</div>
     <div>
-      <div style="font-weight:700;margin-bottom:2px">Bước ${curStepIdx + 1} (t = ${curStep.tick}): ${esc(curStep.title)}</div>
+      <div style="font-weight:700;margin-bottom:2px">Bước ${curStepIdx} (t = ${curStep.tick}): ${esc(curStep.title)}</div>
       <div>${curStep.narrative}</div>
     </div>
   `;
@@ -3687,6 +3844,23 @@ function selectModule(key) {
 }
 
 /* ---------- Multicore Gantt Timeline Chart ---------- */
+const GANTT_PAD_LEFT = 140;
+const GANTT_TICK_W = 55;
+
+/** Shifts #ganttWrap horizontally so the active tick column stays fully in view. */
+function syncGanttScroll() {
+  const gw = $('#ganttWrap');
+  if (!gw || !steps.length) return;
+  const curTick = steps[curStepIdx]?.tick || 0;
+  const curX = GANTT_PAD_LEFT + curTick * GANTT_TICK_W;
+  const viewW = gw.clientWidth;
+  if (viewW > 0 && curX + GANTT_TICK_W + 16 <= viewW) {
+    ensureHorizVisible(gw, 0, curX + GANTT_TICK_W, 16);
+  } else {
+    ensureHorizVisible(gw, curX, GANTT_TICK_W, 16);
+  }
+}
+
 function renderGantt() {
   const svg = $('#gantt');
   const horizon = Number(cfg.general.horizonTicks) || 12;
@@ -3696,8 +3870,8 @@ function renderGantt() {
   const coreCount = Number(cfg.multicore?.numberOfCores) || 1;
   const rowH = 26;
   const padTop = 30;
-  const padLeft = 140;
-  const tickW = 55;
+  const padLeft = GANTT_PAD_LEFT;
+  const tickW = GANTT_TICK_W;
   const width = padLeft + (horizon + 1) * tickW + 20;
 
   // Prepare rows: Tasks and ISRs grouped by Core
@@ -3784,13 +3958,15 @@ function renderGantt() {
   h += `<rect x="${curX}" y="${padTop - 5}" width="${tickW}" height="${height - padTop - 5}" class="g-cur" rx="4" />`;
 
   // Future Dimming Mask
-  if (isFutureDim && curTick < horizon) {
-    const futX = padLeft + (curTick + 1) * tickW;
+  const futStartTick = curStepIdx === 0 ? 0 : curTick + 1;
+  if (isFutureDim && futStartTick <= horizon) {
+    const futX = padLeft + futStartTick * tickW;
     const futW = width - futX;
     h += `<rect x="${futX}" y="${padTop - 5}" width="${futW}" height="${height - padTop - 5}" class="g-fut" />`;
   }
 
   svg.innerHTML = h;
+  syncGanttScroll();
 }
 
 /* ================= PROMINENT 8-BIT REGISTER INSPECTOR PANEL ================= */
@@ -3887,8 +4063,28 @@ function renderProminent8BitPanel() {
   bitGridEvt.innerHTML = hEvt;
 
   // 3. Render 8 Bit-boxes for OS Kernel Status Byte
-  const osByte = step.osStatusByte || { rawByte: 1, flags: {} };
+  const osByte = step.osStatusByte || { rawByte: 0, flags: {} };
   $('#regOsHex').textContent = `${hx(osByte.rawByte)} (${bin8(osByte.rawByte)}b)`;
+  const osModeBadge = $('#regOsModeBadge');
+  if (osModeBadge) {
+    const fl = osByte.flags || {};
+    if (!fl.OS_ON) {
+      osModeBadge.className = 'badge mono';
+      osModeBadge.textContent = 'INIT • Chờ StartOS()';
+    } else if (fl.FAULT_LAT) {
+      osModeBadge.className = 'badge err mono';
+      osModeBadge.textContent = 'OS Started • Fault Latch!';
+    } else if (fl.PCP_ACTIVE) {
+      osModeBadge.className = 'badge amb mono';
+      osModeBadge.textContent = 'OS Started • PCP Active';
+    } else if (fl.SCHED_LOCKED || fl.INT_LOCKED) {
+      osModeBadge.className = 'badge amb mono';
+      osModeBadge.textContent = fl.INT_LOCKED ? 'OS Started • Int Locked' : 'OS Started • NON-Preempt';
+    } else {
+      osModeBadge.className = 'badge mono';
+      osModeBadge.textContent = 'OS Started • Preempt OK';
+    }
+  }
 
   const bitGridOs = $('#bitGridOs');
   const osFlagDefs = [
@@ -4060,9 +4256,9 @@ function renderInspector() {
 
   stepBox.innerHTML = `
     <div class="ins-h">
-      <span class="tag ${step.phase}">${step.phase}</span>
+      <span class="tag ${step.phase}">${curStepIdx === 0 ? 'INIT' : step.phase}</span>
       <span class="badge mono">${step.kind}</span>
-      <span class="dim small" style="margin-left:auto">Bước ${curStepIdx + 1}/${steps.length}</span>
+      <span class="dim small" style="margin-left:auto">Bước ${curStepIdx}/${Math.max(0, steps.length - 1)}</span>
     </div>
 
     <div class="ins-title">${esc(step.title)}</div>
@@ -4084,13 +4280,17 @@ function renderInspector() {
 
     <!-- AUTOSAR API CALL CARD -->
     <div class="sec-l">Hàm API chuẩn AUTOSAR thực thi</div>
+    ${api ? `
     <div class="code">
-      <div><span class="c-fn">${esc(api?.name || 'N/A')}</span> <span class="c-cm">// ${esc(api?.sws || 'AUTOSAR SWS_OS')}</span></div>
-      <div class="mt4" style="color:var(--dim)">${esc(api?.sig || '')}</div>
+      <div><span class="c-fn">${esc(api.name)}</span> <span class="c-cm">// ${esc(api.sws || 'AUTOSAR SWS_OS')}</span></div>
+      <div class="mt4" style="color:var(--dim)">${esc(api.sig || '')}</div>
       <div class="mt8"><b>Tham số:</b></div>
-      ${(api?.params || []).map(p => `<div>&nbsp;&nbsp;• <span class="mono c-str">${esc(p.name)}</span> = <span class="mono">${esc(p.val)}</span></div>`).join('')}
-      <div class="mt4"><b>Trả về:</b> <span class="ret ${api?.isOk ? 'ok' : 'bad'}">${esc(api?.ret || 'void')}</span></div>
-    </div>
+      ${(api.params || []).map(p => `<div>&nbsp;&nbsp;• <span class="mono c-str">${esc(p.name)}</span> = <span class="mono">${esc(p.val)}</span></div>`).join('')}
+      <div class="mt4"><b>Trả về:</b> <span class="ret ${api.isOk ? 'ok' : 'bad'}">${esc(api.ret || 'void')}</span></div>
+    </div>` : `
+    <div class="hint" style="padding:7px 9px;border:1px dashed var(--border2);border-radius:8px;background:var(--panel2)">
+      ⏳ <b>Trạng thái khởi tạo (Step 0):</b> Chưa có AUTOSAR API nào được gọi. Nhấn <b>Bước tiếp ▶</b> (hoặc phím <code>→</code>) để thực thi Bước 1: <code>StartOS()</code>.
+    </div>`}
 
     <!-- RELEVANT CONFIG CHIPS -->
     <div class="sec-l">Tham số cấu hình liên quan (Click để nhảy tới)</div>
@@ -4125,7 +4325,7 @@ function renderInspector() {
   for (let i = 0; i <= curStepIdx; i++) {
     const s = steps[i];
     if (s && s.apiCall) {
-      traceList.push({ stepIdx: i + 1, name: s.apiCall.name, ret: s.apiCall.ret, isOk: s.apiCall.isOk, phase: s.phase, tick: s.tick });
+      traceList.push({ stepIdx: i, name: s.apiCall.name, ret: s.apiCall.ret, isOk: s.apiCall.isOk, phase: s.phase, tick: s.tick });
     }
   }
 
@@ -4136,7 +4336,7 @@ function renderInspector() {
     </div>
     <div style="display:flex;flex-direction:column;gap:3px">
       ${traceList.map(t => `
-        <div class="tr-row ${t.stepIdx === curStepIdx + 1 ? 'cur' : ''}" onclick="goToStep(${t.stepIdx - 1})">
+        <div class="tr-row ${t.stepIdx === curStepIdx ? 'cur' : ''}" onclick="goToStep(${t.stepIdx})">
           <span class="ix">#${t.stepIdx}</span>
           <div class="cl">
             <span class="tag ${t.phase}">t=${t.tick}</span>
@@ -4193,13 +4393,351 @@ function renderModuleInfo(key) {
 }
 
 /* ---------- ECUC Configuration Panel (8 Sub-Tabs) ---------- */
+const CFG_TOOLTIP_DELAY = 500;
+const CFG_TOOLTIPS = {
+  gen_scalabilityClass: {
+    title: 'OsScalabilityClass',
+    ecuc: 'SWS_Os_00349',
+    body: 'Chọn lớp bảo vệ hệ điều hành: SC1 (OSEK 2.2.3 chuẩn), SC2 (+ Timing Protection), SC3 (+ OS-Application & MPU Memory Protection), SC4 (đầy đủ SC2 + SC3).',
+    eff: 'Bật SC2/SC4 mới kích hoạt kiểm tra Execution Budget và ProtectionHook().'
+  },
+  gen_status: {
+    title: 'OsStatus (EXTENDED / STANDARD)',
+    ecuc: 'OSEK 2.2.3 / ECUC',
+    body: 'EXTENDED kiểm tra đầy đủ điều kiện tham số, trạng thái Task, lỗi Callevel/Resource và trả mã lỗi chi tiết; STANDARD bỏ qua nhiều kiểm tra để tối ưu tốc độ.',
+    eff: 'Khi chọn STANDARD, một số lỗi API có thể không bị bắt và ErrorHook không được gọi.'
+  },
+  gen_appMode: {
+    title: 'OsAppMode',
+    ecuc: 'StartOS(Mode)',
+    body: 'Chế độ ứng dụng truyền vào hàm StartOS(Mode) khi EcuM khởi động OS (ví dụ OSDEFAULTAPPMODE, FactoryMode, DiagMode).',
+    eff: 'Quyết định các Autostart Task / Alarm được gắn vào AppMode tương ứng.'
+  },
+  gen_horizonTicks: {
+    title: 'Simulation Horizon (ticks)',
+    ecuc: 'Mô phỏng',
+    body: 'Tổng số tick thời gian mô phỏng tối đa hiển thị trên biểu đồ Gantt và vòng lặp Scheduler.',
+    eff: 'Tăng để quan sát thêm nhiều chu kỳ Alarm / Schedule Table hơn.'
+  },
+  gen_usePcp: {
+    title: 'Priority Ceiling Protocol (PCP)',
+    ecuc: 'OsUsePcp / OSEK PCP',
+    body: 'Khi giữ Resource via GetResource(), OS tự nâng CurrentPriority của Task lên mức CeilingPriority cao nhất của mọi Task dùng Resource đó.',
+    eff: 'TẮT để quan sát hiện tượng Priority Inversion & Deadlock; BẬT để chứng minh chống Deadlock 100%.'
+  },
+  gen_stackMonitoring: {
+    title: 'OsStackMonitoring',
+    ecuc: 'SWS_Os_00067',
+    body: 'Kiểm tra đỉnh tiêu thụ ngăn xếp (Stack Peak) của mỗi Task/ISR tại thời điểm Context Switch.',
+    eff: 'Nếu Stack Peak > Stack Size sẽ phát sinh E_OS_STACKFAULT.'
+  },
+  gen_startupHook: {
+    title: 'OsStartupHook',
+    ecuc: 'StartupHook()',
+    body: 'Bật hàm callback StartupHook() do hệ điều hành gọi một lần duy nhất bên trong StartOS() trước khi Task đầu tiên chạy.',
+    eff: 'Hiển thị bước gọi StartupHook() ngay sau StartOS() ở đầu kịch bản.'
+  },
+  gen_shutdownHook: {
+    title: 'OsShutdownHook',
+    ecuc: 'ShutdownHook(Error)',
+    body: 'Bật hàm ShutdownHook(Error) được gọi khi hệ thống tắt OS qua API ShutdownOS().',
+    eff: 'Cho phép kiểm tra mã lỗi tắt OS và dọn dẹp thiết bị ngoại vi an toàn.'
+  },
+  gen_errorHook: {
+    title: 'OsErrorHook',
+    ecuc: 'ErrorHook(Error)',
+    body: 'Tự động gọi ErrorHook() ngay khi bất kỳ dịch vụ AUTOSAR OS API nào trả về StatusType ≠ E_OK.',
+    eff: 'Rất hữu ích khi kết hợp OsStatus = EXTENDED để bắt lỗi runtime.'
+  },
+  gen_preTaskHook: {
+    title: 'OsPreTaskHook',
+    ecuc: 'PreTaskHook()',
+    body: 'Gọi ngay trước khi một Task bắt đầu hoặc tiếp tục trạng thái RUNNING sau Context Switch.',
+    eff: 'Dùng trong thực tế để đo tải CPU hoặc bật trace/debugging.'
+  },
+  gen_postTaskHook: {
+    title: 'OsPostTaskHook',
+    ecuc: 'PostTaskHook()',
+    body: 'Gọi ngay sau khi Task rời khỏi trạng thái RUNNING (do TerminateTask, WaitEvent hoặc bị Preempt).',
+    eff: 'Hỗ trợ cặp đôi với PreTaskHook để tính chính xác thời gian chiếm CPU.'
+  },
+  gen_protectionHook: {
+    title: 'OsProtectionHook',
+    ecuc: 'ProtectionHook(FatalError)',
+    body: 'Hàm xử lý vi phạm nghiêm trọng ở SC2–SC4 như tràn Execution Budget, Time Frame, hoặc Stack Fault.',
+    eff: 'Trả về hành động phục hồi như PRO_TERMINATETASKISR hoặc PRO_SHUTDOWN.'
+  },
+  task_summary: {
+    title: 'OsTask Container',
+    ecuc: 'ECUC / OsTask',
+    body: 'Nhấn để mở/đóng chi tiết cấu hình Task: loại BASIC/EXTENDED, chế độ lập lịch FULL/NON, Priority, Stack và mã DSL.'
+  },
+  task_type: {
+    title: 'OsTaskType (BASIC / EXTENDED)',
+    ecuc: 'OSEK OS Task Model',
+    body: 'BASIC chỉ có 3 trạng thái (SUSPENDED, READY, RUNNING), cấm gọi WaitEvent() (lỗi E_OS_ACCESS). EXTENDED có thêm trạng thái WAITING và dùng thanh ghi 8-bit EventMask.',
+    eff: 'EXTENDED Task luôn có Max Activation = 1 và tốn vùng Extended Stack riêng.'
+  },
+  task_schedule: {
+    title: 'OsTaskSchedule (FULL / NON)',
+    ecuc: 'OSEK Scheduling Policy',
+    body: 'FULL: Cho phép Task ưu tiên cao hơn chiếm quyền ngay tại mọi điểm lập lịch. NON: Không bị Task khác cắt ngang cho tới khi gọi Schedule(), WaitEvent(), TerminateTask() hoặc ChainTask().',
+    eff: 'Thử chuyển giữa FULL và NON để thấy sự khác biệt trực tiếp trên Gantt!'
+  },
+  task_priority: {
+    title: 'OsTaskPriority (0..31)',
+    ecuc: 'ECUC / OsTaskPriority',
+    body: 'Mức ưu tiên tĩnh (BasePriority) của Task. Theo chuẩn AUTOSAR OS / OSEK, giá trị số CÀNG LỚN thì độ ưu tiên CÀNG CAO (31 > 1).',
+    eff: 'Scheduler luôn chọn Task ở Ready Queue có CurrentPriority cao nhất.'
+  },
+  task_activation: {
+    title: 'OsTaskActivation (1..8)',
+    ecuc: 'Multiple Activation',
+    body: 'Số yêu cầu ActivateTask() tối đa được phép xếp hàng chờ khi Basic Task đang chạy hoặc READY. Vượt quá giá trị này sẽ trả lỗi E_OS_LIMIT.',
+    eff: 'Chỉ có tác dụng với BASIC Task; EXTENDED Task cố định = 1.'
+  },
+  task_autostart: {
+    title: 'OsTaskAutostart',
+    ecuc: 'Autostart in AppMode',
+    body: 'Nếu BẬT, OS tự động chuyển Task từ SUSPENDED ➔ READY ngay trong StartOS() mà không cần Task khác hay Alarm kích hoạt.',
+    eff: 'Dùng cho Task khởi tạo ban đầu như Task_Init.'
+  },
+  task_coreId: {
+    title: 'OsTaskCoreId (Multicore Assignment)',
+    ecuc: 'AUTOSAR Multicore OS',
+    body: 'Gán Task chạy cố định trên Core 0 (Master) hoặc Core 1 (Slave). Mỗi Core có Ready Queue và Context riêng.',
+    eff: 'Kết hợp Multicore ≥ 2 cores để thấy hai Task chạy song song trên Gantt!'
+  },
+  task_budget: {
+    title: 'OsTaskExecutionBudget (ticks)',
+    ecuc: 'Timing Protection (SC2/4)',
+    body: 'Giới hạn số tick chạy liên tục tối đa cho mỗi lần kích hoạt Task (0 = không giám sát).',
+    eff: 'Nếu tổng Compute() vượt Budget khi bật SC2/SC4 ➔ E_OS_PROTECTION_TIME!'
+  },
+  task_program: {
+    title: 'Chương trình thực thi Task (DSL)',
+    ecuc: 'Task Body / AUTOSAR API',
+    body: 'Chuỗi câu lệnh API của Task theo từng dòng, ví dụ: WaitEvent(0x01); Compute(2); GetResource(RES_SPI); ReleaseResource(RES_SPI); Schedule(); TerminateTask();.',
+    eff: 'Sửa nội dung rồi bấm ra ngoài (hoặc Tab) để chạy lại toàn bộ mô phỏng.'
+  },
+  isr_summary: {
+    title: 'OsIsr Container',
+    ecuc: 'ECUC / OsIsr',
+    body: 'Nhấn để cấu hình phân loại Category 1 / Category 2, mức ưu tiên ngắt và mã lệnh của ISR.'
+  },
+  isr_category: {
+    title: 'OsIsrCategory (Cat 1 vs Cat 2)',
+    ecuc: 'SWS_Os_00018',
+    body: 'CATEGORY_1 nhảy thẳng phần cứng (độ trễ cực thấp), CẤM gọi hầu hết API AUTOSAR OS (báo lỗi E_OS_CALLEVEL). CATEGORY_2 đi qua OS wrapper, được phép gọi ActivateTask(), SetEvent()...',
+    eff: 'Thử chuyển ISR Cat 2 thành Cat 1 để xem lỗi E_OS_CALLEVEL!'
+  },
+  isr_priority: {
+    title: 'OsIsrInterruptPriority',
+    ecuc: 'HW Interrupt Level',
+    body: 'Mức ưu tiên ngắt phần cứng (thường lớn hơn mọi Task Priority). ISR mức cao hơn có thể ngắt lồng ISR thấp hơn.'
+  },
+  isr_program: {
+    title: 'Thân hàm ISR (DSL)',
+    ecuc: 'ISR Handler Body',
+    body: 'Các lệnh chạy khi ngắt phần cứng xảy ra (ActivateTask, SetEvent, Compute...).',
+    eff: 'Lưu ý: ISR không gọi WaitEvent() hay TerminateTask().'
+  },
+  event_name: {
+    title: 'OsEventMask (8-Bit Event)',
+    ecuc: 'OsEvent',
+    body: 'Tên biểu tượng gắn với 1 bit cụ thể (Bit 0..7, tương ứng mask 0x01..0x80) dùng để đánh thức Extended Task qua SetEvent / WaitEvent.'
+  },
+  res_card: {
+    title: 'OsResource (PCP Ceiling Priority)',
+    ecuc: 'OSEK Resource & PCP',
+    body: 'Tài nguyên bảo vệ vùng găng giữa các Task. Khi OsUsePcp bật, mức trần ưu tiên CeilingPriority tự động bằng Priority lớn nhất của các Task sử dụng Resource này.',
+    eff: 'Đảm bảo GetResource() không bao giờ Block trên hệ thống Single-core.'
+  },
+  ca_counter: {
+    title: 'OsCounter',
+    ecuc: 'ECUC / OsCounter',
+    body: 'Bộ đếm phần cứng/phần mềm tăng mỗi tick (IncrementCounter). Alarm và Schedule Table bám vào Counter này để kích hoạt đúng hạn.'
+  },
+  ca_alarm_autostart: {
+    title: 'OsAlarmAutostart',
+    ecuc: 'ECUC / OsAlarm',
+    body: 'BẬT để Alarm tự động được nạp ngay trong StartOS() mà không cần gọi SetRelAlarm().'
+  },
+  ca_alarm_action: {
+    title: 'OsAlarmAction',
+    ecuc: 'ACTIVATETASK / SETEVENT',
+    body: 'Hành động thực thi khi Alarm hết hạn: ACTIVATETASK (kích hoạt Task), SETEVENT (bật bit sự kiện cho Extended Task), ALARMCALLBACK hoặc INCREMENTCOUNTER.'
+  },
+  ca_alarm_start: {
+    title: 'Alarm Start Tick (AlarmTime)',
+    ecuc: 'OsAlarmStartTime',
+    body: 'Tick đầu tiên mà Alarm kích hoạt lần đầu kể từ khi khởi động Counter.'
+  },
+  ca_alarm_cycle: {
+    title: 'Alarm Cycle (ticks)',
+    ecuc: 'OsAlarmCycleTime',
+    body: 'Chu kỳ lặp lại sau lần kích hoạt đầu tiên (0 = Single-shot Alarm chỉ bắn 1 lần).'
+  },
+  st_autostart: {
+    title: 'OsScheduleTableAutostart',
+    ecuc: 'AUTOSAR Schedule Table',
+    body: 'Tự động chạy Schedule Table ngay khi StartOS() (Absolute/Relative).'
+  },
+  st_repeating: {
+    title: 'OsScheduleTableRepeating',
+    ecuc: 'Periodic Table',
+    body: 'BẬT: Bảng thời gian tự động quay vòng lặp lại sau khi chạy hết Duration; TẮT: Chạy một lần (Single-shot).'
+  },
+  st_duration: {
+    title: 'OsScheduleTableDuration (ticks)',
+    ecuc: 'Table Length',
+    body: 'Tổng chiều dài một chu kỳ (ticks) của Schedule Table chứa toàn bộ các Expiry Point.'
+  },
+  st_sync: {
+    title: 'OsScheduleTblSyncStrategy',
+    ecuc: 'NONE / EXPLICIT / IMPLICIT',
+    body: 'NONE: Không đồng bộ ngoài; EXPLICIT: Đồng bộ bám theo Global Time qua SyncScheduleTable(); IMPLICIT: Tự động đồng bộ theo counter phần cứng.'
+  },
+  mc_cores: {
+    title: 'OsNumberOfCores',
+    ecuc: 'AUTOSAR Multicore OS',
+    body: 'Số lượng lõi CPU mô phỏng (1 = Single-core; 2 = Core 0 Master + Core 1 Slave chạy StartCore() / Spinlock / IOC).'
+  },
+  mc_spinlock: {
+    title: 'OsSpinlockLockMethod',
+    ecuc: 'GetSpinlock()',
+    body: 'Cơ chế khóa ngắt kèm theo khi giữ Spinlock liên lõi (LOCK_ALL_INTERRUPTS, LOCK_CAT2_INTERRUPTS, LOCK_NOTHING).'
+  },
+  mc_ioc: {
+    title: 'OsIocCommunication (IOC)',
+    ecuc: 'Inter-OS-Application Comm',
+    body: 'Kênh truyền dữ liệu an toàn giữa các OS-Application / Core khác nhau: QUEUED (hàng đợi FIFO gửi/nhận) hoặc UNQUEUED (ghi đè giá trị mới nhất).'
+  },
+  stim_enable: {
+    title: 'Bật / Tắt Sự Kiện Kích Thích (Stimulus)',
+    ecuc: 'Scenario Timeline',
+    body: 'Bỏ tích để tạm vô hiệu hóa sự kiện (ngắt ISR, ActivateTask, SetEvent, Shutdown...) tại tick tương ứng và xem kịch bản thay đổi ra sao.'
+  },
+  manual_act: {
+    title: 'Chèn ActivateTask() thủ công',
+    ecuc: 'Dynamic Stimulus',
+    body: 'Xếp hàng gọi ActivateTask(Task) tại tick t + 1 kế tiếp để quan sát lập lịch ngay lập tức.'
+  },
+  manual_evt: {
+    title: 'Chèn SetEvent() thủ công',
+    ecuc: 'Dynamic Event Stimulus',
+    body: 'Gửi mặt nạ bit EventMask tới Extended Task tại tick t + 1 để đánh thức Task đang ở WAITING.'
+  },
+  manual_isr: {
+    title: 'Bắn ngắt phần cứng ISR thủ công',
+    ecuc: 'Dynamic ISR Trigger',
+    body: 'Chèn một ngắt ISR Cat 1 hoặc Cat 2 xảy ra tại tick t + 1 để kiểm tra Preemption hoặc lỗi Callevel.'
+  },
+  manual_overrun: {
+    title: 'Ép quá hạn Execution Budget',
+    ecuc: 'Timing Protection Test',
+    body: 'Chèn thêm Compute(5) vào Task đang chạy trên Core 0 để chủ động kích hoạt lỗi vượt ngân sách thời gian (SC2/SC4).'
+  },
+  manual_clear: {
+    title: 'Xóa các kích thích thủ công',
+    ecuc: 'Reset Manual Stimuli',
+    body: 'Loại bỏ toàn bộ các sự kiện vừa chèn từ khung Tác động thủ công.'
+  }
+};
+
+function initConfigTooltips() {
+  const tipEl = $('#cfgTooltip');
+  if (!tipEl) return;
+  let activeEl = null;
+  let timer = null;
+  let pos = { x: 0, y: 0 };
+
+  function hideTip() {
+    if (timer) { clearTimeout(timer); timer = null; }
+    activeEl = null;
+    tipEl.classList.remove('show');
+  }
+
+  function placeAndShow(el) {
+    const key = el.dataset.tipKey;
+    const info = CFG_TOOLTIPS[key];
+    if (!info && !el.dataset.tipText) return;
+    const title = info ? info.title : (el.dataset.tipTitle || 'Tham số cấu hình');
+    const ecuc = info ? info.ecuc : (el.dataset.tipEcuc || '');
+    const body = info ? info.body : (el.dataset.tipText || '');
+    const eff = info && info.eff ? info.eff : '';
+
+    tipEl.innerHTML = `
+      <div class="cfg-tip-h">
+        <span>${esc(title)}</span>
+        ${ecuc ? `<span class="cfg-tip-ecuc">${esc(ecuc)}</span>` : ''}
+      </div>
+      <div class="cfg-tip-b">${esc(body)}</div>
+      ${eff ? `<div class="cfg-tip-eff">⚡ ${esc(eff)}</div>` : ''}
+    `;
+
+    tipEl.style.left = '0px';
+    tipEl.style.top = '0px';
+    tipEl.classList.add('show');
+
+    const tw = tipEl.offsetWidth || 300;
+    const th = tipEl.offsetHeight || 90;
+    const margin = 10;
+    let left = pos.x + 14;
+    let top = pos.y + 16;
+
+    if (left + tw > window.innerWidth - margin) {
+      left = Math.max(margin, pos.x - tw - 12);
+    }
+    if (top + th > window.innerHeight - margin) {
+      top = Math.max(margin, pos.y - th - 12);
+    }
+    tipEl.style.left = left + 'px';
+    tipEl.style.top = top + 'px';
+  }
+
+  document.addEventListener('pointerover', (e) => {
+    const target = e.target.closest ? e.target.closest('[data-tip-key]') : null;
+    if (!target) return;
+    if (target === activeEl) return;
+    hideTip();
+    activeEl = target;
+    pos = { x: e.clientX, y: e.clientY };
+    timer = setTimeout(() => {
+      if (activeEl === target && document.contains(target)) {
+        placeAndShow(target);
+      }
+    }, CFG_TOOLTIP_DELAY);
+  });
+
+  document.addEventListener('pointermove', (e) => {
+    pos = { x: e.clientX, y: e.clientY };
+  }, { passive: true });
+
+  document.addEventListener('pointerout', (e) => {
+    if (!activeEl) return;
+    const rel = e.relatedTarget;
+    if (!rel || !activeEl.contains(rel)) {
+      hideTip();
+    }
+  });
+
+  document.addEventListener('scroll', hideTip, true);
+  document.addEventListener('mousedown', hideTip, true);
+  document.addEventListener('keydown', hideTip, true);
+  window.addEventListener('blur', hideTip);
+}
+
 function renderConfigPanel() {
   const box = $('#cfgBody');
+  const openIds = new Set(Array.from(box.querySelectorAll('details.obj[open]')).map(d => d.id));
   const gen = cfg.general || {};
+  const used = new Set(steps[curStepIdx]?.usedCfg || []);
+  const uCls = (id) => used.has(id) ? 'cfg-used' : '';
 
   if (activeLeftTab === 'os') {
     box.innerHTML = `
-      <div class="f" id="gen_scalabilityClass">
+      <div class="f has-tip ${uCls('gen_scalabilityClass')}" id="gen_scalabilityClass" data-tip-key="gen_scalabilityClass">
         <label>Scalability Class (SWS_Os_00349)</label>
         <select onchange="cfg.general.scalabilityClass=this.value;rebuild(false)">
           ${['SC1', 'SC2', 'SC3', 'SC4'].map(c => `<option value="${c}" ${c === gen.scalabilityClass ? 'selected' : ''}>${c}</option>`).join('')}
@@ -4207,15 +4745,26 @@ function renderConfigPanel() {
         <div class="hint">SC1: Chuẩn OSEK; SC2: Thêm Timing Protection; SC3/4: Thêm OS-Application &amp; Memory Protection.</div>
       </div>
 
-      <div class="f" id="gen_status">
-        <label>OsStatus (Kiểm tra lỗi API)</label>
-        <select onchange="cfg.general.status=this.value;rebuild(false)">
-          <option value="EXTENDED" ${gen.status === 'EXTENDED' ? 'selected' : ''}>EXTENDED (Kiểm tra đầy đủ mã lỗi)</option>
-          <option value="STANDARD" ${gen.status === 'STANDARD' ? 'selected' : ''}>STANDARD (Tối ưu tốc độ, bỏ qua kiểm tra)</option>
-        </select>
+      <div class="g2">
+        <div class="f has-tip ${uCls('gen_status')}" id="gen_status" data-tip-key="gen_status">
+          <label>OsStatus (Kiểm tra lỗi)</label>
+          <select onchange="cfg.general.status=this.value;rebuild(false)">
+            <option value="EXTENDED" ${gen.status === 'EXTENDED' ? 'selected' : ''}>EXTENDED</option>
+            <option value="STANDARD" ${gen.status === 'STANDARD' ? 'selected' : ''}>STANDARD</option>
+          </select>
+        </div>
+        <div class="f has-tip ${uCls('gen_appMode')}" id="gen_appMode" data-tip-key="gen_appMode">
+          <label>OsAppMode</label>
+          <input type="text" value="${esc(gen.appMode || 'OSDEFAULTAPPMODE')}" onchange="cfg.general.appMode=this.value.trim()||'OSDEFAULTAPPMODE';rebuild(false)">
+        </div>
       </div>
 
-      <label class="ck" id="gen_usePcp">
+      <div class="f has-tip" id="gen_horizonTicks" data-tip-key="gen_horizonTicks">
+        <label>Chiều dài mô phỏng (ticks)</label>
+        <input type="number" min="4" max="30" value="${gen.horizonTicks || 12}" onchange="cfg.general.horizonTicks=Math.max(4,Math.min(30,Number(this.value)||12));rebuild(false)">
+      </div>
+
+      <label class="ck has-tip ${uCls('gen_usePcp')}" id="gen_usePcp" data-tip-key="gen_usePcp">
         <input type="checkbox" ${gen.usePcp ? 'checked' : ''} onchange="cfg.general.usePcp=this.checked;rebuild(false)">
         <div>
           <span class="nm">OsUsePcp (Priority Ceiling Protocol)</span>
@@ -4223,7 +4772,7 @@ function renderConfigPanel() {
         </div>
       </label>
 
-      <label class="ck" id="gen_stackMonitoring">
+      <label class="ck has-tip ${uCls('gen_stackMonitoring')}" id="gen_stackMonitoring" data-tip-key="gen_stackMonitoring">
         <input type="checkbox" ${gen.stackMonitoring ? 'checked' : ''} onchange="cfg.general.stackMonitoring=this.checked;rebuild(false)">
         <div>
           <span class="nm">OsStackMonitoring</span>
@@ -4233,43 +4782,53 @@ function renderConfigPanel() {
 
       <div class="sub-t">Chuỗi Hook Routines</div>
       <div class="g2">
-        <label class="ck" id="gen_startupHook">
+        <label class="ck has-tip ${uCls('gen_startupHook')}" id="gen_startupHook" data-tip-key="gen_startupHook">
           <input type="checkbox" ${gen.startupHook ? 'checked' : ''} onchange="cfg.general.startupHook=this.checked;rebuild(false)">
           <span class="nm" style="font-size:10.5px">StartupHook()</span>
         </label>
-        <label class="ck" id="gen_shutdownHook">
+        <label class="ck has-tip ${uCls('gen_shutdownHook')}" id="gen_shutdownHook" data-tip-key="gen_shutdownHook">
           <input type="checkbox" ${gen.shutdownHook ? 'checked' : ''} onchange="cfg.general.shutdownHook=this.checked;rebuild(false)">
           <span class="nm" style="font-size:10.5px">ShutdownHook()</span>
         </label>
-        <label class="ck" id="gen_errorHook">
+        <label class="ck has-tip ${uCls('gen_errorHook')}" id="gen_errorHook" data-tip-key="gen_errorHook">
           <input type="checkbox" ${gen.errorHook ? 'checked' : ''} onchange="cfg.general.errorHook=this.checked;rebuild(false)">
           <span class="nm" style="font-size:10.5px">ErrorHook()</span>
         </label>
-        <label class="ck" id="gen_protectionHook">
+        <label class="ck has-tip ${uCls('gen_protectionHook')}" id="gen_protectionHook" data-tip-key="gen_protectionHook">
           <input type="checkbox" ${gen.protectionHook ? 'checked' : ''} onchange="cfg.general.protectionHook=this.checked;rebuild(false)">
           <span class="nm" style="font-size:10.5px">ProtectionHook()</span>
+        </label>
+        <label class="ck has-tip ${uCls('gen_preTaskHook')}" id="gen_preTaskHook" data-tip-key="gen_preTaskHook">
+          <input type="checkbox" ${gen.preTaskHook ? 'checked' : ''} onchange="cfg.general.preTaskHook=this.checked;rebuild(false)">
+          <span class="nm" style="font-size:10.5px">PreTaskHook()</span>
+        </label>
+        <label class="ck has-tip ${uCls('gen_postTaskHook')}" id="gen_postTaskHook" data-tip-key="gen_postTaskHook">
+          <input type="checkbox" ${gen.postTaskHook ? 'checked' : ''} onchange="cfg.general.postTaskHook=this.checked;rebuild(false)">
+          <span class="nm" style="font-size:10.5px">PostTaskHook()</span>
         </label>
       </div>
     `;
   } else if (activeLeftTab === 'task') {
     box.innerHTML = (cfg.tasks || []).map((t, idx) => `
-      <details class="obj" id="task_${t.name}">
-        <summary>
+      <details class="obj" id="task_${t.name}" ${openIds.has(`task_${t.name}`) ? 'open' : ''}>
+        <summary class="has-tip" data-tip-key="task_summary">
           <span class="on">${esc(t.name)}</span>
           <span class="mini ${t.type === 'EXTENDED' ? 'ext' : 'bas'}">${t.type}</span>
+          <span class="mini">${t.schedule || 'FULL'}</span>
           <span class="mini">Prio ${t.priority}</span>
+          ${t.autostart ? '<span class="mini">Auto</span>' : ''}
         </summary>
         <div class="ob">
           <div class="g2">
-            <div class="f">
+            <div class="f has-tip" data-tip-key="task_type">
               <label>Loại Task</label>
               <select onchange="cfg.tasks[${idx}].type=this.value;rebuild(false)">
                 <option value="BASIC" ${t.type === 'BASIC' ? 'selected' : ''}>BASIC</option>
                 <option value="EXTENDED" ${t.type === 'EXTENDED' ? 'selected' : ''}>EXTENDED</option>
               </select>
             </div>
-            <div class="f">
-              <label>Lập lịch</label>
+            <div class="f has-tip ${uCls(`task_${t.name}_schedule`)}" id="task_${t.name}_schedule" data-tip-key="task_schedule">
+              <label>Lập lịch (Schedule)</label>
               <select onchange="cfg.tasks[${idx}].schedule=this.value;rebuild(false)">
                 <option value="FULL" ${t.schedule === 'FULL' ? 'selected' : ''}>FULL Preemptive</option>
                 <option value="NON" ${t.schedule === 'NON' ? 'selected' : ''}>NON Preemptive</option>
@@ -4277,21 +4836,33 @@ function renderConfigPanel() {
             </div>
           </div>
           <div class="g2">
-            <div class="f">
+            <div class="f has-tip ${uCls(`task_${t.name}_priority`)}" id="task_${t.name}_priority" data-tip-key="task_priority">
               <label>Độ ưu tiên (0..31)</label>
               <input type="number" min="0" max="31" value="${t.priority}" onchange="cfg.tasks[${idx}].priority=Number(this.value);rebuild(false)">
             </div>
-            <div class="f">
+            <div class="f has-tip" data-tip-key="task_activation">
               <label>Max Activation</label>
               <input type="number" min="1" max="8" value="${t.activation || 1}" onchange="cfg.tasks[${idx}].activation=Number(this.value);rebuild(false)">
             </div>
           </div>
-          <div class="f">
-            <label>Execution Budget (ticks)</label>
-            <input type="number" min="0" max="20" value="${t.budget || 0}" onchange="cfg.tasks[${idx}].budget=Number(this.value);rebuild(false)">
-            <div class="hint">0 = tắt Timing Protection; &gt; 0 = kích hoạt ProtectionHook khi chạy quá ngân sách.</div>
+          <div class="g2">
+            <div class="f has-tip" data-tip-key="task_coreId">
+              <label>Core ID</label>
+              <select onchange="cfg.tasks[${idx}].coreId=Number(this.value);rebuild(false)">
+                <option value="0" ${(t.coreId || 0) === 0 ? 'selected' : ''}>Core 0 (Master)</option>
+                <option value="1" ${(t.coreId || 0) === 1 ? 'selected' : ''}>Core 1 (Slave)</option>
+              </select>
+            </div>
+            <div class="f has-tip" data-tip-key="task_budget">
+              <label>Exec Budget (ticks)</label>
+              <input type="number" min="0" max="20" value="${t.budget || 0}" onchange="cfg.tasks[${idx}].budget=Number(this.value);rebuild(false)">
+            </div>
           </div>
-          <div class="f">
+          <label class="ck has-tip" data-tip-key="task_autostart">
+            <input type="checkbox" ${t.autostart ? 'checked' : ''} onchange="cfg.tasks[${idx}].autostart=this.checked;rebuild(false)">
+            <span class="nm" style="font-size:10.8px">OsTaskAutostart (Kích hoạt ngay trong StartOS)</span>
+          </label>
+          <div class="f has-tip" data-tip-key="task_program">
             <label>Chương trình Task (DSL)</label>
             <textarea onchange="cfg.tasks[${idx}].program=this.value;rebuild(false)">${esc(t.program || '')}</textarea>
           </div>
@@ -4300,27 +4871,27 @@ function renderConfigPanel() {
     `).join('');
   } else if (activeLeftTab === 'isr') {
     box.innerHTML = (cfg.isrs || []).map((i, idx) => `
-      <details class="obj" id="isr_${i.name}">
-        <summary>
+      <details class="obj" id="isr_${i.name}" ${openIds.has(`isr_${i.name}`) ? 'open' : ''}>
+        <summary class="has-tip" data-tip-key="isr_summary">
           <span class="on">${esc(i.name)}</span>
           <span class="mini">${i.category}</span>
           <span class="mini">Prio ${i.priority}</span>
         </summary>
         <div class="ob">
           <div class="g2">
-            <div class="f">
+            <div class="f has-tip" data-tip-key="isr_category">
               <label>Phân loại Category</label>
               <select onchange="cfg.isrs[${idx}].category=this.value;rebuild(false)">
                 <option value="CATEGORY_1" ${i.category === 'CATEGORY_1' ? 'selected' : ''}>CATEGORY_1 (Không qua OS)</option>
                 <option value="CATEGORY_2" ${i.category === 'CATEGORY_2' ? 'selected' : ''}>CATEGORY_2 (Qua OS)</option>
               </select>
             </div>
-            <div class="f">
+            <div class="f has-tip" data-tip-key="isr_priority">
               <label>Ưu tiên ngắt</label>
               <input type="number" value="${i.priority}" onchange="cfg.isrs[${idx}].priority=Number(this.value);rebuild(false)">
             </div>
           </div>
-          <div class="f">
+          <div class="f has-tip" data-tip-key="isr_program">
             <label>Chương trình ISR (DSL)</label>
             <textarea onchange="cfg.isrs[${idx}].program=this.value;rebuild(false)">${esc(i.program || '')}</textarea>
           </div>
@@ -4332,7 +4903,7 @@ function renderConfigPanel() {
       <div class="sub-t">Bảng Event (Thanh ghi 8-Bit)</div>
       <div style="display:flex;flex-direction:column;gap:4px">
         ${(cfg.events || []).map((e, idx) => `
-          <div class="row small" style="justify-content:space-between;background:var(--panel2);padding:4px 6px;border-radius:6px">
+          <div class="row small has-tip" data-tip-key="event_name" style="justify-content:space-between;background:var(--panel2);padding:4px 6px;border-radius:6px">
             <span class="mono"><b>Bit ${e.bit}</b> (${hx(e.mask)})</span>
             <input type="text" style="width:130px;padding:2px 5px" value="${esc(e.name)}" onchange="cfg.events[${idx}].name=this.value;rebuild(false)">
           </div>
@@ -4340,8 +4911,8 @@ function renderConfigPanel() {
       </div>
 
       <div class="sub-t">Bảng Resource &amp; Ceiling Priority</div>
-      ${(cfg.resources || []).map((r, idx) => `
-        <div class="dest" id="res_${r.name}">
+      ${(cfg.resources || []).map((r) => `
+        <div class="dest has-tip ${uCls(`res_${r.name}`)}" id="res_${r.name}" data-tip-key="res_card">
           <div class="dest-h">
             <span>🔒 ${esc(r.name)}</span>
             <span class="mono small">Ceiling Prio: ${r.ceiling}</span>
@@ -4350,8 +4921,145 @@ function renderConfigPanel() {
         </div>
       `).join('')}
     `;
-  } else {
-    box.innerHTML = `<div class="hint">Cấu hình cho tab ${activeLeftTab} đang hiển thị theo mặc định. Mọi thay đổi áp dụng tức thời.</div>`;
+  } else if (activeLeftTab === 'ca') {
+    box.innerHTML = `
+      <div class="sub-t">Counters</div>
+      ${(cfg.counters || []).map((c, idx) => `
+        <div class="hb-card mb6 has-tip" data-tip-key="ca_counter" style="margin-bottom:8px;padding:8px">
+          <div class="row" style="justify-content:space-between;margin-bottom:5px">
+            <b class="mono" style="color:var(--accent)">⏱ ${esc(c.name)}</b>
+            <span class="mini">ticksPerBase=${c.ticksPerBase || 1}</span>
+          </div>
+          <div class="g2">
+            <div class="f">
+              <label>MaxAllowedValue</label>
+              <input type="number" min="5" max="255" value="${c.maxAllowedValue || 15}" onchange="cfg.counters[${idx}].maxAllowedValue=Number(this.value)||15;rebuild(false)">
+            </div>
+            <div class="f">
+              <label>MinCycle</label>
+              <input type="number" min="1" max="20" value="${c.minCycle || 1}" onchange="cfg.counters[${idx}].minCycle=Number(this.value)||1;rebuild(false)">
+            </div>
+          </div>
+        </div>
+      `).join('')}
+
+      <div class="sub-t">Alarms</div>
+      ${(cfg.alarms || []).map((a, idx) => `
+        <details class="obj" id="alm_${a.name}" ${openIds.has(`alm_${a.name}`) ? 'open' : 'open'}>
+          <summary>
+            <span class="on">${esc(a.name)}</span>
+            <span class="mini">${a.action}</span>
+            <span class="mini">t=${a.startTick}${a.cycleTick ? ` / +${a.cycleTick}` : ''}</span>
+          </summary>
+          <div class="ob">
+            <label class="ck has-tip" data-tip-key="ca_alarm_autostart">
+              <input type="checkbox" ${a.autostart ? 'checked' : ''} onchange="cfg.alarms[${idx}].autostart=this.checked;rebuild(false)">
+              <span class="nm" style="font-size:10.8px">OsAlarmAutostart (Tự nạp trong StartOS)</span>
+            </label>
+            <div class="f has-tip" data-tip-key="ca_alarm_action">
+              <label>Hành động (OsAlarmAction)</label>
+              <select onchange="cfg.alarms[${idx}].action=this.value;rebuild(false)">
+                ${['SETEVENT', 'ACTIVATETASK', 'ALARMCALLBACK', 'INCREMENTCOUNTER'].map(act =>
+                  `<option value="${act}" ${a.action === act ? 'selected' : ''}>${act}</option>`
+                ).join('')}
+              </select>
+            </div>
+            <div class="g2">
+              <div class="f has-tip" data-tip-key="ca_alarm_start">
+                <label>Start Tick</label>
+                <input type="number" min="1" max="30" value="${a.startTick || 1}" onchange="cfg.alarms[${idx}].startTick=Number(this.value)||1;rebuild(false)">
+              </div>
+              <div class="f has-tip" data-tip-key="ca_alarm_cycle">
+                <label>Cycle (0 = 1 lần)</label>
+                <input type="number" min="0" max="30" value="${a.cycleTick || 0}" onchange="cfg.alarms[${idx}].cycleTick=Number(this.value)||0;rebuild(false)">
+              </div>
+            </div>
+          </div>
+        </details>
+      `).join('')}
+    `;
+  } else if (activeLeftTab === 'st') {
+    box.innerHTML = (cfg.scheduleTables || []).map((st, idx) => `
+      <details class="obj" id="st_${st.name}" open>
+        <summary>
+          <span class="on">📅 ${esc(st.name)}</span>
+          <span class="mini">Dur ${st.duration}</span>
+          <span class="mini">${st.syncStrategy || 'NONE'}</span>
+        </summary>
+        <div class="ob">
+          <div class="g2">
+            <label class="ck has-tip" data-tip-key="st_autostart">
+              <input type="checkbox" ${st.autostart ? 'checked' : ''} onchange="cfg.scheduleTables[${idx}].autostart=this.checked;rebuild(false)">
+              <span class="nm" style="font-size:10.5px">Autostart</span>
+            </label>
+            <label class="ck has-tip" data-tip-key="st_repeating">
+              <input type="checkbox" ${st.repeating ? 'checked' : ''} onchange="cfg.scheduleTables[${idx}].repeating=this.checked;rebuild(false)">
+              <span class="nm" style="font-size:10.5px">Repeating</span>
+            </label>
+          </div>
+          <div class="g2">
+            <div class="f has-tip" data-tip-key="st_duration">
+              <label>Duration (ticks)</label>
+              <input type="number" min="2" max="30" value="${st.duration || 8}" onchange="cfg.scheduleTables[${idx}].duration=Number(this.value)||8;rebuild(false)">
+            </div>
+            <div class="f has-tip" data-tip-key="st_sync">
+              <label>Sync Strategy</label>
+              <select onchange="cfg.scheduleTables[${idx}].syncStrategy=this.value;rebuild(false)">
+                ${['NONE', 'EXPLICIT', 'IMPLICIT'].map(s => `<option value="${s}" ${st.syncStrategy === s ? 'selected' : ''}>${s}</option>`).join('')}
+              </select>
+            </div>
+          </div>
+          <div class="hint">Expiry Points: ${(st.expiryPoints || []).map(ep => `offset=${ep.offset}`).join(' • ') || 'Trống'}</div>
+        </div>
+      </details>
+    `).join('');
+  } else if (activeLeftTab === 'mc') {
+    const mc = cfg.multicore || { numberOfCores: 1, spinlocks: [], iocChannels: [] };
+    box.innerHTML = `
+      <div class="f has-tip" data-tip-key="mc_cores">
+        <label>Số lõi CPU (OsNumberOfCores)</label>
+        <select onchange="cfg.multicore.numberOfCores=Number(this.value);rebuild(false)">
+          <option value="1" ${(mc.numberOfCores || 1) === 1 ? 'selected' : ''}>1 Core (Single-Core)</option>
+          <option value="2" ${mc.numberOfCores === 2 ? 'selected' : ''}>2 Cores (Master Core 0 + Slave Core 1)</option>
+        </select>
+      </div>
+      <div class="sub-t">Spinlocks</div>
+      ${(mc.spinlocks || []).map((sp, idx) => `
+        <div class="f has-tip" data-tip-key="mc_spinlock">
+          <label>🔐 ${esc(sp.name)} — Lock Method</label>
+          <select onchange="cfg.multicore.spinlocks[${idx}].lockMethod=this.value;rebuild(false)">
+            ${['LOCK_ALL_INTERRUPTS', 'LOCK_CAT2_INTERRUPTS', 'LOCK_NOTHING'].map(m => `<option value="${m}" ${sp.lockMethod === m ? 'selected' : ''}>${m}</option>`).join('')}
+          </select>
+        </div>
+      `).join('')}
+      <div class="sub-t">IOC Channels</div>
+      ${(mc.iocChannels || []).map((ioc, idx) => `
+        <div class="g2 has-tip" data-tip-key="mc_ioc">
+          <div class="f">
+            <label>${esc(ioc.name)} (Semantic)</label>
+            <select onchange="cfg.multicore.iocChannels[${idx}].semantic=this.value;rebuild(false)">
+              <option value="QUEUED" ${ioc.semantic === 'QUEUED' ? 'selected' : ''}>QUEUED</option>
+              <option value="UNQUEUED" ${ioc.semantic === 'UNQUEUED' ? 'selected' : ''}>UNQUEUED</option>
+            </select>
+          </div>
+          <div class="f">
+            <label>Buffer Length</label>
+            <input type="number" min="1" max="16" value="${ioc.bufferLength || 4}" onchange="cfg.multicore.iocChannels[${idx}].bufferLength=Number(this.value)||4;rebuild(false)">
+          </div>
+        </div>
+      `).join('')}
+    `;
+  } else if (activeLeftTab === 'stim') {
+    const stims = cfg.stimuli || [];
+    box.innerHTML = stims.length ? stims.map((s, idx) => `
+      <label class="ck has-tip" data-tip-key="stim_enable">
+        <input type="checkbox" ${s.enabled !== false ? 'checked' : ''} onchange="cfg.stimuli[${idx}].enabled=this.checked;rebuild(false)">
+        <div>
+          <span class="nm">t=${s.tick} • ${esc(s.type)} (${esc(s.target || '')})</span>
+          <span class="ds">${esc(s.desc || '')}</span>
+        </div>
+      </label>
+    `).join('') : '<div class="hint">Chưa có sự kiện Stimulus nào trong kịch bản.</div>';
   }
 }
 
@@ -4421,6 +5129,9 @@ function switchView(v) {
   $('#simCtrlRow').classList.toggle('hidden', v !== 'sim');
   if (v === 'hb') {
     renderHandbookContent();
+  } else if (v === 'sim') {
+    syncTimelineScroll();
+    syncGanttScroll();
   }
 }
 
@@ -4458,100 +5169,612 @@ const HANDBOOK_TABS = [
       return `
         <div class="hb-sec">
           <h3>1. Bảng Phân Tích Luồng Xử Lý Của Từng Module (Input ➔ Processing ➔ Output)</h3>
-          <p>Dưới đây là bảng tổng hợp chuẩn kiến trúc phân lớp AUTOSAR Classic, giải thích rõ dữ liệu đầu vào lấy từ đâu, cách thức xử lý nội bộ, và luồng dữ liệu / API đầu ra chuyển tiếp đến đâu:</p>
-          <table class="hbt">
-            <thead>
-              <tr>
-                <th style="width:18%">Module / Phân Khối</th>
-                <th style="width:26%">Input lấy từ đâu?</th>
-                <th style="width:28%">Cách xử lý nội bộ &amp; Quản lý trạng thái</th>
-                <th style="width:28%">Output route đến đâu &amp; Hàm API chuẩn</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${Object.keys(MODULE_DOCS).map(k => {
-                const m = MODULE_DOCS[k];
-                return `
-                  <tr>
-                    <td><b>${esc(m.name)}</b><br><span class="dim small">${esc(m.layer)}</span></td>
-                    <td>${esc(m.input)}</td>
-                    <td>${esc(m.role)}</td>
-                    <td>${esc(m.output)}</td>
-                  </tr>
-                `;
-              }).join('')}
-            </tbody>
-          </table>
+          <div class="hb-block">
+            <p>Dưới đây là bảng tổng hợp chuẩn kiến trúc phân lớp AUTOSAR Classic, giải thích rõ dữ liệu đầu vào lấy từ đâu, cách thức xử lý nội bộ, và luồng dữ liệu / API đầu ra chuyển tiếp đến đâu:</p>
+            <table class="hbt">
+              <thead>
+                <tr>
+                  <th style="width:18%">Module / Phân Khối</th>
+                  <th style="width:26%">Input lấy từ đâu?</th>
+                  <th style="width:28%">Cách xử lý nội bộ &amp; Quản lý trạng thái</th>
+                  <th style="width:28%">Output route đến đâu &amp; Hàm API chuẩn</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${Object.keys(MODULE_DOCS).map(k => {
+                  const m = MODULE_DOCS[k];
+                  return `
+                    <tr>
+                      <td><b>${esc(m.name)}</b><br><span class="dim small">${esc(m.layer)}</span></td>
+                      <td>${esc(m.input)}</td>
+                      <td>${esc(m.role)}</td>
+                      <td>${esc(m.output)}</td>
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
 
-          <h4>4 Lớp Khả Năng Mở Rộng Của AUTOSAR OS (Scalability Classes)</h4>
-          <table class="hbt">
-            <thead>
-              <tr><th>Scalability Class</th><th>Đặc điểm cốt lõi</th><th>Hỗ trợ OSEK OS</th><th>Timing Protection</th><th>OS-Application &amp; Memory</th></tr>
-            </thead>
-            <tbody>
-              <tr><td><code>SC1</code></td><td>Chuẩn OSEK OS 2.2.3 truyền thống (không bảo vệ bộ nhớ và thời gian).</td><td>Có</td><td>Không</td><td>Không</td></tr>
-              <tr><td><code>SC2</code></td><td>SC1 + Bổ sung <b>Timing Protection</b> (Execution Budget, Time Frame, Lock Budget).</td><td>Có</td><td><b>Có (Bắt buộc)</b></td><td>Không</td></tr>
-              <tr><td><code>SC3</code></td><td>SC1 + Bổ sung <b>OS-Application</b> &amp; Bảo vệ bộ nhớ phần cứng (MPU).</td><td>Có</td><td>Không</td><td><b>Có (Bắt buộc)</b></td></tr>
-              <tr><td><code>SC4</code></td><td>Đầy đủ nhất: SC1 + <b>Timing Protection</b> + <b>Memory Protection</b>.</td><td>Có</td><td><b>Có (Bắt buộc)</b></td><td><b>Có (Bắt buộc)</b></td></tr>
-            </tbody>
-          </table>
+          <div class="hb-block">
+            <h4>4 Lớp Khả Năng Mở Rộng Của AUTOSAR OS (Scalability Classes)</h4>
+            <table class="hbt">
+              <thead>
+                <tr><th>Scalability Class</th><th>Đặc điểm cốt lõi</th><th>Hỗ trợ OSEK OS</th><th>Timing Protection</th><th>OS-Application &amp; Memory</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code>SC1</code></td><td>Chuẩn OSEK OS 2.2.3 truyền thống (không bảo vệ bộ nhớ và thời gian).</td><td>Có</td><td>Không</td><td>Không</td></tr>
+                <tr><td><code>SC2</code></td><td>SC1 + Bổ sung <b>Timing Protection</b> (Execution Budget, Time Frame, Lock Budget).</td><td>Có</td><td><b>Có (Bắt buộc)</b></td><td>Không</td></tr>
+                <tr><td><code>SC3</code></td><td>SC1 + Bổ sung <b>OS-Application</b> &amp; Bảo vệ bộ nhớ phần cứng (MPU).</td><td>Có</td><td>Không</td><td><b>Có (Bắt buộc)</b></td></tr>
+                <tr><td><code>SC4</code></td><td>Đầy đủ nhất: SC1 + <b>Timing Protection</b> + <b>Memory Protection</b>.</td><td>Có</td><td><b>Có (Bắt buộc)</b></td><td><b>Có (Bắt buộc)</b></td></tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       `;
     }
   },
 
   {
-    title: '2. Task State Machine & Lập Lịch',
-    render: function() {
+    title: '2. Task State, Full / Non-Preemptive',
+    render: function(forSearch) {
+      const sub = forSearch ? 'all' : (activeHbSub[1] || 'all');
+      const showFsm = sub === 'all' || sub === 'fsm';
+      const showPre = sub === 'all' || sub === 'preempt';
       return `
         <div class="hb-sec">
-          <h3>2. Máy Trạng Thái Task (Task State Machine) &amp; Các Chế Độ Lập Lịch</h3>
-          <h4>So Sánh Basic Task vs Extended Task</h4>
-          <table class="hbt">
-            <thead>
-              <tr><th>Tiêu chí</th><th>Basic Task</th><th>Extended Task</th></tr>
-            </thead>
-            <tbody>
-              <tr><td><b>Các trạng thái hỗ trợ</b></td><td>3 trạng thái: <code>SUSPENDED</code>, <code>READY</code>, <code>RUNNING</code></td><td>4 trạng thái: <code>SUSPENDED</code>, <code>READY</code>, <code>RUNNING</code>, <b><code>WAITING</code></b></td></tr>
-              <tr><td><b>Gọi WaitEvent()</b></td><td><b>Bị Cấm (Báo lỗi E_OS_ACCESS)</b></td><td><b>Được phép</b> (chuyển sang WAITING nếu sự kiện chưa đến)</td></tr>
-              <tr><td><b>Multiple Activation</b></td><td>Hỗ trợ xếp hàng kích hoạt nhiều lần (OsTaskActivation = 1..8)</td><td>Cố định = 1 (Không hỗ trợ Multiple Activation)</td></tr>
-              <tr><td><b>Tiêu tốn RAM Stack</b></td><td>Có thể dùng chung 1 Single Stack giữa các Task không ngắt nhau</td><td>Bắt buộc mỗi Task có 1 vùng Extended Stack riêng</td></tr>
-            </tbody>
-          </table>
+          <h3>2. Máy Trạng Thái Task &amp; Cơ Chế Lập Lịch Full / Non-Preemptive</h3>
+          ${forSearch ? '' : `
+          <div class="hb-subtabs">
+            <button type="button" class="hb-stab ${sub === 'all' ? 'active' : ''}" onclick="switchHbSubTab(1,'all')">📋 Tất cả mục</button>
+            <button type="button" class="hb-stab ${sub === 'fsm' ? 'active' : ''}" onclick="switchHbSubTab(1,'fsm')">🔁 State Machine &amp; Basic vs Extended</button>
+            <button type="button" class="hb-stab ${sub === 'preempt' ? 'active' : ''}" onclick="switchHbSubTab(1,'preempt')">⚡ Cơ chế Full / Non-Preemptive &amp; Minh họa</button>
+          </div>`}
 
-          <h4>Các Chế Độ Lập Lịch Preemption</h4>
-          <ul>
-            <li><b>Full-Preemptive (<code>OsTaskSchedule = FULL</code>):</b> Bất cứ khi nào một Task có mức ưu tiên cao hơn chuyển sang trạng thái <code>READY</code> (do Alarm, ngắt ISR, hoặc SetEvent), OS sẽ lập tức ngắt Task đang chạy và trao CPU cho Task ưu tiên cao hơn.</li>
-            <li><b>Non-Preemptive (<code>OsTaskSchedule = NON</code>):</b> Task đang chạy sẽ không bao giờ bị Task khác chiếm quyền cho tới khi tự nguyện gọi <code>Schedule()</code>, <code>WaitEvent()</code> hoặc kết thúc bằng <code>TerminateTask()</code> / <code>ChainTask()</code>. Ngắt phần cứng (ISR) vẫn có thể chen ngang nhưng khi ISR thoát ra CPU sẽ trả lại cho Task NON-preemptive.</li>
-          </ul>
+          ${showFsm ? `
+          <div class="hb-block" data-sub="fsm">
+            <h4>Máy Trạng Thái Task (OSEK / AUTOSAR Classic OS)</h4>
+            <div class="hb-fig">
+              <svg class="hb-svg" viewBox="0 0 880 285" role="img" aria-label="Biểu đồ máy trạng thái Task AUTOSAR OS">
+                <defs>
+                  <marker id="osFsmPri" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                    <path d="M 0 1 L 10 5 L 0 9 z" fill="var(--hb-pri)"/>
+                  </marker>
+                  <marker id="osFsmOk" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                    <path d="M 0 1 L 10 5 L 0 9 z" fill="var(--hb-ok)"/>
+                  </marker>
+                  <marker id="osFsmWarn" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                    <path d="M 0 1 L 10 5 L 0 9 z" fill="var(--hb-warn)"/>
+                  </marker>
+                  <marker id="osFsmPur" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                    <path d="M 0 1 L 10 5 L 0 9 z" fill="var(--hb-pur)"/>
+                  </marker>
+                  <marker id="osFsmMut" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                    <path d="M 0 1 L 10 5 L 0 9 z" fill="var(--hb-mut)"/>
+                  </marker>
+                </defs>
+
+                <!-- Top return arrow RUNNING -> SUSPENDED -->
+                <path d="M 758 118 L 758 44 Q 758 34 748 34 L 110 34 Q 100 34 100 44 L 100 112" fill="none" stroke="var(--hb-mut)" stroke-width="2" marker-end="url(#osFsmMut)"/>
+                <rect x="275" y="18" width="310" height="24" rx="6" fill="var(--hb-card)" stroke="var(--hb-bdr)"/>
+                <text x="430" y="34" text-anchor="middle" font-size="11" font-weight="700" fill="var(--hb-txt)" class="mono">TerminateTask() / ChainTask()</text>
+
+                <!-- State nodes -->
+                <rect x="32" y="118" width="136" height="52" rx="10" fill="var(--hb-card)" stroke="var(--hb-mut)" stroke-width="2"/>
+                <text x="100" y="141" text-anchor="middle" font-size="13" font-weight="800" fill="var(--hb-txt)" class="mono">SUSPENDED</text>
+                <text x="100" y="158" text-anchor="middle" font-size="10" fill="var(--hb-mut)">Ngủ (chưa kích hoạt)</text>
+
+                <rect x="276" y="118" width="148" height="52" rx="10" fill="rgba(251,191,36,0.14)" stroke="var(--hb-warn)" stroke-width="2"/>
+                <text x="350" y="141" text-anchor="middle" font-size="13" font-weight="800" fill="var(--hb-warn)" class="mono">READY</text>
+                <text x="350" y="158" text-anchor="middle" font-size="10" fill="var(--hb-txt)">Đợi trong Ready Queue</text>
+
+                <rect x="676" y="118" width="164" height="52" rx="10" fill="rgba(52,211,153,0.16)" stroke="var(--hb-ok)" stroke-width="2.2"/>
+                <text x="758" y="141" text-anchor="middle" font-size="13" font-weight="800" fill="var(--hb-ok)" class="mono">RUNNING</text>
+                <text x="758" y="158" text-anchor="middle" font-size="10" fill="var(--hb-txt)">Đang chiếm lõi CPU</text>
+
+                <rect x="440" y="214" width="176" height="52" rx="10" fill="rgba(192,132,252,0.14)" stroke="var(--hb-pur)" stroke-width="2" stroke-dasharray="5 3"/>
+                <text x="528" y="237" text-anchor="middle" font-size="13" font-weight="800" fill="var(--hb-pur)" class="mono">WAITING</text>
+                <text x="528" y="254" text-anchor="middle" font-size="10" fill="var(--hb-txt)">Chỉ Extended Task</text>
+
+                <!-- SUSPENDED -> READY -->
+                <path d="M 168 144 L 270 144" fill="none" stroke="var(--hb-pri)" stroke-width="2.2" marker-end="url(#osFsmPri)"/>
+                <text x="220" y="135" text-anchor="middle" font-size="10.5" font-weight="700" fill="var(--hb-pri)" class="mono">ActivateTask()</text>
+                <text x="220" y="160" text-anchor="middle" font-size="9.5" fill="var(--hb-mut)">/ Alarm / SchTbl</text>
+
+                <!-- READY -> RUNNING -->
+                <path d="M 424 134 L 670 134" fill="none" stroke="var(--hb-ok)" stroke-width="2.2" marker-end="url(#osFsmOk)"/>
+                <text x="550" y="124" text-anchor="middle" font-size="10.5" font-weight="700" fill="var(--hb-ok)">Start (Scheduler chọn Prio cao nhất)</text>
+
+                <!-- RUNNING -> READY -->
+                <path d="M 676 156 L 430 156" fill="none" stroke="var(--hb-warn)" stroke-width="2.2" marker-end="url(#osFsmWarn)"/>
+                <text x="550" y="173" text-anchor="middle" font-size="10.5" font-weight="700" fill="var(--hb-warn)">Preempt (Task FULL) hoặc Schedule()</text>
+
+                <!-- RUNNING -> WAITING -->
+                <path d="M 786 170 L 786 230 Q 786 240 776 240 L 622 240" fill="none" stroke="var(--hb-pur)" stroke-width="2" marker-end="url(#osFsmPur)"/>
+                <text x="774" y="205" text-anchor="end" font-size="10.5" font-weight="700" fill="var(--hb-pur)" class="mono">WaitEvent(Mask)</text>
+                <text x="774" y="219" text-anchor="end" font-size="9.5" fill="var(--hb-mut)">[Bit đợi chưa được bật]</text>
+
+                <!-- WAITING -> READY -->
+                <path d="M 440 240 L 360 240 Q 350 240 350 230 L 350 176" fill="none" stroke="var(--hb-pri)" stroke-width="2" marker-end="url(#osFsmPri)"/>
+                <text x="338" y="205" text-anchor="end" font-size="10.5" font-weight="700" fill="var(--hb-pri)" class="mono">SetEvent(Mask)</text>
+                <text x="338" y="219" text-anchor="end" font-size="9.5" fill="var(--hb-mut)">(EventsSet &amp; EventsWait) != 0</text>
+              </svg>
+              <div class="hb-figcap">Hình 2.1 — Vòng đời 4 trạng thái của Task trong AUTOSAR OS (Basic Task chỉ dùng 3 trạng thái phía trên).</div>
+            </div>
+
+            <h4>So Sánh Basic Task vs Extended Task</h4>
+            <table class="hbt">
+              <thead>
+                <tr><th>Tiêu chí</th><th>Basic Task</th><th>Extended Task</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><b>Các trạng thái hỗ trợ</b></td><td>3 trạng thái: <code>SUSPENDED</code>, <code>READY</code>, <code>RUNNING</code></td><td>4 trạng thái: <code>SUSPENDED</code>, <code>READY</code>, <code>RUNNING</code>, <b><code>WAITING</code></b></td></tr>
+                <tr><td><b>Gọi WaitEvent()</b></td><td><b>Bị Cấm (Báo lỗi E_OS_ACCESS)</b></td><td><b>Được phép</b> (chuyển sang WAITING nếu sự kiện chưa đến)</td></tr>
+                <tr><td><b>Multiple Activation</b></td><td>Hỗ trợ xếp hàng kích hoạt nhiều lần (<code>OsTaskActivation</code> = 1..8)</td><td>Cố định = 1 (Không hỗ trợ Multiple Activation; kích lần 2 báo <code>E_OS_LIMIT</code>)</td></tr>
+                <tr><td><b>Tiêu tốn RAM Stack</b></td><td>Có thể dùng chung 1 Single Stack giữa các Task không ngắt nhau</td><td>Bắt buộc mỗi Task có 1 vùng Extended Stack riêng để lưu ngữ cảnh khi WAITING</td></tr>
+              </tbody>
+            </table>
+          </div>` : ''}
+
+          ${showPre ? `
+          <div class="hb-block" data-sub="preempt">
+            <h4>Cơ Chế Lập Lịch Full-Preemptive vs Non-Preemptive &amp; Mixed Scheduling</h4>
+            <p>Thuộc tính cấu hình <code>OsTaskSchedule</code> quy định liệu một Task khi đang <code>RUNNING</code> có cho phép các Task có mức ưu tiên cao hơn chen ngang (preempt) hay không:</p>
+
+            <div class="hb-grid2">
+              <div class="hb-card">
+                <h5 style="color:var(--hb-pri)">⚡ Full-Preemptive (<code>OsTaskSchedule = FULL</code>)</h5>
+                <ul>
+                  <li><b>Nguyên tắc:</b> Bộ lập lịch được kích hoạt ngay tại <i>mọi điểm rescheduling</i> (khi gọi <code>ActivateTask()</code>, <code>SetEvent()</code>, thoát <code>ISR Cat 2</code>, hết hạn Alarm/ScheduleTable, hoặc nhả Resource làm đổi ưu tiên).</li>
+                  <li><b>Hành vi:</b> Nếu bất kỳ Task nào ở trạng thái <code>READY</code> có <code>Priority &gt; RunningTask.CurrentPriority</code>, OS lập tức lưu ngữ cảnh (Context Switch), đẩy Task đang chạy về <code>READY</code> và trao CPU cho Task ưu tiên cao hơn.</li>
+                  <li><b>Ưu / Nhược:</b> Đáp ứng thời gian thực cực nhanh (latency thấp), nhưng tốn RAM Stack hơn và bắt buộc dùng <code>GetResource()</code>/<code>Spinlock</code> để bảo vệ dữ liệu dùng chung.</li>
+                </ul>
+              </div>
+              <div class="hb-card">
+                <h5 style="color:var(--hb-warn)">🔒 Non-Preemptive (<code>OsTaskSchedule = NON</code>)</h5>
+                <ul>
+                  <li><b>Nguyên tắc:</b> Task đang chạy <b>không bị chiếm quyền bởi bất kỳ Task nào khác</b>, kể cả Task ưu tiên cao hơn vừa chuyển sang <code>READY</code>.</li>
+                  <li><b>Ngắt phần cứng (ISR):</b> ISR Cat 1 và ISR Cat 2 <i>vẫn chen ngang bình thường</i>. Tuy nhiên, nếu ISR Cat 2 gọi <code>ActivateTask(Task_High)</code>, khi thoát ISR OS <b>vẫn trả CPU về Task NON-preemptive</b> chạy tiếp!</li>
+                  <li><b>4 Điểm nhường CPU duy nhất:</b> Task <code>NON</code> chỉ trả quyền lập lịch khi chủ động gọi <code>TerminateTask()</code>, <code>ChainTask()</code>, <code>Schedule()</code>, hoặc <code>WaitEvent()</code> (với Extended Task).</li>
+                  <li><b>Ưu / Nhược:</b> Giảm số lần context switch &amp; cho phép dùng chung Single Stack; nhưng làm tăng độ trễ đáp ứng (blocking time) của Task ưu tiên cao.</li>
+                </ul>
+              </div>
+            </div>
+
+            <div class="hb-fig">
+              <svg class="hb-svg" viewBox="0 0 880 364" role="img" aria-label="Minh họa cơ chế Full-Preemptive và Non-Preemptive trong AUTOSAR OS">
+                <defs>
+                  <marker id="osPreA" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                    <path d="M 0 1 L 10 5 L 0 9 z" fill="var(--hb-acc)"/>
+                  </marker>
+                  <marker id="osPreW" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                    <path d="M 0 1 L 10 5 L 0 9 z" fill="var(--hb-warn)"/>
+                  </marker>
+                </defs>
+
+                <!-- PANEL 1: FULL-PREEMPTIVE -->
+                <rect x="8" y="8" width="864" height="168" rx="10" fill="var(--hb-card)" stroke="var(--hb-bdr)"/>
+                <text x="20" y="28" font-size="12" font-weight="800" fill="var(--hb-pri)">① FULL-PREEMPTIVE (OsTaskSchedule = FULL) — Chiếm quyền tức thì ngay sau khi thoát ISR Cat 2</text>
+
+                <!-- Vertical ticks t=0..12 -->
+                <g stroke="var(--hb-bdr)" stroke-dasharray="3 3" stroke-width="1">
+                  <line x1="152" y1="42" x2="152" y2="136"/><line x1="210" y1="42" x2="210" y2="136"/><line x1="268" y1="42" x2="268" y2="136"/>
+                  <line x1="326" y1="42" x2="326" y2="136"/><line x1="384" y1="42" x2="384" y2="136"/><line x1="442" y1="42" x2="442" y2="136"/>
+                  <line x1="500" y1="42" x2="500" y2="136"/><line x1="558" y1="42" x2="558" y2="136"/><line x1="616" y1="42" x2="616" y2="136"/>
+                  <line x1="674" y1="42" x2="674" y2="136"/><line x1="732" y1="42" x2="732" y2="136"/><line x1="790" y1="42" x2="790" y2="136"/>
+                  <line x1="848" y1="42" x2="848" y2="136"/>
+                </g>
+                <g font-size="9.5" fill="var(--hb-mut)" text-anchor="middle" class="mono">
+                  <text x="152" y="40">t0</text><text x="210" y="40">1</text><text x="268" y="40">2</text><text x="326" y="40">3</text>
+                  <text x="384" y="40">4</text><text x="442" y="40">5</text><text x="500" y="40">6</text><text x="558" y="40">7</text>
+                  <text x="616" y="40">8</text><text x="674" y="40">9</text><text x="732" y="40">10</text><text x="790" y="40">11</text><text x="848" y="40">12</text>
+                </g>
+
+                <!-- Lane labels Panel 1 -->
+                <text x="18" y="67" font-size="11" font-weight="700" fill="var(--hb-org)" class="mono">ISR Cat 2</text>
+                <text x="18" y="95" font-size="11" font-weight="700" fill="var(--hb-ok)" class="mono">Task_High (P5)</text>
+                <text x="18" y="123" font-size="11" font-weight="700" fill="var(--hb-pri)" class="mono">Task_Low (FULL)</text>
+
+                <!-- Bars Panel 1 -->
+                <rect x="152" y="108" width="174" height="22" rx="4" fill="rgba(56,189,248,0.22)" stroke="var(--hb-pri)" stroke-width="1.4"/>
+                <text x="239" y="123" text-anchor="middle" font-size="10.5" font-weight="700" fill="var(--hb-txt)">Task_Low RUNNING (P1)</text>
+
+                <rect x="326" y="52" width="58" height="22" rx="4" fill="rgba(251,146,60,0.28)" stroke="var(--hb-org)" stroke-width="1.5"/>
+                <text x="355" y="67" text-anchor="middle" font-size="10.5" font-weight="800" fill="var(--hb-txt)">ISR</text>
+                <text x="394" y="66" font-size="9.5" font-weight="700" fill="var(--hb-org)" class="mono">ActivateTask(Task_High)</text>
+
+                <rect x="384" y="108" width="232" height="22" rx="4" fill="rgba(251,191,36,0.10)" stroke="var(--hb-warn)" stroke-width="1.2" stroke-dasharray="4 3"/>
+                <text x="500" y="123" text-anchor="middle" font-size="10" font-weight="700" fill="var(--hb-warn)">READY (Bị Preempt — nằm chờ)</text>
+
+                <rect x="384" y="80" width="232" height="22" rx="4" fill="rgba(52,211,153,0.24)" stroke="var(--hb-ok)" stroke-width="1.6"/>
+                <text x="500" y="95" text-anchor="middle" font-size="10.5" font-weight="800" fill="var(--hb-txt)">Task_High CHIẾM CPU NGAY (P5)</text>
+
+                <path d="M 616 102 L 616 108" stroke="var(--hb-acc)" stroke-width="2" marker-end="url(#osPreA)"/>
+                <text x="622" y="95" font-size="9.5" font-weight="700" fill="var(--hb-ok)" class="mono">TerminateTask()</text>
+
+                <rect x="616" y="108" width="174" height="22" rx="4" fill="rgba(56,189,248,0.22)" stroke="var(--hb-pri)" stroke-width="1.4"/>
+                <text x="703" y="123" text-anchor="middle" font-size="10.5" font-weight="700" fill="var(--hb-txt)">Task_Low chạy nốt (t8→11)</text>
+
+                <rect x="18" y="142" width="844" height="24" rx="5" fill="rgba(56,189,248,0.09)"/>
+                <text x="28" y="158" font-size="10.5" fill="var(--hb-txt)">⚡ Tại t=4 khi thoát ISR Cat 2: Scheduler phát hiện Prio(Task_High)=5 &gt; Prio(Task_Low)=1 ➔ Context Switch ngay lập tức sang Task_High.</text>
+
+                <!-- PANEL 2: NON-PREEMPTIVE -->
+                <rect x="8" y="186" width="864" height="170" rx="10" fill="var(--hb-card)" stroke="var(--hb-bdr)"/>
+                <text x="20" y="206" font-size="12" font-weight="800" fill="var(--hb-warn)">② NON-PREEMPTIVE (OsTaskSchedule = NON) — Không bị Task khác cắt ngang cho tới Schedule()</text>
+
+                <g stroke="var(--hb-bdr)" stroke-dasharray="3 3" stroke-width="1">
+                  <line x1="152" y1="220" x2="152" y2="314"/><line x1="210" y1="220" x2="210" y2="314"/><line x1="268" y1="220" x2="268" y2="314"/>
+                  <line x1="326" y1="220" x2="326" y2="314"/><line x1="384" y1="220" x2="384" y2="314"/><line x1="442" y1="220" x2="442" y2="314"/>
+                  <line x1="500" y1="220" x2="500" y2="314"/><line x1="558" y1="220" x2="558" y2="314"/><line x1="616" y1="220" x2="616" y2="314"/>
+                  <line x1="674" y1="220" x2="674" y2="314"/><line x1="732" y1="220" x2="732" y2="314"/><line x1="790" y1="220" x2="790" y2="314"/>
+                  <line x1="848" y1="220" x2="848" y2="314"/>
+                </g>
+                <g font-size="9.5" fill="var(--hb-mut)" text-anchor="middle" class="mono">
+                  <text x="152" y="218">t0</text><text x="210" y="218">1</text><text x="268" y="218">2</text><text x="326" y="218">3</text>
+                  <text x="384" y="218">4</text><text x="442" y="218">5</text><text x="500" y="218">6</text><text x="558" y="218">7</text>
+                  <text x="616" y="218">8</text><text x="674" y="218">9</text><text x="732" y="218">10</text><text x="790" y="218">11</text><text x="848" y="218">12</text>
+                </g>
+
+                <text x="18" y="245" font-size="11" font-weight="700" fill="var(--hb-org)" class="mono">ISR Cat 2</text>
+                <text x="18" y="273" font-size="11" font-weight="700" fill="var(--hb-ok)" class="mono">Task_High (P5)</text>
+                <text x="18" y="301" font-size="11" font-weight="700" fill="var(--hb-warn)" class="mono">Task_Low (NON)</text>
+
+                <!-- Bars Panel 2 -->
+                <rect x="152" y="286" width="174" height="22" rx="4" fill="rgba(251,191,36,0.20)" stroke="var(--hb-warn)" stroke-width="1.4"/>
+                <text x="239" y="301" text-anchor="middle" font-size="10.5" font-weight="700" fill="var(--hb-txt)">Task_Low RUNNING (P1)</text>
+
+                <rect x="326" y="230" width="58" height="22" rx="4" fill="rgba(251,146,60,0.28)" stroke="var(--hb-org)" stroke-width="1.5"/>
+                <text x="355" y="245" text-anchor="middle" font-size="10.5" font-weight="800" fill="var(--hb-txt)">ISR</text>
+                <text x="392" y="244" font-size="9.5" font-weight="700" fill="var(--hb-org)" class="mono">ISR Act(High)</text>
+
+                <rect x="384" y="258" width="174" height="22" rx="4" fill="rgba(251,191,36,0.10)" stroke="var(--hb-warn)" stroke-width="1.2" stroke-dasharray="4 3"/>
+                <text x="471" y="273" text-anchor="middle" font-size="10" font-weight="700" fill="var(--hb-warn)">READY (Chờ Task_Low!)</text>
+
+                <rect x="384" y="286" width="174" height="22" rx="4" fill="rgba(251,191,36,0.26)" stroke="var(--hb-warn)" stroke-width="1.6"/>
+                <text x="471" y="301" text-anchor="middle" font-size="10" font-weight="700" fill="var(--hb-txt)">Trả về Task_Low chạy tiếp</text>
+
+                <!-- Schedule() callout at t=7 (x=558) -->
+                <line x1="558" y1="228" x2="558" y2="314" stroke="var(--hb-acc)" stroke-width="2"/>
+                <rect x="512" y="224" width="92" height="20" rx="5" fill="var(--hb-card2)" stroke="var(--hb-acc)"/>
+                <text x="558" y="238" text-anchor="middle" font-size="10" font-weight="800" fill="var(--hb-acc)" class="mono">Schedule()</text>
+
+                <rect x="558" y="258" width="232" height="22" rx="4" fill="rgba(52,211,153,0.24)" stroke="var(--hb-ok)" stroke-width="1.6"/>
+                <text x="674" y="273" text-anchor="middle" font-size="10.5" font-weight="800" fill="var(--hb-txt)">Task_High chạy từ t=7 (trễ 3 tick)</text>
+
+                <rect x="558" y="286" width="232" height="22" rx="4" fill="rgba(148,163,184,0.12)" stroke="var(--hb-mut)" stroke-width="1.1" stroke-dasharray="4 3"/>
+                <text x="674" y="301" text-anchor="middle" font-size="10" fill="var(--hb-mut)">READY (nhường CPU tại Schedule)</text>
+
+                <rect x="790" y="286" width="58" height="22" rx="4" fill="rgba(251,191,36,0.20)" stroke="var(--hb-warn)" stroke-width="1.4"/>
+                <text x="819" y="301" text-anchor="middle" font-size="9.5" font-weight="700" fill="var(--hb-txt)">Chạy tiếp</text>
+
+                <rect x="18" y="320" width="844" height="26" rx="5" fill="rgba(251,191,36,0.10)"/>
+                <text x="28" y="337" font-size="10.5" fill="var(--hb-txt)">🔒 Tại t=4: Dù Task_High (P5) đang READY, OS BẮT BUỘC trả CPU cho Task_Low (NON). Chỉ khi gọi Schedule() tại t=7 mới nhường quyền.</text>
+              </svg>
+              <div class="hb-figcap">Hình 2.2 — So sánh dòng thời gian thực thi giữa Task Full-Preemptive (trên) và Non-Preemptive (dưới) khi có ISR Cat 2 kích hoạt Task ưu tiên cao.</div>
+            </div>
+
+            <h4>Bảng Quyết Định Điểm Nhường Quyền (Rescheduling Points)</h4>
+            <table class="hbt">
+              <thead>
+                <tr><th>Sự kiện / Hàm API được gọi khi <code>Task_Low</code> đang RUNNING</th><th>Khi <code>Task_Low = FULL</code></th><th>Khi <code>Task_Low = NON</code></th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code>ActivateTask(Task_High)</code> / <code>SetEvent(Task_High, ...)</code></td><td><b>Chiếm quyền ngay</b> nếu Prio(High) &gt; Prio(Low)</td><td><b>Không chiếm quyền</b> (Task_High vào READY chờ)</td></tr>
+                <tr><td>Thoát khỏi <code>ISR Category 2</code> (ISR vừa kích hoạt Task_High)</td><td><b>Chiếm quyền ngay</b> sau khi ISR kết thúc</td><td><b>Không chiếm quyền</b> — CPU trả về lại Task_Low</td></tr>
+                <tr><td><code>Schedule()</code></td><td>Thường không tác dụng (trừ khi dùng Internal Resource)</td><td><b>Nhường quyền ngay</b> nếu có Task ưu tiên cao hơn đang READY</td></tr>
+                <tr><td><code>WaitEvent(Mask)</code> (khi bit đợi chưa bật)</td><td>Chuyển <code>WAITING</code> &amp; lập lịch Task kế tiếp</td><td>Chuyển <code>WAITING</code> &amp; nhường CPU cho Task ưu tiên cao hơn</td></tr>
+                <tr><td><code>TerminateTask()</code> / <code>ChainTask()</code></td><td>Kết thúc Task &amp; lập lịch Task kế tiếp</td><td>Kết thúc Task &amp; nhường CPU cho Task kế tiếp</td></tr>
+              </tbody>
+            </table>
+
+            <div class="hb-callout ok">
+              <b>💡 Mẹo thực tế &amp; Mixed Scheduling:</b> AUTOSAR OS cho phép trộn lẫn Task <code>FULL</code> và Task <code>NON</code> trong cùng 1 hệ thống (hoặc dùng <b>Internal Resource</b> để nhóm một số Task <code>FULL</code> không ngắt lẫn nhau trong khi vẫn cho Task bên ngoài nhóm ngắt ngang).
+              <button type="button" class="btn xs sky" style="margin-left:8px" onclick="const i=SCENARIOS.findIndex(s=>s.name.startsWith('S2:'));if(i>=0){loadScenario(i);switchView('sim');}">▶ Chạy thử Kịch bản S2 (Preemption &amp; Schedule)</button>
+            </div>
+          </div>` : ''}
         </div>
       `;
     }
   },
 
   {
-    title: '3. EventMask 8-Bit, RTE & PCP',
-    render: function() {
+    title: '3. EventMask 8-Bit, RTE & Priority Ceiling (PCP)',
+    render: function(forSearch) {
+      const sub = forSearch ? 'all' : (activeHbSub[2] || 'all');
+      const showEvt = sub === 'all' || sub === 'event';
+      const showPcp = sub === 'all' || sub === 'pcp';
       return `
         <div class="hb-sec">
-          <h3>3. Giải Mã Thanh Ghi 8-Bit EventMask, Ánh Xạ RTE &amp; OSEK PCP</h3>
-          <h4>Cơ Chế Phép Toán Bitwise Đánh Thức Extended Task</h4>
-          <p>Mỗi Extended Task sở hữu 2 thanh ghi bit: <code>EventsSet</code> (các sự kiện đã xảy ra) và <code>EventsWait</code> (các sự kiện Task đang đợi). Điều kiện đánh thức được tính bằng:</p>
-          <pre class="code">WakeupCondition = (EventsSet &amp; EventsWait) != 0x00</pre>
-          <p>Khi điều kiện trên khác 0, OS lập tức chuyển Task từ <code>WAITING ➔ READY</code>.</p>
+          <h3>3. Thanh Ghi EventMask 8-Bit, Ánh Xạ RTE &amp; Priority Ceiling Protocol (PCP)</h3>
+          ${forSearch ? '' : `
+          <div class="hb-subtabs">
+            <button type="button" class="hb-stab ${sub === 'all' ? 'active' : ''}" onclick="switchHbSubTab(2,'all')">📋 Tất cả mục</button>
+            <button type="button" class="hb-stab ${sub === 'event' ? 'active' : ''}" onclick="switchHbSubTab(2,'event')">🎛️ EventMask 8-Bit &amp; RTE</button>
+            <button type="button" class="hb-stab ${sub === 'pcp' ? 'active' : ''}" onclick="switchHbSubTab(2,'pcp')">🔒 Priority Ceiling Protocol (PCP) &amp; Minh họa</button>
+          </div>`}
 
-          <h4>Mẫu Thiết Kế Thực Tế: Nhiều RTE Runnables Dùng Chung 1 Extended Task</h4>
-          <p>Trong các dự án ô tô thương mại, để tránh lãng phí RAM ngăn xếp cho hàng chục Task, RTE thường cấu hình gom nhiều Runnable của một SWC vào chung một Extended Task và gán cho mỗi Runnable một bit trên thanh ghi 8-bit:</p>
-          <ul>
-            <li><code>Bit 0 (0x01)</code>: Kích hoạt chu kỳ định thời 10ms (TimingEvent).</li>
-            <li><code>Bit 1 (0x02)</code>: Kích hoạt khi nhận dữ liệu CAN mới (DataReceivedEvent).</li>
-            <li><code>Bit 2 (0x04)</code>: Kích hoạt khi có yêu cầu gọi hàm chẩn đoán UDS (OperationInvokedEvent).</li>
-          </ul>
+          ${showEvt ? `
+          <div class="hb-block" data-sub="event">
+            <h4>Cơ Chế Phép Toán Bitwise Đánh Thức Extended Task (8-Bit EventMask)</h4>
+            <p>Mỗi Extended Task sở hữu 2 thanh ghi bit: <code>EventsSet</code> (các sự kiện đã được kích hoạt bởi <code>SetEvent</code> / Alarm) và <code>EventsWait</code> (mặt nạ các sự kiện Task đang đợi qua <code>WaitEvent</code>). Điều kiện đánh thức được tính bằng phép AND bit:</p>
+            <pre class="code">WakeupCondition = (EventsSet &amp; EventsWait) != 0x00</pre>
 
-          <h4>OSEK Priority Ceiling Protocol (PCP) — Chống Đảo Ngược Ưu Tiên &amp; Deadlock</h4>
-          <p>PCP quy định mỗi tài nguyên (Resource) có một mức trần ưu tiên tĩnh <code>CeilingPriority</code> bằng mức ưu tiên cao nhất trong số tất cả các Task có quyền truy cập tài nguyên đó. Khi bất kỳ Task nào gọi <code>GetResource()</code>:</p>
-          <pre class="code">Task.CurrentPriority = Math.max(Task.CurrentPriority, Resource.CeilingPriority);</pre>
-          <p><b>Kết quả:</b> Task đang giữ tài nguyên được nâng lên mức ưu tiên tối cao, ngăn chặn hoàn toàn các Task ưu tiên trung gian chen ngang (loại bỏ Priority Inversion) và đảm bảo không bao giờ bị bế tắc vòng tròn (triệt tiêu 100% Deadlock)!</p>
+            <div class="hb-fig">
+              <svg class="hb-svg" viewBox="0 0 880 185" role="img" aria-label="Minh họa phép toán Bitwise AND giữa EventsSet và EventsWait">
+                <rect x="8" y="8" width="864" height="169" rx="10" fill="var(--hb-card)" stroke="var(--hb-bdr)"/>
+                <text x="20" y="28" font-size="11.5" font-weight="800" fill="var(--hb-pur)">Ví dụ đánh thức Extended Task khi Bit 2 khớp (WakeupCondition = (0x06 &amp; 0x05) = 0x04 ≠ 0)</text>
+
+                <!-- Bit labels -->
+                <g font-size="10" fill="var(--hb-mut)" text-anchor="middle" class="mono">
+                  <text x="266" y="48">Bit 7</text><text x="332" y="48">Bit 6</text><text x="398" y="48">Bit 5</text><text x="464" y="48">Bit 4</text>
+                  <text x="530" y="48">Bit 3</text><text x="596" y="48">Bit 2</text><text x="662" y="48">Bit 1</text><text x="728" y="48">Bit 0</text>
+                </g>
+
+                <!-- Row 1: EventsSet = 0x06 (bits 2,1) -->
+                <text x="20" y="75" font-size="11.5" font-weight="700" fill="var(--hb-acc)" class="mono">EventsSet (Đã kích)</text>
+                <g text-anchor="middle" font-size="12" font-weight="800" class="mono">
+                  <rect x="242" y="57" width="48" height="26" rx="5" fill="var(--hb-card2)" stroke="var(--hb-bdr)"/><text x="266" y="74" fill="var(--hb-mut)">0</text>
+                  <rect x="308" y="57" width="48" height="26" rx="5" fill="var(--hb-card2)" stroke="var(--hb-bdr)"/><text x="332" y="74" fill="var(--hb-mut)">0</text>
+                  <rect x="374" y="57" width="48" height="26" rx="5" fill="var(--hb-card2)" stroke="var(--hb-bdr)"/><text x="398" y="74" fill="var(--hb-mut)">0</text>
+                  <rect x="440" y="57" width="48" height="26" rx="5" fill="var(--hb-card2)" stroke="var(--hb-bdr)"/><text x="464" y="74" fill="var(--hb-mut)">0</text>
+                  <rect x="506" y="57" width="48" height="26" rx="5" fill="var(--hb-card2)" stroke="var(--hb-bdr)"/><text x="530" y="74" fill="var(--hb-mut)">0</text>
+                  <rect x="572" y="57" width="48" height="26" rx="5" fill="rgba(45,212,191,0.24)" stroke="var(--hb-acc)" stroke-width="1.6"/><text x="596" y="74" fill="var(--hb-acc)">1</text>
+                  <rect x="638" y="57" width="48" height="26" rx="5" fill="rgba(45,212,191,0.24)" stroke="var(--hb-acc)" stroke-width="1.6"/><text x="662" y="74" fill="var(--hb-acc)">1</text>
+                  <rect x="704" y="57" width="48" height="26" rx="5" fill="var(--hb-card2)" stroke="var(--hb-bdr)"/><text x="728" y="74" fill="var(--hb-mut)">0</text>
+                </g>
+                <text x="768" y="75" font-size="11.5" font-weight="800" fill="var(--hb-acc)" class="mono">= 0x06</text>
+
+                <!-- Row 2: EventsWait = 0x05 (bits 2,0) -->
+                <text x="20" y="110" font-size="11.5" font-weight="700" fill="var(--hb-pur)" class="mono">EventsWait (Đang đợi)</text>
+                <g text-anchor="middle" font-size="12" font-weight="800" class="mono">
+                  <rect x="242" y="92" width="48" height="26" rx="5" fill="var(--hb-card2)" stroke="var(--hb-bdr)"/><text x="266" y="109" fill="var(--hb-mut)">0</text>
+                  <rect x="308" y="92" width="48" height="26" rx="5" fill="var(--hb-card2)" stroke="var(--hb-bdr)"/><text x="332" y="109" fill="var(--hb-mut)">0</text>
+                  <rect x="374" y="92" width="48" height="26" rx="5" fill="var(--hb-card2)" stroke="var(--hb-bdr)"/><text x="398" y="109" fill="var(--hb-mut)">0</text>
+                  <rect x="440" y="92" width="48" height="26" rx="5" fill="var(--hb-card2)" stroke="var(--hb-bdr)"/><text x="464" y="109" fill="var(--hb-mut)">0</text>
+                  <rect x="506" y="92" width="48" height="26" rx="5" fill="var(--hb-card2)" stroke="var(--hb-bdr)"/><text x="530" y="109" fill="var(--hb-mut)">0</text>
+                  <rect x="572" y="92" width="48" height="26" rx="5" fill="rgba(192,132,252,0.24)" stroke="var(--hb-pur)" stroke-width="1.6"/><text x="596" y="109" fill="var(--hb-pur)">1</text>
+                  <rect x="638" y="92" width="48" height="26" rx="5" fill="var(--hb-card2)" stroke="var(--hb-bdr)"/><text x="662" y="109" fill="var(--hb-mut)">0</text>
+                  <rect x="704" y="92" width="48" height="26" rx="5" fill="rgba(192,132,252,0.24)" stroke="var(--hb-pur)" stroke-width="1.6"/><text x="728" y="109" fill="var(--hb-pur)">1</text>
+                </g>
+                <text x="768" y="110" font-size="11.5" font-weight="800" fill="var(--hb-pur)" class="mono">= 0x05</text>
+
+                <!-- Divider -->
+                <line x1="20" y1="126" x2="858" y2="126" stroke="var(--hb-bdr)" stroke-width="1.2"/>
+
+                <!-- Row 3: AND result = 0x04 -->
+                <text x="20" y="152" font-size="11.5" font-weight="800" fill="var(--hb-ok)" class="mono">EventsSet &amp; EventsWait</text>
+                <g text-anchor="middle" font-size="12" font-weight="800" class="mono">
+                  <rect x="242" y="134" width="48" height="26" rx="5" fill="var(--hb-card2)" stroke="var(--hb-bdr)"/><text x="266" y="151" fill="var(--hb-mut)">0</text>
+                  <rect x="308" y="134" width="48" height="26" rx="5" fill="var(--hb-card2)" stroke="var(--hb-bdr)"/><text x="332" y="151" fill="var(--hb-mut)">0</text>
+                  <rect x="374" y="134" width="48" height="26" rx="5" fill="var(--hb-card2)" stroke="var(--hb-bdr)"/><text x="398" y="151" fill="var(--hb-mut)">0</text>
+                  <rect x="440" y="134" width="48" height="26" rx="5" fill="var(--hb-card2)" stroke="var(--hb-bdr)"/><text x="464" y="151" fill="var(--hb-mut)">0</text>
+                  <rect x="506" y="134" width="48" height="26" rx="5" fill="var(--hb-card2)" stroke="var(--hb-bdr)"/><text x="530" y="151" fill="var(--hb-mut)">0</text>
+                  <rect x="572" y="134" width="48" height="28" rx="5" fill="rgba(52,211,153,0.28)" stroke="var(--hb-ok)" stroke-width="2"/><text x="596" y="152" fill="var(--hb-ok)">1</text>
+                  <rect x="638" y="134" width="48" height="26" rx="5" fill="var(--hb-card2)" stroke="var(--hb-bdr)"/><text x="662" y="151" fill="var(--hb-mut)">0</text>
+                  <rect x="704" y="134" width="48" height="26" rx="5" fill="var(--hb-card2)" stroke="var(--hb-bdr)"/><text x="728" y="151" fill="var(--hb-mut)">0</text>
+                </g>
+                <text x="768" y="152" font-size="11" font-weight="800" fill="var(--hb-ok)" class="mono">0x04 WAKE!</text>
+              </svg>
+              <div class="hb-figcap">Hình 3.1 — Bit 2 trùng khớp nên kết quả AND = 0x04 ≠ 0 ➔ OS chuyển Task từ WAITING ➔ READY; Task phải tự gọi ClearEvent() sau khi xử lý.</div>
+            </div>
+
+            <h4>Mẫu Thiết Kế Thực Tế: Nhiều RTE Runnables Dùng Chung 1 Extended Task</h4>
+            <p>Trong các dự án ô tô thương mại, để tránh lãng phí RAM ngăn xếp cho hàng chục Task, RTE thường cấu hình gom nhiều Runnable của một SWC vào chung một Extended Task và gán cho mỗi Runnable một bit trên thanh ghi EventMask:</p>
+            <ul>
+              <li><code>Bit 0 (0x01)</code>: Kích hoạt chu kỳ định thời 10ms (TimingEvent).</li>
+              <li><code>Bit 1 (0x02)</code>: Kích hoạt khi nhận dữ liệu CAN mới (DataReceivedEvent).</li>
+              <li><code>Bit 2 (0x04)</code>: Kích hoạt khi có yêu cầu gọi hàm chẩn đoán UDS (OperationInvokedEvent).</li>
+            </ul>
+          </div>` : ''}
+
+          ${showPcp ? `
+          <div class="hb-block" data-sub="pcp">
+            <h4>OSEK Priority Ceiling Protocol (PCP) — Chống Đảo Ngược Ưu Tiên &amp; Deadlock</h4>
+            <p>Khi nhiều Task cùng truy cập tài nguyên dùng chung (SPI bus, bộ nhớ NVM, Shared CAN Buffer...), nếu chỉ dùng khóa Mutex/Semaphore thông thường sẽ phát sinh 2 rủi ro nghiêm trọng trong hệ thống thời gian thực:</p>
+            <div class="hb-grid2">
+              <div class="hb-callout err" style="margin:0">
+                <b>❌ Rủi ro 1 — Unbounded Priority Inversion (Đảo ngược ưu tiên vô hạn):</b><br>
+                <code>Task_Low (P1)</code> giữ khóa và bị <code>Task_Med (P3)</code> chen ngang vô thời hạn. Hệ quả là <code>Task_High (P5)</code> dù ưu tiên cao nhất vẫn bị kẹt chờ gián tiếp theo <code>Task_Med</code> và có thể mất Deadline!
+              </div>
+              <div class="hb-callout err" style="margin:0">
+                <b>❌ Rủi ro 2 — Deadlock (Khóa chéo vòng tròn):</b><br>
+                <code>Task_Low</code> giữ <code>R1</code>, bị <code>Task_High</code> preempt lấy <code>R2</code> rồi đòi <code>R1</code>; khi trả CPU, <code>Task_Low</code> đòi <code>R2</code>. Cả hai Task chờ nhau vĩnh viễn!
+              </div>
+            </div>
+
+            <h4 style="margin-top:12px">Nguyên Lý Hoạt Động Của OSEK PCP (Immediate Priority Ceiling / Highest Locker)</h4>
+            <p>Thay vì chờ xung đột mới xử lý, OSEK/AUTOSAR OS tính toán tĩnh <b>mức trần ưu tiên (Ceiling Priority)</b> cho từng Resource ngay lúc sinh mã cấu hình (ECUC <code>OsTaskResourceRef</code>):</p>
+            <pre class="code">Resource.CeilingPriority = max { Task.BasePriority | mọi Task có khai báo sử dụng Resource này }
+// Khi gọi GetResource(ResID):
+Task.PriorityStack.push(Task.CurrentPriority);
+Task.CurrentPriority = Math.max(Task.CurrentPriority, Resource.CeilingPriority);
+// Khi gọi ReleaseResource(ResID):
+Task.CurrentPriority = Task.PriorityStack.pop();  // Gọi Scheduler nếu ưu tiên giảm!</pre>
+
+            <div class="hb-fig">
+              <svg class="hb-svg" viewBox="0 0 880 392" role="img" aria-label="Minh họa chống Đảo ngược ưu tiên bằng OSEK Priority Ceiling Protocol">
+                <defs>
+                  <marker id="osPcpA" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                    <path d="M 0 1 L 10 5 L 0 9 z" fill="var(--hb-warn)"/>
+                  </marker>
+                  <marker id="osPcpO" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                    <path d="M 0 1 L 10 5 L 0 9 z" fill="var(--hb-ok)"/>
+                  </marker>
+                </defs>
+
+                <!-- Top Context Banner -->
+                <rect x="8" y="8" width="864" height="28" rx="7" fill="var(--hb-card2)" stroke="var(--hb-bdr)"/>
+                <text x="440" y="26" text-anchor="middle" font-size="11" font-weight="700" fill="var(--hb-txt)" class="mono">RES_SPI dùng bởi Task_Low(P1) &amp; Task_High(P5) ➔ Ceiling(RES_SPI) = max(1, 5) = P5   |   Task_Med(P3) KHÔNG dùng RES_SPI</text>
+
+                <!-- PANEL TOP: WITHOUT PCP -->
+                <rect x="8" y="44" width="864" height="166" rx="10" fill="var(--hb-card)" stroke="var(--hb-bdr)"/>
+                <text x="20" y="64" font-size="12" font-weight="800" fill="var(--hb-err)">① KHÔNG DÙNG PCP (Mutex thông thường) — Task_Med (P3) chen ngang gây Priority Inversion</text>
+
+                <g stroke="var(--hb-bdr)" stroke-dasharray="3 3" stroke-width="1">
+                  <line x1="152" y1="78" x2="152" y2="168"/><line x1="210" y1="78" x2="210" y2="168"/><line x1="268" y1="78" x2="268" y2="168"/>
+                  <line x1="326" y1="78" x2="326" y2="168"/><line x1="384" y1="78" x2="384" y2="168"/><line x1="442" y1="78" x2="442" y2="168"/>
+                  <line x1="500" y1="78" x2="500" y2="168"/><line x1="558" y1="78" x2="558" y2="168"/><line x1="616" y1="78" x2="616" y2="168"/>
+                  <line x1="674" y1="78" x2="674" y2="168"/><line x1="732" y1="78" x2="732" y2="168"/><line x1="790" y1="78" x2="790" y2="168"/>
+                  <line x1="848" y1="78" x2="848" y2="168"/>
+                </g>
+                <g font-size="9.5" fill="var(--hb-mut)" text-anchor="middle" class="mono">
+                  <text x="152" y="76">t0</text><text x="210" y="76">1</text><text x="268" y="76">2</text><text x="326" y="76">3</text>
+                  <text x="384" y="76">4</text><text x="442" y="76">5</text><text x="500" y="76">6</text><text x="558" y="76">7</text>
+                  <text x="616" y="76">8</text><text x="674" y="76">9</text><text x="732" y="76">10</text><text x="790" y="76">11</text><text x="848" y="76">12</text>
+                </g>
+
+                <text x="18" y="102" font-size="11" font-weight="700" fill="var(--hb-ok)" class="mono">Task_High (P5)</text>
+                <text x="18" y="130" font-size="11" font-weight="700" fill="var(--hb-org)" class="mono">Task_Med (P3)</text>
+                <text x="18" y="158" font-size="11" font-weight="700" fill="var(--hb-pri)" class="mono">Task_Low (P1)</text>
+
+                <!-- No-PCP Bars -->
+                <rect x="152" y="143" width="116" height="22" rx="4" fill="rgba(56,189,248,0.22)" stroke="var(--hb-pri)" stroke-width="1.4"/>
+                <text x="210" y="158" text-anchor="middle" font-size="10" font-weight="700" fill="var(--hb-txt)">Lock(SPI) ở P1</text>
+
+                <rect x="268" y="87" width="58" height="22" rx="4" fill="rgba(52,211,153,0.22)" stroke="var(--hb-ok)" stroke-width="1.4"/>
+                <text x="297" y="102" text-anchor="middle" font-size="9.5" font-weight="700" fill="var(--hb-txt)">Xin SPI</text>
+
+                <rect x="326" y="87" width="348" height="22" rx="4" fill="rgba(248,113,113,0.16)" stroke="var(--hb-err)" stroke-width="1.4" stroke-dasharray="4 3"/>
+                <text x="500" y="102" text-anchor="middle" font-size="10" font-weight="800" fill="var(--hb-err)">BLOCKED! Task_High (P5) bị kẹt chờ do Task_Med chen</text>
+
+                <rect x="326" y="143" width="58" height="22" rx="4" fill="rgba(56,189,248,0.22)" stroke="var(--hb-pri)" stroke-width="1.4"/>
+                <text x="355" y="158" text-anchor="middle" font-size="9.5" font-weight="700" fill="var(--hb-txt)">P1</text>
+
+                <rect x="384" y="115" width="232" height="22" rx="4" fill="rgba(251,146,60,0.28)" stroke="var(--hb-org)" stroke-width="1.5"/>
+                <text x="500" y="130" text-anchor="middle" font-size="10" font-weight="800" fill="var(--hb-txt)">Task_Med (P3) chiếm CPU (P3 &gt; P1)!</text>
+
+                <rect x="616" y="143" width="58" height="22" rx="4" fill="rgba(56,189,248,0.22)" stroke="var(--hb-pri)" stroke-width="1.4"/>
+                <text x="645" y="158" text-anchor="middle" font-size="9" font-weight="700" fill="var(--hb-txt)">Unlock</text>
+
+                <rect x="674" y="87" width="116" height="22" rx="4" fill="rgba(52,211,153,0.24)" stroke="var(--hb-ok)" stroke-width="1.6"/>
+                <text x="732" y="102" text-anchor="middle" font-size="10" font-weight="800" fill="var(--hb-txt)">Chạy rất trễ!</text>
+
+                <rect x="18" y="176" width="844" height="24" rx="5" fill="rgba(248,113,113,0.10)"/>
+                <text x="28" y="192" font-size="10.5" fill="var(--hb-txt)">❌ Hệ quả: Dù Task_High ưu tiên cao nhất (P5), vẫn phải chờ Task_Med (P3) chạy xong hết 4 tick ➔ Rất dễ trễ Deadline!</text>
+
+                <!-- PANEL BOTTOM: WITH OSEK PCP -->
+                <rect x="8" y="218" width="864" height="166" rx="10" fill="var(--hb-card)" stroke="var(--hb-bdr)"/>
+                <text x="20" y="238" font-size="12" font-weight="800" fill="var(--hb-ok)">② CÓ OSEK PCP — GetResource(RES_SPI) nâng ngay RunPrio: P1 ➔ P5 (Chặn đứng Task_Med!)</text>
+
+                <g stroke="var(--hb-bdr)" stroke-dasharray="3 3" stroke-width="1">
+                  <line x1="152" y1="252" x2="152" y2="342"/><line x1="210" y1="252" x2="210" y2="342"/><line x1="268" y1="252" x2="268" y2="342"/>
+                  <line x1="326" y1="252" x2="326" y2="342"/><line x1="384" y1="252" x2="384" y2="342"/><line x1="442" y1="252" x2="442" y2="342"/>
+                  <line x1="500" y1="252" x2="500" y2="342"/><line x1="558" y1="252" x2="558" y2="342"/><line x1="616" y1="252" x2="616" y2="342"/>
+                  <line x1="674" y1="252" x2="674" y2="342"/><line x1="732" y1="252" x2="732" y2="342"/><line x1="790" y1="252" x2="790" y2="342"/>
+                  <line x1="848" y1="252" x2="848" y2="342"/>
+                </g>
+                <g font-size="9.5" fill="var(--hb-mut)" text-anchor="middle" class="mono">
+                  <text x="152" y="250">t0</text><text x="210" y="250">1</text><text x="268" y="250">2</text><text x="326" y="250">3</text>
+                  <text x="384" y="250">4</text><text x="442" y="250">5</text><text x="500" y="250">6</text><text x="558" y="250">7</text>
+                  <text x="616" y="250">8</text><text x="674" y="250">9</text><text x="732" y="250">10</text><text x="790" y="250">11</text><text x="848" y="250">12</text>
+                </g>
+
+                <text x="18" y="276" font-size="11" font-weight="700" fill="var(--hb-ok)" class="mono">Task_High (P5)</text>
+                <text x="18" y="304" font-size="11" font-weight="700" fill="var(--hb-org)" class="mono">Task_Med (P3)</text>
+                <text x="18" y="332" font-size="11" font-weight="700" fill="var(--hb-warn)" class="mono">Task_Low (Run)</text>
+
+                <!-- PCP Bars -->
+                <rect x="152" y="317" width="58" height="22" rx="4" fill="rgba(56,189,248,0.22)" stroke="var(--hb-pri)" stroke-width="1.4"/>
+                <text x="181" y="332" text-anchor="middle" font-size="10" font-weight="700" fill="var(--hb-txt)">P1</text>
+
+                <rect x="210" y="317" width="174" height="22" rx="4" fill="rgba(251,191,36,0.28)" stroke="var(--hb-warn)" stroke-width="1.8"/>
+                <text x="297" y="332" text-anchor="middle" font-size="10" font-weight="800" fill="var(--hb-txt)">GetResource ➔ RunPrio = P5!</text>
+
+                <rect x="268" y="261" width="116" height="22" rx="4" fill="rgba(251,191,36,0.10)" stroke="var(--hb-warn)" stroke-width="1.2" stroke-dasharray="4 3"/>
+                <text x="326" y="276" text-anchor="middle" font-size="9.5" font-weight="700" fill="var(--hb-warn)">READY (P5 ≤ P5)</text>
+
+                <rect x="326" y="289" width="174" height="22" rx="4" fill="rgba(148,163,184,0.12)" stroke="var(--hb-mut)" stroke-width="1.1" stroke-dasharray="4 3"/>
+                <text x="446" y="304" text-anchor="middle" font-size="9.5" fill="var(--hb-mut)">Bị chặn! (P3&lt;P5)</text>
+
+                <path d="M 384 317 L 384 287" stroke="var(--hb-ok)" stroke-width="2" marker-end="url(#osPcpO)"/>
+                <rect x="392" y="318" width="172" height="20" rx="5" fill="var(--hb-card2)" stroke="var(--hb-ok)"/>
+                <text x="478" y="331" text-anchor="middle" font-size="9.5" font-weight="800" fill="var(--hb-ok)" class="mono">ReleaseResource() (P5→P1)</text>
+
+                <rect x="384" y="261" width="116" height="22" rx="4" fill="rgba(52,211,153,0.26)" stroke="var(--hb-ok)" stroke-width="1.7"/>
+                <text x="442" y="276" text-anchor="middle" font-size="10" font-weight="800" fill="var(--hb-txt)">Chạy ngay! (t=4)</text>
+
+                <rect x="500" y="289" width="174" height="22" rx="4" fill="rgba(251,146,60,0.25)" stroke="var(--hb-org)" stroke-width="1.4"/>
+                <text x="587" y="304" text-anchor="middle" font-size="10" font-weight="700" fill="var(--hb-txt)">Task_Med (P3) chạy sau</text>
+
+                <rect x="674" y="317" width="58" height="22" rx="4" fill="rgba(56,189,248,0.22)" stroke="var(--hb-pri)" stroke-width="1.4"/>
+                <text x="703" y="332" text-anchor="middle" font-size="9.5" font-weight="700" fill="var(--hb-txt)">P1 xong</text>
+
+                <rect x="18" y="350" width="844" height="24" rx="5" fill="rgba(52,211,153,0.11)"/>
+                <text x="28" y="366" font-size="10.5" fill="var(--hb-txt)">✅ Kết quả: Task_Med không thể chen vào vùng găng P5; Task_High không bao giờ bị Block lúc gọi GetResource(RES_SPI) tại t=4!</text>
+              </svg>
+              <div class="hb-figcap">Hình 3.2 — OSEK Priority Ceiling Protocol giải quyết dứt điểm bài toán Priority Inversion mà không cần hàng đợi Wait cho Resource.</div>
+            </div>
+
+            <div class="hb-fig">
+              <svg class="hb-svg" viewBox="0 0 880 245" role="img" aria-label="Minh họa chống Deadlock và LIFO Priority Stack khi khóa lồng nhau">
+                <!-- Left Card: Deadlock-Free Proof -->
+                <rect x="8" y="8" width="424" height="229" rx="10" fill="var(--hb-card)" stroke="var(--hb-bdr)"/>
+                <text x="22" y="30" font-size="12" font-weight="800" fill="var(--hb-acc)">Vì Sao OSEK PCP Triệt Tiêu 100% Deadlock?</text>
+
+                <rect x="20" y="42" width="400" height="78" rx="7" fill="rgba(248,113,113,0.09)" stroke="var(--hb-err)" stroke-width="1.2"/>
+                <text x="30" y="60" font-size="11" font-weight="800" fill="var(--hb-err)">❌ Không có PCP (Khóa chéo R1 &amp; R2):</text>
+                <text x="30" y="78" font-size="10.5" fill="var(--hb-txt)">1. Task_Low(P1) giữ R1 ➔ bị Task_High(P5) preempt.</text>
+                <text x="30" y="95" font-size="10.5" fill="var(--hb-txt)">2. Task_High giữ R2 rồi xin R1 ➔ Block chờ Low.</text>
+                <text x="30" y="111" font-size="10.5" fill="var(--hb-err)">3. Low chạy lại, xin R2 ➔ Cả hai chờ nhau mãi mãi!</text>
+
+                <rect x="20" y="130" width="400" height="94" rx="7" fill="rgba(52,211,153,0.09)" stroke="var(--hb-ok)" stroke-width="1.3"/>
+                <text x="30" y="148" font-size="11" font-weight="800" fill="var(--hb-ok)">✅ Với OSEK PCP (Ceiling(R1)=5, Ceiling(R2)=5):</text>
+                <text x="30" y="166" font-size="10.5" fill="var(--hb-txt)">1. Low gọi GetResource(R1) ➔ RunPrio nâng P1 ➔ P5.</text>
+                <text x="30" y="183" font-size="10.5" fill="var(--hb-txt)">2. Task_High(P5) KHÔNG thể preempt để lấy R2 trước!</text>
+                <text x="30" y="200" font-size="10.5" fill="var(--hb-txt)">3. Low lấy R2, xử lý xong, nhả R2, nhả R1 ➔ High mới</text>
+                <text x="30" y="216" font-size="10.5" fill="var(--hb-ok)">    vào chạy lấy R1, R2 ➔ Cắt đứt vòng chờ tròn!</text>
+
+                <!-- Right Card: LIFO Nesting Stack -->
+                <rect x="446" y="8" width="426" height="229" rx="10" fill="var(--hb-card)" stroke="var(--hb-bdr)"/>
+                <text x="460" y="30" font-size="12" font-weight="800" fill="var(--hb-warn)">Ngăn Xếp LIFO Stack Khi Khóa Lồng Nhau (Nested)</text>
+
+                <g font-size="10.5" class="mono">
+                  <rect x="460" y="42" width="398" height="26" rx="5" fill="var(--hb-card2)" stroke="var(--hb-bdr)"/>
+                  <text x="470" y="59" fill="var(--hb-txt)">1. Task_A bắt đầu (Base=1)</text>
+                  <text x="848" y="59" text-anchor="end" fill="var(--hb-pri)" font-weight="700">Stack: []  | Run: P1</text>
+
+                  <rect x="460" y="73" width="398" height="26" rx="5" fill="rgba(251,191,36,0.12)" stroke="var(--hb-warn)"/>
+                  <text x="470" y="90" fill="var(--hb-txt)">2. GetResource(R1, Ceil=3)</text>
+                  <text x="848" y="90" text-anchor="end" fill="var(--hb-warn)" font-weight="700">Stack:[1] | Run: P3</text>
+
+                  <rect x="460" y="104" width="398" height="26" rx="5" fill="rgba(251,191,36,0.22)" stroke="var(--hb-warn)" stroke-width="1.5"/>
+                  <text x="470" y="121" fill="var(--hb-txt)">3. GetResource(R2, Ceil=5)</text>
+                  <text x="848" y="121" text-anchor="end" fill="var(--hb-warn)" font-weight="800">Stack:[1,3]| Run: P5</text>
+
+                  <rect x="460" y="135" width="398" height="26" rx="5" fill="rgba(45,212,191,0.12)" stroke="var(--hb-acc)"/>
+                  <text x="470" y="152" fill="var(--hb-txt)">4. ReleaseResource(R2)</text>
+                  <text x="848" y="152" text-anchor="end" fill="var(--hb-acc)" font-weight="700">Pop 3 ➔ [1] | Run: P3</text>
+
+                  <rect x="460" y="166" width="398" height="26" rx="5" fill="rgba(52,211,153,0.14)" stroke="var(--hb-ok)"/>
+                  <text x="470" y="183" fill="var(--hb-txt)">5. ReleaseResource(R1)</text>
+                  <text x="848" y="183" text-anchor="end" fill="var(--hb-ok)" font-weight="700">Pop 1 ➔ []  | Run: P1</text>
+                </g>
+
+                <rect x="460" y="200" width="398" height="26" rx="5" fill="rgba(248,113,113,0.14)" stroke="var(--hb-err)"/>
+                <text x="659" y="217" text-anchor="middle" font-size="10.5" font-weight="700" fill="var(--hb-err)">⚠ Nhả sai LIFO (Release R1 trước R2) ➔ Lỗi E_OS_NOFUNC!</text>
+              </svg>
+              <div class="hb-figcap">Hình 3.3 — Chứng minh PCP chống Deadlock hoàn toàn (trái) và quy tắc LIFO Stack khi giữ nhiều Resource lồng nhau (phải).</div>
+            </div>
+
+            <h4>Tài Nguyên Đặc Biệt <code>RES_SCHEDULER</code> &amp; Ràng Buộc Khi Giữ Resource</h4>
+            <table class="hbt">
+              <thead>
+                <tr><th>Khái niệm / Quy tắc</th><th>Chi tiết chuẩn AUTOSAR OS / OSEK 2.2.3</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code>RES_SCHEDULER</code></td><td>Tài nguyên dựng sẵn có <code>CeilingPriority = MaxTaskPriority</code>. Gọi <code>GetResource(RES_SCHEDULER)</code> khóa toàn bộ Task Switch trên Core hiện tại (mọi Task khác không chen được), nhưng <b>ISR Cat 1/Cat 2 vẫn chạy bình thường</b>.</td></tr>
+                <tr><td><b>Không bao giờ Block khi GetResource()</b></td><td>Trên hệ thống Single-core, một Task đã ở trạng thái <code>RUNNING</code> thì mọi Resource nó đăng ký đều đang tự do. Do đó OSEK PCP không có khái niệm hàng đợi Blocked cho Resource (khác Spinlock ở Multicore).</td></tr>
+                <tr><td><b>Hàm BỊ CẤM khi đang giữ Resource</b></td><td>Tuyệt đối cấm gọi <code>TerminateTask()</code>, <code>ChainTask()</code>, <code>WaitEvent()</code>, <code>Schedule()</code> khi chưa nhả hết Resource ➔ Vi phạm sẽ trả mã lỗi <code>E_OS_RESOURCE</code> và gọi <code>ErrorHook()</code>!</td></tr>
+                <tr><td><b>Tối đa cấp lồng &amp; trùng lặp</b></td><td>Gọi <code>GetResource(R)</code> lần 2 cho cùng 1 Resource <code>R</code> đang giữ ➔ Báo lỗi <code>E_OS_ACCESS</code>.</td></tr>
+              </tbody>
+            </table>
+
+            <div class="hb-callout ok">
+              <b>🔍 Trải nghiệm thực tế:</b> Xem trực quan sự thay đổi thanh ghi <code>RunPrio</code>, cách chặn <code>Task_Med</code> và chứng minh chống Deadlock từng bước trong kịch bản mẫu!
+              <button type="button" class="btn xs amber" style="margin-left:8px" onclick="const i=SCENARIOS.findIndex(s=>s.name.startsWith('S5:'));if(i>=0){loadScenario(i);switchView('sim');}">▶ Chạy Kịch bản S5 (OSEK PCP)</button>
+              <button type="button" class="btn xs green" style="margin-left:4px" onclick="const i=SCENARIOS.findIndex(s=>s.name.startsWith('S14:'));if(i>=0){loadScenario(i);switchView('sim');}">▶ Kịch bản S14 (Deadlock vs PCP)</button>
+            </div>
+          </div>` : ''}
         </div>
       `;
     }
@@ -4563,24 +5786,28 @@ const HANDBOOK_TABS = [
       return `
         <div class="hb-sec">
           <h3>4. Quản Lý Thời Gian: Counter, Alarm &amp; Schedule Table</h3>
-          <h4>Mối Quan Hệ Giữa Timer Phần Cứng, Counter &amp; Alarm</h4>
-          <p>Ngắt phần cứng MCU (Gpt Timer) ➔ gọi <code>IncrementCounter(SysCounter)</code> mỗi tick ➔ OS duyệt danh sách Alarm và Schedule Table gắn kèm:</p>
-          <ul>
-            <li><b>4 Loại Hành Động Của Alarm:</b>
-              <br>1. <code>ACTIVATETASK</code>: Tự động kích hoạt một Task (Basic hoặc Extended).
-              <br>2. <code>SETEVENT</code>: Bắn một mặt nạ bit sự kiện sang Extended Task.
-              <br>3. <code>ALARMCALLBACK</code>: Chạy trực tiếp một hàm C callback trong ngữ cảnh ngắt.
-              <br>4. <code>INCREMENTCOUNTER</code>: Tăng giá trị của một Counter phần mềm khác.
-            </li>
-          </ul>
+          <div class="hb-block">
+            <h4>Mối Quan Hệ Giữa Timer Phần Cứng, Counter &amp; Alarm</h4>
+            <p>Ngắt phần cứng MCU (Gpt Timer) ➔ gọi <code>IncrementCounter(SysCounter)</code> mỗi tick ➔ OS duyệt danh sách Alarm và Schedule Table gắn kèm:</p>
+            <ul>
+              <li><b>4 Loại Hành Động Của Alarm:</b>
+                <br>1. <code>ACTIVATETASK</code>: Tự động kích hoạt một Task (Basic hoặc Extended).
+                <br>2. <code>SETEVENT</code>: Bắn một mặt nạ bit sự kiện sang Extended Task.
+                <br>3. <code>ALARMCALLBACK</code>: Chạy trực tiếp một hàm C callback trong ngữ cảnh ngắt.
+                <br>4. <code>INCREMENTCOUNTER</code>: Tăng giá trị của một Counter phần mềm khác.
+              </li>
+            </ul>
+          </div>
 
-          <h4>Khi Nào Dùng Schedule Table Thay Vì Alarm?</h4>
-          <p>Schedule Table được ưu tiên sử dụng trong các hệ thống phân tán phức tạp (như mạng AUTOSAR CAN/FlexRay/Ethernet) vì:</p>
-          <ul>
-            <li>Cho phép định nghĩa nhiều <b>Expiry Point</b> với độ lệch pha cố định trên một trục thời gian duy nhất.</li>
-            <li>Hỗ trợ chuyển đổi mượt mà giữa các bảng qua <code>NextScheduleTable()</code> (ví dụ: chuyển từ bảng khởi động sang bảng chạy lặp).</li>
-            <li>Hỗ trợ đồng bộ hóa xác định (Explicit Synchronization) để bám sát đồng hồ toàn cục (Global Time).</li>
-          </ul>
+          <div class="hb-block">
+            <h4>Khi Nào Dùng Schedule Table Thay Vì Alarm?</h4>
+            <p>Schedule Table được ưu tiên sử dụng trong các hệ thống phân tán phức tạp (như mạng AUTOSAR CAN/FlexRay/Ethernet) vì:</p>
+            <ul>
+              <li>Cho phép định nghĩa nhiều <b>Expiry Point</b> với độ lệch pha cố định trên một trục thời gian duy nhất.</li>
+              <li>Hỗ trợ chuyển đổi mượt mà giữa các bảng qua <code>NextScheduleTable()</code> (ví dụ: chuyển từ bảng khởi động sang bảng chạy lặp).</li>
+              <li>Hỗ trợ đồng bộ hóa xác định (Explicit Synchronization) để bám sát đồng hồ toàn cục (Global Time).</li>
+            </ul>
+          </div>
         </div>
       `;
     }
@@ -4592,28 +5819,32 @@ const HANDBOOK_TABS = [
       return `
         <div class="hb-sec">
           <h3>5. Ngắt ISR Category 1/2, Hook Routines, Timing Protection &amp; Multicore</h3>
-          <h4>So Sánh ISR Category 1 vs Category 2</h4>
-          <table class="hbt">
-            <thead>
-              <tr><th>Đặc điểm</th><th>ISR Category 1</th><th>ISR Category 2</th></tr>
-            </thead>
-            <tbody>
-              <tr><td><b>Can thiệp của OS</b></td><td><b>Không</b> (nhảy thẳng vào hàm C)</td><td><b>Có</b> (chạy qua OS wrapper)</td></tr>
-              <tr><td><b>Độ trễ phản hồi (Latency)</b></td><td>Rất nhỏ (chỉ vài chu kỳ CPU)</td><td>Lớn hơn (do phải lưu và khôi phục ngữ cảnh)</td></tr>
-              <tr><td><b>Gọi API AUTOSAR OS</b></td><td><b>BỊ CẤM HOÀN TOÀN (Báo lỗi E_OS_CALLEVEL)</b></td><td><b>Được phép</b> (ActivateTask, SetEvent...)</td></tr>
-              <tr><td><b>Khóa bởi SuspendOSInterrupts</b></td><td>Không bị khóa (vẫn chạy bình thường)</td><td>Bị khóa cho đến khi ResumeOSInterrupts</td></tr>
-            </tbody>
-          </table>
+          <div class="hb-block">
+            <h4>So Sánh ISR Category 1 vs Category 2</h4>
+            <table class="hbt">
+              <thead>
+                <tr><th>Đặc điểm</th><th>ISR Category 1</th><th>ISR Category 2</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><b>Can thiệp của OS</b></td><td><b>Không</b> (nhảy thẳng vào hàm C)</td><td><b>Có</b> (chạy qua OS wrapper)</td></tr>
+                <tr><td><b>Độ trễ phản hồi (Latency)</b></td><td>Rất nhỏ (chỉ vài chu kỳ CPU)</td><td>Lớn hơn (do phải lưu và khôi phục ngữ cảnh)</td></tr>
+                <tr><td><b>Gọi API AUTOSAR OS</b></td><td><b>BỊ CẤM HOÀN TOÀN (Báo lỗi E_OS_CALLEVEL)</b></td><td><b>Được phép</b> (ActivateTask, SetEvent...)</td></tr>
+                <tr><td><b>Khóa bởi SuspendOSInterrupts</b></td><td>Không bị khóa (vẫn chạy bình thường)</td><td>Bị khóa cho đến khi ResumeOSInterrupts</td></tr>
+              </tbody>
+            </table>
+          </div>
 
-          <h4>6 Hàm Hook Routines Trong AUTOSAR OS</h4>
-          <ul>
-            <li><code>StartupHook()</code>: Gọi trong StartOS() trước khi lập lịch Task đầu tiên.</li>
-            <li><code>ShutdownHook(Error)</code>: Gọi khi ShutdownOS() được kích hoạt.</li>
-            <li><code>ErrorHook(Error)</code>: Tự động gọi khi một API trả về mã lỗi khác E_OK.</li>
-            <li><code>PreTaskHook()</code>: Gọi ngay trước khi Task chuyển sang RUNNING.</li>
-            <li><code>PostTaskHook()</code>: Gọi ngay sau khi Task rời khỏi RUNNING.</li>
-            <li><code>ProtectionHook(FatalError)</code>: Xử lý vi phạm thời gian / bộ nhớ (Timing/Memory Protection trong SC2-4).</li>
-          </ul>
+          <div class="hb-block">
+            <h4>6 Hàm Hook Routines Trong AUTOSAR OS</h4>
+            <ul>
+              <li><code>StartupHook()</code>: Gọi trong StartOS() trước khi lập lịch Task đầu tiên.</li>
+              <li><code>ShutdownHook(Error)</code>: Gọi khi ShutdownOS() được kích hoạt.</li>
+              <li><code>ErrorHook(Error)</code>: Tự động gọi khi một API trả về mã lỗi khác E_OK.</li>
+              <li><code>PreTaskHook()</code>: Gọi ngay trước khi Task chuyển sang RUNNING.</li>
+              <li><code>PostTaskHook()</code>: Gọi ngay sau khi Task rời khỏi RUNNING.</li>
+              <li><code>ProtectionHook(FatalError)</code>: Xử lý vi phạm thời gian / bộ nhớ (Timing/Memory Protection trong SC2-4).</li>
+            </ul>
+          </div>
         </div>
       `;
     }
@@ -4625,71 +5856,273 @@ const HANDBOOK_TABS = [
       return `
         <div class="hb-sec">
           <h3>6. Từ Điển Tra Cứu API Chuẩn, Bảng Mã Lỗi StatusType &amp; Tham Số ECUC</h3>
-          <h4>Bảng Mã Lỗi Chuẩn StatusType</h4>
-          <table class="hbt">
-            <thead>
-              <tr><th>Mã lỗi</th><th>Giá trị</th><th>Ý nghĩa kỹ thuật theo chuẩn AUTOSAR SWS_OS</th></tr>
-            </thead>
-            <tbody>
-              ${Object.keys(STATUS_CODES).map(k => `
-                <tr>
-                  <td><code>${k}</code></td>
-                  <td><code>${STATUS_CODES[k]}</code></td>
-                  <td>${esc(STATUS_NAMES[STATUS_CODES[k]] || '')}</td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-
-          <h4>Danh Sách Toàn Bộ Các Hàm API Chuẩn AUTOSAR OS</h4>
-          <table class="hbt">
-            <thead>
-              <tr><th>Tên API</th><th>Chữ ký hàm (C Signature)</th><th>Mã SWS</th><th>Mô tả tóm tắt</th></tr>
-            </thead>
-            <tbody>
-              ${Object.keys(API_DB).map(k => {
-                const a = API_DB[k];
-                return `
+          <div class="hb-block">
+            <h4>Bảng Mã Lỗi Chuẩn StatusType</h4>
+            <table class="hbt">
+              <thead>
+                <tr><th>Mã lỗi</th><th>Giá trị</th><th>Ý nghĩa kỹ thuật theo chuẩn AUTOSAR SWS_OS</th></tr>
+              </thead>
+              <tbody>
+                ${Object.keys(STATUS_CODES).map(k => `
                   <tr>
                     <td><code>${k}</code></td>
-                    <td class="mono small">${esc(a.sig)}</td>
-                    <td><code>${a.sws}</code></td>
-                    <td>${esc(a.desc)}</td>
+                    <td><code>${STATUS_CODES[k]}</code></td>
+                    <td>${esc(STATUS_NAMES[STATUS_CODES[k]] || '')}</td>
                   </tr>
-                `;
-              }).join('')}
-            </tbody>
-          </table>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+
+          <div class="hb-block">
+            <h4>Danh Sách Toàn Bộ Các Hàm API Chuẩn AUTOSAR OS</h4>
+            <table class="hbt">
+              <thead>
+                <tr><th>Tên API</th><th>Chữ ký hàm (C Signature)</th><th>Mã SWS</th><th>Mô tả tóm tắt</th></tr>
+              </thead>
+              <tbody>
+                ${Object.keys(API_DB).map(k => {
+                  const a = API_DB[k];
+                  return `
+                    <tr>
+                      <td><code>${k}</code></td>
+                      <td class="mono small">${esc(a.sig)}</td>
+                      <td><code>${a.sws}</code></td>
+                      <td>${esc(a.desc)}</td>
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
         </div>
       `;
     }
   }
 ];
 
+let activeHbSub = { 1: 'all', 2: 'all' };
+let hbMatches = [];
+let hbMatchIdx = -1;
+
 function switchHandbookTab(idx) {
   activeHandbookTab = idx;
-  $$('#hbNav button').forEach((b, i) => b.classList.toggle('active', i === idx));
+  $$('#hbNav .hb-tab-btn').forEach((b, i) => b.classList.toggle('active', i === idx));
+  const s = $('#hbSearch');
+  if (s && s.value) s.value = '';
+  updateHbSearchUi(0, 0, false);
   renderHandbookContent();
+}
+
+function switchHbSubTab(tabIdx, subKey) {
+  activeHbSub[tabIdx] = subKey;
+  renderHandbookContent();
+}
+
+function clearHandbookSearch() {
+  const s = $('#hbSearch');
+  if (s) s.value = '';
+  filterHandbook('');
+  if (s) s.focus();
+}
+
+function jumpFromSearch(tabIdx) {
+  switchHandbookTab(tabIdx);
+  const c = $('#hbContent');
+  if (c) c.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function renderHandbookContent() {
   const content = $('#hbContent');
-  if (content && HANDBOOK_TABS[activeHandbookTab]) {
-    content.innerHTML = HANDBOOK_TABS[activeHandbookTab].render();
+  if (!content) return;
+  const q = ($('#hbSearch')?.value || '').trim();
+  if (q) {
+    filterHandbook(q);
+    return;
+  }
+  hbMatches = [];
+  hbMatchIdx = -1;
+  if (HANDBOOK_TABS[activeHandbookTab]) {
+    content.innerHTML = HANDBOOK_TABS[activeHandbookTab].render(false);
   }
 }
 
+function highlightDomMatches(root, re) {
+  if (!root) return 0;
+  const nodes = [];
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+    acceptNode(node) {
+      if (!node.nodeValue || !node.nodeValue.trim()) return NodeFilter.FILTER_REJECT;
+      const p = node.parentNode;
+      if (!p || p.nodeType !== 1) return NodeFilter.FILTER_REJECT;
+      const tag = p.tagName ? p.tagName.toUpperCase() : '';
+      if (tag === 'SCRIPT' || tag === 'STYLE' || tag === 'MARK' || tag === 'TITLE') {
+        return NodeFilter.FILTER_REJECT;
+      }
+      if (p.classList && (p.classList.contains('hb-hl') || p.classList.contains('hb-svg-hl') || p.classList.contains('hb-tab-tag'))) {
+        return NodeFilter.FILTER_REJECT;
+      }
+      re.lastIndex = 0;
+      return re.test(node.nodeValue) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
+    }
+  });
+  while (walker.nextNode()) nodes.push(walker.currentNode);
+
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+  let count = 0;
+  nodes.forEach(textNode => {
+    const text = textNode.nodeValue;
+    const parent = textNode.parentNode;
+    const inSvg = parent && parent.namespaceURI === SVG_NS;
+    re.lastIndex = 0;
+    let lastIdx = 0;
+    let m;
+    const frag = document.createDocumentFragment();
+    while ((m = re.exec(text)) !== null) {
+      if (m[0].length === 0) { re.lastIndex++; continue; }
+      if (m.index > lastIdx) {
+        frag.appendChild(document.createTextNode(text.slice(lastIdx, m.index)));
+      }
+      const hl = inSvg ? document.createElementNS(SVG_NS, 'tspan') : document.createElement('mark');
+      hl.setAttribute('class', inSvg ? 'hb-svg-hl' : 'hb-hl');
+      hl.textContent = m[0];
+      frag.appendChild(hl);
+      count++;
+      lastIdx = m.index + m[0].length;
+    }
+    if (lastIdx < text.length) {
+      frag.appendChild(document.createTextNode(text.slice(lastIdx)));
+    }
+    parent.replaceChild(frag, textNode);
+  });
+  return count;
+}
+
+function updateHbSearchUi(matchCount, tabCount, active) {
+  $('#hbClrBtn')?.classList.toggle('hidden', !active);
+  const meta = $('#hbSearchMeta');
+  const cnt = $('#hbSearchCnt');
+  if (meta) meta.classList.toggle('hidden', !active);
+  if (cnt && active) {
+    cnt.textContent = matchCount
+      ? `${hbMatchIdx >= 0 ? (hbMatchIdx + 1) + '/' : ''}${matchCount} khớp (${tabCount} mục)`
+      : '0 kết quả';
+  }
+}
+
+function setActiveHbMatch(idx, doScroll) {
+  if (!hbMatches.length) return;
+  hbMatches.forEach(el => el.classList.remove('cur'));
+  hbMatchIdx = ((idx % hbMatches.length) + hbMatches.length) % hbMatches.length;
+  const el = hbMatches[hbMatchIdx];
+  el.classList.add('cur');
+  const tabCount = $$('#hbContent .hb-tab-grp:not(.hidden)').length;
+  updateHbSearchUi(hbMatches.length, tabCount, true);
+  const bCnt = $('#hbBannerIdx');
+  if (bCnt) bCnt.textContent = `Đang xem kết quả ${hbMatchIdx + 1} / ${hbMatches.length}`;
+  if (doScroll) {
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+}
+
+function jumpHbMatch(delta) {
+  if (!hbMatches.length) return;
+  const next = hbMatchIdx < 0 ? 0 : hbMatchIdx + delta;
+  setActiveHbMatch(next, true);
+}
+
 function filterHandbook(query) {
-  query = (query || '').trim().toLowerCase();
-  if (!query) {
+  const rawQ = (query || '').trim().normalize('NFC');
+  if (!rawQ) {
+    hbMatches = [];
+    hbMatchIdx = -1;
+    updateHbSearchUi(0, 0, false);
     renderHandbookContent();
     return;
   }
   const content = $('#hbContent');
-  if (content) {
-    let fullHtml = HANDBOOK_TABS.map(t => t.render()).join('<hr style="border-color:var(--border);margin:20px 0"/>');
-    content.innerHTML = fullHtml;
+  if (!content) return;
+
+  const escRe = rawQ.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const re = new RegExp(escRe, 'gi');
+
+  content.innerHTML = HANDBOOK_TABS.map((t, idx) => `
+    <div class="hb-tab-grp" data-tab="${idx}">
+      <button type="button" class="hb-tab-tag" onclick="jumpFromSearch(${idx})">📑 ${esc(t.title)} — Mở riêng mục này ↗</button>
+      ${t.render(true)}
+    </div>
+  `).join('');
+
+  let visibleTabs = 0;
+  $$('#hbContent .hb-tab-grp').forEach(grp => {
+    const sec = grp.querySelector('.hb-sec');
+    highlightDomMatches(sec, re);
+
+    const h3 = sec ? sec.querySelector(':scope > h3') : null;
+    const h3Hit = !!(h3 && h3.querySelector('mark.hb-hl'));
+    const blocks = Array.from(grp.querySelectorAll('.hb-block'));
+
+    blocks.forEach(blk => {
+      const h4 = blk.querySelector(':scope > h4');
+      const h4Hit = !!(h4 && h4.querySelector('mark.hb-hl'));
+
+      blk.querySelectorAll('table.hbt').forEach(tbl => {
+        const theadHit = !!(tbl.tHead && tbl.tHead.querySelector('mark.hb-hl'));
+        const rows = tbl.tBodies[0] ? Array.from(tbl.tBodies[0].rows) : [];
+        const matchedRows = rows.filter(r => r.querySelector('mark.hb-hl'));
+        if (matchedRows.length > 0 && !theadHit && !h4Hit) {
+          rows.forEach(r => { if (!r.querySelector('mark.hb-hl')) r.classList.add('hidden'); });
+        }
+      });
+
+      const blkHits = blk.querySelectorAll('mark.hb-hl, tspan.hb-svg-hl').length;
+      if (blkHits === 0) blk.classList.add('hidden');
+    });
+
+    if (h3Hit && blocks.length && blocks.every(b => b.classList.contains('hidden'))) {
+      blocks.forEach(b => b.classList.remove('hidden'));
+    }
+
+    const grpVisibleHits = Array.from(grp.querySelectorAll('mark.hb-hl, tspan.hb-svg-hl'))
+      .filter(el => !el.closest('.hidden')).length;
+
+    if (grpVisibleHits === 0) {
+      grp.classList.add('hidden');
+    } else {
+      visibleTabs++;
+    }
+  });
+
+  hbMatches = Array.from(content.querySelectorAll('mark.hb-hl, tspan.hb-svg-hl'))
+    .filter(el => !el.closest('.hidden'));
+
+  if (!hbMatches.length) {
+    hbMatchIdx = -1;
+    updateHbSearchUi(0, 0, true);
+    content.insertAdjacentHTML('afterbegin', `
+      <div class="hb-nohit">
+        <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:6px">Không tìm thấy kết quả nào khớp với "<code>${esc(rawQ)}</code>"</div>
+        <div class="small" style="margin-bottom:10px">Gợi ý từ khóa: <code>Preemptive</code>, <code>Ceiling</code>, <code>GetResource</code>, <code>Schedule</code>, <code>RES_SCHEDULER</code>, <code>Deadlock</code>, <code>E_OS_</code></div>
+        <button type="button" class="btn sm primary" onclick="clearHandbookSearch()">✕ Xóa từ khóa tìm kiếm</button>
+      </div>
+    `);
+    return;
   }
+
+  content.insertAdjacentHTML('afterbegin', `
+    <div class="hb-search-banner">
+      <div>
+        🔎 Tìm thấy <b>${hbMatches.length}</b> vị trí khớp với <code>${esc(rawQ)}</code> trong <b>${visibleTabs}/${HANDBOOK_TABS.length}</b> mục sổ tay
+        <span id="hbBannerIdx" class="muted" style="margin-left:8px"></span>
+      </div>
+      <div class="row">
+        <button type="button" class="btn xs" onclick="jumpHbMatch(-1)">◀ Trước</button>
+        <button type="button" class="btn xs" onclick="jumpHbMatch(1)">Tiếp ▶</button>
+        <button type="button" class="btn xs red" onclick="clearHandbookSearch()">✕ Xóa lọc</button>
+      </div>
+    </div>
+  `);
+  setActiveHbMatch(0, false);
 }
 
 /* ================= PREVIEW MODAL & GENERATORS ================= */

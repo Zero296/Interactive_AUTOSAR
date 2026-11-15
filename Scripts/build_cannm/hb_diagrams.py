@@ -279,9 +279,8 @@ def b02():
     body.append(arrow(d, 610, 215, 320, 215, "sky", width=2.4))
     body.append(edge_label(465, 215, "CanIf_Transmit(NM PDU 8-byte)", "sky", 198))
 
-    # Bottom CAN Bus connecting both
+    # Bottom CAN Bus: only CanIf connects to physical bus (CanNm routes via CanIf_Transmit)
     body.append(arrow(d, 220, 240, 220, 266, "ok"))
-    body.append(arrow(d, 710, 240, 710, 266, "sky"))
     body.append(bus_rail(60, 272, 860, "CAN BUS VẬT LÝ (Đường truyền vi sai CAN_H / CAN_L)", "sky"))
     return svg_wrap(d, 920, 296, "".join(body))
 
@@ -403,8 +402,8 @@ def b06():
     entries = [
         (22, "Bus-Sleep Mode", "Active Wakeup / PassiveStartUp", "ind"),
         (82, "Prepare Bus-Sleep", "NetworkRequest / Rx NM PDU", "warn"),
-        (142, "Ready Sleep State", "NetworkRequest / Rx RMR==1", "ok"),
-        (202, "Normal Operation", "Bit RMR==1 hoặc lệnh SWC", "sky"),
+        (142, "Ready Sleep State", "NetworkRequest / Rx RMR==1", "err"),
+        (202, "Normal Operation", "Bit RMR==1 hoặc lệnh SWC", "ok"),
     ]
     for ey, label, edge, col in entries:
         body.append(box(16, ey, 165, 44, label, [], col, title_size=11))
@@ -664,7 +663,7 @@ def b14():
         bx = x0 + i * (bw + gap)
         body.append(box(bx, 20, bw, 102, bt, [name, code], col, double=(col != "mut"),
                         header_band=True, title_size=11.5, sub_size=10, mono_sub=True))
-    body.append(pill(460, 148, 520, 26, "MSB (Bit 7) ◄────────── Control Bit Vector (1 Byte = 8 Bits) ──────────► LSB (Bit 0)", "warn", 10.2))
+    body.append(pill(459, 148, 874, 26, "MSB (Bit 7) ◄───────────────────────────────── Control Bit Vector (1 Byte = 8 Bits) ─────────────────────────────────► LSB (Bit 0)", "warn", 10.2))
     return svg_wrap(d, 920, 176, "".join(body))
 
 
@@ -758,7 +757,7 @@ def b18():
         body.append(box(cx, cy, 416, 52, ct, cl, col, header_band=True, title_size=11, sub_size=10))
 
     body.append(arrow(d, 460, 168, 460, 206, "warn", width=2.4))
-    body.append(edge_label(548, 187, "TimeoutTime chạm 0ms", "warn", 148))
+    body.append(edge_label(566, 187, "CanNmTimeoutTime chạm 0ms", "sky", 184))
 
     body.append(zone(16, 206, 888, 72, "PREPARE BUS-SLEEP MODE", "warn", dashed=False))
     body.append(box(120, 224, 680, 44, "5. CanNmWaitBusSleepTime (1500ms)",
