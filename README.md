@@ -1,6 +1,6 @@
 # AUTOSAR Classic Interactive Architecture & Simulation Hub
 
-Bộ công cụ web tương tác mô phỏng kiến trúc phân tầng **AUTOSAR Classic R23-11** (74 modules, 13 luồng chạy end-to-end với 128 bước chi tiết) và liên kết tới **36 module đã gắn mô phỏng** (trên 29 file `.html`).
+Bộ công cụ web tương tác mô phỏng kiến trúc phân tầng **AUTOSAR Classic R23-11** (74 modules, 23 luồng chạy end-to-end với 219 bước chi tiết) và liên kết tới **36 module đã gắn mô phỏng** (trên 29 file `.html`).
 
 ---
 
@@ -43,7 +43,7 @@ Bộ công cụ web tương tác mô phỏng kiến trúc phân tầng **AUTOSAR
    - Double-click vào card màu xanh hoặc bấm **Mở ↗** để mở trình mô phỏng chi tiết của module đó.
    - Gõ `/` để tìm nhanh module/API, lăn `Ctrl + Scroll` để zoom, kéo vùng trống để di chuyển.
 2. **Mô phỏng luồng chạy (`Luồng mô phỏng`):**
-   - Chọn 1 trong 13 luồng tiêu chuẩn (Boot-Up, CAN Tx/Rx, Non-Diag CanTp đa khung, NM Wakeup, Shutdown/NvM, UDS Diag, Dem Debounce/FiM, Watchdog ISO 26262, SecOC Crypto, I/O Adc-IoHwAb-Pwm, Ethernet SOME/IP-SD, CDD) rồi dùng **Bước Tiếp ▶** hoặc **▶ Tự Động** để xem đường đi động và giải thích API/ngữ cảnh/ý nghĩa ở cột phải.
+   - Chọn 1 trong 23 luồng tiêu chuẩn (Boot-Up, OS Preemption/IOC/SchM, CAN Tx/Rx, CanTp đa khung, CAN Bus-Off, IpduM Multiplex, NM/Partial Networking, DoIP Ethernet, SOME/IP-SD Tx/Rx RPC, UdpNm, NvM/Fee/Eep, Det/Dlt, UDS/Security/Bootloader, Dem/FiM, WdgM, SecOC, I/O, CDD) rồi dùng **Bước Tiếp ▶** hoặc **▶ Tự Động** để xem đường đi động và giải thích API/ngữ cảnh/ý nghĩa ở cột phải.
 3. **Danh mục & Hướng dẫn (`📋 Danh Mục`, `📖 Hướng Dẫn`):**
    - Tra cứu bảng toàn bộ 74 modules, kiểm tra trạng thái liên kết và khởi chạy nhanh các luồng từ tài liệu hướng dẫn.
 

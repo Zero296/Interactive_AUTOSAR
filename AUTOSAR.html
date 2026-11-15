@@ -1498,7 +1498,11 @@
       "connections": [
         "BswM",
         "Dlt",
-        "OS"
+        "OS",
+        "RTE",
+        "Com",
+        "CanIf",
+        "PduR"
       ],
       "tags": [
         "Det",
@@ -1943,7 +1947,8 @@
         "ComM",
         "Dem",
         "Csm",
-        "KeyM"
+        "KeyM",
+        "NvM"
       ],
       "tags": [
         "Dcm",
@@ -4979,6 +4984,1260 @@
             "Use Case: High-Speed XCP / Custom Diagnostic / Proprietary Bus Bridging"
           ],
           "why": "Tận dụng hạ tầng bus (CanIf, SoAd, FrIf) của BSW sẵn có mà không phải tự viết lại driver CAN hay TCP/IP bên trong CDD."
+        }
+      ]
+    },
+    {
+      "id": "F14_CAN_BUSOFF",
+      "category": "2. Truyền Thông CAN (Tx & Rx)",
+      "name": "F14: Phục Hồi Sự Cố CAN Bus-Off (Can → CanIf → CanSM ↔ BswM / Com / Dem)",
+      "description": "Quy trình tự động cô lập lỗi và phục hồi mạng khi bus CAN bị ngắn mạch hoặc nhiễu nặng (TEC > 255): Can báo ngắt Bus-Off lên CanIf/CanSM, CanSM khóa Tx Offline tại CanIf, BswM tạm dừng Com Tx để tránh lỗi timeout dây chuyền, Dem ghi DTC có lọc nhiễu và CanSM thử bật lại Controller theo chu kỳ L1 Fast Recovery / L2 Slow Recovery.",
+      "steps": [
+        {
+          "from": "ECU_HW",
+          "to": "Can",
+          "phase": "TEC Overflow & Bus-Off Trap",
+          "context": "Đường dây CANH/CANL bị chạm chập hoặc nhiễu nặng liên tiếp",
+          "api": "CAN Controller TEC > 255 → CAN Bus-Off Interrupt (ISR)",
+          "detail": "Theo chuẩn ISO 11898, mỗi lỗi truyền (Bit/Stuff/ACK Error) tăng bộ đếm **TEC** lên +8. Khi `TEC > 255`, bộ điều khiển CAN phần cứng tự ngắt khỏi bus (trạng thái **Bus-Off**, ngừng kéo dominant làm sập cả mạng) và kích hoạt ngắt lỗi về MCAL `Can`.",
+          "params": [
+            "Threshold: Transmit Error Counter (TEC) > 255",
+            "HW Action: Controller Switches to Bus-Off / Passive Silence"
+          ],
+          "why": "Ngăn một node bị lỗi phần cứng phát xung rác liên tục làm tê liệt toàn bộ các ECU khác trên cùng dây CAN."
+        },
+        {
+          "from": "Can",
+          "to": "CanIf",
+          "phase": "Bus-Off Notification & HW Stop",
+          "context": "Trong CAN Bus-Off ISR hoặc Can_MainFunction_BusOff()",
+          "api": "CanIf_ControllerBusOff(ControllerId)",
+          "detail": "MCAL `Can` chuyển trạng thái logic sang `CAN_CS_STOPPED` (theo đặc tả AUTOSAR SWS_Can) và lập tức gọi `CanIf_ControllerBusOff()` thông báo cho lớp ECU Abstraction biết Controller vật lý đã mất khả năng truyền.",
+          "params": [
+            "Controller Transition: CAN_CS_STARTED → CAN_CS_STOPPED",
+            "Execution Context: Error ISR / Polling MainFunction"
+          ],
+          "why": "MCAL không tự ý bật lại CAN Controller ngay trong ngắt vì phải tuân theo thời gian chờ phục hồi Bus-Off chuẩn hóa của OEM."
+        },
+        {
+          "from": "CanIf",
+          "to": "CanSM",
+          "phase": "Enter BOR Recovery Machine",
+          "context": "CanIf chuyển tiếp sự kiện lên CAN State Manager",
+          "api": "CanSM_ControllerBusOff(ControllerId) → BOR_TX_OFF",
+          "detail": "`CanIf` ánh xạ `ControllerId` và báo cho `CanSM`. `CanSM` kích hoạt **Bus-Off Recovery (BOR)** state machine, tăng bộ đếm lỗi `BusOffCounter`, chọn chế độ phục hồi nhanh (`L1`) hoặc chậm (`L2`) và nạp timer chờ.",
+          "params": [
+            "BOR State: FULLCOM → BUS_OFF_CHECK / TX_OFF",
+            "Recovery Phases: L1 Fast (e.g. 50ms × 5) → L2 Slow (e.g. 1000ms)"
+          ],
+          "why": "Phân tách Fast Recovery (thoát nhanh nhiễu thoáng qua) và Slow Recovery (tránh làm nghẽn CPU/bus khi chập dây dài hạn)."
+        },
+        {
+          "from": "CanSM",
+          "to": "CanIf",
+          "phase": "Isolate Tx Queue",
+          "context": "CanSM cô lập ngay luồng phát ở ECU Abstraction",
+          "api": "CanIf_SetPduMode(ControllerId, CANIF_TX_OFFLINE)",
+          "detail": "`CanSM` lệnh cho `CanIf` đưa PduMode về `CANIF_TX_OFFLINE` (hoặc `CANIF_TX_OFFLINE_ACTIVE` nếu bật mô phỏng xác nhận giả). Mọi yêu cầu `CanIf_Transmit()` mới từ COM/PduR đều bị chặn gọn mà không đẩy xuống phần cứng đang dừng.",
+          "params": [
+            "PduMode Switch: CANIF_ONLINE → CANIF_TX_OFFLINE",
+            "Tx Buffer Cleanup: Clears Stale Queued L-PDUs"
+          ],
+          "why": "Tránh tích tụ hàng trăm khung tin cũ trong hàng đợi CanIf rồi dồn ứ phát loạn khi bus vừa phục hồi."
+        },
+        {
+          "from": "CanSM",
+          "to": "BswM",
+          "phase": "Bus-Off Mode Arbitration",
+          "context": "CanSM cập nhật trạng thái mạng lên BswM",
+          "api": "BswM_CanSM_CurrentState(NetworkHandle, CANSM_BSWM_BUS_OFF)",
+          "detail": "`CanSM` thông báo `CANSM_BSWM_BUS_OFF` cho `BswM`. Rule xử lý sự cố CAN trong `BswM` chuyển sang TRUE và kích hoạt ActionList cô lập lớp truyền thông phía trên.",
+          "params": [
+            "Mode Reported: CANSM_BSWM_BUS_OFF",
+            "Target: Disable Dependent Application Tx & Timeouts"
+          ],
+          "why": "BswM đóng vai điều phối trung tâm để đồng loạt thông báo cho COM và ứng dụng chuyển sang chế độ dự phòng."
+        },
+        {
+          "from": "BswM",
+          "to": "Com",
+          "phase": "Freeze Com Tx Groups",
+          "context": "BswM ActionList tạm ngừng truyền tín hiệu ứng dụng",
+          "api": "Com_IpduGroupControl(TxIpduGroup, STOP)",
+          "detail": "`BswM` ra lệnh dừng nhóm Tx I-PDU của kênh lỗi trong `Com` (đồng thời tạm ngừng Tx Deadline Monitoring). Các khung ứng dụng ngừng tạo yêu cầu truyền mới trong suốt thời gian chờ khôi phục bus.",
+          "params": [
+            "Com Group State: Tx I-PDU Group = STOPPED",
+            "Diagnostic Effect: Prevents Cascade of Spurious Tx Timeout Errors"
+          ],
+          "why": "Ngăn COM cố gắng phát định kỳ vô ích và ngăn sinh ra hàng loạt lỗi phụ không đúng bản chất."
+        },
+        {
+          "from": "CanSM",
+          "to": "Dem",
+          "phase": "Debounced Bus-Off Fault Report",
+          "context": "CanSM_MainFunction() đánh giá mức độ lỗi Bus-Off",
+          "api": "Dem_SetEventStatus(CANSM_E_BUS_OFF, DEM_EVENT_STATUS_PREFAILED)",
+          "detail": "`CanSM` báo trạng thái `PREFAILED` (hoặc `FAILED` ngay khi vượt ngưỡng `CanSMBorCounterL1ToL2`) cho `Dem`. Nếu chập dây kéo dài sang pha L2 Slow Recovery, `Dem` chốt DTC Bus-Off lưu vào `NvM` và kích hoạt `FiM` khóa các chức năng liên quan.",
+          "params": [
+            "Dem Event: CANSM_E_BUS_OFF (U-Code Network DTC)",
+            "L1 vs L2 Rule: Short Glitch Ignored, Persistent Fault Confirmed"
+          ],
+          "why": "Không ghi oan mã lỗi DTC nếu Bus-Off chỉ xuất hiện thoáng qua vài chục mili-giây do nhiễu khởi động máy."
+        },
+        {
+          "from": "CanSM",
+          "to": "CanIf",
+          "phase": "L1 / L2 Controller Restart",
+          "context": "Hết timer CanSMBorTimeL1 hoặc CanSMBorTimeL2 trong CanSM_MainFunction()",
+          "api": "CanIf_SetControllerMode(CAN_CS_STARTED) → CanIf_SetPduMode(CANIF_ONLINE)",
+          "detail": "Khi hết thời gian nghỉ L1/L2, `CanSM` ra lệnh `CanIf_SetControllerMode(CAN_CS_STARTED)` để phần cứng thực hiện chuỗi đếm lại 128 × 11 bit lặn (Recessive) trở lại BUS_ON, rồi mở lại `CANIF_ONLINE` và kích hoạt cửa sổ kiểm chứng `CanSMBorTimeTxEnsured`.",
+          "params": [
+            "HW Sequence: Wait 128 Occurrences of 11 Recessive Bits",
+            "Guard Window: CanSMBorTimeTxEnsured (e.g. 50ms–100ms)"
+          ],
+          "why": "Cửa sổ TxEnsured bảo đảm chỉ tuyên bố bus thật sự khỏe nếu ECU phát lại trơn tru mà không tụt về Bus-Off lần nữa."
+        },
+        {
+          "from": "CanSM",
+          "to": "BswM",
+          "phase": "Recovery Confirmed & Resume",
+          "context": "Tx thành công / Hết CanSMBorTimeTxEnsured không tái lỗi",
+          "api": "BswM_CanSM_CurrentState(CANSM_BSWM_FULL_COMMUNICATION) + Dem(PREPASSED)",
+          "detail": "Nếu bus hoạt động ổn định qua ngưỡng `TxEnsured`, `CanSM` báo `CANSM_BSWM_FULL_COMMUNICATION` lên `BswM` để bật lại nhóm I-PDU của `Com`, đồng thời gửi `PREPASSED` sang `Dem` hồi phục trạng thái lỗi.",
+          "params": [
+            "Recovered Mode: CANSM_BSWM_FULL_COMMUNICATION",
+            "Network Status: Resumed Normal Application & NM Traffic"
+          ],
+          "why": "Khép kín chu trình tự chữa lỗi mạng CAN theo đúng tiêu chuẩn AUTOSAR mà không cần khởi động lại ECU."
+        }
+      ]
+    },
+    {
+      "id": "F15_IPDUM_MULTIPLEX",
+      "category": "2. Truyền Thông CAN (Tx & Rx)",
+      "name": "F15: Ghép Khung I-PDU Multiplexing & Container PDU (SWC → Com ↔ IpduM ↔ PduR → CanIf → Can)",
+      "description": "Minh họa cách tiết kiệm CAN ID và tối ưu băng thông bus bằng module IpduM: ghép nhiều tập tín hiệu thay thế nhau (Dynamic Parts theo Selector Field) vào chung một CAN ID Classic CAN 8B, hoặc đóng nhiều Contained I-PDUs nhỏ thành một Container PDU 64B trên CAN-FD qua tuyến Com ↔ PduR ↔ IpduM ↔ PduR ↔ CanIf.",
+      "steps": [
+        {
+          "from": "SWC_App",
+          "to": "RTE",
+          "phase": "Multi-Mode Signal Updates",
+          "context": "Application SW-C cập nhật các nhóm dữ liệu khác chế độ",
+          "api": "Rte_Write_PpMuxSelector(mode) + Rte_Write_PpMuxPayload(&struct)",
+          "detail": "Ứng dụng phát nhiều nhóm tín hiệu ít khi đồng thời cần gửi cùng lúc (ví dụ: Thông số Cell Pin 1..4 dùng Selector 0, Cell 5..8 dùng Selector 1) thông qua các Sender-Receiver Ports chuẩn của `RTE`.",
+          "params": [
+            "Use Case 1: Multiplexed I-PDU (Classic CAN 8B Conservation)",
+            "Use Case 2: Container I-PDU (Packing Small Frames into 64B CAN-FD)"
+          ],
+          "why": "Số lượng CAN ID trong mạng có giới hạn và mỗi khung truyền đều tốn overhead header/arbitration."
+        },
+        {
+          "from": "RTE",
+          "to": "Com",
+          "phase": "Pack Separate Sub-PDUs",
+          "context": "RTE cập nhật vào các I-PDU con trong AUTOSAR COM",
+          "api": "Com_SendSignalGroup(StaticGroup) / Com_SendSignalGroup(DynPartGroup)",
+          "detail": "`Com` đóng gói từng nhóm tín hiệu thành **Static Part I-PDU** (dữ liệu luôn có mặt như nhiệt độ/trạng thái chung) và nhiều **Dynamic Part I-PDUs** (mỗi nhóm chứa Selector Value cố định của riêng nó) với tư cách các I-PDU tách biệt.",
+          "params": [
+            "Sub-PDUs: 1 Optional Static Part + N Mutually Exclusive Dynamic Parts",
+            "Transparency: Com Remains Unaware of Multiplexing Below"
+          ],
+          "why": "Tách biệt ở COM giúp các tín hiệu vẫn giữ nguyên cơ chế Endianness, Update-Bit và Filter tiêu chuẩn."
+        },
+        {
+          "from": "Com",
+          "to": "PduR",
+          "phase": "Route Sub-PDU to IpduM",
+          "context": "Com_MainFunctionTx() hoặc Triggered Transmit",
+          "api": "PduR_ComTransmit(DynSubPduId, &SubPduInfo)",
+          "detail": "`Com` gọi `PduR_ComTransmit()` cho từng Dynamic/Contained Sub-PDU. Dựa trên bảng định tuyến ARXML, `PduR` chuyển các PDU này xuống `IpduM` thay vì đưa thẳng xuống `CanIf`.",
+          "params": [
+            "Routing Branch: COM_SubPdu → IpduM_TxPart",
+            "Trigger Mode: Dynamic Part Change Triggers Combined Frame Tx"
+          ],
+          "why": "PduR đóng vai điểm đấu nối linh hoạt cho phép chèn tầng IpduM vào bất kỳ kênh CAN/FlexRay nào."
+        },
+        {
+          "from": "PduR",
+          "to": "IpduM",
+          "phase": "Multiplexing & Container Packing",
+          "context": "IpduM_Transmit() & IpduM_MainFunctionTx()",
+          "api": "IpduM_Transmit(TxPduId, &SubPduInfo) → Merge Buffer / Header Stack",
+          "detail": "Bên trong `IpduM`: (1) Với **Multiplexed I-PDU**, IpduM chép phần tử Static + Dynamic được chọn (theo Selector Field) vào đúng layout bit của khung chung; (2) Với **CAN-FD Container PDU**, IpduM gom nhiều Contained I-PDUs lại kèm từng cặp `[24-bit HeaderID + 8-bit DLC + Payload]` cho tới khi đầy 64B hoặc hết Tx Timer.",
+          "params": [
+            "Mux Layout: [Static Bits | Selector Field | Dynamic Bits]",
+            "Container Format: [HdrID_1 | DLC_1 | Data_1 | HdrID_2 | DLC_2 | Data_2 ...]"
+          ],
+          "why": "Đạt mật độ truyền tải cực cao trên CAN-FD (giảm tới 60–70% bus load so với gửi từng khung 8B rời)."
+        },
+        {
+          "from": "IpduM",
+          "to": "PduR",
+          "phase": "Submit Combined Physical I-PDU",
+          "context": "IpduM hoàn tất lắp ghép và gọi xuống PduR",
+          "api": "PduR_IpduMTransmit(MultiplexedTxPduId, &CombinedPdu)",
+          "detail": "`IpduM` phát khối PDU duy nhất đã trộn xong ngược trở lại `PduR` bằng `PduR_IpduMTransmit()`. Lúc này trong hệ thống chỉ tồn tại **1 I-PDU vật lý duy nhất** mang 1 CAN ID đích.",
+          "params": [
+            "Noticeable Pattern: COM → PduR → IpduM → PduR → CanIf",
+            "Data Consistency: Protected via Exclusive Area / JIT Copy"
+          ],
+          "why": "Vì mọi đường ra vào giữa các Services BSW đều chuẩn hóa đi qua PduR, IpduM vừa là Lower của COM vừa là Upper của CanIf qua PduR."
+        },
+        {
+          "from": "PduR",
+          "to": "CanIf",
+          "phase": "Transmit Single CAN / CAN-FD Frame",
+          "context": "PduR định tuyến I-PDU tổng hợp xuống CAN Interface",
+          "api": "CanIf_Transmit(CanTxPduId, &CombinedPdu) → Can_Write()",
+          "detail": "`PduR` chuyển khung đã ghép xuống `CanIf_Transmit()` -> `Can_Write()` để phát lên bus vật lý dưới một CAN ID chung (8B Classic CAN hoặc 64B CAN-FD).",
+          "params": [
+            "Wire Footprint: Single CAN Arbitration ID Shares N Sub-PDUs",
+            "Tx Confirmation: Cascades IpduM_TxConfirmation → Sub-PDUs"
+          ],
+          "why": "Giảm tranh chấp bus CAN Arbitration vì giảm số lượng CAN ID cần phát."
+        },
+        {
+          "from": "Can",
+          "to": "CanIf",
+          "phase": "Receiver Captures Shared Frame",
+          "context": "Phía ECU Nhận: Ngắt Rx ISR thu khung Multiplexed / Container",
+          "api": "Can_RxISR() → CanIf_RxIndication(&Mailbox, &RxPdu)",
+          "detail": "Tại ECU nhận, bộ lọc CAN ID phần cứng đón khung tin chung và đẩy lên `CanIf_RxIndication()` như một L-PDU bình thường.",
+          "params": [
+            "Receiver HW: Single Acceptance Filter Covers All Multiplexed Parts"
+          ],
+          "why": "Không cần tốn nhiều bộ lọc Acceptance Mailbox phần cứng của MCU cho từng nhóm dữ liệu con."
+        },
+        {
+          "from": "CanIf",
+          "to": "PduR",
+          "phase": "Route Shared Frame to IpduM",
+          "context": "CanIf chuyển lên PduR",
+          "api": "PduR_CanIfRxIndication(RxPduId, &RxPdu)",
+          "detail": "`PduR` tra bảng routing và đưa khung ghép nhận được sang `IpduM_RxIndication()` để giải tách trước khi đưa lên `Com`.",
+          "params": [
+            "Target Module: IpduM (Rx Demultiplexer)"
+          ],
+          "why": "COM không đọc hiểu được Selector Bits hay Container Header nếu PduR đẩy thẳng mà không qua IpduM."
+        },
+        {
+          "from": "PduR",
+          "to": "IpduM",
+          "phase": "Decode Selector & Split Container",
+          "context": "IpduM_RxIndication() tách ngược từng phần tử",
+          "api": "IpduM_RxIndication(RxPduId, &RxPdu) → Extract Static + Dynamic Parts",
+          "detail": "`IpduM` đọc **Selector Field** tại vị trí cấu hình để xác định Dynamic Part nào đang có mặt (ví dụ `Selector == 2` -> Cell Group 2) hoặc duyệt từng cặp `[HeaderID | DLC]` bên trong Container PDU để cắt thành nhiều Sub-PDUs gốc.",
+          "params": [
+            "Demux Step 1: Parse Static Part (if Present)",
+            "Demux Step 2: Match Selector Value → Target Dynamic RxPduId"
+          ],
+          "why": "Chỉ các Sub-PDU thực sự có mặt trong khung mới được trích xuất và chuyển tiếp lên trên."
+        },
+        {
+          "from": "IpduM",
+          "to": "PduR",
+          "phase": "Forward Unpacked Sub-PDUs",
+          "context": "IpduM đẩy từng Sub-PDU rời rạc lên PduR",
+          "api": "PduR_IpduMRxIndication(TargetSubPduId, &ExtractedPdu)",
+          "detail": "Sau khi tách gọn, `IpduM` gọi `PduR_IpduMRxIndication()` cho phần Static và đúng phần Dynamic vừa giải mã (hoặc từng Contained I-PDU trong Container).",
+          "params": [
+            "Per-Part Delivery: Only Active Selector Path Triggered",
+            "Unused Dynamic Parts: Untouched (Keep Previous Values)"
+          ],
+          "why": "Bảo đảm các bộ đệm của những Dynamic Parts khác đang chờ lượt không bị ghi đè dữ liệu sai."
+        },
+        {
+          "from": "PduR",
+          "to": "Com",
+          "phase": "Update Signals & Notify SW-C",
+          "context": "COM giải nén tín hiệu và đẩy lên RTE → SWC_SensorAct",
+          "api": "Com_RxIndication(ComSubPduId, &ExtractedPdu) → Rte_COMCbk_*()",
+          "detail": "`Com` cập nhật đúng Signal Group tương ứng (Static hoặc Dynamic #k), thực hiện Byte Swap/Scaling và kích hoạt `Rte_COMCbk_*()` cho `SWC_SensorAct` đọc giá trị mới nhất qua `RTE`.",
+          "params": [
+            "Final Effect: Seamless Multiplexed Data Seen as Normal Signals by SW-C"
+          ],
+          "why": "Che giấu hoàn toàn kỹ thuật ghép kênh phức tạp ở tầng BSW, giữ nguyên tính khả chuyển cho Application SW-C."
+        }
+      ]
+    },
+    {
+      "id": "F16_CAN_PN_MULTIBUS_NM",
+      "category": "3. Quản Lý Mạng (Network Mgmt)",
+      "name": "F16: Đánh Thức Chọn Lọc Partial Networking & Multi-Bus Nm (CanTrcv/Spi → EcuM → ComM ↔ Nm/CanNm → LinSM/BswM)",
+      "description": "Khác với F4 đánh thức toàn bộ node trên bus, Partial Networking (PN — ISO 11898-2) cho phép Transceiver dùng bộ lọc phần cứng Wakeup Frame (WUF) chỉ đánh thức đúng cụm ECU liên quan (PNC), giữ các cụm không liên quan ngủ sâu, đồng thời dùng Generic Nm phối hợp đồng bộ thức/ngủ giữa nhiều bus (CAN + LIN/Ethernet).",
+      "steps": [
+        {
+          "from": "ECU_HW",
+          "to": "CanTrcv",
+          "phase": "Hardware WUF Selective Filter",
+          "context": "ECU đang ở Deep Sleep (MCU tắt nguồn), Smart Transceiver đang canh bus",
+          "api": "Bus Frame Check → Match CAN ID + Data Mask (PNC WUF Filter)",
+          "detail": "Khi có xe đang đậu (vd: bật đèn cốp sau hoặc sạc EV), mạng CAN có hàng trăm bản tin chạy qua nhưng **Smart CanTrcv** (như TJA1145) dùng bộ giải mã phần cứng nội tại kiểm tra CAN ID và byte bitmask của Wakeup Frame (WUF). Nếu frame KHÔNG khớp bit cụm của ECU này, MCU vẫn tiếp tục ngủ 0 µA; chỉ khi khớp **WUF hợp lệ**, CanTrcv mới kéo chân INH đánh thức nguồn MCU!",
+          "params": [
+            "Filter Hardware: ISO 11898-2 Selective Wakeup Frame (Baudrate + ID + 8B Mask)",
+            "Power Benefit: Uninvolved Domain ECUs Stay Off (~20 µA Standby)"
+          ],
+          "why": "Trên xe điện/hiện đại có hàng chục ECU; nếu sạc pin mà đánh thức cả ECU động cơ, túi khí, giải trí thì sẽ hao hụt rất nhiều năng lượng."
+        },
+        {
+          "from": "CanTrcv",
+          "to": "Spi",
+          "phase": "Read Smart Trcv Registers via SPI",
+          "context": "Trong EcuM Startup / CheckWakeup (đọc cờ WUF qua SPI)",
+          "api": "CanTrcv_CheckWakeup() → Spi_SyncTransmit(TrcvRegSeq)",
+          "detail": "Khác với Transceiver thường chỉ có chân RXD/ERR, Smart PN Transceiver giao tiếp cấu hình mặt nạ WUF, cờ lỗi `PNERR`, nguyên nhân thức (`WUF` vs `LWU`) với vi điều khiển thông qua bus **`Spi`** (`Spi_SyncTransmit` / `AsyncTransmit`).",
+          "params": [
+            "Bus Control: SPI Register Config for Frame ID, Mask & Baudrate",
+            "Status Flags: Wakeup Pin, Bus Activity WUF, Frame Detect Error"
+          ],
+          "why": "Cho phép phần mềm lập trình động các PNC Bit Vector nào cần canh giữ trước khi ECU đi ngủ."
+        },
+        {
+          "from": "CanTrcv",
+          "to": "EcuM",
+          "phase": "Validate Selective Wakeup",
+          "context": "EcuM_SetWakeupEvent() → EcuM_ValidateWakeupEvent()",
+          "api": "EcuM_ValidateWakeupEvent(ECUM_WKSOURCE_CAN_PN)",
+          "detail": "`CanTrcv` xác nhận đúng nguồn đánh thức PN (không phải nhiễu giả hay lỗi SPI), đưa `EcuM` vào pha thức tỉnh để bật OS/BSW và chuyển giao quyền điều khiển mạng sang `ComM`.",
+          "params": [
+            "Wakeup Result: VALIDATED (Partial Networking Source)"
+          ],
+          "why": "Bảo đảm chuỗi khởi động an toàn đồng nhất với chuẩn quản lý nguồn EcuM."
+        },
+        {
+          "from": "EcuM",
+          "to": "ComM",
+          "phase": "PNC Cluster State Transition",
+          "context": "ComM đánh giá bảng ánh xạ PNC-to-Channel và PNC-to-Users",
+          "api": "ComM_EcuM_PNCWakeUpIndication(PNC_BodyLighting)",
+          "detail": "`EcuM` thông báo riêng mã **Partial Network Cluster (`PNC_x`)** vừa thức (không bật toàn bộ các cụm khác trên cùng ECU). Trong `ComM`, mỗi PNC chạy một máy trạng thái độc lập (`PNC_NO_COMMUNICATION` → `PNC_PREPARE_SLEEP` → `PNC_READY_SLEEP` → `PNC_REQUESTED`).",
+          "params": [
+            "State Machine Level: Per-PNC State Machine Above Channel Level",
+            "Gateway Role: Active PNCs Propagate Across Routed Channels"
+          ],
+          "why": "Một ECU Gateway có thể đồng thời giữ cụm `PNC_Charging = ACTIVE` trong khi để `PNC_ADAS = NO_COM`."
+        },
+        {
+          "from": "ComM",
+          "to": "Nm",
+          "phase": "Multi-Bus Nm Coordination",
+          "context": "ComM gọi xuống Generic Nm Coordinator (khi ECU nối nhiều bus)",
+          "api": "Nm_PassiveStartUp(NetworkHandle) / Nm_NetworkRequest()",
+          "detail": "`ComM` kích hoạt mô-đun `Nm` chung. Nếu ECU đóng vai **NM Coordinator**, `Nm` liên kết các bus cùng thuộc cụm đồng bộ (CAN-1, CAN-2, Ethernet) sao cho tất cả giữ đồng bộ nhịp thức hoặc cùng đếm ngược về `ReadyToSleep` đồng loạt.",
+          "params": [
+            "Coordinator Mode: NmCoordinatorSyncSupport = TRUE",
+            "Prevent Deadlock: Holds Bus-A Awake Until Bus-B Finishes"
+          ],
+          "why": "Tránh tình trạng bus nhánh bị mất nguồn trước khi bus xương sống truyền xong gói lệnh tắt/chẩn đoán."
+        },
+        {
+          "from": "Nm",
+          "to": "CanNm",
+          "phase": "PNC Bit Vector & EIRA/ERA",
+          "context": "CanNm_MainFunction() phát & lọc NM PDU có cờ PNI=1",
+          "api": "CanNm [CBV Bit PNI=1 | PNC Bytes 2..7] → EIRA / ERA Update",
+          "detail": "`CanNm` đặt bit **PNI = 1** (Partial Network Info) trong Control Bit Vector (CBV) của gói NM PDU và bật đúng bit tương ứng của PNC đang hoạt động. Khi nhận gói NM từ node khác, `CanNm` tính hợp logic **EIRA** (External & Internal Request Array) và **ERA** (External Request Array cho Gateway) báo lại `ComM`.",
+          "params": [
+            "NM Payload: [NodeID | CBV(PNI=1) | PNC Bitmask Byte 2..7]",
+            "Filtering: Ignores NM Frames Whose PNC Bits Have No Match (PnFilterMask)"
+          ],
+          "why": "Nếu gói NM đến chỉ bật bit của cụm khác mà ECU này không tham gia, `CanNm` bỏ qua bit đó để timer PN của cụm không liên quan vẫn tắt đúng hạn."
+        },
+        {
+          "from": "ComM",
+          "to": "LinSM",
+          "phase": "Activate Dependent Sub-Bus",
+          "context": "ComM ánh xạ PNC kích hoạt kênh LIN phụ thuộc",
+          "api": "LinSM_RequestComMode(LinChannel, COMM_FULL_COMMUNICATION) → LinIf_ScheduleRequest()",
+          "detail": "Vì `PNC_BodyLighting` yêu cầu điều khiển đèn qua bus LIN cục bộ dưới nhánh Gateway, `ComM` tự động nâng riêng kênh `LinSM` lên `FULL_COM` và yêu cầu `LinIf` chạy Schedule Table đèn, trong khi `EthSM` hay các kênh `CanSM` không thuộc PNC đó vẫn yên vị ở `NO_COM`!",
+          "params": [
+            "Selective Sub-Bus Activation: LinSM → FULL_COM",
+            "Unused Channels: Remain in COMM_NO_COMMUNICATION"
+          ],
+          "why": "Thể hiện sức mạnh của phân hoạch PNC kết hợp ComM: bật đúng đường dây vật lý phục vụ đúng nghiệp vụ."
+        },
+        {
+          "from": "ComM",
+          "to": "BswM",
+          "phase": "Per-PNC Mode Arbitration",
+          "context": "BswM đánh giá rule theo trạng thái từng PNC",
+          "api": "BswM_ComM_CurrentPNCMode(PNC_BodyLighting, COMM_PNC_FULL_COMMUNICATION)",
+          "detail": "`ComM` phát thông báo mode ở cấp độ **từng PNC** sang `BswM`. Nhờ đó `BswM` có quy tắc tinh gọn: chỉ bật I-PDU Groups thuộc `PNC_BodyLighting`, đồng thời giữ tắt hoàn toàn I-PDU Groups và Deadline Monitoring của các PNC đang ngủ.",
+          "params": [
+            "Granularity: Per-PNC BswM Arbitration Port",
+            "Safety Benefit: Zero Timeout DTCs for Sleeping Sub-Networks"
+          ],
+          "why": "Nếu một bus đang bật nhưng một số ECU trong cụm PNC khác còn ngủ, tắt riêng I-PDU Group của PNC ngủ giúp không báo lỗi mất liên lạc giả."
+        },
+        {
+          "from": "BswM",
+          "to": "Com",
+          "phase": "Enable Active PNC I-PDUs Only",
+          "context": "BswM thực thi bật I-PDU Group tương ứng trong COM",
+          "api": "Com_IpduGroupControl(IpduGroup_PNC_BodyLighting, START)",
+          "detail": "`BswM` mở khóa chính xác nhóm bản tin `Com` thuộc cụm vừa thức. Khi tất cả PNC Users nhả yêu cầu, `ComM` xóa bit PNC -> `CanNm` & `Nm` Coordinator đồng bộ `ReadySleep` -> các bus quay về ngủ sâu tiết kiệm điện.",
+          "params": [
+            "Active Traffic: Only Active PNC I-PDU Groups Running",
+            "Sleep Sync: Coordinated Multi-Bus Shutdown When Last PNC Bit Clears"
+          ],
+          "why": "Cân bằng hoàn hảo giữa khả năng đáp ứng tức thời và bài toán tiêu thụ điện năng trên kiến trúc Zonal/EV."
+        }
+      ]
+    },
+    {
+      "id": "F17_ETH_DOIP_DIAG",
+      "category": "4. Chẩn Đoán & Quản Lý Lỗi",
+      "name": "F17: Chẩn Đoán DoIP over Ethernet (Eth/EthTrcv → EthIf → TcpIp → SoAd → DoIP ↔ PduR ↔ Dcm)",
+      "description": "Chuỗi chẩn đoán tốc độ cao ISO 13400 (DoIP - Diagnostics over IP) thay thế/bổ trợ cho DoCAN truyền thống khi nạp Flash dung lượng lớn qua Automotive Ethernet: kích hoạt PHY OBD-II, phát UDP Vehicle Announcement (Port 13400), bắt tay TCP Routing Activation, bóc gói DoIP 0x8001 lấy UDS payload qua SoAd/PduR lên Dcm và phản hồi lại.",
+      "steps": [
+        {
+          "from": "ECU_HW",
+          "to": "EthTrcv",
+          "phase": "Ethernet Activation Line & Link Up",
+          "context": "Cổng chẩn đoán RJ45/OBD Ethernet cấp tín hiệu Activation & PHY link",
+          "api": "Activation Line High → EthTrcv_SetTransceiverMode(ACTIVE) → Link UP",
+          "detail": "Theo ISO 13400-3, chân **Activation Line** trên cổng chẩn đoán OBD-II được kéo lên mức điện áp kích hoạt (hoặc Switch phát hiện Link Ethernet 100BASE-T1 từ DoIP Tester). `EthTrcv` thiết lập liên kết vật lý lên trạng thái `ETHTRCV_LINK_STATE_ACTIVE`.",
+          "params": [
+            "Physical Layer: 100BASE-TX (OBD Tester Port) / 100BASE-T1",
+            "Activation Mechanism: ISO 13400-3 Activation Line Voltage"
+          ],
+          "why": "Giúp ECU hoặc Central Gateway phân biệt cáp Ethernet đang nối với máy chẩn đoán ở xưởng thay vì các cổng mạng nội bộ thông thường."
+        },
+        {
+          "from": "EthTrcv",
+          "to": "EthIf",
+          "phase": "Link Active & IP Readiness",
+          "context": "EthIf báo Link Up lên EthSM → TcpIp gán IPv4/IPv6 (AutoIP/DHCP/Static)",
+          "api": "EthIf_TrcvLinkStateChg(ACTIVE) → TcpIp LocalAddr ASSIGNED",
+          "detail": "`EthIf` phát hiện PHY đã thông mạch và thông báo lên `EthSM`/`TcpIp`. Module `TcpIp` hoàn tất cấu hình địa chỉ IP cục bộ cho giao diện chẩn đoán (thường là AutoIP `169.254.x.x` hoặc Static OEM IP) và gọi `SoAd_LocalIpAddrAssignmentChg()`.",
+          "params": [
+            "IP Assignment: Link-Local AutoIP (169.254.x.x) or DHCP/Static",
+            "MTU Available: 1500 Bytes (vs 8B Classic CAN!)"
+          ],
+          "why": "DoIP chạy hoàn toàn trên nền TCP/UDP/IP nên bắt buộc phải có địa chỉ IP hợp lệ trước khi DoIP Server mở cổng."
+        },
+        {
+          "from": "DoIP",
+          "to": "SoAd",
+          "phase": "UDP Vehicle Announcement (0x0004)",
+          "context": "Ngay sau khi IP được gán (gửi 3 lần cách nhau 500ms)",
+          "api": "DoIP → SoAd_IfTransmit() [UDP Port 13400, PayloadType 0x0004]",
+          "detail": "`DoIP` tự động phát quảng bá UDP bản tin **Vehicle Announcement Message (0x0004)** ra Port `13400` chứa số khung **VIN (17B)**, **Logical Address (2B)** của Gateway/ECU, **EID (MAC)** và **GID**. Nhờ vậy máy chẩn đoán PC tự nhìn thấy xe ngay lập tức mà không cần biết trước IP!",
+          "params": [
+            "DoIP Header (8B): [ProtoVer 0x02 | InvVer 0xFD | Type 0x0004 | Len]",
+            "Broadcast Spec: Sends 3 Announcements at t=0, 500ms, 1000ms (A_DoIP_Announce)"
+          ],
+          "why": "Hỗ trợ Plug-and-Play: kỹ thuật viên chỉ cần cắm dây mạng là phần mềm chẩn đoán tự nhận diện đúng VIN và địa chỉ ECU."
+        },
+        {
+          "from": "Eth",
+          "to": "EthIf",
+          "phase": "Tester TCP Routing & UDS Rx",
+          "context": "Tester mở kết nối TCP Port 13400 và gửi Routing Activation / UDS",
+          "api": "Eth_RxISR() → EthIf_RxIndication(CtrlIdx, FrameType=0x0800, DataPtr)",
+          "detail": "Tester thiết lập kết nối **TCP Port 13400** tới ECU, gửi khung `Routing Activation Request (0x0005)` rồi nối tiếp gửi hàng loạt khung UDS lớn (vd: `0x36 TransferData` khối 4096 byte!). MCAL `Eth` đẩy Ethernet Frame qua DMA Ring vào `EthIf_RxIndication()`.",
+          "params": [
+            "Transport Speed: ~100 Mbps (nhanh gấp 50–100× so với CAN 500 kbps)",
+            "Frame Sizes: Up to 1500B Ethernet MTU per TCP Segment"
+          ],
+          "why": "Biến quá trình nạp phần mềm Firmware xe (hàng trăm MB ADAS/IVI) từ hàng giờ trên CAN xuống chỉ vài chục giây trên Ethernet."
+        },
+        {
+          "from": "EthIf",
+          "to": "TcpIp",
+          "phase": "TCP Stream & Checksum Offload",
+          "context": "Ngăn xếp TcpIp xử lý gói IPv4/TCP",
+          "api": "TcpIp_RxIndication() → TCP State (SYN/ACK → ESTABLISHED) & Reassembly",
+          "detail": "`TcpIp` kiểm tra IP/TCP Checksum, sắp xếp lại thứ tự TCP Sequence Number (kể cả khi khối dữ liệu UDS 4KB bị chia qua nhiều TCP Segments), phát gói `TCP ACK` phản hồi cho Tester và đẩy luồng byte nối tiếp lên `SoAd`.",
+          "params": [
+            "TCP Reliability: Guaranteed Delivery & Sliding Window Flow Control",
+            "Port: Server Port 13400 (TCP_DATA Socket)"
+          ],
+          "why": "TCP đảm bảo không mất byte nào trong quá trình flash firmware dung lượng lớn, thay thế vai trò N_Cr/SN của CanTp."
+        },
+        {
+          "from": "TcpIp",
+          "to": "SoAd",
+          "phase": "Socket-to-SoCon Binding",
+          "context": "SoAd ánh xạ TCP Socket sang kênh DoIP TP",
+          "api": "SoAd_RxIndication(TcpSocketId, BufPtr, Length) → DoIP_SoAdTpCopyRxData()",
+          "detail": "`SoAd` tra cứu `TcpSocketId` tìm ra đúng `SoConId` gắn với máy chủ `DoIP` (có thể phục vụ đồng thời nhiều kết nối Tester nếu cấu hình đa Socket) và bơm luồng dữ liệu TCP vào giao diện TP của module `DoIP`.",
+          "params": [
+            "SoAd Role: Decouples AUTOSAR TP API from BSD/TcpIp Socket Handles",
+            "Multi-Tester Support: Routes Different TCP Connections Independently"
+          ],
+          "why": "Giữ module DoIP độc lập hoàn toàn với API cài đặt Socket TCP/IP."
+        },
+        {
+          "from": "SoAd",
+          "to": "DoIP",
+          "phase": "Routing Activation & Header Parse",
+          "context": "DoIP kiểm tra phiên bản giao thức, xác thực SA và giải mã 0x8001",
+          "api": "DoIP Validate [0x02 0xFD] → 0x0006 Active (0x0007 AliveCheck) → Extract 0x8001",
+          "detail": "`DoIP` xử lý qua 2 bước: (1) Ở gói `0x0005`, kiểm tra **Tester Source Address (`SA`)** & Activation Type (nếu slot socket cũ kẹt -> phát `0x0007 Alive Check`), trả `0x0006` mã `0x10 Routing successfully activated`; (2) Ở gói `0x8001` Diagnostic Message, kiểm tra **Target Address (`TA`)** có khớp ECU nội bộ hay ECU CAN nhánh dưới và bóc tách 8-byte DoIP Header + 4-byte `[SA | TA]`.",
+          "params": [
+            "DoIP Diagnostic Format: [02 FD 80 01 | Len(4B) | SA(2B) | TA(2B) | UDS_Data]",
+            "Routing Check: Rejects Unactivated Socket Requests with NACK"
+          ],
+          "why": "Routing Activation & Alive Check giúp kiểm soát chính xác Tester nào đang nắm quyền chẩn đoán ECU và tránh xung đột nhiều tool cùng cắm."
+        },
+        {
+          "from": "DoIP",
+          "to": "PduR",
+          "phase": "Stream UDS Payload to PduR",
+          "context": "DoIP dùng giao diện TP API hệt như CanTp để gọi PduR",
+          "api": "PduR_DoIPTpStartOfReception(Len) → PduR_DoIPTpCopyRxData() → PduR_DoIPTpRxIndication()",
+          "detail": "`DoIP` bỏ phần đầu DoIP/SA/TA, chỉ giữ nguyên vẹn khối **UDS Payload thuần túy** và bơm qua TP API vào `PduR`. Tại `PduR`, nếu `TA` là của chính ECU này -> chuyển lên `Dcm`; nếu `TA` là của ECU động cơ bên nhánh CAN -> `PduR` có thể Gateway sang thẳng `CanTp`!",
+          "params": [
+            "Unified Interface: Exact Same PduR TP Handshake as CanTp (DoCAN)",
+            "Diagnostic Routing: TA Local → Dcm | TA Remote ECU → CanTp / FrTp"
+          ],
+          "why": "Cực kỳ quan trọng trong kiến trúc AUTOSAR: Dcm không cần quan tâm gói UDS vừa tới từ dây CAN (CanTp) hay cáp Ethernet (DoIP)!"
+        },
+        {
+          "from": "PduR",
+          "to": "Dcm",
+          "phase": "Unified UDS DSL/DSD/DSP",
+          "context": "Dcm thực thi dịch vụ chẩn đoán UDS bất chấp bus vật lý",
+          "api": "Dcm_StartOfReception() → DSL (P2/S3) → DSD (Session/Sec) → DSP (UDS Service)",
+          "detail": "`Dcm` xử lý toàn bộ nghiệp vụ UDS (0x10 Session, 0x19 ReadDTC, 0x22 ReadDID, 0x27 Seed-Key, 0x34/0x36 Flash Memory Write) qua cùng một bộ mã nguồn DSL-DSD-DSP như F6 và truy vấn `Dem`/`NvM`/Callbacks ứng dụng.",
+          "params": [
+            "Zero Redundancy: Single Dcm Stack Serves Both DoCAN and DoIP Simultaneously"
+          ],
+          "why": "Đạt khả năng tái sử dụng phần mềm 100% ở tầng Services khi xe chuyển từ chẩn đoán CAN sang Ethernet DoIP."
+        },
+        {
+          "from": "Dcm",
+          "to": "PduR",
+          "phase": "Route UDS Response to DoIP",
+          "context": "Dcm hoàn tất xử lý hoặc phát NRC 0x78 ResponsePending",
+          "api": "PduR_DcmTransmit(DoIPTxPduId, &UdsRespInfo)",
+          "detail": "`Dcm` tạo bản tin phản hồi UDS (Positive `ReqSID+0x40` hoặc Negative `0x7F [SID] [NRC]`) và gọi `PduR_DcmTransmit()`. Nhờ RxPduId/TxPduId đối xứng, `PduR` gửi phản hồi về đúng kênh `DoIP_TpTransmit()`.",
+          "params": [
+            "Source Routing Lock: PduR Sends Response Out via Same Bus Where Request Arrived"
+          ],
+          "why": "Nếu xe cắm song song 2 tester (1 CAN, 1 DoIP), phản hồi luôn đi ra đúng kênh đã nhận yêu cầu."
+        },
+        {
+          "from": "DoIP",
+          "to": "SoAd",
+          "phase": "Wrap 0x8001 & High-Speed Tx",
+          "context": "DoIP bọc lại DoIP Header và đẩy xuống ngăn xếp Ethernet",
+          "api": "DoIP_TpTransmit() → SoAd_TpTransmit() [Header 0x8001 + TA/SA Swapped] → TcpIp/Eth",
+          "detail": "`DoIP` tự động đảo ngược `SA <-> TA`, đóng gói lại header `0x02 0xFD 0x80 0x01`, kéo dữ liệu từ `Dcm` qua `PduR_DoIPTpCopyTxData()` và truyền thẳng qua `SoAd_TpTransmit() -> TcpIp_TcpTransmit() -> EthIf -> Eth` về máy chẩn đoán với tốc độ hàng chục MB/s.",
+          "params": [
+            "Wire Packet: [02 FD 80 01 | Len | ECU_Addr | Tester_Addr | 59/62/76...]",
+            "Optional ACK: DoIP Header ACK (0x8002) Confirms Delivery Before UDS Response"
+          ],
+          "why": "Hoàn tất vòng lặp hỏi-đáp chẩn đoán UDS qua Ethernet với băng thông cực cao và giữ nguyên kiến trúc phân lớp AUTOSAR."
+        }
+      ]
+    },
+    {
+      "id": "F18_ETH_SOMEIP_RX_RPC",
+      "category": "6. Phần Cứng I/O, SOA & CDD",
+      "name": "F18: Thu Nhận SOME/IP Rx, E2EXf Check & RPC 2 Chiều (Eth → EthIf → TcpIp → SoAd → PduR → LdCom → Xfrm → RTE ↔ SWC)",
+      "description": "Bổ sung chiều nhận (Rx) và cơ chế gọi hàm từ xa Client-Server RPC 2 chiều cho luồng Ethernet SOA (F11): nhận Ethernet Frame qua Eth/EthIf/TcpIp, tách nhiều PDU cùng Socket bằng SoAd PDU Header, chuyển mảng byte qua PduR/LdCom, kiểm tra toàn vẹn E2EXf + giải tuần tự hóa SomeIpXf trong Xfrm và gọi Server Runnable tại RTE/SWC rồi trả lời đúng RequestID.",
+      "steps": [
+        {
+          "from": "ECU_HW",
+          "to": "Eth",
+          "phase": "Ethernet Rx DMA Frame Capture",
+          "context": "Khung dữ liệu SOME/IP UDP/TCP đi từ Camera/Zonal ECU vào mạng",
+          "api": "100/1000BASE-T1 PHY → EthSwt → Eth Rx DMA Ring & Rx ISR",
+          "detail": "Tín hiệu vật lý từ cặp dây Ethernet đi qua PHY (`EthTrcv`) và Switch (`EthSwt`), được bộ điều khiển MAC trên chip (`ECU_HW`) kiểm tra FCS CRC32 phần cứng và ghi trực tiếp vào **Rx DMA Descriptor Ring** trước khi kích hoạt ngắt Rx ISR / `Eth_MainFunction()` của MCAL `Eth`.",
+          "params": [
+            "HW Offload: Hardware MAC Address Filter + Checksum Verification",
+            "Memory Transfer: Zero-Copy DMA Descriptor Buffer"
+          ],
+          "why": "Băng thông Gigabit Ethernet yêu cầu DMA + Checksum phần cứng để CPU không quá tải khi copy từng byte."
+        },
+        {
+          "from": "Eth",
+          "to": "EthIf",
+          "phase": "VLAN Stripping & EtherType Dispatch",
+          "context": "MCAL Eth giao con trỏ vùng nhớ DMA lên EthIf",
+          "api": "EthIf_RxIndication(CtrlIdx, FrameType, IsBroadcast, PhysAddrPtr, DataPtr, Len)",
+          "detail": "`EthIf` kiểm tra thẻ **VLAN IEEE 802.1Q (0x8100)** nếu có, trích xuất `VLAN ID` xác định Virtual Controller tương ứng, kiểm tra **EtherType** (`0x0800 IPv4`, `0x86DD IPv6`, `0x0806 ARP`) và chuyển lên đúng trình xử lý của `TcpIp`.",
+          "params": [
+            "Virtualization: Multiple EthIf Controllers Multiplexed Over 1 Physical MAC via VLAN",
+            "FrameType Handled: IPv4 / IPv6 / ARP / IEEE 802.1AS gPTP"
+          ],
+          "why": "Cho phép cô lập lưu lượng ADAS, Infotainment và Diagnostics trên cùng một đường dây cáp vật lý bằng VLAN."
+        },
+        {
+          "from": "EthIf",
+          "to": "TcpIp",
+          "phase": "IP / UDP / TCP Stack Validation",
+          "context": "TcpIp_RxIndication() giải mã tầng Network & Transport",
+          "api": "TcpIp_RxIndication() → IP Reassembly + UDP/TCP Port Check → Socket Lookup",
+          "detail": "`TcpIp` kiểm tra địa chỉ IP đích (Unicast hoặc Multicast SOME/IP-SD), ghép mảnh IPv4/IPv6 nếu payload dài > 1500B, kiểm tra UDP/TCP Checksum và đối chiếu `(LocalIP, LocalPort, RemoteIP, RemotePort)` để tìm ra **SocketId** đang mở nhận dịch vụ.",
+          "params": [
+            "Protocols: UDP (Fast Cyclic Events) & TCP (Large Methods / RPC)",
+            "Validation: Drops Corrupted Packets Silently Before Application Impact"
+          ],
+          "why": "Đảm bảo chỉ các gói tin đúng cổng dịch vụ đã đăng ký (`SubscribeEventgroupAck`) mới được phép đi lên tầng trên."
+        },
+        {
+          "from": "TcpIp",
+          "to": "SoAd",
+          "phase": "Socket Demux & PDU Header Split",
+          "context": "SoAd ánh xạ Socket sang nhiều AUTOSAR Rx PduId khác nhau",
+          "api": "SoAd_RxIndication(SocketId, DataPtr, Len) → Parse SoAd Header (ID + Len)",
+          "detail": "Rất nhiều dịch vụ SOME/IP chia sẻ chung một UDP Port để tiết kiệm tài nguyên Socket! Khi bật `SoAdPduHeaderEnable`, `SoAd` đọc lần lượt cặp **`[HeaderId (4B) | Length (4B)]`** trong buffer TCP/UDP (kèm kiểm tra `SoAd_VerifyRxPdu`) để tách ra nhiều I-PDU độc lập đẩy lên `PduR`.",
+          "params": [
+            "Multiplexing: Multiple SOME/IP Services Share One UDP Port 30500",
+            "Header Field: HeaderId Maps to [ServiceID (16b) | Method/EventID (16b)]"
+          ],
+          "why": "Ngăn việc bùng nổ hàng trăm TCP/UDP Sockets trong bộ nhớ giới hạn của ECU nhúng."
+        },
+        {
+          "from": "SoAd",
+          "to": "PduR",
+          "phase": "Upper Routing to LdCom",
+          "context": "SoAd gọi PduR qua giao diện IF hoặc TP",
+          "api": "PduR_SoAdIfRxIndication(RxPduId, &PduInfo) (hoặc TpRxIndication)",
+          "detail": "`PduR` nhận diện I-PDU thuộc loại dịch vụ dữ liệu lớn / SOA chứ không phải chẩn đoán Dcm hay COM 8B, nên định tuyến thẳng tới **`LdCom_RxIndication()`**.",
+          "params": [
+            "Routing Target: PduR → LdCom (Large Data COM)",
+            "Gateway Possibility: Could Also Mirror/Gateway to Secondary Ethernet/CAN"
+          ],
+          "why": "PduR phân biệt rạch ròi luồng SOME/IP (LdCom) khỏi luồng chẩn đoán IP (DoIP/Dcm) và luồng mạng (UdpNm)."
+        },
+        {
+          "from": "PduR",
+          "to": "LdCom",
+          "phase": "Pass-Through Large Byte Array",
+          "context": "LdCom tiếp nhận mảng byte tuyến tính độ dài động",
+          "api": "LdCom_RxIndication(RxPduId, &SduInfoPtr) → Notify RTE",
+          "detail": "Khác với `Com`, `LdCom` không cố chia nhỏ thành tín hiệu bit rời rạc mà giữ nguyên khối byte tuyến tính (vd: 800 byte SOME/IP payload + header) và chuyển thẳng sang **`RTE`** / chuỗi **`Xfrm`**.",
+          "params": [
+            "Zero Bit-Packing: Preserves Exact Serialized Byte Stream",
+            "API Overhead: Minimal CPU Copy Cost"
+          ],
+          "why": "Dữ liệu mảng động, chuỗi hoặc struct lồng nhiều cấp trên Ethernet không thể cấu hình cố định theo vị trí bit trong COM."
+        },
+        {
+          "from": "LdCom",
+          "to": "Xfrm",
+          "phase": "SomeIpXf Deserialize & E2EXf Check",
+          "context": "Bộ đôi Transformer chạy giải mã & kiểm tra an toàn ngược chiều Tx",
+          "api": "SomeIpXf_InvTransformer() + E2EXf_InvTransformer() [CRC + Counter Check]",
+          "detail": "`Xfrm` thực thi dây chuyền giải mã ngược từ ngoài vào trong: (1) **`SomeIpXf`** kiểm tra 16-byte SOME/IP Header (`ProtocolVersion=0x01`, `MessageType=REQUEST / NOTIFICATION`, tách `ClientID + SessionID`), chuyển các mảng byte Big-Endian về cấu trúc dữ liệu C gốc (nested structs/arrays); (2) **`E2EXf`** kiểm tra CRC32 + Alive Counter + DataID theo chuẩn an toàn ISO 26262 Profile 4/5/7!",
+          "params": [
+            "Safety Output: Returns E2E_P0xCHECKSTATUS_OK or WRONGSEQUENCE / ERROR",
+            "Header Extracted: RequestID (ClientID + SessionID) Saved for RPC Reply"
+          ],
+          "why": "Nếu tin hiệu bị hỏng byte hoặc trễ lặp trên mạng Ethernet không xác định, `E2EXf` phát hiện ngay lập tức tại ranh giới RTE."
+        },
+        {
+          "from": "Xfrm",
+          "to": "RTE",
+          "phase": "Deliver Typed Struct & E2E Status",
+          "context": "RTE cập nhật S/R Buffer hoặc hàng đợi Client-Server RPC",
+          "api": "RTE Update Data + Rte_TransformerError → Activate OperationInvokedEvent",
+          "detail": "`RTE` ghi cấu trúc C đã giải mã cùng mã `TransformerError / E2EStatus` vào vùng nhớ port an toàn, sau đó gọi OS `ActivateTask()` / `SetEvent()` thông qua `DataReceivedEvent` (nếu là Event Rx) hoặc `OperationInvokedEvent` (nếu là lời gọi hàm RPC từ Client ở ECU khác).",
+          "params": [
+            "Event Modes: DataReceivedEvent (Pub/Sub Event) | OperationInvokedEvent (RPC Method)",
+            "Safe Status Exposure: E2E Check Result Readable by SW-C"
+          ],
+          "why": "Application SW-C nhận đúng kiểu struct C quen thuộc như thể lời gọi cục bộ trong cùng một ECU."
+        },
+        {
+          "from": "RTE",
+          "to": "SWC_App",
+          "phase": "Execute Server Method & Send RPC Reply",
+          "context": "Application SW-C xử lý sự kiện hoặc thực thi RPC Method Server",
+          "api": "SWC_ServerMethod_Runnable(inParams, &outResult) → Return Response via Same Stack",
+          "detail": "`SWC_App` kiểm tra `E2EStatus` trước khi dùng dữ liệu (chuyển sang Fallback an toàn nếu sai CRC). Nếu đây là lời gọi **SOME/IP Method Request**, ngay khi hàm trả về kết quả `outResult`, `RTE -> Xfrm` tự động gắn `MessageType = 0x80 (RESPONSE)` với **đúng `RequestID (ClientID + SessionID)` ban đầu** rồi đẩy ngược `LdCom -> PduR -> SoAd -> TcpIp -> EthIf -> Eth` về Client!",
+          "params": [
+            "RPC Correlation: Identical RequestID Matches Asynchronous Replies at Client",
+            "Error Handling: Can Return ReturnCode = E_NOT_OK if Service Busy"
+          ],
+          "why": "Hoàn thiện mô hình giao tiếp hướng dịch vụ (SOA) 2 chiều hoàn chỉnh trên Automotive Ethernet."
+        }
+      ]
+    },
+    {
+      "id": "F19_ETH_UDPNM_WAKEUP",
+      "category": "3. Quản Lý Mạng (Network Mgmt)",
+      "name": "F19: Quản Lý Mạng Ethernet UdpNm & PHY/Switch Wakeup (EthTrcv → EcuM → ComM ↔ EthSM/EthSwt/TcpIp & Nm/UdpNm → BswM)",
+      "description": "Chuỗi đánh thức và đồng bộ trạng thái mạng đặc thù cho Automotive Ethernet: phát hiện xung đánh thức TC10 / Wake-on-LAN tại EthTrcv, khởi động Switch Ports (EthSwt), đợi Physical Link Up qua EthIf, xin cấp phát địa chỉ IP tại TcpIp (IPv4/IPv6), gửi gói UDP Multicast NM bằng UdpNm ↔ Nm và mở dịch vụ SOA qua BswM.",
+      "steps": [
+        {
+          "from": "ECU_HW",
+          "to": "EthTrcv",
+          "phase": "TC10 / Wake-on-LAN Detection",
+          "context": "Mạng Ethernet đang Sleep theo chuẩn OPEN Alliance TC10 (100BASE-T1)",
+          "api": "TC10 WUP Pulse on Twisted Pair → INH Pin High → EthTrcv_CheckWakeup()",
+          "detail": "Khác với Ethernet văn phòng luôn cấp điện, Automotive Ethernet hỗ trợ chuẩn **OPEN Alliance TC10**: khi một Zonal ECU cần thức, nó phát xung Wakeup Pulse (WUP) trên dây xoắn đôi khiến **PHY `EthTrcv`** bật chân INH cấp nguồn MCU/Switch và báo `EthTrcv_CheckWakeup()` lên hệ thống.",
+          "params": [
+            "Standard: OPEN Alliance TC10 (Sleep/Wake Over 100/1000BASE-T1)",
+            "Power Saving: PHY & Switch Shut Down Between Driving Cycles"
+          ],
+          "why": "Tiết kiệm hàng watt công suất tĩnh cho hệ thống Switch & Ethernet PHY khi xe tắt máy."
+        },
+        {
+          "from": "EthTrcv",
+          "to": "EcuM",
+          "phase": "Validate Ethernet Wakeup",
+          "context": "EcuM lọc nhiễu và xác thực nguồn đánh thức Ethernet",
+          "api": "EcuM_SetWakeupEvent(ECUM_WKSOURCE_ETH) → EcuM_ValidateWakeupEvent()",
+          "detail": "`EthTrcv` báo sự kiện wakeup cho `EcuM`. Sau khi MCU cấp nguồn cho MAC/PHY và kiểm chứng liên kết/xung hợp lệ trong thời gian Validation Timeout, `EcuM` chốt sự kiện và gọi `ComM`.",
+          "params": [
+            "Wakeup State: PENDING → VALIDATED (ECUM_WKSOURCE_ETH)"
+          ],
+          "why": "Thống nhất quy trình đánh thức mọi bus (CAN, LIN, Ethernet) thông qua duy nhất máy trạng thái EcuM."
+        },
+        {
+          "from": "EcuM",
+          "to": "ComM",
+          "phase": "Passive Wakeup Eth Channel",
+          "context": "ComM mở kênh Ethernet tương ứng",
+          "api": "ComM_EcuM_WakeUpIndication(EthChannel) → Request FULL_COM",
+          "detail": "`ComM` chuyển kênh Ethernet từ `NO_COM` sang trạng thái thức (Passive hoặc Active nếu có User nội bộ gọi `ComM_RequestComMode`) và giao nhiệm vụ mở đường truyền vật lý cho `EthSM`.",
+          "params": [
+            "Channel Transition: COMM_NO_COMMUNICATION → FULL_COM_NETWORK_REQUESTED"
+          ],
+          "why": "ComM đứng ra tổng hợp yêu cầu từ Sd, DoIP, Diagnostic và Application trước khi điều khiển EthSM."
+        },
+        {
+          "from": "ComM",
+          "to": "EthSM",
+          "phase": "EthSM State Machine Start",
+          "context": "EthSM_MainFunction() bắt đầu chuỗi WAIT_TRCVLINK",
+          "api": "EthSM_RequestComMode(NetHandle, COMM_FULL_COMMUNICATION)",
+          "detail": "Khác với `CanSM` gần như bật là truyền được ngay, **`EthSM`** phải đi qua chuỗi tuần tự nhiều bước: `ETHSM_STATE_OFFLINE` → `WAIT_TRCVLINK` (đợi link cáp) → `WAIT_ONLINE` (đợi có IP) → `ONLINE`.",
+          "params": [
+            "Sub-States: OFFLINE → WAIT_TRCVLINK → WAIT_ONLINE → ONLINE",
+            "Strict Precondition: No Socket Opens Before Physical Link + IP Ready"
+          ],
+          "why": "Nếu mở Socket UDP/TCP trước khi có Link hoặc chưa gán địa chỉ IP, các gói tin đầu tiên sẽ bị rớt sạch."
+        },
+        {
+          "from": "EthSM",
+          "to": "EthIf",
+          "phase": "Activate Switch Ports & Link Up",
+          "context": "EthSM lệnh EthIf bật MAC Controller (Eth), EthSwt và EthTrcv",
+          "api": "EthIf_SetControllerMode(ACTIVE) → EthSwt Port Link → EthSM_TrcvLinkStateChg(ACTIVE)",
+          "detail": "`EthIf` bật bộ điều khiển MAC (`Eth`), mở các cổng trên **Ethernet Switch (`EthSwt`)** và thực hiện Auto-Negotiation tốc độ 100/1000 Mbps trên `EthTrcv`. Khi đèn Link báo thông mạch, `EthIf` gọi `EthSM_TrcvLinkStateChg(ETHTRCV_LINK_STATE_ACTIVE)`.",
+          "params": [
+            "Link Negotiation: 100BASE-T1 / 1000BASE-T1 Master-Slave Link Training (< 100ms)",
+            "Switch State: ARL Forwarding Table Active on Enabled Ports"
+          ],
+          "why": "Ở Automotive Ethernet, Master/Slave Link Training trên cặp dây đơn T1 phải đồng bộ trước khi bất kỳ frame nào truyền qua Switch."
+        },
+        {
+          "from": "EthIf",
+          "to": "TcpIp",
+          "phase": "Bind IPv4 / IPv6 Address",
+          "context": "EthSM kích hoạt TcpIp cấp phát địa chỉ IP cho giao diện",
+          "api": "TcpIp_RequestComMode(ONLINE) → AutoIP / DHCP / Static → LocalAddr ASSIGNED",
+          "detail": "Sau khi nhận Link Active, `EthSM` chuyển `WAIT_ONLINE` và yêu cầu `TcpIp` cấu hình địa chỉ IPv4/IPv6 (Static OEM config, DHCPv4 Client, Link-Local AutoIP kèm kiểm tra trùng IP bằng ARP Probe).",
+          "params": [
+            "IP Readiness: TCPIP_IPADDR_STATE_ASSIGNED",
+            "ARP/NDP Cache: Neighbor Discovery Ready for Default Gateway / Peers"
+          ],
+          "why": "Bảo đảm IP duy nhất và hợp lệ trên VLAN chẩn đoán/SOA trước khi phát các gói UDP Multicast."
+        },
+        {
+          "from": "TcpIp",
+          "to": "EthSM",
+          "phase": "IP Assigned → ETHSM_ONLINE",
+          "context": "TcpIp thông báo địa chỉ IP và Sockets sẵn sàng",
+          "api": "EthSM_TcpIpModeIndication(CtrlIdx, TCPIP_STATE_ONLINE)",
+          "detail": "`TcpIp` báo `TCPIP_STATE_ONLINE` về `EthSM`. Lúc này `EthSM` hoàn tất cả 2 điều kiện (Link UP + IP Assigned), chốt chuyển sang **`ETHSM_STATE_ONLINE`** và mở Socket cho `UdpNm`.",
+          "params": [
+            "Final EthSM State: ETHSM_STATE_ONLINE",
+            "Fault Guard: If Cable Unplugged Later, Drops to WAIT_TRCVLINK & Halts Traffic"
+          ],
+          "why": "Nếu cáp Ethernet bị đứt giữa chừng, `EthSM` tự phát hiện mất Link ngay lập tức và đóng luồng Sockets an toàn."
+        },
+        {
+          "from": "ComM",
+          "to": "Nm",
+          "phase": "UdpNm Multicast Heartbeat",
+          "context": "ComM khởi chạy Generic Nm → UdpNm qua UDP Multicast",
+          "api": "Nm_NetworkRequest() → UdpNm_NetworkRequest() → SoAd_IfTransmit() [239.255.x.x:30491]",
+          "detail": "Tương tự `CanNm` trên CAN, Generic `Nm` kích hoạt **`UdpNm`** (cũng hỗ trợ Repeats, ReadySleep, WaitBusSleep & **Partial Networking PNC**). `UdpNm` phát định kỳ gói tin UDP Multicast NM qua `SoAd -> TcpIp -> EthIf` giữ đồng bộ cụm ECU Ethernet cùng thức.",
+          "params": [
+            "Transport: UDP Multicast Frame (e.g. 239.255.0.1:30491)",
+            "Multi-Bus Sync: Coordinated via Generic Nm Alongside CanNm / FrNm"
+          ],
+          "why": "Cho phép ngủ chọn lọc cụm ECU Ethernet mà vẫn phối hợp nhịp nhàng với mạng CAN thông qua cùng module Nm."
+        },
+        {
+          "from": "EthSM",
+          "to": "BswM",
+          "phase": "Enable Sd, DoIP & SOA Stacks",
+          "context": "BswM nhận ETHSM_STATE_ONLINE kích hoạt các dịch vụ ứng dụng Ethernet",
+          "api": "BswM_EthSM_CurrentState(ETHSM_BSWM_ONLINE) → Sd OfferService & DoIP Active",
+          "detail": "`EthSM` thông báo `ETHSM_BSWM_ONLINE` lên `BswM`. Rule của `BswM` thỏa mãn, bật ActionList kích hoạt **SOME/IP Service Discovery (`Sd`)** bắt đầu quảng bá `OfferService`, mở máy chủ **`DoIP`** và bật truyền thông `LdCom`/`SoAd`. Nếu mất mạng hoặc các node đồng thuận ngủ qua `UdpNm`, `EthSM` đưa TC10 PHY về Sleep.",
+          "params": [
+            "BswM Actions: Start Sd Server Services, Enable DoIP Routing, Start SoAd Routing Groups",
+            "TC10 Sleep: Coordinated Bus-Sleep Sends TC10 Sleep Handshake Before Power-Off"
+          ],
+          "why": "Đảm bảo dịch vụ SOME/IP-SD và DoIP chỉ quảng bá khi hạ tầng L2 Switch + L3 IPv4/IPv6 đã sẵn sàng 100%."
+        }
+      ]
+    },
+    {
+      "id": "F20_NVM_RUNTIME_DUAL_MEM",
+      "category": "7. Bộ Nhớ NVRAM & EEPROM",
+      "name": "F20: Ghi/Đọc NvM Runtime & Đa Thiết Bị MemIf (SWC → RTE → NvM → MemIf → Fee/Fls vs Ea/Eep/Spi & Dem)",
+      "description": "Khác với ReadAll/WriteAll khi Boot và Shutdown (F1/F5), luồng này minh họa thao tác đọc/ghi Single Block lúc ECU đang chạy bình thường: hàng đợi ưu tiên Immediate Block trong NvM, cơ chế tách nhánh đa phần cứng trong MemIf (DeviceIndex 0 vào Data Flash Fee/Fls vs DeviceIndex 1 vào External SPI EEPROM qua Ea/Eep/Spi), ghi bản sao dự phòng Redundant Block và khôi phục lỗi CRC báo sang Dem.",
+      "steps": [
+        {
+          "from": "SWC_App",
+          "to": "RTE",
+          "phase": "Runtime Block Save Trigger",
+          "context": "Trong lúc xe đang chạy (vd: lưu vị trí ghế nhớ, quãng đường, hoặc dữ liệu học tập mới)",
+          "api": "Rte_Call_NvMService_SeatMem_WriteBlock(&srcRamPtr)",
+          "detail": "Không cần đợi tới lúc tắt khóa xe (`WriteAll`), khi người dùng bấm nút lưu cấu hình hoặc có thay đổi quan trọng, Application SW-C gọi Port Client-Server `WriteBlock` (hoặc `ReadBlock` / `InvalidateNvBlock`) thông qua `RTE`.",
+          "params": [
+            "Execution Model: Asynchronous Non-Blocking Request (Returns E_OK Immediately)",
+            "Result Notification: Polled via NvM_GetErrorStatus() or JobFinished Callback"
+          ],
+          "why": "Đảm bảo dữ liệu thay đổi giữa chuyến đi vẫn an toàn kể cả nếu người lái rút cọc bình đột ngột không qua Shutdown."
+        },
+        {
+          "from": "RTE",
+          "to": "NvM",
+          "phase": "Priority Queue & Immediate Preemption",
+          "context": "NvM_WriteBlock() đưa job vào Standard Queue hoặc Immediate Priority Queue",
+          "api": "NvM_WriteBlock(BlockId, SrcPtr) [JobPriority = 0 Immediate | CRC32]",
+          "detail": "`NvM` sao chép dữ liệu vào RAM Mirror tạm (hoặc khóa vùng nhớ), tính mã kiểm lỗi **CRC16/CRC32**. Đặc biệt, nếu Block cấu hình **Immediate Priority (`Priority = 0`)** (như dữ liệu Crash Event), `NvM` cho phép **chen ngang tạm hoãn** tác vụ ghi thường đang chạy dở ở tầng dưới để lưu ngay!",
+          "params": [
+            "Block Management Types: NATIVE | REDUNDANT (2 Copies) | DATASET (Array)",
+            "Priority Queue: Priority 0 Immediate Preempts Standard Jobs (1..255)"
+          ],
+          "why": "Dữ liệu an toàn/tai nạn không thể xếp hàng chờ vài trăm mili-giây sau các block cấu hình ít quan trọng hơn."
+        },
+        {
+          "from": "NvM",
+          "to": "MemIf",
+          "phase": "DeviceIndex Hardware Abstraction",
+          "context": "NvM_MainFunction() xử lý job và gọi lớp trừu tượng MemIf",
+          "api": "MemIf_Write(DeviceIndex, BlockNumber, DataPtr)",
+          "detail": "Điểm cốt lõi của AUTOSAR Memory Stack nằm tại **`MemIf`**: dựa trên tham số `DeviceIndex`, `MemIf` định tuyến trong suốt tới **nhiều loại bộ nhớ vật lý khác nhau**: `DeviceIndex = 0` → `Fee` (Data Flash nội chip cho các khối lớn); `DeviceIndex = 1` → `Ea` (EEPROM ngoài tốc độ byte cho biến đếm ghi liên tục).",
+          "params": [
+            "DeviceIndex 0 → Fee (Internal Data Flash Emulation)",
+            "DeviceIndex 1 → Ea (External / Hardware EEPROM via Eep)"
+          ],
+          "why": "Flash nội ghi/xóa theo sector (giới hạn ~100k lần), còn EEPROM ngoài chịu được 1–4 triệu chu kỳ ghi; MemIf giúp NvM tận dụng tối ưu cả hai!"
+        },
+        {
+          "from": "MemIf",
+          "to": "Fee",
+          "phase": "Branch A: Flash Emulation & GC",
+          "context": "Khi DeviceIndex == 0: Fee quản lý Virtual Pages trên Data Flash (Fls)",
+          "api": "Fee_Write(BlockNum, DataPtr) → Append Virtual Page + Background GC on Fls",
+          "detail": "Ở nhánh **Flash nội (`Fee` → `Fls`)**, `Fee` không bao giờ xóa tại chỗ mà **ghi nối tiếp (Append-Only)** vào Virtual Page trống kế tiếp trong Active Sector để cân bằng hao mòn (`Wear-Leveling`), sau đó đánh dấu bản cũ `INVALID`. Chỉ khi Sector đầy mới chạy **Garbage Collection / Sector Switch** nền.",
+          "params": [
+            "Algorithm: Log-Structured Wear-Leveling Across 2+ Flash Sectors",
+            "Write Granularity: Flash Page Aligned (8–32B Minimum)"
+          ],
+          "why": "Tránh việc xóa cả Sector 4KB–64KB chỉ để cập nhật vài byte dữ liệu."
+        },
+        {
+          "from": "MemIf",
+          "to": "Ea",
+          "phase": "Branch B: EEPROM Abstraction",
+          "context": "Khi DeviceIndex == 1: Ea ánh xạ Block Logic lên không gian địa chỉ EEPROM",
+          "api": "Ea_Write(BlockNumber, DataBufferPtr) → Ea_MainFunction()",
+          "detail": "Ở nhánh **EEPROM (`Ea`)**, vì phần cứng EEPROM cho phép ghi/xóa tự động từng byte/page nhỏ mà không cần xóa cả sector lớn, `Ea` tính toán thẳng địa chỉ Offset vật lý của Block cộng với Header Metadata (trạng thái hợp lệ, kích thước) và chuyển xuống `Eep`.",
+          "params": [
+            "Overhead: Lower Metadata Overhead Compared to Flash Sector GC",
+            "Predictability: Fast Deterministic Write Time for Small Frequently-Written Blocks"
+          ],
+          "why": "Rất lý tưởng cho các biến cập nhật tần suất cực cao như Odometer, Working Hours, hoặc SecOC Monotonic Counters."
+        },
+        {
+          "from": "Ea",
+          "to": "Eep",
+          "phase": "EEPROM Controller State Machine",
+          "context": "Eep_Write() & Eep_MainFunction() chia nhỏ theo trang EEPROM",
+          "api": "Eep_Write(TargetAddress, SrcPtr, Length) → Poll WIP / Verify",
+          "detail": "MCAL **`Eep`** chia dữ liệu theo kích thước Page vật lý của chip EEPROM (ví dụ 32B hoặc 64B/page để tránh Page Wrap-Around), kích hoạt chu kỳ nạp phần cứng (5ms/page), kiểm tra cờ `WIP (Write-In-Progress)` cho tới khi hoàn tất và có thể đối chiếu Verify byte.",
+          "params": [
+            "Hardware Constraint: Must Not Cross EEPROM Page Boundaries in 1 Write",
+            "Endurance: Typical 1,000,000+ Write Cycles per Byte"
+          ],
+          "why": "MCAL Eep xử lý trọn vẹn đặc tính giới hạn trang (Page Size) và thời gian trễ nạp vật lý (tWC ~5ms) của từng dòng IC EEPROM."
+        },
+        {
+          "from": "Eep",
+          "to": "Spi",
+          "phase": "External EEPROM SPI Transfer",
+          "context": "Trường hợp EEPROM gắn ngoài MCU qua bus nối tiếp SPI",
+          "api": "Spi_WriteIB(WREN_0x06 / WRITE_0x02 + Addr + Data) → Spi_AsyncTransmit()",
+          "detail": "Với chip EEPROM ngoài PCB (vd: M95256, AT25256), `Eep` không ghi trực tiếp được mà sử dụng dịch vụ MCAL **`Spi`** (`Spi_WriteIB` + `Spi_AsyncTransmit` gửi tuần tự lệnh `WREN 0x06`, opcode `WRITE 0x02`, địa chỉ 16/24-bit, payload, rồi poll thanh ghi `RDSR 0x05`). Với EEPROM tích hợp trong MCU, Eep truy cập thẳng thanh ghi silicon trên `ECU_HW`.",
+          "params": [
+            "SPI Frame Sequence: [CS Low → 0x06 WREN → CS High] then [0x02 WRITE | Addr | Data]",
+            "Polling: RDSR (0x05) Checks Bit 0 WIP Until Flash/EEPROM Ready"
+          ],
+          "why": "Minh họa rõ tầng kết hợp giữa Memory Stack (NvM/MemIf/Ea/Eep) và Communication Driver (MCAL Spi) qua phần cứng."
+        },
+        {
+          "from": "Eep",
+          "to": "NvM",
+          "phase": "Completion & Redundant Copy",
+          "context": "Callback hoàn tất truyền ngược Spi → Eep → Ea → MemIf → NvM",
+          "api": "Eep → Ea → MemIf → NvM_JobEndNotification() [Write 2nd Redundant Block]",
+          "detail": "Khi ghi xong thành công (`MEMIF_JOB_OK`), thông báo chạy ngược lên `NvM`. Nếu block là **Redundant Block**, `NvM` tự động chạy chu kỳ thứ 2 để ghi thêm **bản sao dự phòng (Backup Copy)** ở vùng nhớ tách biệt trước khi trả trạng thái `NVM_REQ_OK` cho `RTE` → `SWC_App`.",
+          "params": [
+            "Redundant Write Policy: Always Maintains Two Independent Physical Copies",
+            "Completion: Calls Configured SingleBlockCallback(NVM_SERVICE_ID_WRITEBLOCK, OK)"
+          ],
+          "why": "Nếu mất điện ngay khoảnh khắc ghi bản Copy 1 bị rách CRC, bản Copy 2 vẫn nguyên vẹn hoàn toàn để phục hồi."
+        },
+        {
+          "from": "NvM",
+          "to": "Dem",
+          "phase": "CRC Recovery & Integrity Fault",
+          "context": "Khi NvM_ReadBlock() / ReadAll() phát hiện sai CRC hoặc lỗi phần cứng",
+          "api": "Read Redundant Copy / Restore ROM Default → Dem_SetEventStatus(NVM_E_INTEGRITY_FAILED)",
+          "detail": "Ở chiều đọc `NvM_ReadBlock()`, nếu bản chính hỏng CRC: `NvM` tự động thử đọc **Bản Redundant thứ 2** (chống mất dữ liệu!). Chỉ khi **cả 2 bản đều hỏng**, `NvM` nạp giá trị mặc định an toàn từ ROM (`RomBlockPtr` / `InitBlockCallback`), đánh dấu `NVM_REQ_RESTORED_FROM_ROM` và báo mã lỗi phần cứng bộ nhớ `NVM_E_INTEGRITY_FAILED` lên **`Dem`**.",
+          "params": [
+            "Fallback Chain: Primary Block → Redundant Backup → ROM Default → Safe Error",
+            "Dem Events: NVM_E_INTEGRITY_FAILED / NVM_E_REQ_FAILED"
+          ],
+          "why": "Kết hợp NvM Redundancy + CRC + ROM Fallback + Dem Fault giúp ECU vừa chống chịu lỗi bộ nhớ vừa ghi lại dấu vết cho kỹ sư bảo trì."
+        }
+      ]
+    },
+    {
+      "id": "F21_DET_TRACE_DLT",
+      "category": "4. Chẩn Đoán & Quản Lý Lỗi",
+      "name": "F21: Phát Hiện Lỗi Lập Trình Det & Trace Log Dlt (SWC / Com / CanIf → Det → OS / Dlt → PduR & BswM)",
+      "description": "Phân biệt rạch ròi vai trò của Default Error Tracer (Det) so với Dem: Det bắt các lỗi logic phần mềm/cấu hình sai trong phát triển (NULL_PTR, gọi API trước khi Init, sai Channel ID — qua Det_ReportError) và lỗi tràn tài nguyên lúc chạy thực tế (Det_ReportRuntimeError), ghi vết an toàn đa nhân qua OS, đẩy bản tin trace sang Dlt (Diagnostic Log and Trace) hoặc kích hoạt cảnh báo BswM.",
+      "steps": [
+        {
+          "from": "SWC_App",
+          "to": "RTE",
+          "phase": "Faulty Call / Invalid Argument",
+          "context": "Tình huống phát hiện lỗi tích hợp phần mềm hoặc edge-case runtime",
+          "api": "Rte_Write_*() or BSW Caller Sends NULL_PTR / Bad Handle / Premature Call",
+          "detail": "Ví dụ thực tế khi tích hợp ECU: một module mới gọi API `Com_SendSignal()` với con trỏ dữ liệu `NULL_PTR`, truyền sai `SignalId` vượt bảng ARXML, hoặc gọi `CanIf_Transmit()` trước khi `CanIf_Init()` hoàn tất. Ngoài ra trong sản xuất có thể gặp tràn hàng đợi `Buffer Overflow`.",
+          "params": [
+            "Development Error Class: Coding / Config Bug (Null Ptr, Uninit, Bad ID)",
+            "Runtime Error Class: Valid Production Resource Limits (Queue Full, Timeout)"
+          ],
+          "why": "Nếu không có cơ chế kiểm tra đầu vào chuẩn hóa, một lỗi gọi hàm sai có thể âm thầm ghi đè vùng nhớ gây treo ngẫu nhiên rất khó tìm."
+        },
+        {
+          "from": "RTE",
+          "to": "Com",
+          "phase": "BSW Defensive Guard Check",
+          "context": "Kiểm tra điều kiện biên ngay đầu hàm API của mọi BSW (Com, CanIf, PduR, NvM...)",
+          "api": "if (DataPtr == NULL_PTR) { Det_ReportError(COM_MODULE_ID, 0, COM_SID_SEND, COM_E_PARAM_POINTER); return E_NOT_OK; }",
+          "detail": "Theo mọi tài liệu AUTOSAR SWS, đầu mỗi hàm BSW (như `Com`, `CanIf`, `PduR`, `Fls`) đều bọc mã kiểm tra `#if (MOD_DEV_ERROR_DETECT == STD_ON)`. Khi phát hiện tham số vi phạm, hàm lập tức ngắt thực thi để bảo vệ bộ nhớ và gọi sang module **`Det`** thay vì chạy tiếp.",
+          "params": [
+            "Module Identifiers: ModuleId (e.g. Com=50, CanIf=60, NvM=20) + ApiId + ErrorId",
+            "Build Switch: DevErrorDetect Tunable Off in Release If Zero-Overhead Desired"
+          ],
+          "why": "Cơ chế Fail-Fast giúp phát hiện ngay lập tức vị trí dòng code/API gây lỗi trong quá trình phát triển và kiểm thử SIL/HIL."
+        },
+        {
+          "from": "Com",
+          "to": "Det",
+          "phase": "Report Dev vs Runtime Error",
+          "context": "Phân loại 3 nhóm API tiếp nhận lỗi tại Default Error Tracer (Det)",
+          "api": "Det_ReportError() vs Det_ReportRuntimeError() vs Det_ReportTransientFault()",
+          "detail": "`Det` tiếp nhận 3 luồng tách biệt: (1) **`Det_ReportError()`** cho lỗi lập trình/cấu hình (lỗi không được phép xảy ra); (2) **`Det_ReportRuntimeError()`** cho lỗi phát sinh hợp lệ ngoài thực tế như rớt gói/đầy queue (luôn giữ trong bản thương mại); (3) **`Det_ReportTransientFault()`** cho sự cố phần cứng thoáng qua như ECC memory glitch.",
+          "params": [
+            "Tuple Recorded: [ModuleId (16b) | InstanceId (8b) | ApiId (8b) | ErrorId (8b)]",
+            "Key Distinction: Det = SW/API Health & Trace | Dem = Vehicle Hardware/Network DTC"
+          ],
+          "why": "Giải đáp câu hỏi kinh điển của kỹ sư AUTOSAR: KHÔNG BAO GIỜ dùng Dem để báo lỗi Null Pointer, và KHÔNG dùng Det để báo mã lỗi P0123 hỏng cảm biến ra xưởng!"
+        },
+        {
+          "from": "Det",
+          "to": "OS",
+          "phase": "Thread-Safe Capture & Core Lock",
+          "context": "Bảo vệ đồng thời khi nhiều Task / ISR / Core cùng gọi Det",
+          "api": "SchM_Enter_Det_EXCLUSIVE_AREA() → Store Ring Buffer + GetCoreID() / Timestamp",
+          "detail": "Do `Det` có thể bị gọi từ mọi ngữ cảnh (Task ưu tiên thấp, Cat-2 ISR, thậm chí nhiều Core CPU khác nhau cùng lúc), `Det` khóa vùng găng ngắn qua `OS` (`SuspendOSInterrupts` / Spinlock), gắn thêm **CoreID + Timestamp** rồi chép vào bộ đệm lịch sử lỗi (Ring Buffer / Retained RAM).",
+          "params": [
+            "Reentrancy Guard: Must Handle Concurrent Errors Across Tasks & ISRs",
+            "Retained RAM Option: Survives Warm Watchdog Reset for Post-Mortem Debug"
+          ],
+          "why": "Nếu ECU bị lỗi dây chuyền dẫn tới Watchdog Reset, kỹ sư cắm Debugger đọc Ring Buffer của Det sẽ thấy lỗi gốc đầu tiên."
+        },
+        {
+          "from": "Det",
+          "to": "Dlt",
+          "phase": "Forward Trace to Dlt Logger",
+          "context": "Det kích hoạt Callout Hook gọi sang Diagnostic Log and Trace (Dlt)",
+          "api": "Det_ErrorHook() → Dlt_SendLogMessage(SessionId, [DET_LOG: Mod/Api/Err])",
+          "detail": "Sau khi ghi log cục bộ, `Det` gọi danh sách hàm Hook đã đăng ký (`Det_ErrorHooks`). Trong hệ thống có trace chẩn đoán, Hook chuyển mã `(ModuleId, ApiId, ErrorId)` sang mô-đun **`Dlt` (`Diagnostic Log and Trace`)** để đóng gói kèm chuỗi ký tự hoặc thông số ngữ cảnh thành log chuẩn AUTOSAR.",
+          "params": [
+            "DLT Tagging: AppId='DET', ContextId='BSW', LogLevel=DLT_LOG_ERROR",
+            "Real-Time Visibility: Turns Silent Code Checks Into Readable Timeline Events"
+          ],
+          "why": "Thay vì cắm JTAG debugger dừng cả xe đang chạy thử trên đường, Det + Dlt phát live error logs ngay ra cổng đo kiểm."
+        },
+        {
+          "from": "Dlt",
+          "to": "PduR",
+          "phase": "Stream Trace Over Bus (Eth / CAN)",
+          "context": "Dlt đẩy bản tin log qua PduR → SoAd/TcpIp (hoặc CanIf) ra máy đo PC",
+          "api": "PduR_DltTransmit(DltTxPduId, &DltMessage) → DLT Viewer Tool",
+          "detail": "`Dlt` đẩy gói tin log định dạng chuẩn AUTOSAR/GENIVI xuống **`PduR`** để truyền ra Ethernet (qua `SoAd -> TcpIp -> EthIf`) hoặc CAN/Serial tới phần mềm DLT Viewer trên PC kỹ sư theo thời gian thực.",
+          "params": [
+            "Transport Flexibility: Same Dlt Log Works Over Ethernet UDP/TCP or CAN",
+            "Filtering: Dlt Can Dynamically Raise/Lower Verbosity Level via Dcm/Control Msg"
+          ],
+          "why": "Cho phép kỹ sư theo dõi cả nhật ký lỗi Det lẫn RTE VFB Trace từ xa với độ trễ cực thấp."
+        },
+        {
+          "from": "Det",
+          "to": "BswM",
+          "phase": "Error Reaction & Debug Halt vs Safe Mode",
+          "context": "Phản ứng cuối của Det ErrorHook tùy thuộc chế độ Build (Dev vs Prod)",
+          "api": "Dev Build: Wait/Loop/Trigger Breakpoint | Safety Runtime: BswM Safe Notification",
+          "detail": "Tại điểm cuối của ErrorHook: (1) Ở bản **Dev/Bench**, nếu gặp lỗi lập trình nghiêm trọng (`Det_ReportError`), Hook có thể dừng treo an toàn tại `while(1)` hoặc phát bẫy Breakpoint để dev bắt ngay tại chỗ; (2) Ở bản **Runtime/Safety**, với `ReportRuntimeError` (như tràn queue), `Det` chỉ đếm/báo Hook hoặc gọi **`BswM`** / đặt cờ an toàn để hệ thống vẫn vận hành kiểm soát được.",
+          "params": [
+            "Dev Mode: Immediate Trap / Breakpoint for Rapid Bug Isolation",
+            "Production Mode: Error Hooks Log Telemetry Without Crashing Vehicle Control"
+          ],
+          "why": "Kết thúc rõ ràng nguyên lý vận hành của Det: công cụ vàng giúp phát hiện lỗi kiến trúc & gọi sai API từ sớm trước khi ra xe thật."
+        }
+      ]
+    },
+    {
+      "id": "F22_UDS_SECURITY_BOOT",
+      "category": "4. Chẩn Đoán & Quản Lý Lỗi",
+      "name": "F22: Bảo Mật UDS 0x27/0x29 & Chuyển Programming Session (CanTp/DoIP → PduR → Dcm ↔ Csm/KeyM/Crypto & BswM/NvM/EcuM/Mcu)",
+      "description": "Quy trình xác thực bảo mật nâng cao trong chẩn đoán UDS trước khi được phép cấu hình hoặc nạp lại phần mềm ECU (Reprogramming): mở Extended Session (0x10 03), sinh Seed ngẫu nhiên / xác thực Key & Chứng chỉ PKI (0x27 SecurityAccess / 0x29 Authentication qua Csm/KeyM/CryIf/Crypto HSM), tắt DTC & truyền thông mạng (0x85/0x28 qua BswM), ghi Boot Flag xuống NvM và Reset sang Flash Bootloader.",
+      "steps": [
+        {
+          "from": "CanTp",
+          "to": "PduR",
+          "phase": "Diagnostic Session & Auth Req",
+          "context": "Tester gửi UDS 0x10 03 (Extended) rồi 0x27 01 (Request Seed) / 0x29 (Auth)",
+          "api": "CanTp / DoIP Rx [0x10 03 → 0x27 01] → PduR_CanTpRxIndication()",
+          "detail": "Để bảo vệ ECU khỏi bị ghi đè dữ liệu hoặc flash phần mềm trái phép qua cổng OBD/Ethernet, Tester trước tiên phải gửi lệnh `0x10 03` chuyển sang **Extended Session**, sau đó gửi `0x27 01` (SecurityAccess Request Seed) hoặc `0x29` (Certificate-based Authentication).",
+          "params": [
+            "Services: 0x10 SessionControl, 0x27 Seed-Key, 0x29 PKI Auth (ISO 14229-1)",
+            "Channel Independence: Identical Over Both CanTp (DoCAN) and DoIP (Ethernet)"
+          ],
+          "why": "Default Session chỉ cho phép đọc thông số công khai; mọi thao tác ghi bộ nhớ hoặc điều khiển chấp hành đều bị khóa mặc định."
+        },
+        {
+          "from": "PduR",
+          "to": "Dcm",
+          "phase": "DSD Session & Attempt Delay Guard",
+          "context": "Dcm DSD kiểm tra trạng thái phiên và bộ đếm chống dò khóa Brute-Force",
+          "api": "Dcm_RxIndication() → Check Session + SecAttemptCounter (NRC 0x37 Delay)",
+          "detail": "`Dcm` xác minh ECU đang ở Extended Session (giữ sống bởi `0x3E TesterPresent` trong `S3Server = 5000ms`), rồi kiểm tra `SecurityAttemptCounter` (lưu bền trong `NvM`). Nếu có người đoán sai khóa nhiều lần trước đó mà chưa hết **Delay Timer (vd: 10 giây)**, `Dcm` từ chối ngay với `NRC 0x37 (RequiredTimeDelayNotExpired)`!",
+          "params": [
+            "Security Timers: S3Server (5000ms), Anti-BruteForce Delay Timer (10s)",
+            "NRCs Enforced: 0x33 SecurityAccessDenied, 0x35 InvalidKey, 0x37 TimeDelay"
+          ],
+          "why": "Chống kẻ tấn công thử hàng nghìn tổ hợp Key mỗi giây qua cổng OBD."
+        },
+        {
+          "from": "Dcm",
+          "to": "Csm",
+          "phase": "TRNG Random Seed / Challenge",
+          "context": "DSP SecurityAccess gọi Crypto Service Manager xin số ngẫu nhiên thật",
+          "api": "Csm_RandomGenerate(JobId, SeedBuf, &Len) → Return 0x67 01 [Seed]",
+          "detail": "Thay vì dùng số ngẫu nhiên giả `rand()` dễ đoán, `Dcm` gọi **`Csm_RandomGenerate()`** xin chuỗi **Seed / Challenge Nonce ngẫu nhiên phần cứng** (thường 8–16 byte chống trùng lặp), lưu lại để đối chiếu và phát phản hồi `0x67 01 [Seed]` trả về Tester.",
+          "params": [
+            "Seed Entropy: Hardware True Random Number Generator (TRNG)",
+            "Replay Resistance: Every Request Yields Fresh Unpredictable Seed"
+          ],
+          "why": "Nếu Seed lặp lại hoặc đoán trước được, tin tặc có thể phát lại Key cũ để bẻ khóa vĩnh viễn."
+        },
+        {
+          "from": "Csm",
+          "to": "CryIf",
+          "phase": "HSM Verify & KeyM Certificate",
+          "context": "Khi Tester gửi về 0x27 02 [Computed Key] hoặc 0x29 [X.509 Cert + Signature]",
+          "api": "KeyM_VerifyCertificate() + Csm_MacVerify/SignatureVerify() → CryIf → Crypto",
+          "detail": "Khi nhận phản hồi Key/Chữ ký từ Tester, `Csm` phối hợp **`KeyM`** (nếu dùng UDS `0x29` chứng chỉ số X.509 PKI) kiểm tra chuỗi chứng chỉ của Tester ký bởi OEM CA, rồi đẩy job vào **`CryIf` -> `Crypto` (HSM)** để tính toán kiểm chứng mã bí mật/ECDSA bên trong vùng phần cứng bảo mật.",
+          "params": [
+            "Legacy 0x27: Symmetric AES-CMAC / HMAC Secret Key Inside HSM",
+            "Modern 0x29: Asymmetric ECDSA P-256 + KeyM X.509 Certificate Validation"
+          ],
+          "why": "Khóa bí mật OEM hoặc Root Public Key nằm an toàn trong HSM/KeyM; mã ứng dụng Dcm không bao giờ cầm trực tiếp khóa gốc."
+        },
+        {
+          "from": "Crypto",
+          "to": "Dcm",
+          "phase": "Unlock Security Level",
+          "context": "HSM trả CRYPTO_E_VER_OK qua callback lên Dcm",
+          "api": "Dcm_CsmNotification(E_OK) → Set Active Security = Unlocked (0x67 02 / 0x69)",
+          "detail": "Khi `Crypto` HSM xác nhận Key/Chữ ký khớp hợp lệ, `Dcm` mở khóa quyền `SEC_LEVEL_EXT / BOOT`, reset bộ đếm lỗi thử khóa, và gửi Positive Response (`0x67 02` hoặc `0x69`) cho Tester. Lúc này các dịch vụ nhạy cảm mới được phép chạy.",
+          "params": [
+            "New Security Level: UNLOCKED (Required for 0x2E/0x31/0x10 02)",
+            "On Key Mismatch: Increment NvM Retry Counter & Return NRC 0x35/0x36"
+          ],
+          "why": "Tạo hàng rào xác thực chặt chẽ theo chuẩn an ninh mạng ô tô UN ECE R155 / ISO 21434."
+        },
+        {
+          "from": "Dcm",
+          "to": "BswM",
+          "phase": "Pre-Programming Silence (0x85 / 0x28)",
+          "context": "Tester gửi 0x85 02 (Tắt lưu DTC) và 0x28 03 (Ngừng truyền ứng dụng)",
+          "api": "Dcm Mode Switch → BswM_Dcm_CommunicationMode(DISABLE_RX_AND_TX) & Dem_DisableDTCSetting()",
+          "detail": "Trước khi khởi động lại một ECU để nạp Flash, Tester gửi lệnh `0x85 02` (ngừng cập nhật DTC tại `Dem`) và `0x28 03` (`CommunicationControl` sang `BswM` ngừng giao tiếp bình thường `Com`/`Nm` toàn mạng). `BswM` khóa I-PDU Groups để trong lúc ECU reboot sang Bootloader, các ECU còn lại không báo lỗi mất liên lạc giả!",
+          "params": [
+            "0x85 ControlDTCSetting(OFF): Suppresses Dem Event Storage",
+            "0x28 CommunicationControl(Disable): Keeps Bus Quiet Except Diagnostic Frames"
+          ],
+          "why": "Trong quá trình Flash hàng chục giây, bus CAN/Eth phải nhường 100% băng thông cho truyền dữ liệu Flash và tránh làm bẩn bộ nhớ lỗi toàn xe."
+        },
+        {
+          "from": "Dcm",
+          "to": "NvM",
+          "phase": "Precondition Check & Boot Flag Save",
+          "context": "Tester gửi 0x31 CheckPreconditions rồi 0x10 02 Programming Session",
+          "api": "0x31 RoutineControl (VehSpeed==0) → 0x10 02 → NvM_WriteBlock(BootFlag) [NRC 0x78]",
+          "detail": "`Dcm` gọi Routine `0x31` kiểm tra xe đang đứng yên an toàn (`Speed == 0, Gear == P/N, Vbatt >= 11V`). Đạt điều kiện, khi nhận `0x10 02 (Programming Session)`, `Dcm` ghi cờ **Programming Request Flag** vào Shared No-Init RAM hoặc khối bền vững **`NvM`**. Nếu ghi Flash tốn > 50ms (`P2Server`), `Dcm` phát `NRC 0x78 ResponsePending` để Tester kiên nhẫn đợi.",
+          "params": [
+            "Safety Preconditions: Vehicle Stopped + Voltage Stable",
+            "Handoff Artifact: Reprogramming Request Flag + Active Diagnostic Tester ID"
+          ],
+          "why": "Bootloader là chương trình tách biệt với Application; Boot Flag báo cho Bootloader biết không nhảy vào App nữa mà phải ở lại chế độ Flash."
+        },
+        {
+          "from": "Dcm",
+          "to": "EcuM",
+          "phase": "Request Controlled Reset",
+          "context": "Cờ Boot Flag đã an toàn trong RAM/NvM → Dcm yêu cầu Reset hệ thống",
+          "api": "BswM / EcuM_SelectShutdownTarget(ECUM_STATE_RESET, RESET_BOOT) → EcuM_GoDown()",
+          "detail": "`Dcm` kích hoạt chuỗi tắt an toàn sang Reset (`ECUM_STATE_RESET`) thông qua `BswM` / `EcuM` (hoặc gọi `Rte_Switch_DcmEcuReset(JUMP_TO_BOOTLOADER)`), bảo đảm mọi tác vụ ghi NVRAM khác kết thúc sạch sẽ trước khi reset chip.",
+          "params": [
+            "Shutdown Target: ECUM_STATE_RESET (Programmed Warm Reset)"
+          ],
+          "why": "Tránh reset thô bạo cắt ngang giữa lúc `Fee`/`Fls` đang xóa flash gây hỏng dữ liệu hệ thống."
+        },
+        {
+          "from": "EcuM",
+          "to": "Mcu",
+          "phase": "Jump to Flash Bootloader (FBL)",
+          "context": "Mcu_PerformReset() → Startup Code chuyển nhánh vào Flash Bootloader",
+          "api": "Mcu_PerformReset() → FBL Startup Sees Boot Flag → Send 0x50 02 Response → Ready 0x34/0x36",
+          "detail": "`EcuM` gọi `Mcu_PerformReset()` khởi động lại phần cứng vi điều khiển. Startup Code đọc **Boot Flag** vừa ghi, nhảy thẳng vào **Flash Bootloader (`FBL`)** thay vì chạy Application cũ. Ngay khi FBL lên xong, FBL gửi nốt Positive Response **`0x50 02`** cho Tester biết ECU đã sẵn sàng nhận lệnh nạp code `0x34 RequestDownload -> 0x36 TransferData -> 0x37 TransferExit`!",
+          "params": [
+            "Response Timing: 0x50 02 Sent Directly by Bootloader After Reset",
+            "Security Isolation: Only FBL Contains Flash Erase/Program Code for PFLASH App"
+          ],
+          "why": "Khép kín vòng phối hợp ăn ý giữa Diagnostics (Dcm), Crypto (Csm/KeyM), Mode (BswM/EcuM), Memory (NvM) và Hardware Reset (Mcu)."
+        }
+      ]
+    },
+    {
+      "id": "F23_OS_PREEMPT_SCHM",
+      "category": "1. Hệ Thống & Vòng Đời ECU",
+      "name": "F23: Đa Nhiệm OS Preemption, Resource Lock, IOC & SchM (ECU_HW/Gpt → OS ↔ RTE/SWC & BswM/WdgM)",
+      "description": "Giải thích cơ chế vận hành cốt lõi của nhân AUTOSAR OS & BSW Schedule Manager (SchM) trong thời gian thực: ngắt Timer phần cứng đánh nhịp ScheduleTable, cơ chế Preemption ngắt ngang theo mức ưu tiên, giao thức Priority Ceiling Resource chống đảo ngược ưu tiên (Priority Inversion), truyền dữ liệu đa nhân/phân vùng an toàn qua IOC, vùng găng SchM_Enter/Exit và bảo vệ Stack/Timing tới WdgM.",
+      "steps": [
+        {
+          "from": "ECU_HW",
+          "to": "Gpt",
+          "phase": "System Tick Hardware Interrupt",
+          "context": "Bộ định thời phần cứng MCU phát xung chu kỳ (vd: mỗi 1ms hoặc 500µs)",
+          "api": "HW Timer Compare Match → Cat-2 OS SystemTick ISR (IncrementCounter)",
+          "detail": "Phần cứng Timer (STM / GPT / SysTick trên `ECU_HW`) đếm tràn định kỳ mỗi 1ms và phát **Category-2 Interrupt** (ngắt thuộc quyền quản lý của nhân OS). MCAL `Gpt` hoặc nhân Timer Driver chuyển xung nhịp vào bộ đếm `SystemCounter` của `OS`.",
+          "params": [
+            "Tick Resolution: Typically 1ms (1000 Hz) or 500µs System Counter",
+            "ISR Types: Cat-1 (Bypass OS, Ultra Fast) vs Cat-2 (Full OS Services Allowed)"
+          ],
+          "why": "Nhịp System Tick ổn định là cơ sở để toàn bộ các Runnables định kỳ (1ms, 5ms, 10ms, 100ms) và BSW MainFunctions chạy đúng thời hạn."
+        },
+        {
+          "from": "Gpt",
+          "to": "OS",
+          "phase": "ScheduleTable & Alarm Expiry",
+          "context": "OS kiểm tra các Alarms và OsScheduleTable đồng bộ theo Tick",
+          "api": "IncrementCounter(SystemCounter) → ActivateTask(OsTask_1ms / OsTask_10ms)",
+          "detail": "`OS` cập nhật `SystemCounter`, kích hoạt các điểm chuyển tiếp **Expiry Points** của `OsScheduleTable` (ví dụ tại t=0ms gọi cả `Task_10ms` + `Task_5ms`, tại t=5ms chỉ gọi `Task_5ms` để san đều tải CPU — Load Balancing), chuyển trạng thái Task từ `SUSPENDED` sang `READY`.",
+          "params": [
+            "Scheduling Artifact: OsScheduleTable (Synchronized Expiry Offsets Prevent CPU Spikes)",
+            "Task States: SUSPENDED → READY → RUNNING → WAITING"
+          ],
+          "why": "Nếu mọi Task 5ms/10ms/20ms/100ms cùng nổ vào 1 mili-giây duy nhất sẽ tạo đỉnh quá tải (CPU Jitter); ScheduleTable sắp lệch pha giúp tải CPU phẳng mịn."
+        },
+        {
+          "from": "OS",
+          "to": "SWC_SensorAct",
+          "phase": "Fixed-Priority Preemptive Switch",
+          "context": "Task 10ms (Prio 5) đang chạy thì Task 1ms (Prio 15) chuyển READY",
+          "api": "Scheduler Preemption: Save Context Task_10ms → Context Switch to OsTask_FastCtrl_1ms",
+          "detail": "Theo lịch biểu **Fixed-Priority Preemptive**, ngay khi `OsTask_FastCtrl_1ms` (Priority 15) chuyển sang `READY`, `OS` lập tức tạm dừng `OsTask_App_10ms` (Priority 5), lưu bộ thanh ghi CPU của Task 10ms vào Stack riêng, và trao CPU ngay cho `SWC_SensorAct` trong Task 1ms chạy không chậm trễ!",
+          "params": [
+            "Preemption Policy: Full Preemptive (vs Non-Preemptive Tasks)",
+            "Determinism: High-Priority Control Meets Hard Real-Time Deadlines Regardless of Background Load"
+          ],
+          "why": "Tác vụ an toàn nhanh (1ms động cơ/phanh) luôn được ưu tiên tức thì mà không phải chờ tác vụ chẩn đoán hay hiển thị chậm chạy xong."
+        },
+        {
+          "from": "SWC_App",
+          "to": "OS",
+          "phase": "Priority Ceiling Resource Lock",
+          "context": "Task ưu tiên thấp & ưu tiên cao cùng chia sẻ tài nguyên chung",
+          "api": "GetResource(Res_SharedCalData) [Elevate Prio → Ceiling 15] ... ReleaseResource()",
+          "detail": "Nếu `Task_10ms` (Prio 5) đang giữ khóa chung và bị một Task trung gian `Task_5ms` (Prio 10) cắt ngang, `Task_1ms` (Prio 15) cũng sẽ bị kẹt theo (**Priority Inversion**)! AUTOSAR `OS` giải quyết triệt để bằng **OSEK Priority Ceiling Protocol (PCP)**: ngay khi `GetResource()` được gọi, OS tạm **nâng mức ưu tiên của Task giữ khóa lên bằng Trần ưu tiên cao nhất (15)** rồi trả về Prio 5 khi `ReleaseResource()`.",
+          "params": [
+            "Deadlock Freedom: OSEK PCP Guarantees Zero Deadlocks & Bounded Blocking Time",
+            "Mechanism: Temporarily Raises Priority Instead of Passive Sleep-Waiting"
+          ],
+          "why": "Giải thích tại sao OS trong ô tô không dùng Semaphore/Mutex ngủ tùy tiện dễ kẹt Deadlock mà chuẩn hóa bằng Priority Ceiling Resources."
+        },
+        {
+          "from": "OS",
+          "to": "BswM",
+          "phase": "BSW Exclusive Areas (SchM)",
+          "context": "Các hàm BSW (Com, CanIf, NvM, BswM) sửa biến/thanh ghi dùng chung với ISR",
+          "api": "SchM_Enter_<Mod>_EXCLUSIVE_AREA() → SuspendOSInterrupts() / Spinlock → SchM_Exit()",
+          "detail": "Khi một BSW module (như `BswM` sửa mode flags hoặc `Com` sao chép I-PDU Buffer) có nguy cơ bị **ngắt Cat-2 ISR** chen ngang làm rách dữ liệu, `SchM` bọc đoạn mã ngắn đó bằng `SchM_Enter_<Mod>()` → ánh xạ qua `OS` thành `SuspendAllInterrupts` / `SuspendOSInterrupts()` hoặc **`GetSpinlock()`** nếu chia sẻ giữa hai Core MCU khác nhau.",
+          "params": [
+            "Single-Core Guard: Interrupt Lock (Must Keep Under Few Microseconds!)",
+            "Multi-Core Guard: Atomic Hardware Spinlock (GetSpinlock / ReleaseSpinlock)"
+          ],
+          "why": "Cầu nối quan trọng giữa RTE/SchM và nhân OS giúp code BSW hoàn toàn khả chuyển từ đơn nhân sang vi điều khiển đa nhân (TriCore 3–6 Core)."
+        },
+        {
+          "from": "RTE",
+          "to": "OS",
+          "phase": "Multicore & Protected IOC",
+          "context": "Truyền dữ liệu từ ASW/QM Core 0 sang ASIL-D Core 1 (SC3/SC4 Memory Protection)",
+          "api": "IocSend_SignalX(&val) [Core 0] → Inter-Core Trap + IocReceive(&val) [Core 1]",
+          "detail": "Trên kiến trúc đạt chuẩn an toàn ASIL cao (OS Scalability Class **SC3/SC4**), vùng RAM của ứng dụng QM Core 0 bị phần cứng MPU chặn không cho chạm vào RAM của ASIL-D Core 1! Lúc này `RTE` gọi dịch vụ **`IOC (Inter-OS-Application Communicator)`** của nhân `OS`: OS chuyển sang Kernel Mode, chép dữ liệu vào hàng đợi an toàn dùng chung và bắn ngắt liên nhân đánh thức Core 1 nhận bằng `IocReceive()`.",
+          "params": [
+            "OS Scalability Class: SC3 / SC4 (MPU Memory Partitioning & Freedom from Interference)",
+            "Communication Styles: Unqueued Last-is-Best vs Queued FIFO Across Cores"
+          ],
+          "why": "Bảo đảm **Freedom From Interference (FFI)** theo ISO 26262: lỗi bộ nhớ ở phần mềm QM không bao giờ có thể ghi bậy làm hỏng phân vùng ASIL-D."
+        },
+        {
+          "from": "OS",
+          "to": "RTE",
+          "phase": "Extended Task WaitEvent / SetEvent",
+          "context": "Task đồng bộ sự kiện bất đồng bộ (Event-Driven Execution)",
+          "api": "WaitEvent(Ev_DataRx | Ev_JobDone) → [Waiting] → SetEvent(TaskId, Ev_DataRx)",
+          "detail": "Khác với Basic Task chạy xong tự `TerminateTask()`, các **Extended Tasks** có thể gọi `WaitEvent()` để nhường CPU ở điểm giữa (`RUNNING → WAITING`) đợi đúng tín hiệu/sự kiện cần thiết (vd: dữ liệu CAN về từ `Com`, job NVRAM xong). Ngay khi `RTE` / `Com` gọi `SetEvent()`, Task thức dậy đúng dòng lệnh kế tiếp.",
+          "params": [
+            "Task Classification: Basic Task (Low Stack RAM, No Wait) vs Extended Task (Own Stack, WaitEvent)",
+            "Benefit: Immediate Event Wakeup Without Periodic Polling Overhead"
+          ],
+          "why": "Phân tách đúng lúc nên dùng Basic Task (tiết kiệm RAM Stack, chạy xong giải phóng Stack dùng chung) hay Extended Task (chờ sự kiện nhiều bước)."
+        },
+        {
+          "from": "OS",
+          "to": "WdgM",
+          "phase": "Timing, Stack & Partition Protection",
+          "context": "Giám sát an toàn thực thi xuyên suốt vòng đời hệ điều hành",
+          "api": "OS ProtectionHook(E_OS_PROTECTION_TIME / MEMORY) + WdgM Checkpoint Supervising",
+          "detail": "Trong khi các Task chạy, `OS` liên tục giám sát **Execution Time Budget** (Task chạy lố thời gian?), **Inter-Arrival Time** (ngắt bão gây flood CPU?), **Stack Overflow Pattern**, và **MPU Memory Violations**. Mọi vi phạm kích hoạt `ProtectionHook()` (cho phép khởi động lại riêng phân vùng OS-Application bị lỗi mà vẫn giữ phân vùng khác chạy!), đồng thời phối hợp cùng **`WdgM`** giám sát Alive/Deadline/Logical như ở F8.",
+          "params": [
+            "Timing Protection: OsTaskExecutionBudget & OsIsrTimeFrame Monitoring",
+            "Fault Isolation: Terminate/Restart Faulty OS-Application Without Full ECU Crash"
+          ],
+          "why": "Thể hiện đỉnh cao an toàn thời gian thực của AUTOSAR OS: biến phần mềm đa nhiệm thành hệ thống xác định, cách ly lỗi và tuân thủ ASIL-D."
         }
       ]
     }
