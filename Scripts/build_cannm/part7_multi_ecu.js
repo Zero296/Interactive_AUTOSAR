@@ -29,11 +29,15 @@ function createMultiEcuNode(id, name, shortRole, nodeId, offsetMs, roleClass) {
       CanNmWaitBusSleepTime: 1500,
       CanNmMsgCycleTime: 1000,
       CanNmMsgCycleOffset: offsetMs,
+      CanNmMsgReducedTime: 500,
       CanNmImmediateNmTransmissions: 3,
       CanNmImmediateNmCycleTime: 100,
       CanNmPassiveModeEnabled: false,
       CanNmImmediateRestartEnabled: true,
       CanNmNodeDetectionEnabled: true,
+      CanNmBusLoadReductionEnabled: false,
+      CanNmPnEnabled: false,
+      CanNmPnFilterMaskHex: "05 00",
       CanNmActiveWakeupBitEnabled: true
     }
   };
@@ -61,17 +65,30 @@ function multiGetCbvByte(ecu) {
   if (ecu.cbv.rmr) val |= (1 << 0);
   if (ecu.cbv.csr) val |= (1 << 3);
   if (ecu.cbv.awb) val |= (1 << 4);
-  if (ecu.cbv.pni) val |= (1 << 6);
+  if (ecu.cbv.pni || ecu.cfg.CanNmPnEnabled) val |= (1 << 6);
   return val & 0xFF;
 }
 
+function multiParseHexBytes(hexStr) {
+  if (typeof parseHexBytes === "function") return parseHexBytes(hexStr);
+  return String(hexStr || "").trim().split(/[\s,]+/).filter(Boolean).map(h => parseInt(h, 16) || 0);
+}
+
+function multiFormatHexBytes(arr) {
+  if (typeof formatHexBytes === "function") return formatHexBytes(arr);
+  return (arr || []).map(b => (b & 0xFF).toString(16).toUpperCase().padStart(2, "0")).join(" ");
+}
+
 function multiFormatPduBytes(ecu) {
-  const userBytes = ecu.userDataHex.split(/[\s,]+/).slice(0, 6).map(h => {
-    const n = parseInt(h, 16);
-    return isNaN(n) ? 0 : (n & 0xFF);
-  });
+  const userBytes = multiParseHexBytes(ecu.userDataHex).slice(0, 6);
   while (userBytes.length < 6) userBytes.push(0);
-  return [ecu.cfg.CanNmNodeId & 0xFF, multiGetCbvByte(ecu), ...userBytes];
+  const payload = [...userBytes];
+  if (ecu.cfg.CanNmPnEnabled) {
+    const pnMask = multiParseHexBytes(ecu.cfg.CanNmPnFilterMaskHex);
+    payload[0] = pnMask.length > 0 ? pnMask[0] : 0;
+    payload[1] = pnMask.length > 1 ? pnMask[1] : 0;
+  }
+  return [ecu.cfg.CanNmNodeId & 0xFF, multiGetCbvByte(ecu), ...payload];
 }
 
 function addMultiTraceLog(type, srcTag, route, title, desc) {
@@ -88,6 +105,41 @@ function addMultiTraceLog(type, srcTag, route, title, desc) {
 
 function deliverFrameToEcu(rxEcu, frame) {
   const cbvHex = "0x" + frame.cbvByte.toString(16).toUpperCase().padStart(2, "0");
+
+  // Partial Networking Rx Filter per ECU (SWS_CanNm_00409 / SWS_CanNm_00411)
+  if (rxEcu.cfg.CanNmPnEnabled) {
+    if (!frame.pni) {
+      rxEcu.lastActivity = `Bỏ qua Rx ${frame.canIdHex} (PNI=0)`;
+      addMultiTraceLog(
+        "WARN",
+        rxEcu.id,
+        `${rxEcu.name} PN Filter`,
+        `IGNORED (PNI=0 từ ${frame.srcName})`,
+        `[SWS_CanNm_00411] ${rxEcu.name} bật CanNmPnEnabled=TRUE nhưng bản tin từ ${frame.srcName} có PNI=0 ➔ Bỏ qua.`
+      );
+      return;
+    }
+    const rxPn = Array.isArray(frame.pnBytes) ? frame.pnBytes : [0, 0];
+    const myMask = multiParseHexBytes(rxEcu.cfg.CanNmPnFilterMaskHex);
+    const m0 = myMask.length > 0 ? myMask[0] : 0;
+    const m1 = myMask.length > 1 ? myMask[1] : 0;
+    const and0 = (rxPn[0] || 0) & m0;
+    const and1 = (rxPn[1] || 0) & m1;
+    if ((and0 | and1) === 0) {
+      const rxHex = multiFormatHexBytes([(rxPn[0] || 0), (rxPn[1] || 0)]);
+      const maskHex = multiFormatHexBytes([m0, m1]);
+      rxEcu.lastActivity = `Lọc bỏ Rx ${frame.canIdHex} (PN [${rxHex}] & [${maskHex}] = 0)`;
+      addMultiTraceLog(
+        "WARN",
+        rxEcu.id,
+        `${rxEcu.name} PN Filter`,
+        `IGNORED (Không khớp PNC FilterMask)`,
+        `[SWS_CanNm_00409] ${rxEcu.name} nhận PNI=[${rxHex}] & FilterMask=[${maskHex}] == 0 ➔ Bỏ qua, không đánh thức / không nạp Timeout.`
+      );
+      return;
+    }
+  }
+
   rxEcu.lastActivity = `Rx ${frame.canIdHex} từ ${frame.srcName} (CBV=${cbvHex})`;
 
   if (rxEcu.mode === "NM_MODE_BUS_SLEEP") {
@@ -146,6 +198,24 @@ function deliverFrameToEcu(rxEcu, frame) {
       rxEcu.timers.timeout = rxEcu.cfg.CanNmTimeoutTime;
     }
 
+    // Bus Load Reduction on Rx in Normal Operation (SWS_CanNm_00052 / SWS_CanNm_00069)
+    if (
+      rxEcu.commEnabled &&
+      !rxEcu.cfg.CanNmPassiveModeEnabled &&
+      rxEcu.cfg.CanNmBusLoadReductionEnabled &&
+      rxEcu.subState === "NM_STATE_NORMAL_OPERATION" &&
+      rxEcu.cfg.CanNmMsgReducedTime > 0
+    ) {
+      rxEcu.timers.msgCycle = rxEcu.cfg.CanNmMsgReducedTime;
+      addMultiTraceLog(
+        "API",
+        rxEcu.id,
+        `${rxEcu.name} BusLoadReduction`,
+        `Hoãn Tx: MsgCycleTimer = ${rxEcu.cfg.CanNmMsgReducedTime}ms`,
+        `[SWS_CanNm_00069] ${rxEcu.name} nhận NM PDU từ ${frame.srcName} ở Normal Operation ➔ nạp CanNmMsgReducedTime=${rxEcu.cfg.CanNmMsgReducedTime}ms.`
+      );
+    }
+
     if (
       frame.rmr &&
       rxEcu.cfg.CanNmNodeDetectionEnabled &&
@@ -185,6 +255,7 @@ function transmitMultiEcuFrame(ecu, reasonLabel) {
   ecu.lastActivity = `Tx ${canIdHex} [${hexArr[0]} ${hexArr[1]} ...]`;
 
   multiState.busSeq += 1;
+  const isPni = !!(ecu.cbv.pni || ecu.cfg.CanNmPnEnabled);
   const frame = {
     seq: multiState.busSeq,
     srcId: ecu.id,
@@ -196,7 +267,8 @@ function transmitMultiEcuFrame(ecu, reasonLabel) {
     cbvByte,
     awb: ecu.cbv.awb,
     rmr: ecu.cbv.rmr,
-    pni: ecu.cbv.pni,
+    pni: isPni,
+    pnBytes: isPni ? bytes.slice(2, 4) : [0, 0],
     timeMs: multiState.clockMs,
     reason: reasonLabel
   };
@@ -211,7 +283,7 @@ function transmitMultiEcuFrame(ecu, reasonLabel) {
     ecu.id,
     `${ecu.name} ➔ CAN Bus`,
     `CanIf_Transmit(ID=${canIdHex}, Data=[${hexArr.join(" ")}])`,
-    `${reasonLabel} | AWB=${ecu.cbv.awb ? 1 : 0}, RMR=${ecu.cbv.rmr ? 1 : 0} | Reset Timeout(${ecu.name})=${ecu.cfg.CanNmTimeoutTime}ms`
+    `${reasonLabel} | AWB=${ecu.cbv.awb ? 1 : 0}, RMR=${ecu.cbv.rmr ? 1 : 0}, PNI=${isPni ? 1 : 0} | Reset Timeout(${ecu.name})=${ecu.cfg.CanNmTimeoutTime}ms`
   );
 
   for (let i = 0; i < multiState.ecuCount; i++) {
@@ -404,6 +476,8 @@ function stepMultiClockTick(deltaMs, skipRender) {
   // Execute queued CAN Bus Transmissions in CAN ID arbitration order (lowest ID first) and broadcast to peers
   txDue.sort((a, b) => (a.cfg.CanNmBaseCanId + a.cfg.CanNmNodeId) - (b.cfg.CanNmBaseCanId + b.cfg.CanNmNodeId));
   txDue.forEach(ecu => {
+    // If an earlier frame in the same tick deferred this ECU via Bus Load Reduction, skip Tx
+    if (ecu.timers.msgCycle > 0) return;
     if (ecu.immBurstActive && ecu.burstLeft > 0) {
       const idxFrame = ecu.cfg.CanNmImmediateNmTransmissions - ecu.burstLeft + 1;
       ecu.burstLeft--;
@@ -486,9 +560,17 @@ function updateMultiEcuCfg(idx, key, val) {
   if (!ecu) return;
   if (typeof val === "boolean") {
     ecu.cfg[key] = val;
+  } else if (key === "CanNmPnFilterMaskHex") {
+    const cleaned = multiFormatHexBytes(multiParseHexBytes(val).slice(0, 2));
+    ecu.cfg[key] = cleaned || "00 00";
   } else {
     const parsed = parseInt(val, 10);
-    if (!isNaN(parsed)) ecu.cfg[key] = Math.max(key === "CanNmImmediateNmTransmissions" || key === "CanNmMsgCycleOffset" ? 0 : 100, parsed);
+    if (!isNaN(parsed)) {
+      const minVal = (key === "CanNmImmediateNmTransmissions" || key === "CanNmMsgCycleOffset")
+        ? 0
+        : (key === "CanNmMsgReducedTime" ? 50 : 100);
+      ecu.cfg[key] = Math.max(minVal, parsed);
+    }
   }
   renderMultiEcuView();
 }
@@ -597,6 +679,8 @@ function buildMultiEcuCardSkeleton(ecu, idx) {
         <div class="row wrap" style="gap:6px">
           <span class="panel-t" id="multiEcuTitle_${idx}" style="font-size:12px">${escapeHtml(ecu.name)} • ${escapeHtml(ecu.shortRole)}</span>
           <span class="badge xs" id="multiEcuNodeBadge_${idx}">Node 0x${ecu.cfg.CanNmNodeId.toString(16).toUpperCase()} | Tx 0x${(ecu.cfg.CanNmBaseCanId + ecu.cfg.CanNmNodeId).toString(16).toUpperCase()}</span>
+          <span class="badge xs sky hidden" id="multiFlagPn_${idx}">PN</span>
+          <span class="badge xs amb hidden" id="multiFlagBlr_${idx}">BLR</span>
           <span class="badge xs vio hidden" id="multiFlagPassive_${idx}">PASSIVE</span>
           <span class="badge xs err hidden" id="multiFlagTxBlocked_${idx}">TX BLOCKED</span>
         </div>
@@ -624,9 +708,15 @@ function buildMultiEcuCardSkeleton(ecu, idx) {
           <label>MsgCycleTime (ms)<input id="multiCfg_${idx}_CanNmMsgCycleTime" type="number" min="200" step="100" value="${ecu.cfg.CanNmMsgCycleTime}" onchange="updateMultiEcuCfg(${idx}, 'CanNmMsgCycleTime', this.value)"></label>
           <label>CycleOffset (ms)<input id="multiCfg_${idx}_CanNmMsgCycleOffset" type="number" min="0" step="50" value="${ecu.cfg.CanNmMsgCycleOffset}" onchange="updateMultiEcuCfg(${idx}, 'CanNmMsgCycleOffset', this.value)"></label>
           <label>Burst Frames<input id="multiCfg_${idx}_CanNmImmediateNmTransmissions" type="number" min="0" max="10" step="1" value="${ecu.cfg.CanNmImmediateNmTransmissions}" onchange="updateMultiEcuCfg(${idx}, 'CanNmImmediateNmTransmissions', this.value)"></label>
-          <label class="row" style="flex-direction:row; gap:5px; cursor:pointer"><input id="multiCfg_${idx}_CanNmPassiveModeEnabled" type="checkbox" ${ecu.cfg.CanNmPassiveModeEnabled ? "checked" : ""} onchange="updateMultiEcuCfg(${idx}, 'CanNmPassiveModeEnabled', this.checked)"> Passive Mode</label>
-          <label class="row" style="flex-direction:row; gap:5px; cursor:pointer"><input id="multiCfg_${idx}_CanNmImmediateRestartEnabled" type="checkbox" ${ecu.cfg.CanNmImmediateRestartEnabled ? "checked" : ""} onchange="updateMultiEcuCfg(${idx}, 'CanNmImmediateRestartEnabled', this.checked)"> Imm Restart</label>
-          <label class="row" style="flex-direction:row; gap:5px; cursor:pointer"><input id="multiCfg_${idx}_CanNmNodeDetectionEnabled" type="checkbox" ${ecu.cfg.CanNmNodeDetectionEnabled ? "checked" : ""} onchange="updateMultiEcuCfg(${idx}, 'CanNmNodeDetectionEnabled', this.checked)"> Node Detection</label>
+          <label title="SWS_CanNm_00069: Chu kỳ nạp lại khi nhận NM PDU từ node khác ở Normal Operation (khi bật Bus Load Reduction)">MsgReducedTime (ms)<input id="multiCfg_${idx}_CanNmMsgReducedTime" type="number" min="50" step="50" value="${ecu.cfg.CanNmMsgReducedTime}" onchange="updateMultiEcuCfg(${idx}, 'CanNmMsgReducedTime', this.value)"></label>
+          <label style="grid-column:span 2" title="Mặt nạ PNC FilterMask (2 Bytes Hex) dùng khi CanNmPnEnabled = TRUE">PnFilterMask (Hex)<input id="multiCfg_${idx}_CanNmPnFilterMaskHex" type="text" value="${escapeHtml(ecu.cfg.CanNmPnFilterMaskHex)}" placeholder="VD: 05 00" onchange="updateMultiEcuCfg(${idx}, 'CanNmPnFilterMaskHex', this.value)"></label>
+          <div class="multi-cfg-checks">
+            <label class="row" style="flex-direction:row; gap:5px; cursor:pointer" title="SWS_CanNm_00052: Bật thuật toán giảm tải đường truyền theo CanNmMsgReducedTime"><input id="multiCfg_${idx}_CanNmBusLoadReductionEnabled" type="checkbox" ${ecu.cfg.CanNmBusLoadReductionEnabled ? "checked" : ""} onchange="updateMultiEcuCfg(${idx}, 'CanNmBusLoadReductionEnabled', this.checked)"> Bus Load Red.</label>
+            <label class="row" style="flex-direction:row; gap:5px; cursor:pointer" title="SWS_CanNm_00409: Kích hoạt Partial Networking (bật Bit 6 PNI=1 & lọc PNC Mask)"><input id="multiCfg_${idx}_CanNmPnEnabled" type="checkbox" ${ecu.cfg.CanNmPnEnabled ? "checked" : ""} onchange="updateMultiEcuCfg(${idx}, 'CanNmPnEnabled', this.checked)"> CanNmPnEnabled</label>
+            <label class="row" style="flex-direction:row; gap:5px; cursor:pointer"><input id="multiCfg_${idx}_CanNmPassiveModeEnabled" type="checkbox" ${ecu.cfg.CanNmPassiveModeEnabled ? "checked" : ""} onchange="updateMultiEcuCfg(${idx}, 'CanNmPassiveModeEnabled', this.checked)"> Passive Mode</label>
+            <label class="row" style="flex-direction:row; gap:5px; cursor:pointer"><input id="multiCfg_${idx}_CanNmImmediateRestartEnabled" type="checkbox" ${ecu.cfg.CanNmImmediateRestartEnabled ? "checked" : ""} onchange="updateMultiEcuCfg(${idx}, 'CanNmImmediateRestartEnabled', this.checked)"> Imm Restart</label>
+            <label class="row" style="flex-direction:row; gap:5px; cursor:pointer"><input id="multiCfg_${idx}_CanNmNodeDetectionEnabled" type="checkbox" ${ecu.cfg.CanNmNodeDetectionEnabled ? "checked" : ""} onchange="updateMultiEcuCfg(${idx}, 'CanNmNodeDetectionEnabled', this.checked)"> Node Detection</label>
+          </div>
         </div>
 
         <!-- Identical Expanded State Machine Block as Main Tab -->
@@ -714,6 +804,8 @@ function updateMultiEcuCardDom(ecu, idx) {
   const isRss = isNet && ecu.subState === "NM_STATE_READY_SLEEP";
 
   setMultiTextIfChanged(`multiEcuNodeBadge_${idx}`, `Node 0x${ecu.cfg.CanNmNodeId.toString(16).toUpperCase()} | Tx ${canIdHex}`);
+  setMultiClassIfChanged(`multiFlagPn_${idx}`, `badge xs sky${ecu.cfg.CanNmPnEnabled ? "" : " hidden"}`);
+  setMultiClassIfChanged(`multiFlagBlr_${idx}`, `badge xs amb${ecu.cfg.CanNmBusLoadReductionEnabled ? "" : " hidden"}`);
   setMultiClassIfChanged(`multiFlagPassive_${idx}`, `badge xs vio${ecu.cfg.CanNmPassiveModeEnabled ? "" : " hidden"}`);
   setMultiClassIfChanged(`multiFlagTxBlocked_${idx}`, `badge xs err${!ecu.commEnabled ? "" : " hidden"}`);
   setMultiClassIfChanged(`multiEcuBadge_${idx}`, `badge ${stBadge.cls}`);
@@ -728,14 +820,14 @@ function updateMultiEcuCardDom(ecu, idx) {
 
   setMultiClassIfChanged(`multiCfgDrawer_${idx}`, `multi-cfg-drawer${ecu.cfgOpen ? "" : " hidden"}`);
   if (ecu.cfgOpen) {
-    ["CanNmRepeatMessageTime", "CanNmTimeoutTime", "CanNmWaitBusSleepTime", "CanNmMsgCycleTime", "CanNmMsgCycleOffset", "CanNmImmediateNmTransmissions"].forEach(k => {
+    ["CanNmRepeatMessageTime", "CanNmTimeoutTime", "CanNmWaitBusSleepTime", "CanNmMsgCycleTime", "CanNmMsgCycleOffset", "CanNmImmediateNmTransmissions", "CanNmMsgReducedTime", "CanNmPnFilterMaskHex"].forEach(k => {
       const inp = document.getElementById(`multiCfg_${idx}_${k}`);
       if (inp && document.activeElement !== inp) {
         const nextVal = String(ecu.cfg[k]);
         if (inp.value !== nextVal) inp.value = nextVal;
       }
     });
-    ["CanNmPassiveModeEnabled", "CanNmImmediateRestartEnabled", "CanNmNodeDetectionEnabled"].forEach(k => {
+    ["CanNmBusLoadReductionEnabled", "CanNmPnEnabled", "CanNmPassiveModeEnabled", "CanNmImmediateRestartEnabled", "CanNmNodeDetectionEnabled"].forEach(k => {
       const chk = document.getElementById(`multiCfg_${idx}_${k}`);
       if (chk && chk.checked !== !!ecu.cfg[k]) chk.checked = !!ecu.cfg[k];
     });
@@ -753,18 +845,24 @@ function updateMultiEcuCardDom(ecu, idx) {
   updateMultiTimerBoxDom(idx, "repeat", "RepeatMsgTimer", ecu.timers.repeatMsg, ecu.cfg.CanNmRepeatMessageTime, "#fbbf24");
   updateMultiTimerBoxDom(idx, "timeout", "NM-TimeoutTimer", ecu.timers.timeout, ecu.cfg.CanNmTimeoutTime, "#38bdf8");
   updateMultiTimerBoxDom(idx, "wait", "WaitBusSleepTimer", ecu.timers.waitBusSleep, ecu.cfg.CanNmWaitBusSleepTime, "#f87171");
+  const cycleLbl = ecu.immBurstActive
+    ? `Burst Tx (${ecu.burstLeft} left)`
+    : (ecu.cfg.CanNmBusLoadReductionEnabled && isNos ? `MsgCycle (Red ${ecu.cfg.CanNmMsgReducedTime}ms)` : "MsgCycleTimer");
+  const cycleMax = ecu.immBurstActive
+    ? Math.max(100, ecu.cfg.CanNmImmediateNmCycleTime)
+    : Math.max(ecu.cfg.CanNmMsgCycleTime, ecu.cfg.CanNmBusLoadReductionEnabled ? ecu.cfg.CanNmMsgReducedTime : 0);
   updateMultiTimerBoxDom(
     idx,
     "cycle",
-    ecu.immBurstActive ? `Burst Tx (${ecu.burstLeft} left)` : "MsgCycleTimer",
+    cycleLbl,
     ecu.timers.msgCycle,
-    ecu.immBurstActive ? Math.max(100, ecu.cfg.CanNmImmediateNmCycleTime) : ecu.cfg.CanNmMsgCycleTime,
+    cycleMax,
     ecu.immBurstActive ? "#c084fc" : "#34d399"
   );
 
   setMultiTextIfChanged(`multiMetaWake_${idx}`, ecu.wakeupSource);
   const cbvSpan = document.getElementById(`multiMetaCbv_${idx}`);
-  const cbvHtml = `AWB=<b>${ecu.cbv.awb ? 1 : 0}</b> RMR=<b>${ecu.cbv.rmr ? 1 : 0}</b>`;
+  const cbvHtml = `AWB=<b>${ecu.cbv.awb ? 1 : 0}</b> RMR=<b>${ecu.cbv.rmr ? 1 : 0}</b>${ecu.cfg.CanNmPnEnabled ? " PNI=<b>1</b>" : ""}`;
   if (cbvSpan && cbvSpan.innerHTML !== cbvHtml) cbvSpan.innerHTML = cbvHtml;
   setMultiTextIfChanged(`multiMetaAct_${idx}`, ecu.lastActivity);
 }
@@ -872,7 +970,7 @@ function formatMultiBusFrameHtml(fr, isLatest, ecuCount) {
       <div class="mf-foot">
         <span class="mf-reason">${escapeHtml(fr.reason)}</span>
         <span class="row" style="gap:5px">
-          <span class="mf-cbv">CBV=${cbvHex} (AWB=${fr.awb ? 1 : 0}, RMR=${fr.rmr ? 1 : 0})</span>
+          <span class="mf-cbv">CBV=${cbvHex} (AWB=${fr.awb ? 1 : 0}, RMR=${fr.rmr ? 1 : 0}${fr.pni ? ", PNI=1" : ""})</span>
           ${isLatest ? '<span class="mf-new">MỚI NHẤT</span>' : ""}
         </span>
       </div>

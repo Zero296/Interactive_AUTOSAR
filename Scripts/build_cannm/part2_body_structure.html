@@ -50,7 +50,7 @@
         <!-- Scenario Dropdown & Stepper Controls -->
         <div class="row wrap" style="flex:1">
           <span class="lbl">Kịch Bản:</span>
-          <select id="selScenario" onchange="loadScenario(parseInt(this.value))" style="max-width:380px; font-weight:700">
+          <select id="selScenario" onchange="loadScenario(parseInt(this.value))" style="max-width:clamp(200px, 21vw, 360px); font-weight:700">
             <optgroup label="Nhóm 1: Khởi Động & Chu Trình Ngủ 4 Pha">
               <option value="1">S1: Active Wakeup (AWB=1, Burst Tx & Normal Operation)</option>
               <option value="2">S2: Passive Startup (AWB=0, MsgCycleOffset & Ready Sleep)</option>
@@ -94,9 +94,9 @@
           </div>
 
           <!-- CanNM State Badge -->
-          <div class="row" style="background:var(--panel2); border:1px solid var(--border); border-radius:8px; padding:3px 8px">
+          <div class="row hdr-state-box">
             <span class="muted small">Trạng thái CanNM:</span>
-            <span class="badge ok" id="lblHeaderStateBadge" style="font-size:11px">BUS-SLEEP MODE</span>
+            <span class="badge ok" id="lblHeaderStateBadge">BUS-SLEEP MODE</span>
           </div>
         </div>
       </div>
@@ -141,13 +141,14 @@
             <div class="row wrap" style="gap:6px; font-size:11px; margin-bottom:6px">
               <label class="row" style="cursor:pointer"><input type="checkbox" id="simRxRmr"> <span>RMR=1</span></label>
               <label class="row" style="cursor:pointer"><input type="checkbox" id="simRxAwb" checked> <span>AWB=1</span></label>
-              <label class="row" style="cursor:pointer"><input type="checkbox" id="simRxPni"> <span>PNI=1</span></label>
+              <label class="row" style="cursor:pointer"><input type="checkbox" id="simRxPni" onchange="if(typeof renderQuickRxPnHint==='function')renderQuickRxPnHint()"> <span>PNI=1</span></label>
               <label class="row" style="cursor:pointer"><input type="checkbox" id="simRxCsr"> <span>CSR=1</span></label>
             </div>
             <div class="row" style="gap:5px; margin-bottom:6px">
               <span class="muted small">PNI Bytes (Hex):</span>
-              <input type="text" id="simRxPniHex" value="05 00" style="padding:2px 6px; font-size:11px" placeholder="VD: 05 00 (PNC #16,#18)">
+              <input type="text" id="simRxPniHex" value="05 00" oninput="if(typeof renderQuickRxPnHint==='function')renderQuickRxPnHint()" onchange="if(typeof renderQuickRxPnHint==='function')renderQuickRxPnHint()" style="padding:2px 6px; font-size:11px" placeholder="VD: 05 00 (PNC #16,#18)">
             </div>
+            <div id="simRxPnHint" class="pn-rx-hint hidden"></div>
             <button class="btn indigo sm w100" onclick="apiSimulatedRxIndication()" title="Bắn CanIf_RxIndication() từ Remote Node #2 vào CanNM">
               🚀 Bắn CanNm_RxIndication()
             </button>

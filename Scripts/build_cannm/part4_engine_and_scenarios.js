@@ -273,6 +273,88 @@ function getEngineByteValue() {
   return val & 0xFF;
 }
 
+function parseHexBytes(hexStr) {
+  return String(hexStr || "")
+    .trim()
+    .split(/[\s,]+/)
+    .filter(Boolean)
+    .map(h => {
+      const parsed = parseInt(h, 16);
+      return isNaN(parsed) ? 0 : (parsed & 0xFF);
+    });
+}
+
+function formatHexBytes(arr) {
+  return (arr || []).map(b => (b & 0xFF).toString(16).toUpperCase().padStart(2, "0")).join(" ");
+}
+
+function evaluatePnFilter(rxPni, rxPniBytes) {
+  if (!ecucConfig.CanNmPnEnabled) {
+    return { active: false, accepted: true, matched: true, reason: "PN_DISABLED" };
+  }
+
+  const len = Math.max(1, Number(ecucConfig.CanNmPnInfoLength) || 1);
+  const localMask = parseHexBytes(ecucConfig.CanNmPnFilterMaskHex);
+  const rxPncMask = [];
+  const filterMask = [];
+  const andResult = [];
+  let matched = false;
+
+  for (let i = 0; i < len; i++) {
+    const rxB = (i < rxPniBytes.length) ? (rxPniBytes[i] & 0xFF) : 0;
+    const mB = (i < localMask.length) ? (localMask[i] & 0xFF) : 0;
+    const andB = rxB & mB;
+    rxPncMask.push(rxB);
+    filterMask.push(mB);
+    andResult.push(andB);
+    if (andB !== 0) matched = true;
+  }
+
+  const inBusSleep = (simState.mode === "NM_MODE_BUS_SLEEP");
+  // In Bus-Sleep with CanNmPnEnabled=TRUE, wake-up requires PNI=1 AND (RxPncMask & FilterMask) != 0
+  if (!rxPni) {
+    const keepAwake = !inBusSleep && !!ecucConfig.CanNmAllNmMessagesKeepAwake;
+    return {
+      active: true,
+      accepted: keepAwake,
+      matched: false,
+      pniZero: true,
+      inBusSleep,
+      rxPncMask,
+      filterMask,
+      andResult,
+      reason: keepAwake ? "KEEP_AWAKE_PNI_ZERO" : "IGNORED_PNI_ZERO"
+    };
+  }
+
+  if (matched) {
+    return {
+      active: true,
+      accepted: true,
+      matched: true,
+      pniZero: false,
+      inBusSleep,
+      rxPncMask,
+      filterMask,
+      andResult,
+      reason: "MATCHED"
+    };
+  }
+
+  const keepAwake = !inBusSleep && !!ecucConfig.CanNmAllNmMessagesKeepAwake;
+  return {
+    active: true,
+    accepted: keepAwake,
+    matched: false,
+    pniZero: false,
+    inBusSleep,
+    rxPncMask,
+    filterMask,
+    andResult,
+    reason: keepAwake ? "KEEP_AWAKE_UNMATCHED" : "IGNORED_UNMATCHED"
+  };
+}
+
 function getPduFrameBytes() {
   const bytes = [0, 0, 0, 0, 0, 0, 0, 0];
   const nid = ecucConfig.CanNmNodeId & 0xFF;
@@ -294,7 +376,7 @@ function getPduFrameBytes() {
 
   // Handle PN bytes if enabled
   if (ecucConfig.CanNmPnEnabled) {
-    const maskParts = ecucConfig.CanNmPnFilterMaskHex.split(/[\s,]+/).map(h => parseInt(h, 16) || 0);
+    const maskParts = parseHexBytes(ecucConfig.CanNmPnFilterMaskHex);
     for (let i = 0; i < ecucConfig.CanNmPnInfoLength; i++) {
       const idx = ecucConfig.CanNmPnInfoOffset + i;
       if (idx < 8) {
@@ -305,7 +387,7 @@ function getPduFrameBytes() {
   }
 
   // Fill remaining bytes with User Data
-  const userHexArr = ecucConfig.UserDataBytesHex.split(/[\s,]+/).map(h => parseInt(h, 16) || 0);
+  const userHexArr = parseHexBytes(ecucConfig.UserDataBytesHex);
   let uIdx = 0;
   for (let i = 0; i < 8; i++) {
     if (!assigned[i]) {
@@ -481,12 +563,12 @@ function apiSimulatedRxIndication() {
   const rxPni = document.getElementById("simRxPni")?.checked || false;
   const rxCsr = document.getElementById("simRxCsr")?.checked || false;
   const rxPniHexStr = (document.getElementById("simRxPniHex")?.value || "05 00").trim();
-  const rxPniBytes = rxPniHexStr.split(/[\s,]+/).map(h => parseInt(h, 16) || 0);
+  const rxPniBytes = parseHexBytes(rxPniHexStr);
 
   let rxCbv = 0;
   if (rxRmr) rxCbv |= 0x01;
   if (rxCsr) rxCbv |= 0x08;
-  if (rxAwb) rxAwb ? (rxCbv |= 0x10) : 0;
+  if (rxAwb) rxCbv |= 0x10;
   if (rxPni) rxCbv |= 0x40;
 
   const remoteNodeId = 0x2B; // ECU #2
@@ -498,40 +580,32 @@ function apiSimulatedRxIndication() {
 
   addTraceLog("BUS", "CanIf -> CanNm", rxPduStr, `Nhận khung NM từ Remote Node 0x2B (RMR=${rxRmr ? 1 : 0}, AWB=${rxAwb ? 1 : 0}, PNI=${rxPni ? 1 : 0}, CSR=${rxCsr ? 1 : 0})`);
 
-  // Check if ECU is in BUS-SLEEP: Runtime error CANNM_E_NET_START_IND
-  if (simState.mode === "NM_MODE_BUS_SLEEP") {
-    addTraceLog("DET", "CanNm", "CANNM_E_NET_START_IND (0x04)", "[SWS_CanNm_00336] Nhận gói tin NM bất ngờ khi đang ở Bus-Sleep Mode -> Báo Nm_NetworkStartIndication().");
-    addTraceLog("API", "CanNm -> Nm -> ComM", "ComM_Nm_NetworkStartIndication()", "ComM gọi Nm_PassiveStartUp() để đánh thức ECU.");
-    apiPassiveStartUp();
-    return;
-  }
+  // Evaluate Partial Networking Filter BEFORE wakeup / Bus-Sleep / Timer handling (SWS_CanNm_00409 / 00411 / 00503)
+  const pnEval = evaluatePnFilter(rxPni, rxPniBytes);
+  if (pnEval.active) {
+    const rxHex = formatHexBytes(pnEval.rxPncMask);
+    const maskHex = formatHexBytes(pnEval.filterMask);
+    const andHex = formatHexBytes(pnEval.andResult);
 
-  // Check Partial Networking Filter Algorithm (SWS_CanNm_00409)
-  if (ecucConfig.CanNmPnEnabled && rxPni) {
-    const localMask = ecucConfig.CanNmPnFilterMaskHex.split(/[\s,]+/).map(h => parseInt(h, 16) || 0);
-    let matched = false;
-    for (let i = 0; i < ecucConfig.CanNmPnInfoLength; i++) {
-      const rxByte = (i < rxPniBytes.length) ? rxPniBytes[i] : 0;
-      const maskByte = (i < localMask.length) ? localMask[i] : 0;
-      if ((rxByte & maskByte) !== 0) {
-        matched = true;
-        break;
-      }
-    }
-
-    if (matched) {
+    if (pnEval.matched) {
       simState.timers.pnReset = ecucConfig.CanNmPnResetTime;
-      simState.pnc.eira = (rxPniBytes[0] || 0) | ((rxPniBytes[1] || 0) << 8);
-      addTraceLog("PN", "CanNm Engine", "PN Filter Algorithm: MATCHED! (Khớp PNC Filter Mask)", `[SWS_CanNm_00409] Gói tin yêu cầu PNC có liên quan tới ECU này -> Reset PnResetTimer = ${ecucConfig.CanNmPnResetTime}ms và cập nhật EIRA = 0x${simState.pnc.eira.toString(16).toUpperCase().padStart(4, "0")}.`);
+      simState.pnc.eira = (pnEval.rxPncMask[0] || 0) | ((pnEval.rxPncMask[1] || 0) << 8);
+      addTraceLog("PN", "CanNm Engine", "PN Filter Algorithm: MATCHED! (Khớp PNC Filter Mask)", `[SWS_CanNm_00409] ([${rxHex}] & [${maskHex}] = [${andHex}] != 0) -> Chấp nhận gói tin, reset PnResetTimer = ${ecucConfig.CanNmPnResetTime}ms và cập nhật EIRA = 0x${simState.pnc.eira.toString(16).toUpperCase().padStart(4, "0")}.`);
       if (ecucConfig.CanNmPnEiraCalcEnabled) {
         addTraceLog("API", "CanNm -> PduR -> ComM", "PduR_CanNmRxIndication(PnEiraRxPduId, &EiraData)", "[SWS_CanNm_00431] Báo mảng EIRA cập nhật lên ComM.");
       }
+    } else if (!pnEval.accepted) {
+      const reasonTitle = pnEval.pniZero
+        ? "PN Filter Algorithm: IGNORED! (CBV PNI = 0)"
+        : "PN Filter Algorithm: IGNORED! (Không khớp PNC Filter Mask)";
+      const reasonDesc = pnEval.pniZero
+        ? `[SWS_CanNm_00411] CanNmPnEnabled = TRUE nhưng bản tin từ ECU #2 có PNI=0 -> BỘ LỌC PN BỎ QUA GÓI TIN NÀY${pnEval.inBusSleep ? " (ECU giữ nguyên Bus-Sleep Mode)" : ""}.`
+        : `[SWS_CanNm_00409] ([${rxHex}] & [${maskHex}] = [${andHex}] == 0) -> BỘ LỌC PN BỎ QUA GÓI TIN NÀY${pnEval.inBusSleep ? " (Không đánh thức ECU 1 khỏi Bus-Sleep Mode)" : ""}!`;
+      addTraceLog("PN", "CanNm Engine", reasonTitle, reasonDesc);
+      renderAll();
+      return;
     } else {
-      addTraceLog("PN", "CanNm Engine", "PN Filter Algorithm: IGNORED! (Không khớp PNC Filter Mask)", `Gói tin yêu cầu PNC=[${rxPniHexStr}] không thuộc mặt nạ [${ecucConfig.CanNmPnFilterMaskHex}] của ECU này -> BỘ LỌC PN BỎ QUA GÓI TIN NÀY!`);
-      if (!ecucConfig.CanNmAllNmMessagesKeepAwake) {
-        renderAll();
-        return; // Gói tin bị lọc bỏ hoàn toàn, không reset Timeout timer!
-      }
+      addTraceLog("PN", "CanNm Engine", "PN Filter Override: CanNmAllNmMessagesKeepAwake = TRUE", `[SWS_CanNm_00503] Gói tin (${pnEval.pniZero ? "PNI=0" : `[${rxHex}] & [${maskHex}] == 0`}) không khớp PNC nhưng CanNmAllNmMessagesKeepAwake=TRUE -> Tiếp tục xử lý giữ mạng.`);
     }
   }
 
@@ -542,6 +616,14 @@ function apiSimulatedRxIndication() {
     } else {
       addTraceLog("API", "CanNm -> Nm -> ComM", "Nm_CarWakeUpIndication(nmChannelHandle=0)", "[SWS_CanNm_00406] Phát hiện cờ CSR=1 -> Kích hoạt đánh thức toàn bộ kiến trúc điện trên xe!");
     }
+  }
+
+  // Check if ECU is in BUS-SLEEP: Runtime error CANNM_E_NET_START_IND + Wakeup
+  if (simState.mode === "NM_MODE_BUS_SLEEP") {
+    addTraceLog("DET", "CanNm", "CANNM_E_NET_START_IND (0x04)", "[SWS_CanNm_00336] Nhận gói tin NM hợp lệ khi đang ở Bus-Sleep Mode -> Báo Nm_NetworkStartIndication().");
+    addTraceLog("API", "CanNm -> Nm -> ComM", "ComM_Nm_NetworkStartIndication()", "ComM gọi Nm_PassiveStartUp() để đánh thức ECU.");
+    apiPassiveStartUp();
+    return;
   }
 
   // If in PREPARE_BUS_SLEEP: Wakeup to REPEAT_MESSAGE

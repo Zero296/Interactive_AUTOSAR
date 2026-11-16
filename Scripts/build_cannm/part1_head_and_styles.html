@@ -43,6 +43,13 @@
     .hdr-in { max-width: 1980px; margin: 0 auto; padding: 8px 14px; display: flex; flex-direction: column; gap: 7px; }
     .hdr-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
     .hdr-row2 { border-top: 1px solid var(--border); padding-top: 7px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+    .hdr-state-box {
+      background: var(--panel2); border: 1px solid var(--border); border-radius: 8px; padding: 3px 8px;
+      flex: 0 0 auto; white-space: nowrap;
+    }
+    #lblHeaderStateBadge {
+      font-size: 11px; width: 200px; min-width: 200px; justify-content: center; text-align: center; flex: 0 0 auto;
+    }
     .brand { display: flex; align-items: center; gap: 10px; }
     .logo {
       width: 40px; height: 40px; border-radius: 10px;
@@ -129,6 +136,16 @@
     .g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 7px; }
     .g3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0 6px; }
     .sub-t { font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); margin: 8px 0 5px; }
+    .pn-rx-hint {
+      font-size: 10.5px; line-height: 1.35; padding: 4px 6px; border-radius: 5px; margin-bottom: 6px;
+      border: 1px solid var(--border); background: var(--code); font-family: "JetBrains Mono", Consolas, monospace;
+    }
+    .pn-rx-hint.is-ok { color: #34d399; border-color: rgba(52, 211, 153, 0.35); }
+    .pn-rx-hint.is-warn { color: #fcd34d; border-color: rgba(251, 191, 36, 0.38); }
+    .pn-rx-hint.is-err { color: #f87171; border-color: rgba(248, 113, 113, 0.38); }
+    body.light .pn-rx-hint.is-ok { color: #047857; }
+    body.light .pn-rx-hint.is-warn { color: #92400e; }
+    body.light .pn-rx-hint.is-err { color: #b91c1c; }
 
     /* ===================== LAYOUT 3 COLUMNS ===================== */
     main {
@@ -444,7 +461,11 @@
       padding: 7px 9px; margin-bottom: 8px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px;
     }
     .multi-cfg-drawer label { font-size: 10px; color: var(--muted); display: flex; flex-direction: column; gap: 2px; font-weight: 600; }
-    .multi-cfg-drawer input[type=number] { padding: 3px 5px; font-size: 11px; }
+    .multi-cfg-drawer input[type=number], .multi-cfg-drawer input[type=text] { padding: 3px 5px; font-size: 11px; }
+    .multi-cfg-checks {
+      grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px 12px;
+      padding-top: 5px; border-top: 1px dashed var(--border);
+    }
     .multi-timers-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; margin-top: 8px; }
     .multi-bus-col { display: flex; flex-direction: column; min-width: 0; }
     .multi-bus-bridge {

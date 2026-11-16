@@ -722,6 +722,47 @@ function applyQuickRxState(q) {
   setChk("simRxPni", q.pni);
   setChk("simRxCsr", q.csr);
   setTxt("simRxPniHex", q.pniHex);
+  renderQuickRxPnHint();
+}
+
+function renderQuickRxPnHint() {
+  const hint = document.getElementById("simRxPnHint");
+  if (!hint) return;
+  if (!ecucConfig.CanNmPnEnabled) {
+    if (!hint.classList.contains("hidden")) hint.className = "pn-rx-hint hidden";
+    return;
+  }
+
+  const rxPni = !!document.getElementById("simRxPni")?.checked;
+  const rxPniHexStr = (document.getElementById("simRxPniHex")?.value || "05 00").trim();
+  const rxPniBytes = parseHexBytes(rxPniHexStr);
+  const pnEval = evaluatePnFilter(rxPni, rxPniBytes);
+  const rxHex = formatHexBytes(pnEval.rxPncMask);
+  const maskHex = formatHexBytes(pnEval.filterMask);
+  const key = `${pnEval.reason}|${pnEval.inBusSleep}|${rxHex}|${maskHex}`;
+  if (hint.classList.contains("hidden")) hint.classList.remove("hidden");
+  if (hint.dataset.hintKey === key) return;
+  hint.dataset.hintKey = key;
+
+  let tone = "is-err";
+  let msg = "";
+  if (pnEval.matched) {
+    tone = "is-ok";
+    msg = `✓ [${rxHex}] &amp; [${maskHex}] != 0 ➔ ${pnEval.inBusSleep ? "Đánh thức ECU 1" : "Khớp PNC (Giữ mạng)"}`;
+  } else if (pnEval.pniZero) {
+    tone = "is-warn";
+    msg = pnEval.accepted
+      ? "⚠ PNI=0 nhưng KeepAwake=TRUE ➔ Vẫn xử lý Rx"
+      : `⚠ PNI=0: Bật [PNI=1] để lọc [${rxHex}] &amp; [${maskHex}]`;
+  } else if (pnEval.accepted) {
+    tone = "is-warn";
+    msg = `⚠ [${rxHex}] &amp; [${maskHex}] == 0 nhưng KeepAwake=TRUE`;
+  } else {
+    tone = "is-err";
+    msg = `✕ [${rxHex}] &amp; [${maskHex}] == 0 ➔ ${pnEval.inBusSleep ? "Không đánh thức Bus-Sleep" : "Bị lọc bỏ"}`;
+  }
+  hint.className = `pn-rx-hint ${tone}`;
+  hint.innerHTML = msg;
 }
 
 function stopScenarioAutoPlay() {
@@ -1369,6 +1410,7 @@ function renderAll() {
 
   renderPduFrameGrid();
   render8BitRegisters();
+  renderQuickRxPnHint();
   renderTimers();
   renderStateMachine();
   renderSvgArchitecture();
