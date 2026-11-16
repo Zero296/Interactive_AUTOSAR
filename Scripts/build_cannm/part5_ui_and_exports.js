@@ -1,6 +1,6 @@
 /*************************************************************************
  * PART 5: UI RENDERING, SVG DIAGRAM, BIT REGISTERS, TIMERS & EXPORTS
- * Standard: AUTOSAR Classic R22-11 / R23-11 (SWS_CanNm, SWS_Nm, SWS_ComM)
+ * Standard: AUTOSAR Classic R25-11 (SWS_CanNm, SWS_Nm, SWS_ComM)
  *************************************************************************/
 
 let activeInspectorTab = 0;
@@ -28,37 +28,39 @@ function renderPduFrameGrid() {
   }
 
   const bytes = getPduFrameBytes();
+  const layout = getPduLayoutDescriptor();
   const hexArr = bytes.map(b => b.toString(16).toUpperCase().padStart(2, "0"));
 
   for (let i = 0; i < 8; i++) {
     let cardClass = "";
     let label = "User Data";
     let desc = "Ứng dụng COM";
+    const role = layout.roles[i];
 
-    if (i === 0 && ecucConfig.CanNmPduNidPosition === "BYTE_0") {
+    if (role === "SNI") {
       cardClass = "active-sni"; label = "SNI (NodeId)"; desc = `Node 0x${hexArr[i]}`;
-    } else if (i === 1 && ecucConfig.CanNmPduNidPosition === "BYTE_1") {
-      cardClass = "active-sni"; label = "SNI (NodeId)"; desc = `Node 0x${hexArr[i]}`;
-    }
-
-    if (i === 1 && ecucConfig.CanNmPduCbvPosition === "BYTE_1") {
+    } else if (role === "CBV") {
       cardClass = "active-cbv"; label = "CBV Byte"; desc = "Control Bit Vector";
-    } else if (i === 0 && ecucConfig.CanNmPduCbvPosition === "BYTE_0") {
-      cardClass = "active-cbv"; label = "CBV Byte"; desc = "Control Bit Vector";
-    }
-
-    if (ecucConfig.CanNmPnEnabled) {
-      if (i >= ecucConfig.CanNmPnInfoOffset && i < ecucConfig.CanNmPnInfoOffset + ecucConfig.CanNmPnInfoLength) {
-        cardClass = "active-pni"; label = `PNI Mask #${i - ecucConfig.CanNmPnInfoOffset}`; desc = "Partial Network";
+    } else if (role === "PN") {
+      cardClass = "active-pni"; label = `PNI Mask #${i - ecucConfig.CanNmPnInfoOffset}`; desc = "Partial Network (IRA Tx)";
+    } else if (role === "USER") {
+      cardClass = "active-usr";
+      if (ecucConfig.CanNmCarWakeUpRxEnabled && i === ecucConfig.CanNmCarWakeUpBytePosition) {
+        label = "User / CWU";
+        desc = `Ứng dụng COM + CWU b${ecucConfig.CanNmCarWakeUpBitPosition} [SWS_CanNm_00405]`;
       }
+    } else {
+      cardClass = "";
+      label = "Unused (0xFF)";
+      desc = !ecucConfig.CanNmUserDataEnabled
+        ? "UserData=OFF -> Pad 0xFF [SWS_CanNm_00025]"
+        : "Ngoài vùng User Data liên tiếp [SWS_CanNm_00501]";
     }
-
-    if (!cardClass) cardClass = "active-usr";
 
     const card = document.getElementById(`pduByteCard_${i}`);
     const valEl = document.getElementById(`pduByteVal_${i}`);
     const lblEl = document.getElementById(`pduByteLbl_${i}`);
-    const nextCls = `pdu-byte-card ${cardClass}`;
+    const nextCls = cardClass ? `pdu-byte-card ${cardClass}` : "pdu-byte-card";
     const nextTitle = `Byte ${i}: ${label} - Giá trị: 0x${hexArr[i]} (${desc})`;
     const nextVal = `0x${hexArr[i]}`;
     if (card) {
@@ -71,14 +73,15 @@ function renderPduFrameGrid() {
 
   const note = document.getElementById("lblPduLayoutNote");
   if (note) {
-    const nextNote = `NidPos: ${ecucConfig.CanNmPduNidPosition} | CbvPos: ${ecucConfig.CanNmPduCbvPosition} | Base: 0x${ecucConfig.CanNmBaseCanId.toString(16).toUpperCase()} | Node: 0x${ecucConfig.CanNmNodeId.toString(16).toUpperCase()}`;
+    const nidPosStr = ecucConfig.CanNmNodeIdEnabled ? ecucConfig.CanNmPduNidPosition : "OFF (NidDis)";
+    const nextNote = `NidPos: ${nidPosStr} | CbvPos: ${ecucConfig.CanNmPduCbvPosition} | Base: 0x${ecucConfig.CanNmBaseCanId.toString(16).toUpperCase()} | Node: 0x${ecucConfig.CanNmNodeId.toString(16).toUpperCase()}`;
     if (note.innerText !== nextNote) note.innerText = nextNote;
   }
 }
 
 // 2. RENDER DUAL 8-BIT INTERACTIVE REGISTERS (persistent clickable DOM boxes)
 function render8BitRegisters() {
-  // Render Thanh A: CBV Byte
+  // Render Thanh A: CBV Byte (R25-11 Table 7.2)
   const cbvRow = document.getElementById("bitRowCbv");
   if (cbvRow) {
     if (cbvRow.children.length !== 8) {
@@ -102,9 +105,9 @@ function render8BitRegisters() {
       const isSet = (cbvVal & bitMeta.mask) !== 0;
       let onClass = isSet ? "on" : "";
       if (isSet) {
-        if (i === 4) onClass += " ok";
-        else if (i === 0) onClass += " amb";
-        else if (i === 6) onClass += " vio";
+        if (i === 4 || i === 3) onClass += " ok";
+        else if (i === 0 || i === 1) onClass += " amb";
+        else if (i === 6 || i === 5) onClass += " vio";
       }
       const box = document.getElementById(`cbvBitBox_${i}`);
       const valEl = document.getElementById(`cbvBitVal_${i}`);
@@ -120,7 +123,7 @@ function render8BitRegisters() {
     if (cbvHex) cbvHex.innerText = "CBV: 0x" + cbvVal.toString(16).toUpperCase().padStart(2, "0");
     const cbvSum = document.getElementById("lblCbvSummary");
     if (cbvSum) {
-      cbvSum.innerText = `AWB=${simState.cbv.awb ? 1 : 0} | RMR=${simState.cbv.rmr ? 1 : 0} | PNI=${simState.cbv.pni || ecucConfig.CanNmPnEnabled ? 1 : 0} | CSR=${simState.cbv.csr ? 1 : 0}`;
+      cbvSum.innerText = `AWB=${simState.cbv.awb ? 1 : 0} | RMR=${simState.cbv.rmr ? 1 : 0} | PNI=${(simState.cbv.pni || ecucConfig.CanNmPnEnabled) ? 1 : 0} | CSR=${simState.cbv.csr ? 1 : 0} | PNSR=${simState.cbv.pnsr ? 1 : 0} | PNL=${simState.cbv.pnl ? 1 : 0}`;
     }
   }
 
@@ -166,11 +169,18 @@ function render8BitRegisters() {
 }
 
 function toggleCbvBit(bitIdx) {
+  if (bitIdx === 2 || bitIdx === 7) {
+    addTraceLog("WARN", "Inspector", `Bit ${bitIdx} (RES${bitIdx}) là Reserved theo Table 7.2 R25-11`, "Giá trị Reserved luôn giữ bằng 0 khi truyền.");
+    renderAll();
+    return;
+  }
   if (bitIdx === 0) simState.cbv.rmr = !simState.cbv.rmr;
+  if (bitIdx === 1) simState.cbv.pnsr = !simState.cbv.pnsr;
   if (bitIdx === 3) simState.cbv.csr = !simState.cbv.csr;
   if (bitIdx === 4) simState.cbv.awb = !simState.cbv.awb;
+  if (bitIdx === 5) simState.cbv.pnl = !simState.cbv.pnl;
   if (bitIdx === 6) simState.cbv.pni = !simState.cbv.pni;
-  addTraceLog("USER", "Inspector", `Click thay đổi Bit ${bitIdx} trong CBV Byte`, `Giá trị CBV mới: 0x${getCbvByteValue().toString(16).toUpperCase()}`);
+  addTraceLog("USER", "Inspector", `Click thay đổi Bit ${bitIdx} trong CBV Byte`, `Giá trị CBV mới: 0x${getCbvByteValue().toString(16).toUpperCase().padStart(2, "0")}`);
   renderAll();
 }
 
@@ -193,7 +203,7 @@ function renderTimers() {
     const barEl = document.getElementById(barId);
     if (!valEl || !barEl) return;
     valEl.innerText = `${cur} / ${max} ms`;
-    const pct = Math.min(100, Math.max(0, (cur / max) * 100));
+    const pct = max > 0 ? Math.min(100, Math.max(0, (cur / max) * 100)) : 0;
     barEl.style.width = pct + "%";
   };
 
@@ -208,34 +218,57 @@ function renderTimers() {
 
   // MsgCycleTimer
   const lblCycle = document.getElementById("lblMsgCycleType");
+  const isReduced =
+    ecucConfig.CanNmBusLoadReductionEnabled &&
+    simState.engine.busLoadReductionActive &&
+    simState.subState === "NM_STATE_NORMAL_OPERATION" &&
+    simState.engine.msgTxEnabled &&
+    !ecucConfig.CanNmPassiveModeEnabled;
   if (lblCycle) {
-    if (ecucConfig.CanNmBusLoadReductionEnabled && simState.subState === "NM_STATE_NORMAL_OPERATION") {
-      lblCycle.innerText = "MsgCycleTimer (Bus Load Reduced)";
+    if (isReduced) {
+      lblCycle.innerText = `MsgCycleTimer (Bus Load Reduced ${ecucConfig.CanNmMsgReducedTime}ms)`;
     } else {
       lblCycle.innerText = "MsgCycleTimer (Tx Period)";
     }
   }
-  setBar("valMsgCycleTimer", "barMsgCycleTimer", simState.timers.msgCycle, ecucConfig.CanNmMsgCycleTime);
+  setBar(
+    "valMsgCycleTimer",
+    "barMsgCycleTimer",
+    simState.timers.msgCycle,
+    isReduced ? ecucConfig.CanNmMsgReducedTime : ecucConfig.CanNmMsgCycleTime
+  );
 
-  // Extra Timer: Burst Tx or PN Reset Timer
+  // Extra Timer: MsgTimeoutTimer, Burst Tx, PN Reset Timer, or RemoteSleepTimer
   const lblExtra = document.getElementById("lblExtraTimerTitle");
   const valExtra = document.getElementById("valExtraTimer");
   const barExtra = document.getElementById("barExtraTimer");
   if (lblExtra && valExtra && barExtra) {
-    if (simState.engine.immBurstActive && simState.engine.burstLeft > 0) {
+    if (simState.engine.txPending && simState.timers.msgTimeout > 0) {
+      lblExtra.innerText = "MsgTimeoutTimer (Tx Pending)";
+      valExtra.innerText = `${simState.timers.msgTimeout} / ${ecucConfig.CanNmMsgTimeoutTime} ms`;
+      const pct = ecucConfig.CanNmMsgTimeoutTime > 0 ? Math.min(100, (simState.timers.msgTimeout / ecucConfig.CanNmMsgTimeoutTime) * 100) : 0;
+      barExtra.style.width = pct + "%";
+      barExtra.style.background = "#f87171";
+    } else if (simState.engine.immBurstActive && simState.engine.burstLeft > 0) {
       lblExtra.innerText = "Immediate Burst Tx";
       valExtra.innerText = `${simState.engine.burstLeft} / ${ecucConfig.CanNmImmediateNmTransmissions} Frames`;
-      const pct = (simState.engine.burstLeft / ecucConfig.CanNmImmediateNmTransmissions) * 100;
+      const pct = ecucConfig.CanNmImmediateNmTransmissions > 0 ? Math.min(100, (simState.engine.burstLeft / ecucConfig.CanNmImmediateNmTransmissions) * 100) : 0;
       barExtra.style.width = pct + "%";
       barExtra.style.background = "#c084fc";
     } else if (ecucConfig.CanNmPnEnabled) {
       lblExtra.innerText = "PN Reset Timer (ERA/EIRA)";
       valExtra.innerText = `${simState.timers.pnReset} / ${ecucConfig.CanNmPnResetTime} ms`;
-      const pct = (simState.timers.pnReset / ecucConfig.CanNmPnResetTime) * 100;
+      const pct = ecucConfig.CanNmPnResetTime > 0 ? Math.min(100, (simState.timers.pnReset / ecucConfig.CanNmPnResetTime) * 100) : 0;
       barExtra.style.width = pct + "%";
       barExtra.style.background = "#818cf8";
+    } else if (ecucConfig.CanNmRemoteSleepIndEnabled && simState.subState === "NM_STATE_NORMAL_OPERATION" && simState.engine.msgTxEnabled) {
+      lblExtra.innerText = "RemoteSleepTimer";
+      valExtra.innerText = `${simState.timers.remoteSleep} / ${ecucConfig.CanNmRemoteSleepIndTime} ms`;
+      const pct = ecucConfig.CanNmRemoteSleepIndTime > 0 ? Math.min(100, (simState.timers.remoteSleep / ecucConfig.CanNmRemoteSleepIndTime) * 100) : 0;
+      barExtra.style.width = pct + "%";
+      barExtra.style.background = "#38bdf8";
     } else {
-      lblExtra.innerText = "Bộ Đếm Phụ (Burst/PN)";
+      lblExtra.innerText = "Bộ Đếm Phụ (Burst/PN/MsgTO)";
       valExtra.innerText = "IDLE";
       barExtra.style.width = "0%";
     }
@@ -276,7 +309,18 @@ function renderStateMachine() {
   const vBus = document.getElementById("varLastBusActivity");
   if (vBus) vBus.innerText = simState.lastBusActivity;
   const vPnc = document.getElementById("varPncEira");
-  if (vPnc) vPnc.innerText = "0x" + simState.pnc.eira.toString(16).toUpperCase().padStart(4, "0");
+  if (vPnc) {
+    const eiraHex = "0x" + simState.pnc.eira.toString(16).toUpperCase().padStart(4, "0");
+    const eraHex = "0x" + simState.pnc.era.toString(16).toUpperCase().padStart(4, "0");
+    vPnc.innerText = ecucConfig.CanNmPnEraCalcEnabled ? `${eiraHex} / ${eraHex}` : `${eiraHex} / OFF`;
+  }
+  const vRs = document.getElementById("varRemoteSleep");
+  if (vRs) {
+    if (!ecucConfig.CanNmRemoteSleepIndEnabled) vRs.innerText = "DISABLED";
+    else if (simState.engine.remoteSleepDetected) vRs.innerText = "INDICATED (Remote Sleep)";
+    else if (simState.subState === "NM_STATE_NORMAL_OPERATION" && simState.timers.remoteSleep > 0) vRs.innerText = `Monitoring (${simState.timers.remoteSleep}ms)`;
+    else vRs.innerText = "FALSE (Active)";
+  }
   const vComM = document.getElementById("varComMMode");
   if (vComM) {
     vComM.innerText = simState.mode === "NM_MODE_NETWORK" ? "COMM_FULL_COMMUNICATION" : "COMM_NO_COMMUNICATION";
@@ -456,7 +500,7 @@ function renderInspector() {
       <div style="background:var(--code); border:1px solid var(--border); border-radius:8px; padding:10px; margin-bottom:8px">
         <div class="row" style="justify-content:space-between; margin-bottom:4px">
           <span class="mono" style="font-weight:700; color:#38bdf8">${step.api}</span>
-          <span class="badge ok">R22-11</span>
+          <span class="badge ok">R25-11</span>
         </div>
         <div class="mono small muted" style="margin-bottom:6px">${step.io}</div>
         <div style="font-size:12px; line-height:1.5; color:var(--text)">${step.desc}</div>
@@ -467,7 +511,7 @@ function renderInspector() {
         <table class="tbl">
           <tr><td>CanNM Mode</td><td class="mono" style="color:#38bdf8; font-weight:700">${simState.mode}</td></tr>
           <tr><td>Sub-State</td><td class="mono" style="color:#fbbf24; font-weight:700">${simState.subState}</td></tr>
-          <tr><td>CBV Byte</td><td class="mono">0x${cbvVal.toString(16).toUpperCase()} (AWB=${simState.cbv.awb ? 1 : 0}, RMR=${simState.cbv.rmr ? 1 : 0}, PNI=${simState.cbv.pni || ecucConfig.CanNmPnEnabled ? 1 : 0})</td></tr>
+          <tr><td>CBV Byte</td><td class="mono">0x${cbvVal.toString(16).toUpperCase().padStart(2, "0")} (AWB=${simState.cbv.awb ? 1 : 0}, RMR=${simState.cbv.rmr ? 1 : 0}, PNI=${(simState.cbv.pni || ecucConfig.CanNmPnEnabled) ? 1 : 0}, CSR=${simState.cbv.csr ? 1 : 0}, PNSR=${simState.cbv.pnsr ? 1 : 0}, PNL=${simState.cbv.pnl ? 1 : 0})</td></tr>
           <tr><td>NM-Timeout Timer</td><td class="mono">${simState.timers.timeout} / ${ecucConfig.CanNmTimeoutTime} ms</td></tr>
           <tr><td>RepeatMessageTimer</td><td class="mono">${simState.timers.repeatMsg} / ${ecucConfig.CanNmRepeatMessageTime} ms</td></tr>
         </table>
@@ -514,7 +558,7 @@ function renderInspector() {
     viewer.dataset.loaded = "1";
 
     viewer.innerText = `/* =========================================================================
- * AUTOSAR BSW Module: CanNm (SWS_CanNm Classic Platform R22-11)
+ * AUTOSAR BSW Module: CanNm (SWS_CanNm Classic Platform R25-11)
  * ========================================================================= */
 
 void CanNm_MainFunction(void)
@@ -533,11 +577,16 @@ void CanNm_MainFunction(void)
             CanNm_TimeoutTimer -= CANNM_MAIN_FUNCTION_PERIOD;
             if (CanNm_TimeoutTimer == 0) {
                 if (CanNm_SubState == NM_STATE_READY_SLEEP) {
-                    /* SWS_CanNm_00115: Transition to Prepare Bus-Sleep Mode */
+                    /* SWS_CanNm_00109: Transition Ready Sleep -> Prepare Bus-Sleep Mode */
                     CanNm_NetworkMode = NM_MODE_PREPARE_BUS_SLEEP;
-                    CanNm_CBV.AWB = 0; /* SWS_CanNm_00402: Clear AWB on exit */
+                    CanNm_CBV.AWB = 0; /* SWS_CanNm_00402: Clear AWB on exit from Network Mode */
+                    CanNm_MsgCycleTimer = 0;
                     CanNm_WaitBusSleepTimer = CANNM_WAIT_BUS_SLEEP_TIME;
                     Nm_PrepareBusSleepMode(CanNm_NetworkHandle);
+                } else {
+                    /* SWS_CanNm_00101 / 00117 / 00193 / 00194: Restart Timeout & DET */
+                    CanNm_TimeoutTimer = CANNM_TIMEOUT_TIME;
+                    Det_ReportRuntimeError(CANNM_MODULE_ID, 0, CANNM_SID_MAINFUNCTION, CANNM_E_NETWORK_TIMEOUT);
                 }
             }
         }
@@ -550,10 +599,12 @@ void CanNm_MainFunction(void)
             if (CanNm_RepeatMessageTimer == 0) {
                 CanNm_CBV.RMR = 0; /* SWS_CanNm_00107: Clear RMR */
                 if (CanNm_NetworkRequested) {
+                    /* Keep running MsgCycleTimer into Normal Operation (SWS_CanNm_00040) */
                     CanNm_SubState = NM_STATE_NORMAL_OPERATION;
-                    CanNm_MsgCycleTimer = CANNM_MSG_CYCLE_TIME;
                 } else {
+                    /* SWS_CanNm_00108 / 00051: Stop Tx & cancel MsgCycleTimer in Ready Sleep */
                     CanNm_SubState = NM_STATE_READY_SLEEP;
+                    CanNm_MsgCycleTimer = 0;
                 }
             }
         }
@@ -564,7 +615,7 @@ void CanNm_MainFunction(void)
         if (CanNm_WaitBusSleepTimer > 0) {
             CanNm_WaitBusSleepTimer -= CANNM_MAIN_FUNCTION_PERIOD;
             if (CanNm_WaitBusSleepTimer == 0) {
-                /* SWS_CanNm_00117: Enter Bus-Sleep Mode */
+                /* SWS_CanNm_00248: Enter Bus-Sleep Mode */
                 CanNm_NetworkMode = NM_MODE_BUS_SLEEP;
                 Nm_BusSleepMode(CanNm_NetworkHandle);
             }
@@ -577,7 +628,9 @@ void CanNm_MainFunction(void)
             CanNm_MsgCycleTimer -= CANNM_MAIN_FUNCTION_PERIOD;
             if (CanNm_MsgCycleTimer == 0) {
                 CanNm_TransmitPdu();
-                CanNm_MsgCycleTimer = CANNM_MSG_CYCLE_TIME;
+                CanNm_MsgCycleTimer = (CanNm_BusLoadReductionActive && CanNm_SubState == NM_STATE_NORMAL_OPERATION)
+                    ? CANNM_MSG_REDUCED_TIME
+                    : CANNM_MSG_CYCLE_TIME;
             }
         }
     }
@@ -592,11 +645,16 @@ Std_ReturnType CanNm_NetworkRequest(NetworkHandleType nmChannelHandle)
     if (CanNm_NetworkMode == NM_MODE_BUS_SLEEP) {
         CanNm_NetworkMode = NM_MODE_NETWORK;
         CanNm_SubState = NM_STATE_REPEAT_MESSAGE;
-        CanNm_CBV.AWB = 1; /* SWS_CanNm_00401: Set Active Wakeup Bit */
+        if (CANNM_ACTIVE_WAKEUP_BIT_ENABLED) CanNm_CBV.AWB = 1; /* SWS_CanNm_00401 */
         CanNm_RepeatMessageTimer = CANNM_REPEAT_MESSAGE_TIME;
         CanNm_TimeoutTimer = CANNM_TIMEOUT_TIME;
         Nm_NetworkMode(nmChannelHandle);
-        CanNm_TriggerImmediateBurstTx();
+        CanNm_TriggerImmediateBurstOrOffsetTx();
+    } else if (CanNm_NetworkMode == NM_MODE_NETWORK && CanNm_SubState == NM_STATE_READY_SLEEP) {
+        /* SWS_CanNm_00110 / SWS_CanNm_00006: Ready Sleep -> Normal Op + immediate Tx */
+        CanNm_SubState = NM_STATE_NORMAL_OPERATION;
+        CanNm_TransmitPdu();
+        CanNm_MsgCycleTimer = CANNM_MSG_CYCLE_TIME;
     }
     return E_OK;
 }`;
@@ -697,18 +755,28 @@ function resetQuickRxInputs() {
   const setChk = (id, v) => { const el = document.getElementById(id); if (el) el.checked = v; };
   const setTxt = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
   setChk("simRxRmr", false);
-  setChk("simRxAwb", true);
-  setChk("simRxPni", false);
+  setChk("simRxPnsr", false);
   setChk("simRxCsr", false);
+  setChk("simRxAwb", true);
+  setChk("simRxPnl", false);
+  setChk("simRxPni", false);
+  setChk("simRxCwu", false);
+  setChk("simAutoPassiveOnRx", false);
+  setChk("simTxConfirmFail", false);
   setTxt("simRxPniHex", "05 00");
 }
 
 function getQuickRxState() {
   return {
     rmr: !!document.getElementById("simRxRmr")?.checked,
-    awb: !!document.getElementById("simRxAwb")?.checked,
-    pni: !!document.getElementById("simRxPni")?.checked,
+    pnsr: !!document.getElementById("simRxPnsr")?.checked,
     csr: !!document.getElementById("simRxCsr")?.checked,
+    awb: !!document.getElementById("simRxAwb")?.checked,
+    pnl: !!document.getElementById("simRxPnl")?.checked,
+    pni: !!document.getElementById("simRxPni")?.checked,
+    cwu: !!document.getElementById("simRxCwu")?.checked,
+    autoPassive: !!document.getElementById("simAutoPassiveOnRx")?.checked,
+    txFail: !!document.getElementById("simTxConfirmFail")?.checked,
     pniHex: document.getElementById("simRxPniHex")?.value ?? "05 00"
   };
 }
@@ -718,9 +786,14 @@ function applyQuickRxState(q) {
   const setChk = (id, v) => { const el = document.getElementById(id); if (el) el.checked = !!v; };
   const setTxt = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
   setChk("simRxRmr", q.rmr);
-  setChk("simRxAwb", q.awb);
-  setChk("simRxPni", q.pni);
+  setChk("simRxPnsr", q.pnsr);
   setChk("simRxCsr", q.csr);
+  setChk("simRxAwb", q.awb);
+  setChk("simRxPnl", q.pnl);
+  setChk("simRxPni", q.pni);
+  setChk("simRxCwu", q.cwu);
+  setChk("simAutoPassiveOnRx", q.autoPassive);
+  setChk("simTxConfirmFail", q.txFail);
   setTxt("simRxPniHex", q.pniHex);
   renderQuickRxPnHint();
 }
@@ -748,7 +821,7 @@ function renderQuickRxPnHint() {
   let msg = "";
   if (pnEval.matched) {
     tone = "is-ok";
-    msg = `✓ [${rxHex}] &amp; [${maskHex}] != 0 ➔ ${pnEval.inBusSleep ? "Đánh thức ECU 1" : "Khớp PNC (Giữ mạng)"}`;
+    msg = `✓ [${rxHex}] &amp; [${maskHex}] != 0 ➔ ${pnEval.inBusSleep ? "Hợp lệ (Báo Nm_NetworkStartIndication [SWS_CanNm_00127])" : "Khớp PNC (Giữ mạng & EIRA/ERA)"}`;
   } else if (pnEval.pniZero) {
     tone = "is-warn";
     msg = pnEval.accepted
@@ -1188,7 +1261,7 @@ function initTooltipHandlers() {
 // 11. CODE EXPORTERS (ARXML, CanNm_Cfg.h, CanNm_Lcfg.c, JSON)
 function generateARXML() {
   return `<?xml version="1.0" encoding="UTF-8"?>
-<!-- AUTOSAR CanNM Configuration ARXML Generated by CanNM Workbench v3.0 -->
+<!-- AUTOSAR CanNM Configuration ARXML Generated by CanNM Workbench (AUTOSAR CP R25-11) -->
 <AUTOSAR xmlns="http://autosar.org/schema/r4.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <AR-PACKAGES>
     <AR-PACKAGE>
@@ -1202,12 +1275,36 @@ function generateARXML() {
               <SHORT-NAME>CanNmGlobalConfig</SHORT-NAME>
               <PARAMETER-VALUES>
                 <ECUC-NUMERICAL-PARAM-VALUE>
-                  <DEFINITION-REF DEST="ECUC-BOOLEAN-PARAM-DEF">/CanNm/CanNmDevErrorDetect</DEFINITION-REF>
+                  <DEFINITION-REF DEST="ECUC-BOOLEAN-PARAM-DEF">/AUTOSAR/EcucDefs/CanNm/CanNmGlobalConfig/CanNmDevErrorDetect</DEFINITION-REF>
                   <VALUE>${ecucConfig.CanNmDevErrorDetect ? "true" : "false"}</VALUE>
                 </ECUC-NUMERICAL-PARAM-VALUE>
                 <ECUC-NUMERICAL-PARAM-VALUE>
-                  <DEFINITION-REF DEST="ECUC-BOOLEAN-PARAM-DEF">/CanNm/CanNmPassiveModeEnabled</DEFINITION-REF>
+                  <DEFINITION-REF DEST="ECUC-BOOLEAN-PARAM-DEF">/AUTOSAR/EcucDefs/CanNm/CanNmGlobalConfig/CanNmPassiveModeEnabled</DEFINITION-REF>
                   <VALUE>${ecucConfig.CanNmPassiveModeEnabled ? "true" : "false"}</VALUE>
+                </ECUC-NUMERICAL-PARAM-VALUE>
+                <ECUC-NUMERICAL-PARAM-VALUE>
+                  <DEFINITION-REF DEST="ECUC-BOOLEAN-PARAM-DEF">/AUTOSAR/EcucDefs/CanNm/CanNmGlobalConfig/CanNmBusLoadReductionEnabled</DEFINITION-REF>
+                  <VALUE>${ecucConfig.CanNmBusLoadReductionEnabled ? "true" : "false"}</VALUE>
+                </ECUC-NUMERICAL-PARAM-VALUE>
+                <ECUC-NUMERICAL-PARAM-VALUE>
+                  <DEFINITION-REF DEST="ECUC-BOOLEAN-PARAM-DEF">/AUTOSAR/EcucDefs/CanNm/CanNmGlobalConfig/CanNmImmediateTxconfEnabled</DEFINITION-REF>
+                  <VALUE>${ecucConfig.CanNmImmediateTxconfEnabled ? "true" : "false"}</VALUE>
+                </ECUC-NUMERICAL-PARAM-VALUE>
+                <ECUC-NUMERICAL-PARAM-VALUE>
+                  <DEFINITION-REF DEST="ECUC-BOOLEAN-PARAM-DEF">/AUTOSAR/EcucDefs/CanNm/CanNmGlobalConfig/CanNmCoordinatorSyncSupport</DEFINITION-REF>
+                  <VALUE>${ecucConfig.CanNmCoordinatorSyncSupport ? "true" : "false"}</VALUE>
+                </ECUC-NUMERICAL-PARAM-VALUE>
+                <ECUC-NUMERICAL-PARAM-VALUE>
+                  <DEFINITION-REF DEST="ECUC-BOOLEAN-PARAM-DEF">/AUTOSAR/EcucDefs/CanNm/CanNmGlobalConfig/CanNmImmediateRestartEnabled</DEFINITION-REF>
+                  <VALUE>${ecucConfig.CanNmImmediateRestartEnabled ? "true" : "false"}</VALUE>
+                </ECUC-NUMERICAL-PARAM-VALUE>
+                <ECUC-NUMERICAL-PARAM-VALUE>
+                  <DEFINITION-REF DEST="ECUC-FLOAT-PARAM-DEF">/AUTOSAR/EcucDefs/CanNm/CanNmGlobalConfig/CanNmMainFunctionPeriod</DEFINITION-REF>
+                  <VALUE>${ecucConfig.CanNmMainFunctionPeriod / 1000.0}</VALUE>
+                </ECUC-NUMERICAL-PARAM-VALUE>
+                <ECUC-NUMERICAL-PARAM-VALUE>
+                  <DEFINITION-REF DEST="ECUC-FLOAT-PARAM-DEF">/AUTOSAR/EcucDefs/CanNm/CanNmGlobalConfig/CanNmPnResetTime</DEFINITION-REF>
+                  <VALUE>${ecucConfig.CanNmPnResetTime / 1000.0}</VALUE>
                 </ECUC-NUMERICAL-PARAM-VALUE>
               </PARAMETER-VALUES>
             </ECUC-CONTAINER-VALUE>
@@ -1215,24 +1312,36 @@ function generateARXML() {
               <SHORT-NAME>CanNmChannelConfig_0</SHORT-NAME>
               <PARAMETER-VALUES>
                 <ECUC-NUMERICAL-PARAM-VALUE>
-                  <DEFINITION-REF DEST="ECUC-INTEGER-PARAM-DEF">/CanNm/CanNmNodeId</DEFINITION-REF>
+                  <DEFINITION-REF DEST="ECUC-INTEGER-PARAM-DEF">/AUTOSAR/EcucDefs/CanNm/CanNmGlobalConfig/CanNmChannelConfig/CanNmNodeId</DEFINITION-REF>
                   <VALUE>${ecucConfig.CanNmNodeId}</VALUE>
                 </ECUC-NUMERICAL-PARAM-VALUE>
                 <ECUC-NUMERICAL-PARAM-VALUE>
-                  <DEFINITION-REF DEST="ECUC-FLOAT-PARAM-DEF">/CanNm/CanNmMsgCycleTime</DEFINITION-REF>
+                  <DEFINITION-REF DEST="ECUC-FLOAT-PARAM-DEF">/AUTOSAR/EcucDefs/CanNm/CanNmGlobalConfig/CanNmChannelConfig/CanNmMsgCycleTime</DEFINITION-REF>
                   <VALUE>${ecucConfig.CanNmMsgCycleTime / 1000.0}</VALUE>
                 </ECUC-NUMERICAL-PARAM-VALUE>
                 <ECUC-NUMERICAL-PARAM-VALUE>
-                  <DEFINITION-REF DEST="ECUC-FLOAT-PARAM-DEF">/CanNm/CanNmTimeoutTime</DEFINITION-REF>
+                  <DEFINITION-REF DEST="ECUC-FLOAT-PARAM-DEF">/AUTOSAR/EcucDefs/CanNm/CanNmGlobalConfig/CanNmChannelConfig/CanNmMsgReducedTime</DEFINITION-REF>
+                  <VALUE>${ecucConfig.CanNmMsgReducedTime / 1000.0}</VALUE>
+                </ECUC-NUMERICAL-PARAM-VALUE>
+                <ECUC-NUMERICAL-PARAM-VALUE>
+                  <DEFINITION-REF DEST="ECUC-FLOAT-PARAM-DEF">/AUTOSAR/EcucDefs/CanNm/CanNmGlobalConfig/CanNmChannelConfig/CanNmMsgTimeoutTime</DEFINITION-REF>
+                  <VALUE>${ecucConfig.CanNmMsgTimeoutTime / 1000.0}</VALUE>
+                </ECUC-NUMERICAL-PARAM-VALUE>
+                <ECUC-NUMERICAL-PARAM-VALUE>
+                  <DEFINITION-REF DEST="ECUC-FLOAT-PARAM-DEF">/AUTOSAR/EcucDefs/CanNm/CanNmGlobalConfig/CanNmChannelConfig/CanNmTimeoutTime</DEFINITION-REF>
                   <VALUE>${ecucConfig.CanNmTimeoutTime / 1000.0}</VALUE>
                 </ECUC-NUMERICAL-PARAM-VALUE>
                 <ECUC-NUMERICAL-PARAM-VALUE>
-                  <DEFINITION-REF DEST="ECUC-FLOAT-PARAM-DEF">/CanNm/CanNmWaitBusSleepTime</DEFINITION-REF>
+                  <DEFINITION-REF DEST="ECUC-FLOAT-PARAM-DEF">/AUTOSAR/EcucDefs/CanNm/CanNmGlobalConfig/CanNmChannelConfig/CanNmWaitBusSleepTime</DEFINITION-REF>
                   <VALUE>${ecucConfig.CanNmWaitBusSleepTime / 1000.0}</VALUE>
                 </ECUC-NUMERICAL-PARAM-VALUE>
                 <ECUC-NUMERICAL-PARAM-VALUE>
-                  <DEFINITION-REF DEST="ECUC-BOOLEAN-PARAM-DEF">/CanNm/CanNmPnEnabled</DEFINITION-REF>
+                  <DEFINITION-REF DEST="ECUC-BOOLEAN-PARAM-DEF">/AUTOSAR/EcucDefs/CanNm/CanNmGlobalConfig/CanNmChannelConfig/CanNmPnEnabled</DEFINITION-REF>
                   <VALUE>${ecucConfig.CanNmPnEnabled ? "true" : "false"}</VALUE>
+                </ECUC-NUMERICAL-PARAM-VALUE>
+                <ECUC-NUMERICAL-PARAM-VALUE>
+                  <DEFINITION-REF DEST="ECUC-BOOLEAN-PARAM-DEF">/AUTOSAR/EcucDefs/CanNm/CanNmGlobalConfig/CanNmChannelConfig/CanNmSynchronizedPncShutdownEnabled</DEFINITION-REF>
+                  <VALUE>${ecucConfig.CanNmSynchronizedPncShutdownEnabled ? "true" : "false"}</VALUE>
                 </ECUC-NUMERICAL-PARAM-VALUE>
               </PARAMETER-VALUES>
             </ECUC-CONTAINER-VALUE>
@@ -1247,7 +1356,7 @@ function generateARXML() {
 function generateCanNmCfgH() {
   return `/* =========================================================================
  * File: CanNm_Cfg.h
- * Pre-compile Configuration Header for AUTOSAR CanNM R22-11
+ * Pre-compile Configuration Header for AUTOSAR CanNM R25-11
  * ========================================================================= */
 #ifndef CANNM_CFG_H
 #define CANNM_CFG_H
@@ -1256,11 +1365,20 @@ function generateCanNmCfgH() {
 #define CANNM_PASSIVE_MODE_ENABLED          (${ecucConfig.CanNmPassiveModeEnabled ? "STD_ON" : "STD_OFF"})
 #define CANNM_ACTIVE_WAKEUP_BIT_ENABLED     (${ecucConfig.CanNmActiveWakeupBitEnabled ? "STD_ON" : "STD_OFF"})
 #define CANNM_NODE_DETECTION_ENABLED        (${ecucConfig.CanNmNodeDetectionEnabled ? "STD_ON" : "STD_OFF"})
+#define CANNM_NODE_ID_ENABLED               (${ecucConfig.CanNmNodeIdEnabled ? "STD_ON" : "STD_OFF"})
+#define CANNM_IMMEDIATE_TXCONF_ENABLED      (${ecucConfig.CanNmImmediateTxconfEnabled ? "STD_ON" : "STD_OFF"})
+#define CANNM_COORDINATOR_SYNC_SUPPORT      (${ecucConfig.CanNmCoordinatorSyncSupport ? "STD_ON" : "STD_OFF"})
+#define CANNM_BUS_LOAD_REDUCTION_ENABLED    (${ecucConfig.CanNmBusLoadReductionEnabled ? "STD_ON" : "STD_OFF"})
 #define CANNM_PN_SUPPORTED                  (${ecucConfig.CanNmPnEnabled ? "STD_ON" : "STD_OFF"})
 #define CANNM_COM_USER_DATA_SUPPORT         (${ecucConfig.CanNmComUserDataSupport ? "STD_ON" : "STD_OFF"})
 #define CANNM_IMMEDIATE_RESTART_ENABLED     (${ecucConfig.CanNmImmediateRestartEnabled ? "STD_ON" : "STD_OFF"})
+#define CANNM_SYNCHRONIZED_PNC_SHUTDOWN     (${ecucConfig.CanNmSynchronizedPncShutdownEnabled ? "STD_ON" : "STD_OFF"})
+#define CANNM_PN_HANDLE_MULTI_NET_REQ       (${ecucConfig.CanNmPnHandleMultipleNetworkRequests ? "STD_ON" : "STD_OFF"})
 
 #define CANNM_MAIN_FUNCTION_PERIOD          (${ecucConfig.CanNmMainFunctionPeriod}U)
+#define CANNM_PN_RESET_TIME                 (${ecucConfig.CanNmPnResetTime}U)
+#define CANNM_PN_INFO_OFFSET                (${ecucConfig.CanNmPnInfoOffset}U)
+#define CANNM_PN_INFO_LENGTH                (${ecucConfig.CanNmPnInfoLength}U)
 #define CANNM_NUMBER_OF_CHANNELS            (1U)
 
 #endif /* CANNM_CFG_H */`;
@@ -1269,25 +1387,30 @@ function generateCanNmCfgH() {
 function generateCanNmLcfgC() {
   return `/* =========================================================================
  * File: CanNm_Lcfg.c
- * Link-time Configuration for AUTOSAR CanNM R22-11
+ * Link-time / Post-build Configuration for AUTOSAR CanNM R25-11
  * ========================================================================= */
 #include "CanNm.h"
 #include "CanNm_Cbk.h"
 
 const CanNm_ChannelConfigType CanNm_ChannelConfig[CANNM_NUMBER_OF_CHANNELS] = {
     {
-        .CanNmNodeId = 0x${ecucConfig.CanNmNodeId.toString(16).toUpperCase()}U,
+        .CanNmNodeId = 0x${ecucConfig.CanNmNodeId.toString(16).toUpperCase().padStart(2, "0")}U,
         .CanNmBaseCanId = 0x${ecucConfig.CanNmBaseCanId.toString(16).toUpperCase()}U,
+        .CanNmPduNidPosition = CANNM_PDU_${ecucConfig.CanNmPduNidPosition},
+        .CanNmPduCbvPosition = CANNM_PDU_${ecucConfig.CanNmPduCbvPosition},
         .CanNmMsgCycleTime = ${ecucConfig.CanNmMsgCycleTime}U,
+        .CanNmMsgReducedTime = ${ecucConfig.CanNmMsgReducedTime}U,
         .CanNmMsgCycleOffset = ${ecucConfig.CanNmMsgCycleOffset}U,
+        .CanNmMsgTimeoutTime = ${ecucConfig.CanNmMsgTimeoutTime}U,
         .CanNmRepeatMessageTime = ${ecucConfig.CanNmRepeatMessageTime}U,
         .CanNmTimeoutTime = ${ecucConfig.CanNmTimeoutTime}U,
         .CanNmWaitBusSleepTime = ${ecucConfig.CanNmWaitBusSleepTime}U,
         .CanNmImmediateNmTransmissions = ${ecucConfig.CanNmImmediateNmTransmissions}U,
         .CanNmImmediateNmCycleTime = ${ecucConfig.CanNmImmediateNmCycleTime}U,
         .CanNmPnEnabled = ${ecucConfig.CanNmPnEnabled ? "TRUE" : "FALSE"},
-        .CanNmPnInfoOffset = ${ecucConfig.CanNmPnInfoOffset}U,
-        .CanNmPnInfoLength = ${ecucConfig.CanNmPnInfoLength}U
+        .CanNmCarWakeUpRxEnabled = ${ecucConfig.CanNmCarWakeUpRxEnabled ? "TRUE" : "FALSE"},
+        .CanNmCarWakeUpBytePosition = ${ecucConfig.CanNmCarWakeUpBytePosition}U,
+        .CanNmCarWakeUpBitPosition = ${ecucConfig.CanNmCarWakeUpBitPosition}U
     }
 };
 

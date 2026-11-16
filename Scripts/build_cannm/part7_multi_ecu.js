@@ -1,6 +1,6 @@
 /*************************************************************************
  * PART 7: MULTI-ECU CAN NM BUS COMMUNICATION SIMULATOR
- * Decentralized Direct NM between 2+ ECUs on Virtual CAN Bus (R22-11)
+ * Decentralized Direct NM between 2+ ECUs on Virtual CAN Bus (R25-11)
  *************************************************************************/
 
 function createMultiEcuNode(id, name, shortRole, nodeId, offsetMs, roleClass) {
@@ -16,7 +16,7 @@ function createMultiEcuNode(id, name, shortRole, nodeId, offsetMs, roleClass) {
     immBurstActive: false,
     burstLeft: 0,
     cfgOpen: false,
-    cbv: { rmr: false, csr: false, awb: false, pni: false },
+    cbv: { rmr: false, pnsr: false, csr: false, awb: false, pnl: false, pni: false },
     timers: { repeatMsg: 0, timeout: 0, waitBusSleep: 0, msgCycle: 0 },
     wakeupSource: "None",
     lastActivity: "Chưa có",
@@ -33,11 +33,12 @@ function createMultiEcuNode(id, name, shortRole, nodeId, offsetMs, roleClass) {
       CanNmImmediateNmTransmissions: 3,
       CanNmImmediateNmCycleTime: 100,
       CanNmPassiveModeEnabled: false,
-      CanNmImmediateRestartEnabled: true,
+      CanNmImmediateRestartEnabled: false,
       CanNmNodeDetectionEnabled: true,
       CanNmBusLoadReductionEnabled: false,
       CanNmPnEnabled: false,
       CanNmPnFilterMaskHex: "05 00",
+      txPnMaskHex: "01 00",
       CanNmActiveWakeupBitEnabled: true
     }
   };
@@ -63,8 +64,10 @@ let multiState = {
 function multiGetCbvByte(ecu) {
   let val = 0;
   if (ecu.cbv.rmr) val |= (1 << 0);
+  if (ecu.cbv.pnsr) val |= (1 << 1);
   if (ecu.cbv.csr) val |= (1 << 3);
   if (ecu.cbv.awb) val |= (1 << 4);
+  if (ecu.cbv.pnl) val |= (1 << 5);
   if (ecu.cbv.pni || ecu.cfg.CanNmPnEnabled) val |= (1 << 6);
   return val & 0xFF;
 }
@@ -80,13 +83,15 @@ function multiFormatHexBytes(arr) {
 }
 
 function multiFormatPduBytes(ecu) {
+  // SWS_CanNm_00025: Pad unused User Data bytes with 0xFF
   const userBytes = multiParseHexBytes(ecu.userDataHex).slice(0, 6);
-  while (userBytes.length < 6) userBytes.push(0);
+  while (userBytes.length < 6) userBytes.push(0xFF);
   const payload = [...userBytes];
   if (ecu.cfg.CanNmPnEnabled) {
-    const pnMask = multiParseHexBytes(ecu.cfg.CanNmPnFilterMaskHex);
-    payload[0] = pnMask.length > 0 ? pnMask[0] : 0;
-    payload[1] = pnMask.length > 1 ? pnMask[1] : 0;
+    // SWS_CanNm_00500 / SWS_CanNm_00518: Tx PN vector uses IRA (txPnMaskHex when NetReq=TRUE, else 0x00), NOT Rx FilterMask
+    const txPn = ecu.netRequest ? multiParseHexBytes(ecu.cfg.txPnMaskHex) : [0, 0];
+    payload[0] = txPn.length > 0 ? (txPn[0] & 0xFF) : 0x00;
+    payload[1] = txPn.length > 1 ? (txPn[1] & 0xFF) : 0x00;
   }
   return [ecu.cfg.CanNmNodeId & 0xFF, multiGetCbvByte(ecu), ...payload];
 }
@@ -144,31 +149,32 @@ function deliverFrameToEcu(rxEcu, frame) {
 
   if (rxEcu.mode === "NM_MODE_BUS_SLEEP") {
     addMultiTraceLog(
-      "API",
+      "WARN",
       rxEcu.id,
       `${rxEcu.name} ⬅ CAN Bus`,
-      `Nm_NetworkStartIndication() (Nhận ${frame.canIdHex})`,
-      multiState.autoWakeupOnRx
-        ? `[SWS_CanNm_00127] ${rxEcu.name} ở BUS-SLEEP nhận gói NM từ ${frame.srcName} ➔ ComM tự động gọi PassiveStartUp().`
-        : `[SWS_CanNm_00336] ${rxEcu.name} ở BUS-SLEEP nhận gói NM bất ngờ (Auto PassiveStartUp đang TẮT).`
+      `CANNM_E_NET_START_IND (0x04) & Nm_NetworkStartIndication()`,
+      `[SWS_CanNm_00336 / SWS_CanNm_00127] ${rxEcu.name} nhận gói ${frame.canIdHex} từ ${frame.srcName} khi ở BUS-SLEEP (CanNm KHÔNG tự wakeup).${multiState.autoWakeupOnRx ? " Mô phỏng ComM phản hồi -> CanNm_PassiveStartUp()." : " Giữ nguyên BUS_SLEEP (Auto PassiveStartUp=OFF)."}`
     );
     if (multiState.autoWakeupOnRx) {
-      rxEcu.wakeupSource = `Rx từ ${frame.srcName}`;
+      rxEcu.wakeupSource = `Rx từ ${frame.srcName} (ComM PassiveStartUp)`;
       rxEcu.mode = "NM_MODE_NETWORK";
       rxEcu.subState = "NM_STATE_REPEAT_MESSAGE";
       rxEcu.cbv.awb = false;
       rxEcu.cbv.rmr = false;
+      rxEcu.cbv.pnsr = false;
       rxEcu.netRequest = false;
+      rxEcu.immBurstActive = false;
+      rxEcu.burstLeft = 0;
       rxEcu.timers.waitBusSleep = 0;
       rxEcu.timers.repeatMsg = rxEcu.cfg.CanNmRepeatMessageTime;
       rxEcu.timers.timeout = rxEcu.cfg.CanNmTimeoutTime;
-      rxEcu.timers.msgCycle = rxEcu.cfg.CanNmMsgCycleOffset;
+      rxEcu.timers.msgCycle = rxEcu.cfg.CanNmPassiveModeEnabled ? 0 : rxEcu.cfg.CanNmMsgCycleOffset;
       addMultiTraceLog(
         "STATE",
         rxEcu.id,
         `${rxEcu.name} State Machine`,
         `BUS_SLEEP ➔ NETWORK: REPEAT_MESSAGE (AWB=0)`,
-        `Đánh thức thụ động do ${frame.srcName}; Tx đầu tiên sau offset ${rxEcu.cfg.CanNmMsgCycleOffset}ms.`
+        `[SWS_CanNm_00128] ComM gọi CanNm_PassiveStartUp(); Tx đầu tiên sau MsgCycleOffset=${rxEcu.cfg.CanNmMsgCycleOffset}ms [PRS_Nm_00334].`
       );
     }
     return;
@@ -179,16 +185,19 @@ function deliverFrameToEcu(rxEcu, frame) {
     rxEcu.mode = "NM_MODE_NETWORK";
     rxEcu.subState = "NM_STATE_REPEAT_MESSAGE";
     rxEcu.cbv.awb = false;
+    rxEcu.cbv.rmr = false;
+    rxEcu.immBurstActive = false;
+    rxEcu.burstLeft = 0;
     rxEcu.timers.waitBusSleep = 0;
     rxEcu.timers.repeatMsg = rxEcu.cfg.CanNmRepeatMessageTime;
     rxEcu.timers.timeout = rxEcu.cfg.CanNmTimeoutTime;
-    rxEcu.timers.msgCycle = rxEcu.cfg.CanNmMsgCycleOffset;
+    rxEcu.timers.msgCycle = rxEcu.cfg.CanNmPassiveModeEnabled ? 0 : rxEcu.cfg.CanNmMsgCycleOffset;
     addMultiTraceLog(
       "STATE",
       rxEcu.id,
       `${rxEcu.name} State Machine`,
       `PREPARE_BUS_SLEEP ➔ REPEAT_MESSAGE (AWB=0)`,
-      `[SWS_CanNm_00124] ${rxEcu.name} nhận NM PDU từ ${frame.srcName} khi đang chuẩn bị ngủ ➔ quay lại Network Mode.`
+      `[SWS_CanNm_00124 / PRS_Nm_00334] ${rxEcu.name} nhận NM PDU từ ${frame.srcName} khi đang Prepare Bus-Sleep ➔ quay lại Network Mode (Offset=${rxEcu.cfg.CanNmMsgCycleOffset}ms).`
     );
     return;
   }
@@ -222,15 +231,21 @@ function deliverFrameToEcu(rxEcu, frame) {
       (rxEcu.subState === "NM_STATE_NORMAL_OPERATION" || rxEcu.subState === "NM_STATE_READY_SLEEP")
     ) {
       const prevSub = rxEcu.subState.replace("NM_STATE_", "");
+      const isFromRss = rxEcu.subState === "NM_STATE_READY_SLEEP";
+      const swsRmr = isFromRss ? "SWS_CanNm_00111" : "SWS_CanNm_00119";
       rxEcu.subState = "NM_STATE_REPEAT_MESSAGE";
+      rxEcu.immBurstActive = false;
+      rxEcu.burstLeft = 0;
       rxEcu.timers.repeatMsg = rxEcu.cfg.CanNmRepeatMessageTime;
-      rxEcu.timers.msgCycle = rxEcu.cfg.CanNmMsgCycleOffset;
+      if (rxEcu.commEnabled && !rxEcu.cfg.CanNmPassiveModeEnabled && (isFromRss || rxEcu.timers.msgCycle <= 0)) {
+        rxEcu.timers.msgCycle = rxEcu.cfg.CanNmMsgCycleOffset;
+      }
       addMultiTraceLog(
         "STATE",
         rxEcu.id,
         `${rxEcu.name} State Machine`,
         `${prevSub} ➔ REPEAT_MESSAGE (Nhận RMR=1 từ ${frame.srcName})`,
-        `[SWS_CanNm_00119] ${rxEcu.name} hưởng ứng yêu cầu điểm danh, báo Nm_RepeatMessageIndication() và nạp RepeatMsgTimer=${rxEcu.cfg.CanNmRepeatMessageTime}ms.`
+        `[${swsRmr} / SWS_CanNm_00100] ${rxEcu.name} hưởng ứng yêu cầu điểm danh, báo Nm_RepeatMessageIndication() và nạp RepeatMsgTimer=${rxEcu.cfg.CanNmRepeatMessageTime}ms.`
       );
     }
   }
@@ -298,6 +313,30 @@ function multiEcuAction(idx, actionType) {
   const ecu = multiState.ecus[idx];
   if (!ecu) return;
 
+  const triggerWakeupTx = (isPrepareRestart) => {
+    const immCnt = ecu.cfg.CanNmImmediateNmTransmissions;
+    if (isPrepareRestart && ecu.cfg.CanNmImmediateRestartEnabled && ecu.commEnabled) {
+      ecu.immBurstActive = false;
+      ecu.burstLeft = 0;
+      ecu.timers.msgCycle = ecu.cfg.CanNmMsgCycleTime;
+      transmitMultiEcuFrame(ecu, "Immediate Restart Tx [SWS_CanNm_00122]");
+    } else if (immCnt === 1 && ecu.commEnabled) {
+      ecu.immBurstActive = false;
+      ecu.burstLeft = 0;
+      ecu.timers.msgCycle = ecu.cfg.CanNmMsgCycleTime;
+      transmitMultiEcuFrame(ecu, "Immediate Burst Tx #1/1 [SWS_CanNm_00335]");
+    } else if (immCnt > 1 && ecu.commEnabled) {
+      ecu.immBurstActive = true;
+      ecu.burstLeft = immCnt - 1;
+      ecu.timers.msgCycle = ecu.cfg.CanNmImmediateNmCycleTime;
+      transmitMultiEcuFrame(ecu, `Burst Tx #1/${immCnt}`);
+    } else {
+      ecu.immBurstActive = false;
+      ecu.burstLeft = 0;
+      ecu.timers.msgCycle = ecu.cfg.CanNmMsgCycleOffset;
+    }
+  };
+
   if (actionType === "netReq") {
     if (ecu.cfg.CanNmPassiveModeEnabled) {
       addMultiTraceLog("WARN", ecu.id, ecu.name, "CanNm_NetworkRequest() -> E_NOT_OK", "[SWS_CanNm_00130] Passive Mode không hỗ trợ NetworkRequest.");
@@ -317,17 +356,7 @@ function multiEcuAction(idx, actionType) {
       ecu.timers.timeout = ecu.cfg.CanNmTimeoutTime;
 
       addMultiTraceLog("STATE", ecu.id, `${ecu.name} State Machine`, "BUS_SLEEP ➔ REPEAT_MESSAGE (AWB=" + (ecu.cbv.awb ? 1 : 0) + ")", `[SWS_CanNm_00129] ${ecu.name} Active Wakeup!`);
-
-      if (ecu.cfg.CanNmImmediateNmTransmissions > 0 && ecu.commEnabled) {
-        ecu.immBurstActive = true;
-        ecu.burstLeft = ecu.cfg.CanNmImmediateNmTransmissions - 1;
-        ecu.timers.msgCycle = ecu.cfg.CanNmImmediateNmCycleTime;
-        transmitMultiEcuFrame(ecu, `Burst Tx #1/${ecu.cfg.CanNmImmediateNmTransmissions}`);
-      } else {
-        ecu.immBurstActive = false;
-        ecu.burstLeft = 0;
-        ecu.timers.msgCycle = ecu.cfg.CanNmMsgCycleOffset;
-      }
+      triggerWakeupTx(false);
     } else if (ecu.mode === "NM_MODE_PREPARE_BUS_SLEEP") {
       ecu.mode = "NM_MODE_NETWORK";
       ecu.subState = "NM_STATE_REPEAT_MESSAGE";
@@ -336,71 +365,97 @@ function multiEcuAction(idx, actionType) {
       ecu.timers.repeatMsg = ecu.cfg.CanNmRepeatMessageTime;
       ecu.timers.timeout = ecu.cfg.CanNmTimeoutTime;
 
-      addMultiTraceLog("STATE", ecu.id, `${ecu.name} State Machine`, "PREPARE_BUS_SLEEP ➔ REPEAT_MESSAGE", `[SWS_CanNm_00123] ${ecu.name} đánh thức lại trước khi ngủ!`);
-
-      if (ecu.cfg.CanNmImmediateRestartEnabled && ecu.commEnabled) {
-        ecu.timers.msgCycle = ecu.cfg.CanNmMsgCycleTime;
-        transmitMultiEcuFrame(ecu, "Immediate Restart Tx");
-      } else {
-        ecu.timers.msgCycle = ecu.cfg.CanNmMsgCycleTime;
-      }
+      addMultiTraceLog("STATE", ecu.id, `${ecu.name} State Machine`, "PREPARE_BUS_SLEEP ➔ REPEAT_MESSAGE", `[SWS_CanNm_00123] ${ecu.name} đánh thức lại từ Prepare Bus-Sleep (MsgCycleOffset=${ecu.cfg.CanNmMsgCycleOffset}ms nếu !ImmRestart)!`);
+      triggerWakeupTx(true);
     } else if (ecu.mode === "NM_MODE_NETWORK") {
       if (ecu.subState === "NM_STATE_READY_SLEEP") {
         ecu.subState = "NM_STATE_NORMAL_OPERATION";
-        ecu.timers.msgCycle = ecu.cfg.CanNmMsgCycleTime;
-        addMultiTraceLog("STATE", ecu.id, `${ecu.name} State Machine`, "READY_SLEEP ➔ NORMAL_OPERATION", `[SWS_CanNm_00110] ${ecu.name} mở lại phát định kỳ MsgCycleTime=${ecu.cfg.CanNmMsgCycleTime}ms.`);
+        addMultiTraceLog("STATE", ecu.id, `${ecu.name} State Machine`, "READY_SLEEP ➔ NORMAL_OPERATION", `[SWS_CanNm_00110 / SWS_CanNm_00006] ${ecu.name} quay lại Normal Operation & phát ngay lập tức.`);
+        if (ecu.commEnabled) {
+          ecu.timers.msgCycle = ecu.cfg.CanNmMsgCycleTime;
+          transmitMultiEcuFrame(ecu, "Immediate Tx (Ready Sleep -> Normal Operation [SWS_CanNm_00006])");
+        } else {
+          ecu.timers.msgCycle = 0;
+        }
       }
     }
   } else if (actionType === "netRel") {
+    if (ecu.cfg.CanNmPassiveModeEnabled) {
+      addMultiTraceLog("WARN", ecu.id, ecu.name, "CanNm_NetworkRelease() -> E_NOT_OK", "[SWS_CanNm_00260 / SWS_CanNm_00130] Passive Mode không hỗ trợ NetworkRelease.");
+      renderMultiEcuView();
+      return;
+    }
     ecu.netRequest = false;
     addMultiTraceLog("API", ecu.id, `SWC ➔ ${ecu.name}`, "CanNm_NetworkRelease()", `[SWS_CanNm_00105] ${ecu.name} báo hết nhu cầu dùng mạng.`);
     if (ecu.mode === "NM_MODE_NETWORK" && ecu.subState === "NM_STATE_NORMAL_OPERATION") {
       ecu.subState = "NM_STATE_READY_SLEEP";
+      ecu.timers.msgCycle = 0; // SWS_CanNm_00108 / SWS_CanNm_00051
       ecu.immBurstActive = false;
       ecu.burstLeft = 0;
-      addMultiTraceLog("STATE", ecu.id, `${ecu.name} State Machine`, "NORMAL_OPERATION ➔ READY_SLEEP", `[SWS_CanNm_00118] ${ecu.name} ngưng phát Tx định kỳ, chỉ nghe bus chờ NM-Timeout.`);
+      addMultiTraceLog("STATE", ecu.id, `${ecu.name} State Machine`, "NORMAL_OPERATION ➔ READY_SLEEP", `[SWS_CanNm_00118 / SWS_CanNm_00108 / SWS_CanNm_00051] ${ecu.name} hủy MsgCycleTimer=0, ngưng phát Tx định kỳ và chờ NM-Timeout.`);
     }
   } else if (actionType === "passive") {
+    if (ecu.mode === "NM_MODE_NETWORK") {
+      addMultiTraceLog("WARN", ecu.id, ecu.name, "CanNm_PassiveStartUp() -> E_NOT_OK", `[SWS_CanNm_00147] ${ecu.name} đã ở NETWORK_MODE -> trả E_NOT_OK.`);
+      renderMultiEcuView();
+      return;
+    }
     ecu.wakeupSource = "Passive StartUp";
     addMultiTraceLog("API", ecu.id, `EcuM/ComM ➔ ${ecu.name}`, "CanNm_PassiveStartUp()", `[SWS_CanNm_00128] Đánh thức thụ động ${ecu.name}.`);
-    if (ecu.mode === "NM_MODE_BUS_SLEEP" || ecu.mode === "NM_MODE_PREPARE_BUS_SLEEP") {
-      const fromLbl = ecu.mode.replace("NM_MODE_", "");
-      ecu.mode = "NM_MODE_NETWORK";
-      ecu.subState = "NM_STATE_REPEAT_MESSAGE";
-      ecu.cbv.awb = false;
-      ecu.netRequest = false;
-      ecu.timers.waitBusSleep = 0;
-      ecu.timers.repeatMsg = ecu.cfg.CanNmRepeatMessageTime;
-      ecu.timers.timeout = ecu.cfg.CanNmTimeoutTime;
-      ecu.timers.msgCycle = ecu.cfg.CanNmMsgCycleOffset;
-      addMultiTraceLog("STATE", ecu.id, `${ecu.name} State Machine`, `${fromLbl} ➔ REPEAT_MESSAGE (AWB=0)`, `[SWS_CanNm_00128] ${ecu.name} thức thụ động, chờ offset ${ecu.cfg.CanNmMsgCycleOffset}ms rồi phát.`);
-    } else {
-      addMultiTraceLog("API", ecu.id, ecu.name, "PassiveStartUp bỏ qua (Đã ở NETWORK_MODE)", `${ecu.name} đang hoạt động.`);
-    }
+    const fromLbl = ecu.mode.replace("NM_MODE_", "");
+    ecu.mode = "NM_MODE_NETWORK";
+    ecu.subState = "NM_STATE_REPEAT_MESSAGE";
+    ecu.cbv.awb = false;
+    ecu.cbv.rmr = false;
+    ecu.netRequest = false;
+    ecu.immBurstActive = false;
+    ecu.burstLeft = 0;
+    ecu.timers.waitBusSleep = 0;
+    ecu.timers.repeatMsg = ecu.cfg.CanNmRepeatMessageTime;
+    ecu.timers.timeout = ecu.cfg.CanNmTimeoutTime;
+    ecu.timers.msgCycle = ecu.cfg.CanNmPassiveModeEnabled ? 0 : ecu.cfg.CanNmMsgCycleOffset;
+    addMultiTraceLog("STATE", ecu.id, `${ecu.name} State Machine`, `${fromLbl} ➔ REPEAT_MESSAGE (AWB=0)`, `[SWS_CanNm_00128 / PRS_Nm_00334] ${ecu.name} thức thụ động${ecu.cfg.CanNmPassiveModeEnabled ? "" : `, chờ MsgCycleOffset=${ecu.cfg.CanNmMsgCycleOffset}ms rồi phát`}.`);
   } else if (actionType === "rmr") {
     if (!ecu.cfg.CanNmNodeDetectionEnabled || ecu.cfg.CanNmPassiveModeEnabled) {
       addMultiTraceLog("WARN", ecu.id, ecu.name, "CanNm_RepeatMessageRequest() -> E_NOT_OK", `${ecu.name} chưa bật NodeDetection hoặc đang PassiveMode.`);
       renderMultiEcuView();
       return;
     }
-    if (ecu.mode !== "NM_MODE_NETWORK") {
-      addMultiTraceLog("WARN", ecu.id, ecu.name, "CanNm_RepeatMessageRequest() -> E_NOT_OK", `[SWS_CanNm_00137] ${ecu.name} phải đang ở NETWORK_MODE mới gọi được RepeatMessageRequest().`);
+    if (ecu.mode !== "NM_MODE_NETWORK" || ecu.subState === "NM_STATE_REPEAT_MESSAGE") {
+      addMultiTraceLog("WARN", ecu.id, ecu.name, "CanNm_RepeatMessageRequest() -> E_NOT_OK", `[SWS_CanNm_00137] ${ecu.name} chỉ gọi được RepeatMessageRequest() ở NORMAL_OPERATION hoặc READY_SLEEP.`);
       renderMultiEcuView();
       return;
     }
+    const isFromRss = ecu.subState === "NM_STATE_READY_SLEEP";
+    const swsRef = isFromRss ? "SWS_CanNm_00112 / SWS_CanNm_00113" : "SWS_CanNm_00120 / SWS_CanNm_00121";
     ecu.cbv.rmr = true;
     ecu.subState = "NM_STATE_REPEAT_MESSAGE";
+    ecu.immBurstActive = false;
+    ecu.burstLeft = 0;
     ecu.timers.repeatMsg = ecu.cfg.CanNmRepeatMessageTime;
-    ecu.timers.timeout = ecu.cfg.CanNmTimeoutTime;
-    addMultiTraceLog("STATE", ecu.id, `${ecu.name} State Machine`, "➔ REPEAT_MESSAGE (Bật RMR=1)", `[SWS_CanNm_00121] ${ecu.name} phát khung có RMR=1 ép toàn mạng điểm danh!`);
-    transmitMultiEcuFrame(ecu, "Repeat Message Request (RMR=1)");
+    if (ecu.commEnabled && (isFromRss || ecu.timers.msgCycle <= 0)) {
+      ecu.timers.msgCycle = ecu.cfg.CanNmMsgCycleOffset; // SWS_CanNm_00100 / SWS_CanNm_00221
+    }
+    addMultiTraceLog("STATE", ecu.id, `${ecu.name} State Machine`, `${isFromRss ? "READY_SLEEP" : "NORMAL_OPERATION"} ➔ REPEAT_MESSAGE (Bật RMR=1)`, `[${swsRef} / SWS_CanNm_00100] ${ecu.name} bật RMR=1 cho các khung sắp phát (Offset=${ecu.cfg.CanNmMsgCycleOffset}ms).`);
   } else if (actionType === "toggleComm") {
+    if (ecu.mode !== "NM_MODE_NETWORK") {
+      addMultiTraceLog("WARN", ecu.id, `Dcm ➔ ${ecu.name}`, "CanNm_Disable/EnableCommunication() -> E_NOT_OK", `[SWS_CanNm_00172 / SWS_CanNm_00295] ${ecu.name} không ở NETWORK_MODE -> trả E_NOT_OK.`);
+      renderMultiEcuView();
+      return;
+    }
     ecu.commEnabled = !ecu.commEnabled;
     if (!ecu.commEnabled) {
-      addMultiTraceLog("API", ecu.id, `Dcm ➔ ${ecu.name}`, "CanNm_DisableCommunication()", `[SWS_CanNm_00170] Khóa Tx & đóng băng NM-TimeoutTimer trên ${ecu.name}.`);
+      ecu.timers.msgCycle = 0; // SWS_CanNm_00173
+      ecu.timers.timeout = 0; // SWS_CanNm_00174
+      ecu.immBurstActive = false;
+      ecu.burstLeft = 0;
+      addMultiTraceLog("API", ecu.id, `Dcm ➔ ${ecu.name}`, "CanNm_DisableCommunication()", `[SWS_CanNm_00173 / SWS_CanNm_00174] Hủy MsgCycle=0 & dừng NM-TimeoutTimer=0 trên ${ecu.name}.`);
     } else {
-      ecu.timers.msgCycle = ecu.cfg.CanNmMsgCycleOffset;
-      addMultiTraceLog("API", ecu.id, `Dcm ➔ ${ecu.name}`, "CanNm_EnableCommunication()", `[SWS_CanNm_00176] Mở lại truyền thông trên ${ecu.name}.`);
+      ecu.timers.timeout = ecu.cfg.CanNmTimeoutTime; // SWS_CanNm_00179
+      ecu.timers.msgCycle = (ecu.subState !== "NM_STATE_READY_SLEEP" && !ecu.cfg.CanNmPassiveModeEnabled)
+        ? ecu.cfg.CanNmMsgCycleOffset
+        : 0; // SWS_CanNm_00178
+      addMultiTraceLog("API", ecu.id, `Dcm ➔ ${ecu.name}`, "CanNm_EnableCommunication()", `[SWS_CanNm_00178 / SWS_CanNm_00179] Khôi phục NM-Timeout=${ecu.cfg.CanNmTimeoutTime}ms${ecu.timers.msgCycle > 0 ? ` & Tx sau Offset=${ecu.timers.msgCycle}ms` : ""} trên ${ecu.name}.`);
     }
   } else if (actionType === "reset") {
     const keptOpen = ecu.cfgOpen;
@@ -424,26 +479,42 @@ function stepMultiClockTick(deltaMs, skipRender) {
     // 1. NM-Timeout Timer in NETWORK_MODE
     if (ecu.mode === "NM_MODE_NETWORK" && ecu.commEnabled && ecu.timers.timeout > 0) {
       ecu.timers.timeout = Math.max(0, ecu.timers.timeout - deltaMs);
-      if (ecu.timers.timeout === 0 && ecu.subState === "NM_STATE_READY_SLEEP") {
-        ecu.mode = "NM_MODE_PREPARE_BUS_SLEEP";
-        ecu.cbv.awb = false;
-        ecu.timers.waitBusSleep = ecu.cfg.CanNmWaitBusSleepTime;
-        addMultiTraceLog("STATE", ecu.id, `${ecu.name} State Machine`, "READY_SLEEP ➔ PREPARE_BUS_SLEEP", `[SWS_CanNm_00115] Hết NM-Timeout (0ms) ➔ Xóa AWB=0, bắt đầu đếm WaitBusSleepTimer=${ecu.cfg.CanNmWaitBusSleepTime}ms.`);
+      if (ecu.timers.timeout === 0) {
+        if (ecu.subState === "NM_STATE_READY_SLEEP") {
+          ecu.mode = "NM_MODE_PREPARE_BUS_SLEEP";
+          ecu.cbv.awb = false;
+          ecu.cbv.rmr = false;
+          ecu.immBurstActive = false;
+          ecu.burstLeft = 0;
+          ecu.timers.msgCycle = 0;
+          ecu.timers.repeatMsg = 0;
+          ecu.timers.waitBusSleep = ecu.cfg.CanNmWaitBusSleepTime;
+          addMultiTraceLog("STATE", ecu.id, `${ecu.name} State Machine`, "READY_SLEEP ➔ PREPARE_BUS_SLEEP", `[SWS_CanNm_00109] Hết NM-Timeout (0ms) ➔ Xóa AWB=0, bắt đầu đếm WaitBusSleepTimer=${ecu.cfg.CanNmWaitBusSleepTime}ms.`);
+        } else {
+          // SWS_CanNm_00101 / 00117 / 00193 / 00194: Restart Timeout & DET CANNM_E_NETWORK_TIMEOUT
+          ecu.timers.timeout = ecu.cfg.CanNmTimeoutTime;
+          addMultiTraceLog("WARN", ecu.id, `${ecu.name} DET Runtime`, "CANNM_E_NETWORK_TIMEOUT (0x11) — Reload Timeout", `[SWS_CanNm_00101 / SWS_CanNm_00117 / SWS_CanNm_00193] Hết NM-Timeout ở ${ecu.subState.replace("NM_STATE_", "")} ➔ Restart Timeout=${ecu.cfg.CanNmTimeoutTime}ms & Det_ReportRuntimeError(0x11).`);
+        }
       }
     }
 
-    // 2. RepeatMessageTimer in REPEAT_MESSAGE
-    if (ecu.mode === "NM_MODE_NETWORK" && ecu.subState === "NM_STATE_REPEAT_MESSAGE" && ecu.timers.repeatMsg > 0) {
+    // 2. RepeatMessageTimer in REPEAT_MESSAGE (also exits if CanNmRepeatMessageTime == 0 [SWS_CanNm_00102])
+    if (ecu.mode === "NM_MODE_NETWORK" && ecu.subState === "NM_STATE_REPEAT_MESSAGE") {
       ecu.timers.repeatMsg = Math.max(0, ecu.timers.repeatMsg - deltaMs);
       if (ecu.timers.repeatMsg === 0) {
         ecu.cbv.rmr = false;
+        ecu.immBurstActive = false;
+        ecu.burstLeft = 0;
         if (ecu.netRequest) {
           ecu.subState = "NM_STATE_NORMAL_OPERATION";
-          ecu.timers.msgCycle = ecu.cfg.CanNmMsgCycleTime;
-          addMultiTraceLog("STATE", ecu.id, `${ecu.name} State Machine`, "REPEAT_MESSAGE ➔ NORMAL_OPERATION", `[SWS_CanNm_00103] Hết RepeatMessageTime & NetReq=1 ➔ Normal Operation.`);
+          if (ecu.commEnabled && !ecu.cfg.CanNmPassiveModeEnabled && ecu.timers.msgCycle <= 0) {
+            ecu.timers.msgCycle = ecu.cfg.CanNmMsgCycleTime;
+          }
+          addMultiTraceLog("STATE", ecu.id, `${ecu.name} State Machine`, "REPEAT_MESSAGE ➔ NORMAL_OPERATION", `[SWS_CanNm_00103 / SWS_CanNm_00040] Hết RepeatMessageTime & NetReq=1 ➔ Normal Operation (giữ MsgCycleTimer).`);
         } else {
           ecu.subState = "NM_STATE_READY_SLEEP";
-          addMultiTraceLog("STATE", ecu.id, `${ecu.name} State Machine`, "REPEAT_MESSAGE ➔ READY_SLEEP", `[SWS_CanNm_00106] Hết RepeatMessageTime & NetReq=0 ➔ Ready Sleep (ngưng Tx).`);
+          ecu.timers.msgCycle = 0; // SWS_CanNm_00108 / 00051
+          addMultiTraceLog("STATE", ecu.id, `${ecu.name} State Machine`, "REPEAT_MESSAGE ➔ READY_SLEEP", `[SWS_CanNm_00106 / SWS_CanNm_00108 / SWS_CanNm_00051] Hết RepeatMessageTime & NetReq=0 ➔ Ready Sleep (Hủy MsgCycleTimer).`);
         }
       }
     }
@@ -454,7 +525,7 @@ function stepMultiClockTick(deltaMs, skipRender) {
       if (ecu.timers.waitBusSleep === 0) {
         ecu.mode = "NM_MODE_BUS_SLEEP";
         ecu.wakeupSource = "None";
-        addMultiTraceLog("STATE", ecu.id, `${ecu.name} State Machine`, "PREPARE_BUS_SLEEP ➔ BUS_SLEEP", `[SWS_CanNm_00117] Hết WaitBusSleepTime (0ms) ➔ Tắt Controller & Transceiver.`);
+        addMultiTraceLog("STATE", ecu.id, `${ecu.name} State Machine`, "PREPARE_BUS_SLEEP ➔ BUS_SLEEP", `[SWS_CanNm_00248 / SWS_CanNm_00088] Hết WaitBusSleepTime (0ms) ➔ Tắt Controller & Transceiver.`);
       }
     }
 
@@ -560,13 +631,13 @@ function updateMultiEcuCfg(idx, key, val) {
   if (!ecu) return;
   if (typeof val === "boolean") {
     ecu.cfg[key] = val;
-  } else if (key === "CanNmPnFilterMaskHex") {
+  } else if (key === "CanNmPnFilterMaskHex" || key === "txPnMaskHex") {
     const cleaned = multiFormatHexBytes(multiParseHexBytes(val).slice(0, 2));
     ecu.cfg[key] = cleaned || "00 00";
   } else {
     const parsed = parseInt(val, 10);
     if (!isNaN(parsed)) {
-      const minVal = (key === "CanNmImmediateNmTransmissions" || key === "CanNmMsgCycleOffset")
+      const minVal = (key === "CanNmImmediateNmTransmissions" || key === "CanNmMsgCycleOffset" || key === "CanNmRepeatMessageTime")
         ? 0
         : (key === "CanNmMsgReducedTime" ? 50 : 100);
       ecu.cfg[key] = Math.max(minVal, parsed);
@@ -623,6 +694,9 @@ function applyMultiPreset(preset) {
     multiEcuAction(0, "netReq");
     advanceMultiTime(1500);
     multiEcuAction(1, "rmr");
+    advanceMultiTime(multiState.ecus[1].cfg.CanNmMsgCycleOffset || 200);
+    addMultiTraceLog("API", "BUS", "Preset Hint", "ECU #2 đã phát RMR=1 sau MsgCycleOffset ➔ ECU #1 quay lại REPEAT_MESSAGE", "[SWS_CanNm_00112 / SWS_CanNm_00119] Kiểm chứng Request Điểm Danh từ Ready Sleep.");
+    renderMultiEcuView();
   }
 }
 
@@ -702,14 +776,15 @@ function buildMultiEcuCardSkeleton(ecu, idx) {
         </div>
 
         <div class="multi-cfg-drawer hidden" id="multiCfgDrawer_${idx}">
-          <label>RepeatMsgTime (ms)<input id="multiCfg_${idx}_CanNmRepeatMessageTime" type="number" min="200" step="100" value="${ecu.cfg.CanNmRepeatMessageTime}" onchange="updateMultiEcuCfg(${idx}, 'CanNmRepeatMessageTime', this.value)"></label>
+          <label>RepeatMsgTime (ms)<input id="multiCfg_${idx}_CanNmRepeatMessageTime" type="number" min="0" step="100" value="${ecu.cfg.CanNmRepeatMessageTime}" onchange="updateMultiEcuCfg(${idx}, 'CanNmRepeatMessageTime', this.value)"></label>
           <label>TimeoutTime (ms)<input id="multiCfg_${idx}_CanNmTimeoutTime" type="number" min="200" step="100" value="${ecu.cfg.CanNmTimeoutTime}" onchange="updateMultiEcuCfg(${idx}, 'CanNmTimeoutTime', this.value)"></label>
           <label>WaitBusSleep (ms)<input id="multiCfg_${idx}_CanNmWaitBusSleepTime" type="number" min="200" step="100" value="${ecu.cfg.CanNmWaitBusSleepTime}" onchange="updateMultiEcuCfg(${idx}, 'CanNmWaitBusSleepTime', this.value)"></label>
           <label>MsgCycleTime (ms)<input id="multiCfg_${idx}_CanNmMsgCycleTime" type="number" min="200" step="100" value="${ecu.cfg.CanNmMsgCycleTime}" onchange="updateMultiEcuCfg(${idx}, 'CanNmMsgCycleTime', this.value)"></label>
           <label>CycleOffset (ms)<input id="multiCfg_${idx}_CanNmMsgCycleOffset" type="number" min="0" step="50" value="${ecu.cfg.CanNmMsgCycleOffset}" onchange="updateMultiEcuCfg(${idx}, 'CanNmMsgCycleOffset', this.value)"></label>
           <label>Burst Frames<input id="multiCfg_${idx}_CanNmImmediateNmTransmissions" type="number" min="0" max="10" step="1" value="${ecu.cfg.CanNmImmediateNmTransmissions}" onchange="updateMultiEcuCfg(${idx}, 'CanNmImmediateNmTransmissions', this.value)"></label>
           <label title="SWS_CanNm_00069: Chu kỳ nạp lại khi nhận NM PDU từ node khác ở Normal Operation (khi bật Bus Load Reduction)">MsgReducedTime (ms)<input id="multiCfg_${idx}_CanNmMsgReducedTime" type="number" min="50" step="50" value="${ecu.cfg.CanNmMsgReducedTime}" onchange="updateMultiEcuCfg(${idx}, 'CanNmMsgReducedTime', this.value)"></label>
-          <label style="grid-column:span 2" title="Mặt nạ PNC FilterMask (2 Bytes Hex) dùng khi CanNmPnEnabled = TRUE">PnFilterMask (Hex)<input id="multiCfg_${idx}_CanNmPnFilterMaskHex" type="text" value="${escapeHtml(ecu.cfg.CanNmPnFilterMaskHex)}" placeholder="VD: 05 00" onchange="updateMultiEcuCfg(${idx}, 'CanNmPnFilterMaskHex', this.value)"></label>
+          <label title="Mặt nạ PNC FilterMask (2 Bytes Hex) dùng khi CanNmPnEnabled = TRUE (Rx filter)">PnFilterMask (Hex)<input id="multiCfg_${idx}_CanNmPnFilterMaskHex" type="text" value="${escapeHtml(ecu.cfg.CanNmPnFilterMaskHex)}" placeholder="VD: 05 00" onchange="updateMultiEcuCfg(${idx}, 'CanNmPnFilterMaskHex', this.value)"></label>
+          <label title="SWS_CanNm_00500 / 00518: Vector PNC yêu cầu phát Tx (IRA) khi giữ mạng (NetReq=TRUE)">TxPnMask IRA (Hex)<input id="multiCfg_${idx}_txPnMaskHex" type="text" value="${escapeHtml(ecu.cfg.txPnMaskHex)}" placeholder="VD: 01 00" onchange="updateMultiEcuCfg(${idx}, 'txPnMaskHex', this.value)"></label>
           <div class="multi-cfg-checks">
             <label class="row" style="flex-direction:row; gap:5px; cursor:pointer" title="SWS_CanNm_00052: Bật thuật toán giảm tải đường truyền theo CanNmMsgReducedTime"><input id="multiCfg_${idx}_CanNmBusLoadReductionEnabled" type="checkbox" ${ecu.cfg.CanNmBusLoadReductionEnabled ? "checked" : ""} onchange="updateMultiEcuCfg(${idx}, 'CanNmBusLoadReductionEnabled', this.checked)"> Bus Load Red.</label>
             <label class="row" style="flex-direction:row; gap:5px; cursor:pointer" title="SWS_CanNm_00409: Kích hoạt Partial Networking (bật Bit 6 PNI=1 & lọc PNC Mask)"><input id="multiCfg_${idx}_CanNmPnEnabled" type="checkbox" ${ecu.cfg.CanNmPnEnabled ? "checked" : ""} onchange="updateMultiEcuCfg(${idx}, 'CanNmPnEnabled', this.checked)"> CanNmPnEnabled</label>
@@ -820,7 +895,7 @@ function updateMultiEcuCardDom(ecu, idx) {
 
   setMultiClassIfChanged(`multiCfgDrawer_${idx}`, `multi-cfg-drawer${ecu.cfgOpen ? "" : " hidden"}`);
   if (ecu.cfgOpen) {
-    ["CanNmRepeatMessageTime", "CanNmTimeoutTime", "CanNmWaitBusSleepTime", "CanNmMsgCycleTime", "CanNmMsgCycleOffset", "CanNmImmediateNmTransmissions", "CanNmMsgReducedTime", "CanNmPnFilterMaskHex"].forEach(k => {
+    ["CanNmRepeatMessageTime", "CanNmTimeoutTime", "CanNmWaitBusSleepTime", "CanNmMsgCycleTime", "CanNmMsgCycleOffset", "CanNmImmediateNmTransmissions", "CanNmMsgReducedTime", "CanNmPnFilterMaskHex", "txPnMaskHex"].forEach(k => {
       const inp = document.getElementById(`multiCfg_${idx}_${k}`);
       if (inp && document.activeElement !== inp) {
         const nextVal = String(ecu.cfg[k]);

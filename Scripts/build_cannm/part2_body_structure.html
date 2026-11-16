@@ -11,7 +11,7 @@
           <div>
             <div class="row">
               <h1>Trình Mô Phỏng & Sổ Tay AUTOSAR CanNM</h1>
-              <span class="badge">R22-11 / R23-11</span>
+              <span class="badge">R25-11</span>
               <span class="badge ok">100% Offline</span>
             </div>
             <div class="sub">Decentralized Direct Network Management • CBV Byte • Partial Networking (PN) • Timers</div>
@@ -138,25 +138,37 @@
               <span class="mono" style="font-weight:700; color:#818cf8; font-size:11px">📡 Giả lập ECU #2 gửi gói NM (Rx)</span>
               <span class="badge xs">Node 0x2B</span>
             </div>
-            <div class="row wrap" style="gap:6px; font-size:11px; margin-bottom:6px">
-              <label class="row" style="cursor:pointer"><input type="checkbox" id="simRxRmr"> <span>RMR=1</span></label>
-              <label class="row" style="cursor:pointer"><input type="checkbox" id="simRxAwb" checked> <span>AWB=1</span></label>
-              <label class="row" style="cursor:pointer"><input type="checkbox" id="simRxPni" onchange="if(typeof renderQuickRxPnHint==='function')renderQuickRxPnHint()"> <span>PNI=1</span></label>
-              <label class="row" style="cursor:pointer"><input type="checkbox" id="simRxCsr"> <span>CSR=1</span></label>
+            <div class="row wrap" style="gap:6px; font-size:11px; margin-bottom:5px">
+              <label class="row" style="cursor:pointer" title="Bit 0: Repeat Message Request"><input type="checkbox" id="simRxRmr"> <span>RMR=1</span></label>
+              <label class="row" style="cursor:pointer" title="Bit 1: PN Shutdown Request (Table 7.2 R25-11)"><input type="checkbox" id="simRxPnsr"> <span>PNSR=1</span></label>
+              <label class="row" style="cursor:pointer" title="Bit 3: NM Coordinator Sleep Ready (SWS_CanNm_00341)"><input type="checkbox" id="simRxCsr"> <span>CSR=1</span></label>
+              <label class="row" style="cursor:pointer" title="Bit 4: Active Wakeup Bit"><input type="checkbox" id="simRxAwb" checked> <span>AWB=1</span></label>
+              <label class="row" style="cursor:pointer" title="Bit 5: Partial Network Learning Bit (SWS_CanNm_00381)"><input type="checkbox" id="simRxPnl"> <span>PNL=1</span></label>
+              <label class="row" style="cursor:pointer" title="Bit 6: Partial Network Info Bit"><input type="checkbox" id="simRxPni" onchange="if(typeof renderQuickRxPnHint==='function')renderQuickRxPnHint()"> <span>PNI=1</span></label>
+              <label class="row" style="cursor:pointer" title="Car Wakeup Bit trong User Data tại CanNmCarWakeUpBytePosition/BitPosition (SWS_CanNm_00405)"><input type="checkbox" id="simRxCwu"> <span>CWU=1</span></label>
             </div>
-            <div class="row" style="gap:5px; margin-bottom:6px">
+            <div class="row" style="gap:5px; margin-bottom:5px">
               <span class="muted small">PNI Bytes (Hex):</span>
               <input type="text" id="simRxPniHex" value="05 00" oninput="if(typeof renderQuickRxPnHint==='function')renderQuickRxPnHint()" onchange="if(typeof renderQuickRxPnHint==='function')renderQuickRxPnHint()" style="padding:2px 6px; font-size:11px" placeholder="VD: 05 00 (PNC #16,#18)">
             </div>
+            <label class="row" style="cursor:pointer; font-size:10.5px; color:var(--muted); margin-bottom:6px" title="Theo SWS_CanNm_00127, CanNm chỉ báo Nm_NetworkStartIndication() ở Bus-Sleep chứ KHÔNG tự chuyển mode. Bật ô này để giả lập ComM tự gọi CanNm_PassiveStartUp().">
+              <input type="checkbox" id="simAutoPassiveOnRx">
+              <span>ComM tự gọi PassiveStartUp khi Rx ở Bus-Sleep</span>
+            </label>
             <div id="simRxPnHint" class="pn-rx-hint hidden"></div>
             <button class="btn indigo sm w100" onclick="apiSimulatedRxIndication()" title="Bắn CanIf_RxIndication() từ Remote Node #2 vào CanNM">
               🚀 Bắn CanNm_RxIndication()
             </button>
           </div>
 
+          <label class="row" style="cursor:pointer; font-size:10.5px; color:var(--muted); margin-bottom:6px" title="Khi bật (và ImmediateTxconf=FALSE): CanIf không trả TxConfirmation ngay, kích hoạt CanNmMsgTimeoutTime (SWS_CanNm_00064/00066/00446)">
+            <input type="checkbox" id="simTxConfirmFail" onchange="onSimTxFailToggle(this.checked)">
+            <span>Giả lập mất TxConfirmation (Test MsgTimeout / Bus-Off)</span>
+          </label>
+
           <!-- Bottom Action Buttons -->
           <div class="row wrap" style="justify-content:space-between">
-            <button class="btn xs" onclick="stepClockTick(100)" title="Tiến thêm 100ms SchM MainFunction">⏱ +1 Tick MainFunction</button>
+            <button class="btn xs" id="btnStepMainFunction" onclick="stepMainFunctionTick()" title="Tiến thêm 1 chu kỳ CanNmMainFunctionPeriod (ms)">⏱ +1 Tick MainFunction</button>
             <button class="btn xs" id="btnToggleComm" onclick="apiToggleCommunication()" title="UDS 0x28 Communication Control">🔇 Toggle Comm</button>
             <button class="btn xs red" onclick="resetDefaultConfig()" title="Khôi phục cấu hình mặc định">↺ Reset Cfg</button>
           </div>
@@ -172,7 +184,7 @@
         <div class="panel-b">
           <div id="scenIoPill" class="mono small muted" style="margin-bottom:6px">Chưa có hành động</div>
           <div id="scenStepDesc" style="font-size:11.8px; line-height:1.45; margin-bottom:8px; color:var(--text)">
-            Bấm <b>"Tiếp Theo ▶"</b> để quan sát cách CanNM xử lý từng bước theo chuẩn AUTOSAR R22-11/R23-11.
+            Bấm <b>"Tiếp Theo ▶"</b> để quan sát cách CanNM xử lý từng bước theo chuẩn AUTOSAR CP R25-11.
           </div>
           <!-- 3 Nút Thử Nghiệm Nhanh (What-If) -->
           <div class="sub-t">💡 3 Nút Thử Nghiệm Nhanh (1-Click What-If):</div>
@@ -230,6 +242,14 @@
               <input type="checkbox" id="cfg_CanNmComControlEnabled" checked onchange="onConfigChange('CanNmComControlEnabled')">
               <div><span class="nm">CanNmComControlEnabled</span><span class="ds">Hỗ trợ CanNm_DisableCommunication() (UDS 0x28)</span></div>
             </label>
+            <label class="ck" data-cfg-key="CanNmImmediateTxconfEnabled">
+              <input type="checkbox" id="cfg_CanNmImmediateTxconfEnabled" onchange="onConfigChange('CanNmImmediateTxconfEnabled')">
+              <div><span class="nm">CanNmImmediateTxconfEnabled</span><span class="ds">Xác nhận Tx thành công ngay lập tức (tắt MsgTimeoutTime)</span></div>
+            </label>
+            <label class="ck" data-cfg-key="CanNmCoordinatorSyncSupport">
+              <input type="checkbox" id="cfg_CanNmCoordinatorSyncSupport" onchange="onConfigChange('CanNmCoordinatorSyncSupport')">
+              <div><span class="nm">CanNmCoordinatorSyncSupport</span><span class="ds">Hỗ trợ Bit 3 (CSR) phối hợp ngủ đồng bộ Coordinator</span></div>
+            </label>
           </div>
 
           <!-- Tab Pane 1: Timers/Cycle -->
@@ -251,7 +271,7 @@
               </div>
               <div class="f" data-cfg-key="CanNmRepeatMessageTime">
                 <label>RepeatMessageTime (ms)</label>
-                <input type="number" id="cfg_CanNmRepeatMessageTime" value="1500" min="200" step="100" onchange="onConfigChange('CanNmRepeatMessageTime')">
+                <input type="number" id="cfg_CanNmRepeatMessageTime" value="1500" min="0" step="100" onchange="onConfigChange('CanNmRepeatMessageTime')">
               </div>
             </div>
             <div class="g2">
@@ -327,7 +347,7 @@
               </div>
             </div>
             <label class="ck" data-cfg-key="CanNmImmediateRestartEnabled">
-              <input type="checkbox" id="cfg_CanNmImmediateRestartEnabled" checked onchange="onConfigChange('CanNmImmediateRestartEnabled')">
+              <input type="checkbox" id="cfg_CanNmImmediateRestartEnabled" onchange="onConfigChange('CanNmImmediateRestartEnabled')">
               <div><span class="nm">CanNmImmediateRestartEnabled</span><span class="ds">Bắn ngay NM PDU tại t=0ms khi thức dậy tại Prepare Bus-Sleep</span></div>
             </label>
             <label class="ck" data-cfg-key="CanNmBusLoadReductionEnabled">
@@ -353,16 +373,22 @@
             <div class="g2">
               <div class="f" data-cfg-key="CanNmPnInfoOffset">
                 <label>PnInfoOffset (Byte)</label>
-                <input type="number" id="cfg_CanNmPnInfoOffset" value="2" min="1" max="6" onchange="onConfigChange('CanNmPnInfoOffset')">
+                <input type="number" id="cfg_CanNmPnInfoOffset" value="2" min="0" max="7" onchange="onConfigChange('CanNmPnInfoOffset')">
               </div>
               <div class="f" data-cfg-key="CanNmPnInfoLength">
                 <label>PnInfoLength (Bytes)</label>
                 <input type="number" id="cfg_CanNmPnInfoLength" value="2" min="1" max="6" onchange="onConfigChange('CanNmPnInfoLength')">
               </div>
             </div>
-            <div class="f" data-cfg-key="CanNmPnFilterMaskByte">
-              <label>PnFilterMaskByte (Hex Array)</label>
-              <input type="text" id="cfg_CanNmPnFilterMaskByte" value="05 00" onchange="onConfigChange('CanNmPnFilterMaskByte')">
+            <div class="g2">
+              <div class="f" data-cfg-key="CanNmPnFilterMaskByte">
+                <label>Rx FilterMask (Hex)</label>
+                <input type="text" id="cfg_CanNmPnFilterMaskByte" value="05 00" onchange="onConfigChange('CanNmPnFilterMaskByte')">
+              </div>
+              <div class="f" data-cfg-key="CanNmTxPnRequestHex">
+                <label>Tx PNC Req IRA (Hex)</label>
+                <input type="text" id="cfg_CanNmTxPnRequestHex" value="01 00" onchange="onConfigChange('CanNmTxPnRequestHex')">
+              </div>
             </div>
             <div class="g2">
               <label class="ck" data-cfg-key="CanNmPnEiraCalcEnabled">
@@ -374,14 +400,29 @@
                 <div><span class="nm">ERA Calc</span><span class="ds">Tính toán ERA</span></div>
               </label>
             </div>
-            <div class="f" data-cfg-key="CanNmPnResetTime">
-              <label>PnResetTime (ms)</label>
-              <input type="number" id="cfg_CanNmPnResetTime" value="1500" min="200" step="100" onchange="onConfigChange('CanNmPnResetTime')">
+            <div class="g2">
+              <div class="f" data-cfg-key="CanNmPnResetTime">
+                <label>PnResetTime (ms)</label>
+                <input type="number" id="cfg_CanNmPnResetTime" value="1500" min="200" step="100" onchange="onConfigChange('CanNmPnResetTime')">
+              </div>
+              <label class="ck" data-cfg-key="CanNmPnHandleMultipleNetworkRequests">
+                <input type="checkbox" id="cfg_CanNmPnHandleMultipleNetworkRequests" onchange="onConfigChange('CanNmPnHandleMultipleNetworkRequests')">
+                <div><span class="nm">MultiNetReq</span><span class="ds">NetReq lặp → RMS</span></div>
+              </label>
             </div>
-            <label class="ck" data-cfg-key="CanNmSynchronizedPncShutdownEnabled">
-              <input type="checkbox" id="cfg_CanNmSynchronizedPncShutdownEnabled" onchange="onConfigChange('CanNmSynchronizedPncShutdownEnabled')">
-              <div><span class="nm">SyncPncShutdown</span><span class="ds">Đồng bộ tắt PNC qua NM_STATE_SYNCHRONIZE</span></div>
-            </label>
+            <div class="g2">
+              <label class="ck" data-cfg-key="PnAvailabilityConfirmed">
+                <input type="checkbox" id="cfg_PnAvailabilityConfirmed" checked onchange="onConfigChange('PnAvailabilityConfirmed')">
+                <div><span class="nm">ConfirmPnAvail</span><span class="ds">CanSM xác nhận PN</span></div>
+              </label>
+              <label class="ck" data-cfg-key="CanNmSynchronizedPncShutdownEnabled">
+                <input type="checkbox" id="cfg_CanNmSynchronizedPncShutdownEnabled" onchange="onConfigChange('CanNmSynchronizedPncShutdownEnabled')">
+                <div><span class="nm">SyncPncShutdown</span><span class="ds">Tắt PNC qua PNSR=1</span></div>
+              </label>
+            </div>
+            <div class="row" style="gap:6px; margin-top:4px">
+              <button class="btn xs vio w100" onclick="apiActivateTxPnShutdownMsg()" title="SWS_CanNm_00521: Kích hoạt phát PN Shutdown Message (PNSR=1)">📤 Activate Tx PN Shutdown</button>
+            </div>
           </div>
 
           <!-- Tab Pane 5: UserData/Diag -->
@@ -401,12 +442,22 @@
             <div class="g2">
               <label class="ck" data-cfg-key="CanNmCarWakeUpRxEnabled">
                 <input type="checkbox" id="cfg_CanNmCarWakeUpRxEnabled" checked onchange="onConfigChange('CanNmCarWakeUpRxEnabled')">
-                <div><span class="nm">CarWakeUpRx</span><span class="ds">Nhận Bit CSR=1</span></div>
+                <div><span class="nm">CarWakeUpRx</span><span class="ds">Nhận bit CWU=1</span></div>
               </label>
               <label class="ck" data-cfg-key="CanNmCarWakeUpFilterEnabled">
                 <input type="checkbox" id="cfg_CanNmCarWakeUpFilterEnabled" onchange="onConfigChange('CanNmCarWakeUpFilterEnabled')">
-                <div><span class="nm">CWU Filter</span><span class="ds">Lọc NodeId CSR</span></div>
+                <div><span class="nm">CWU Filter</span><span class="ds">Lọc NodeId CWU</span></div>
               </label>
+            </div>
+            <div class="g2">
+              <div class="f" data-cfg-key="CanNmCarWakeUpBytePosition">
+                <label>CWU Byte Pos (0..7)</label>
+                <input type="number" id="cfg_CanNmCarWakeUpBytePosition" value="2" min="0" max="7" onchange="onConfigChange('CanNmCarWakeUpBytePosition')">
+              </div>
+              <div class="f" data-cfg-key="CanNmCarWakeUpBitPosition">
+                <label>CWU Bit Pos (0..7)</label>
+                <input type="number" id="cfg_CanNmCarWakeUpBitPosition" value="0" min="0" max="7" onchange="onConfigChange('CanNmCarWakeUpBitPosition')">
+              </div>
             </div>
             <div class="g2">
               <div class="f" data-cfg-key="CanNmCarWakeUpFilterNodeId">
@@ -462,9 +513,9 @@
             <div>
               <div class="row wrap" style="justify-content:space-between; margin-bottom:2px">
                 <span class="mono" style="font-weight:700; color:#fbbf24; font-size:11px">
-                  A. THANH GHI 8-BIT CONTROL BIT VECTOR (`CBV Byte` — SWS_CanNm_00045): <b id="lblCbvBin" style="color:var(--text)">0001 0000b</b>
+                  A. THANH GHI 8-BIT CONTROL BIT VECTOR (`CBV Byte` — Table 7.2 R25-11): <b id="lblCbvBin" style="color:var(--text)">0001 0000b</b>
                 </span>
-                <span class="small muted" id="lblCbvSummary">AWB=1 (Active Wakeup) | RMR=0 | PNI=0 | CSR=0</span>
+                <span class="small muted" id="lblCbvSummary">AWB=1 | RMR=0 | PNI=0 | CSR=0 | PNSR=0 | PNL=0</span>
               </div>
               <div class="bit-row" id="bitRowCbv">
                 <!-- Rendered dynamically by part5_ui.js -->
@@ -556,7 +607,8 @@
                 <table class="tbl compact">
                   <tr><td>Nguồn đánh thức</td><td class="mono" id="varWakeupSource" style="color:#38bdf8">None</td></tr>
                   <tr><td>Last Bus Activity</td><td class="mono" id="varLastBusActivity" style="color:#fbbf24; word-break:break-word">Chưa có</td></tr>
-                  <tr><td>PNC Active Mask (EIRA)</td><td class="mono" id="varPncEira" style="color:#c084fc">0x0000</td></tr>
+                  <tr><td>PNC Masks (EIRA / ERA)</td><td class="mono" id="varPncEira" style="color:#c084fc">0x0000 / 0x0000</td></tr>
+                  <tr><td>Remote Sleep Ind</td><td class="mono" id="varRemoteSleep" style="color:#34d399">OFF (0 ms)</td></tr>
                   <tr><td style="border-bottom:none">ComM Channel Mode</td><td class="mono" id="varComMMode" style="border-bottom:none">COMM_NO_COMMUNICATION</td></tr>
                 </table>
               </div>
@@ -787,7 +839,7 @@
       <div class="panel-h">
         <div class="row wrap">
           <span class="panel-t">📖 Sổ Tay Kỹ Thuật CanNM &amp; Bảng Thuật Ngữ Đa Tầng</span>
-          <span class="badge ok">6 Main Tabs × Đa Tầng Sub-topics + Tab 7 Abbreviation (48 Thuật Ngữ)</span>
+          <span class="badge ok">6 Main Tabs × Đa Tầng Sub-topics + Tab 7 Abbreviation (50 Thuật Ngữ)</span>
         </div>
       </div>
       <div class="panel-b">
@@ -817,15 +869,15 @@
             <span class="lbl">🔍 Tìm Kiếm:</span>
             <input type="text" id="abbrSearchInput" oninput="filterAbbreviationTable()" onkeydown="if(event.key==='Escape'){clearAbbreviationSearch();}" placeholder="Nhập từ viết tắt, tên tiếng Anh hoặc mô tả tiếng Việt... (VD: CBV, AWB, RMR, EIRA, dong bo)" style="flex:1">
             <button class="btn xs" id="btnAbbrClear" onclick="clearAbbreviationSearch()" title="Xóa từ khóa tìm kiếm">✕ Xóa</button>
-            <span class="badge" id="lblAbbrMatchCount">Đang hiện: 48 / 48 mục</span>
+            <span class="badge" id="lblAbbrMatchCount">Đang hiện: 50 / 50 mục</span>
           </div>
           <div class="row wrap" style="gap:5px">
             <span class="muted small">Lọc theo nhóm:</span>
-            <button class="btn xs active" id="btnFilterAll" onclick="setAbbrCategoryFilter('ALL')">Tất cả (48)</button>
-            <button class="btn xs" onclick="setAbbrCategoryFilter('CORE')">🎛️ CanNM Core &amp; States (13)</button>
-            <button class="btn xs" onclick="setAbbrCategoryFilter('CBV')">🔢 CBV Bits &amp; Timers (10)</button>
-            <button class="btn xs" onclick="setAbbrCategoryFilter('PN')">🌐 Partial Net (7)</button>
-            <button class="btn xs" onclick="setAbbrCategoryFilter('STACK')">🧩 AUTOSAR Stack (18)</button>
+            <button class="btn xs active" id="btnFilterAll" onclick="setAbbrCategoryFilter('ALL')">Tất cả (50)</button>
+            <button class="btn xs" id="btnFilterCore" onclick="setAbbrCategoryFilter('CORE')">🎛️ CanNM Core &amp; States (13)</button>
+            <button class="btn xs" id="btnFilterCbv" onclick="setAbbrCategoryFilter('CBV')">🔢 CBV Bits &amp; Timers (11)</button>
+            <button class="btn xs" id="btnFilterPn" onclick="setAbbrCategoryFilter('PN')">🌐 Partial Net (8)</button>
+            <button class="btn xs" id="btnFilterStack" onclick="setAbbrCategoryFilter('STACK')">🧩 AUTOSAR Stack (18)</button>
           </div>
         </div>
 
@@ -844,7 +896,7 @@
       <div class="modal-h">
         <div class="row">
           <span style="font-weight:800; font-size:14px; color:var(--accent)">🧾 Xuất Mã &amp; Cấu Hình CanNM</span>
-          <span class="badge">AUTOSAR Classic R22-11</span>
+          <span class="badge">AUTOSAR Classic R25-11</span>
         </div>
         <button class="btn xs red" onclick="closeExportModal()">✕ Đóng</button>
       </div>

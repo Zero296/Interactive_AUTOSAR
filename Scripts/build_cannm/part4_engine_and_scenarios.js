@@ -1,6 +1,6 @@
 /*************************************************************************
  * PART 4: SIMULATION ENGINE, TIMERS, PDU PACKER & 14 SCENARIOS (S1..S14)
- * Standard: AUTOSAR Classic R22-11 / R23-11 (SWS_CanNm, SWS_Nm, SWS_ComM)
+ * Standard: AUTOSAR Classic R25-11 (SWS_CanNm, SWS_Nm, SWS_ComM)
  *************************************************************************/
 
 // 1. ECUC CONFIGURATION STATE & DEFAULTS
@@ -11,6 +11,8 @@ const defaultConfig = {
   CanNmActiveWakeupBitEnabled: true,
   CanNmStateChangeIndEnabled: true,
   CanNmComControlEnabled: true,
+  CanNmImmediateTxconfEnabled: false,
+  CanNmCoordinatorSyncSupport: false,
   CanNmMainFunctionPeriod: 100,
   CanNmMsgCycleTime: 1000,
   CanNmMsgCycleOffset: 100,
@@ -27,7 +29,7 @@ const defaultConfig = {
   CanNmRepeatMsgIndEnabled: true,
   CanNmImmediateNmTransmissions: 3,
   CanNmImmediateNmCycleTime: 100,
-  CanNmImmediateRestartEnabled: true,
+  CanNmImmediateRestartEnabled: false,
   CanNmBusLoadReductionEnabled: false,
   CanNmMsgReducedTime: 500,
   CanNmPnEnabled: false,
@@ -35,14 +37,19 @@ const defaultConfig = {
   CanNmPnInfoOffset: 2,
   CanNmPnInfoLength: 2,
   CanNmPnFilterMaskHex: "05 00",
+  CanNmTxPnRequestHex: "01 00",
   CanNmPnEiraCalcEnabled: true,
   CanNmPnEraCalcEnabled: false,
   CanNmPnResetTime: 1500,
+  CanNmPnHandleMultipleNetworkRequests: false,
+  PnAvailabilityConfirmed: true,
   CanNmSynchronizedPncShutdownEnabled: false,
   CanNmUserDataEnabled: true,
   CanNmComUserDataSupport: false,
   UserDataBytesHex: "11 22 33 44 55 66",
   CanNmCarWakeUpRxEnabled: true,
+  CanNmCarWakeUpBytePosition: 2,
+  CanNmCarWakeUpBitPosition: 0,
   CanNmCarWakeUpFilterEnabled: false,
   CanNmCarWakeUpFilterNodeId: 0x2B,
   CanNmRemoteSleepIndEnabled: false,
@@ -54,18 +61,29 @@ let ecucConfig = JSON.parse(JSON.stringify(defaultConfig));
 // 2. LIVE SIMULATION RUNTIME STATE
 let simState = {
   mode: "NM_MODE_BUS_SLEEP", // NM_MODE_BUS_SLEEP | NM_MODE_PREPARE_BUS_SLEEP | NM_MODE_NETWORK
-  subState: "NM_STATE_REPEAT_MESSAGE", // NM_STATE_REPEAT_MESSAGE | NM_STATE_NORMAL_OPERATION | NM_STATE_READY_SLEEP | NM_STATE_SYNCHRONIZE
-  cbv: { rmr: false, csr: false, awb: false, pni: false },
-  engine: { netRequest: false, immBurstActive: false, burstLeft: 0, msgTxEnabled: true },
+  subState: "NM_STATE_REPEAT_MESSAGE", // NM_STATE_REPEAT_MESSAGE | NM_STATE_NORMAL_OPERATION | NM_STATE_READY_SLEEP
+  cbv: { rmr: false, pnsr: false, csr: false, awb: false, pnl: false, pni: false },
+  engine: {
+    netRequest: false,
+    immBurstActive: false,
+    burstLeft: 0,
+    msgTxEnabled: true,
+    busLoadReductionActive: false,
+    remoteSleepDetected: false,
+    pnShutdownMsgActive: false,
+    txPending: false,
+    simTxConfirmFail: false
+  },
   timers: {
     repeatMsg: 0,
     timeout: 0,
     waitBusSleep: 0,
     msgCycle: 0,
+    msgTimeout: 0,
     pnReset: 0,
     remoteSleep: 0
   },
-  pnc: { eira: 0x0000, era: 0x0000 },
+  pnc: { eira: 0x0000, era: 0x0000, eiraTimers: {}, eraTimers: {} },
   clockMs: 0,
   lastBusActivity: "Chưa có",
   wakeupSource: "None",
@@ -98,11 +116,13 @@ function updateConfigFromUI() {
   ecucConfig.CanNmActiveWakeupBitEnabled = getChecked("cfg_CanNmActiveWakeupBitEnabled", true);
   ecucConfig.CanNmStateChangeIndEnabled = getChecked("cfg_CanNmStateChangeIndEnabled", true);
   ecucConfig.CanNmComControlEnabled = getChecked("cfg_CanNmComControlEnabled", true);
+  ecucConfig.CanNmImmediateTxconfEnabled = getChecked("cfg_CanNmImmediateTxconfEnabled", false);
+  ecucConfig.CanNmCoordinatorSyncSupport = getChecked("cfg_CanNmCoordinatorSyncSupport", false);
 
   ecucConfig.CanNmMainFunctionPeriod = getIntVal("cfg_CanNmMainFunctionPeriod", 100, 10);
   ecucConfig.CanNmMsgCycleTime = getIntVal("cfg_CanNmMsgCycleTime", 1000, 50);
   ecucConfig.CanNmMsgCycleOffset = getIntVal("cfg_CanNmMsgCycleOffset", 100, 0);
-  ecucConfig.CanNmRepeatMessageTime = getIntVal("cfg_CanNmRepeatMessageTime", 1500, 100);
+  ecucConfig.CanNmRepeatMessageTime = getIntVal("cfg_CanNmRepeatMessageTime", 1500, 0);
   ecucConfig.CanNmTimeoutTime = getIntVal("cfg_CanNmTimeoutTime", 2000, 100);
   ecucConfig.CanNmWaitBusSleepTime = getIntVal("cfg_CanNmWaitBusSleepTime", 1500, 100);
   ecucConfig.CanNmMsgTimeoutTime = getIntVal("cfg_CanNmMsgTimeoutTime", 500, 50);
@@ -124,18 +144,21 @@ function updateConfigFromUI() {
 
   ecucConfig.CanNmImmediateNmTransmissions = getIntVal("cfg_CanNmImmediateNmTransmissions", 3, 0);
   ecucConfig.CanNmImmediateNmCycleTime = getIntVal("cfg_CanNmImmediateNmCycleTime", 100, 20);
-  ecucConfig.CanNmImmediateRestartEnabled = getChecked("cfg_CanNmImmediateRestartEnabled", true);
+  ecucConfig.CanNmImmediateRestartEnabled = getChecked("cfg_CanNmImmediateRestartEnabled", false);
   ecucConfig.CanNmBusLoadReductionEnabled = getChecked("cfg_CanNmBusLoadReductionEnabled", false);
   ecucConfig.CanNmMsgReducedTime = getIntVal("cfg_CanNmMsgReducedTime", 500, 50);
 
   ecucConfig.CanNmPnEnabled = getChecked("cfg_CanNmPnEnabled", false);
   ecucConfig.CanNmAllNmMessagesKeepAwake = getChecked("cfg_CanNmAllNmMessagesKeepAwake", false);
-  ecucConfig.CanNmPnInfoOffset = getIntVal("cfg_CanNmPnInfoOffset", 2, 1);
-  ecucConfig.CanNmPnInfoLength = getIntVal("cfg_CanNmPnInfoLength", 2, 1);
+  ecucConfig.CanNmPnInfoOffset = Math.min(7, getIntVal("cfg_CanNmPnInfoOffset", 2, 0));
+  ecucConfig.CanNmPnInfoLength = Math.min(8, getIntVal("cfg_CanNmPnInfoLength", 2, 1));
   ecucConfig.CanNmPnFilterMaskHex = getVal("cfg_CanNmPnFilterMaskByte", "05 00").trim();
+  ecucConfig.CanNmTxPnRequestHex = getVal("cfg_CanNmTxPnRequestHex", "01 00").trim();
   ecucConfig.CanNmPnEiraCalcEnabled = getChecked("cfg_CanNmPnEiraCalcEnabled", true);
   ecucConfig.CanNmPnEraCalcEnabled = getChecked("cfg_CanNmPnEraCalcEnabled", false);
   ecucConfig.CanNmPnResetTime = getIntVal("cfg_CanNmPnResetTime", 1500, 100);
+  ecucConfig.CanNmPnHandleMultipleNetworkRequests = getChecked("cfg_CanNmPnHandleMultipleNetworkRequests", false);
+  ecucConfig.PnAvailabilityConfirmed = getChecked("cfg_PnAvailabilityConfirmed", true);
   ecucConfig.CanNmSynchronizedPncShutdownEnabled = getChecked("cfg_CanNmSynchronizedPncShutdownEnabled", false);
 
   ecucConfig.CanNmUserDataEnabled = getChecked("cfg_CanNmUserDataEnabled", true);
@@ -143,6 +166,8 @@ function updateConfigFromUI() {
   ecucConfig.UserDataBytesHex = getVal("cfg_UserDataBytesHex", "11 22 33 44 55 66").trim();
 
   ecucConfig.CanNmCarWakeUpRxEnabled = getChecked("cfg_CanNmCarWakeUpRxEnabled", true);
+  ecucConfig.CanNmCarWakeUpBytePosition = Math.min(7, getIntVal("cfg_CanNmCarWakeUpBytePosition", 2, 0));
+  ecucConfig.CanNmCarWakeUpBitPosition = Math.min(7, getIntVal("cfg_CanNmCarWakeUpBitPosition", 0, 0));
   ecucConfig.CanNmCarWakeUpFilterEnabled = getChecked("cfg_CanNmCarWakeUpFilterEnabled", false);
   const rawCwuNode = getVal("cfg_CanNmCarWakeUpFilterNodeId", "0x2B").trim();
   const parsedCwu = parseInt(rawCwuNode.replace(/^0x/i, ""), 16);
@@ -150,6 +175,9 @@ function updateConfigFromUI() {
 
   ecucConfig.CanNmRemoteSleepIndEnabled = getChecked("cfg_CanNmRemoteSleepIndEnabled", false);
   ecucConfig.CanNmRemoteSleepIndTime = getIntVal("cfg_CanNmRemoteSleepIndTime", 1500, 100);
+
+  const txFailChk = document.getElementById("simTxConfirmFail");
+  if (txFailChk) simState.engine.simTxConfirmFail = !!txFailChk.checked;
 
   validateTimingRules();
 }
@@ -161,13 +189,51 @@ function validateTimingRules() {
 
   const warnings = [];
   if (ecucConfig.CanNmTimeoutTime <= ecucConfig.CanNmMsgCycleTime) {
-    warnings.push(`CanNmTimeoutTime (${ecucConfig.CanNmTimeoutTime}ms) phải LỚN HƠN CanNmMsgCycleTime (${ecucConfig.CanNmMsgCycleTime}ms) theo SWS_CanNm_00246 để tránh mạng bị rơi vào trạng thái ngủ lỡ dở.`);
+    warnings.push(`[ECUC_CanNm_00020] CanNmTimeoutTime (${ecucConfig.CanNmTimeoutTime}ms) phải LỚN HƠN CanNmMsgCycleTime (${ecucConfig.CanNmMsgCycleTime}ms).`);
   }
   if (ecucConfig.CanNmMsgCycleOffset >= ecucConfig.CanNmMsgCycleTime) {
-    warnings.push(`CanNmMsgCycleOffset (${ecucConfig.CanNmMsgCycleOffset}ms) nên nhỏ hơn CanNmMsgCycleTime (${ecucConfig.CanNmMsgCycleTime}ms).`);
+    warnings.push(`[ECUC_CanNm_00029] CanNmMsgCycleOffset (${ecucConfig.CanNmMsgCycleOffset}ms) phải nhỏ hơn CanNmMsgCycleTime (${ecucConfig.CanNmMsgCycleTime}ms).`);
   }
-  if (ecucConfig.CanNmPnEnabled && ecucConfig.CanNmPnInfoOffset + ecucConfig.CanNmPnInfoLength > 8) {
-    warnings.push(`Vùng Partial Network (Offset=${ecucConfig.CanNmPnInfoOffset} + Length=${ecucConfig.CanNmPnInfoLength}) vượt quá kích thước 8 Bytes của CAN Frame.`);
+  if (ecucConfig.CanNmBusLoadReductionEnabled && (ecucConfig.CanNmPassiveModeEnabled || ecucConfig.CanNmPnEnabled)) {
+    warnings.push(`[ECUC_CanNm_00040] CanNmBusLoadReductionEnabled phải = FALSE khi CanNmPassiveModeEnabled = TRUE hoặc CanNmGlobalPnSupport (PN) = TRUE.`);
+  }
+  if (ecucConfig.CanNmBusLoadReductionEnabled && (ecucConfig.CanNmMsgReducedTime < 0.5 * ecucConfig.CanNmMsgCycleTime || ecucConfig.CanNmMsgReducedTime >= ecucConfig.CanNmMsgCycleTime)) {
+    warnings.push(`[ECUC_CanNm_00043] Cần 0.5 × MsgCycleTime (${0.5 * ecucConfig.CanNmMsgCycleTime}ms) <= CanNmMsgReducedTime (${ecucConfig.CanNmMsgReducedTime}ms) < MsgCycleTime (${ecucConfig.CanNmMsgCycleTime}ms).`);
+  }
+  if (ecucConfig.CanNmImmediateRestartEnabled && ecucConfig.CanNmImmediateNmTransmissions > 0) {
+    warnings.push(`[ECUC_CanNm_00056] Khi CanNmImmediateRestartEnabled = TRUE thì CanNmImmediateNmTransmissions phải = 0.`);
+  }
+  if (ecucConfig.CanNmImmediateNmTransmissions > 0 && ecucConfig.CanNmRepeatMessageTime > 0 && ecucConfig.CanNmRepeatMessageTime <= ecucConfig.CanNmImmediateNmTransmissions * ecucConfig.CanNmImmediateNmCycleTime) {
+    warnings.push(`[ECUC_CanNm_00022] CanNmRepeatMessageTime (${ecucConfig.CanNmRepeatMessageTime}ms) phải > ImmediateNmTransmissions × ImmediateNmCycleTime.`);
+  }
+  if (ecucConfig.CanNmPduNidPosition !== "OFF" && ecucConfig.CanNmPduCbvPosition !== "OFF" && ecucConfig.CanNmPduNidPosition === ecucConfig.CanNmPduCbvPosition) {
+    warnings.push(`[ECUC_CanNm_00025 / 00026] CanNmPduNidPosition và CanNmPduCbvPosition đang trùng nhau tại ${ecucConfig.CanNmPduNidPosition}!`);
+  }
+  if (ecucConfig.CanNmNodeIdEnabled && ecucConfig.CanNmPduNidPosition === "OFF") {
+    warnings.push(`[ECUC_CanNm_00025] Khi CanNmNodeIdEnabled = TRUE thì CanNmPduNidPosition không được đặt CANNM_PDU_OFF.`);
+  }
+  if ((ecucConfig.CanNmNodeDetectionEnabled || ecucConfig.CanNmPnEnabled) && ecucConfig.CanNmPduCbvPosition === "OFF") {
+    warnings.push(`[ECUC_CanNm_00026 / SWS_CanNm_00413] Bắt buộc phải cấu hình CBV (BYTE_0 / BYTE_1) khi bật NodeDetection hoặc Partial Networking.`);
+  }
+  if (ecucConfig.CanNmPassiveModeEnabled && ecucConfig.CanNmNodeDetectionEnabled) {
+    warnings.push(`[ECUC_CanNm_00088] Khi CanNmPassiveModeEnabled = TRUE thì CanNmNodeDetectionEnabled phải = FALSE.`);
+  }
+  const sysByteCount = ((ecucConfig.CanNmNodeIdEnabled && ecucConfig.CanNmPduNidPosition !== "OFF") || ecucConfig.CanNmPduCbvPosition !== "OFF")
+    ? ((ecucConfig.CanNmPduNidPosition !== "OFF" && ecucConfig.CanNmPduCbvPosition !== "OFF" && ecucConfig.CanNmPduNidPosition !== ecucConfig.CanNmPduCbvPosition && ecucConfig.CanNmNodeIdEnabled) ? 2 : 1)
+    : 0;
+  if (ecucConfig.CanNmPnEnabled) {
+    if (ecucConfig.CanNmPnInfoOffset + ecucConfig.CanNmPnInfoLength > 8) {
+      warnings.push(`Vùng Partial Network (Offset=${ecucConfig.CanNmPnInfoOffset} + Length=${ecucConfig.CanNmPnInfoLength}) vượt quá kích thước 8 Bytes của CAN Frame.`);
+    }
+    if (ecucConfig.CanNmPnInfoOffset < sysByteCount || (ecucConfig.CanNmNodeIdEnabled && ecucConfig.CanNmPduNidPosition === "BYTE_1" && ecucConfig.CanNmPnInfoOffset === 1) || (ecucConfig.CanNmPduCbvPosition === "BYTE_1" && ecucConfig.CanNmPnInfoOffset === 1)) {
+      warnings.push(`[SWS_CanNm_00501] Vùng PNC Bit Vector (Offset=${ecucConfig.CanNmPnInfoOffset}) không được chồng lấn lên System Bytes (SNI/CBV).`);
+    }
+  }
+  if (ecucConfig.CanNmCarWakeUpRxEnabled && ecucConfig.CanNmCarWakeUpBytePosition < sysByteCount) {
+    warnings.push(`[ECUC_CanNm_00076] CanNmCarWakeUpBytePosition (${ecucConfig.CanNmCarWakeUpBytePosition}) phải >= số System Bytes (${sysByteCount}).`);
+  }
+  if (ecucConfig.CanNmRemoteSleepIndEnabled && ecucConfig.CanNmRemoteSleepIndTime < ecucConfig.CanNmMsgCycleTime) {
+    warnings.push(`[ECUC_CanNm_00023] CanNmRemoteSleepIndTime (${ecucConfig.CanNmRemoteSleepIndTime}ms) phải >= CanNmMsgCycleTime (${ecucConfig.CanNmMsgCycleTime}ms).`);
   }
 
   if (warnings.length > 0) {
@@ -188,6 +254,8 @@ function updateUIFromConfig() {
   setChecked("cfg_CanNmActiveWakeupBitEnabled", ecucConfig.CanNmActiveWakeupBitEnabled);
   setChecked("cfg_CanNmStateChangeIndEnabled", ecucConfig.CanNmStateChangeIndEnabled);
   setChecked("cfg_CanNmComControlEnabled", ecucConfig.CanNmComControlEnabled);
+  setChecked("cfg_CanNmImmediateTxconfEnabled", ecucConfig.CanNmImmediateTxconfEnabled);
+  setChecked("cfg_CanNmCoordinatorSyncSupport", ecucConfig.CanNmCoordinatorSyncSupport);
 
   setVal("cfg_CanNmMainFunctionPeriod", ecucConfig.CanNmMainFunctionPeriod);
   setVal("cfg_CanNmMsgCycleTime", ecucConfig.CanNmMsgCycleTime);
@@ -216,19 +284,26 @@ function updateUIFromConfig() {
   setVal("cfg_CanNmPnInfoOffset", ecucConfig.CanNmPnInfoOffset);
   setVal("cfg_CanNmPnInfoLength", ecucConfig.CanNmPnInfoLength);
   setVal("cfg_CanNmPnFilterMaskByte", ecucConfig.CanNmPnFilterMaskHex);
+  setVal("cfg_CanNmTxPnRequestHex", ecucConfig.CanNmTxPnRequestHex);
   setChecked("cfg_CanNmPnEiraCalcEnabled", ecucConfig.CanNmPnEiraCalcEnabled);
   setChecked("cfg_CanNmPnEraCalcEnabled", ecucConfig.CanNmPnEraCalcEnabled);
   setVal("cfg_CanNmPnResetTime", ecucConfig.CanNmPnResetTime);
+  setChecked("cfg_CanNmPnHandleMultipleNetworkRequests", ecucConfig.CanNmPnHandleMultipleNetworkRequests);
+  setChecked("cfg_PnAvailabilityConfirmed", ecucConfig.PnAvailabilityConfirmed);
   setChecked("cfg_CanNmSynchronizedPncShutdownEnabled", ecucConfig.CanNmSynchronizedPncShutdownEnabled);
 
   setChecked("cfg_CanNmUserDataEnabled", ecucConfig.CanNmUserDataEnabled);
   setChecked("cfg_CanNmComUserDataSupport", ecucConfig.CanNmComUserDataSupport);
   setVal("cfg_UserDataBytesHex", ecucConfig.UserDataBytesHex);
   setChecked("cfg_CanNmCarWakeUpRxEnabled", ecucConfig.CanNmCarWakeUpRxEnabled);
+  setVal("cfg_CanNmCarWakeUpBytePosition", ecucConfig.CanNmCarWakeUpBytePosition);
+  setVal("cfg_CanNmCarWakeUpBitPosition", ecucConfig.CanNmCarWakeUpBitPosition);
   setChecked("cfg_CanNmCarWakeUpFilterEnabled", ecucConfig.CanNmCarWakeUpFilterEnabled);
   setVal("cfg_CanNmCarWakeUpFilterNodeId", "0x" + (ecucConfig.CanNmCarWakeUpFilterNodeId & 0xFF).toString(16).toUpperCase().padStart(2, "0"));
   setChecked("cfg_CanNmRemoteSleepIndEnabled", ecucConfig.CanNmRemoteSleepIndEnabled);
   setVal("cfg_CanNmRemoteSleepIndTime", ecucConfig.CanNmRemoteSleepIndTime);
+
+  setChecked("simTxConfirmFail", simState.engine.simTxConfirmFail);
 
   validateTimingRules();
 }
@@ -245,18 +320,53 @@ function onConfigChange(paramName, fromProgrammatic = false) {
 
 function resetDefaultConfig() {
   ecucConfig = JSON.parse(JSON.stringify(defaultConfig));
+  simState.engine.simTxConfirmFail = false;
   updateUIFromConfig();
-  addTraceLog("API", "User -> System", "Khôi phục cấu hình mặc định (Reset Default)", "Toàn bộ tham số ECUC được đưa về giá trị chuẩn AUTOSAR.");
+  addTraceLog("API", "User -> System", "Khôi phục cấu hình mặc định (Reset Default)", "Toàn bộ tham số ECUC được đưa về giá trị chuẩn AUTOSAR CP R25-11.");
   renderAll();
 }
 
-// 4. CORE ENGINE CALCULATION & PDU FRAME BUILDER
+function onSimTxFailToggle(checked) {
+  simState.engine.simTxConfirmFail = !!checked;
+  renderAll();
+}
+
+function stepMainFunctionTick() {
+  stepClockTick(ecucConfig.CanNmMainFunctionPeriod);
+}
+
+// 4. CORE ENGINE CALCULATION, STATE HELPERS & PDU FRAME BUILDER
+function getNmFullStateName(mode, subState) {
+  if (mode === "NM_MODE_BUS_SLEEP") return "NM_STATE_BUS_SLEEP";
+  if (mode === "NM_MODE_PREPARE_BUS_SLEEP") return "NM_STATE_PREPARE_BUS_SLEEP";
+  return subState;
+}
+
+function reportStateChange(prevFullState, nextFullState) {
+  if (ecucConfig.CanNmStateChangeIndEnabled && prevFullState !== nextFullState) {
+    addTraceLog("API", "CanNm -> Nm", `Nm_StateChangeNotification(0, ${prevFullState}, ${nextFullState})`, "[SWS_CanNm_00166] Thông báo chuyển trạng thái lên lớp trên (Nm / BswM / ComM).");
+  }
+}
+
+function requireInitialized(apiName) {
+  if (!ecucConfig.CanNmInitialized) {
+    if (ecucConfig.CanNmDevErrorDetect) {
+      addTraceLog("DET", "CanNm", `CANNM_E_UNINIT (0x01) — ${apiName} -> E_NOT_OK`, "[SWS_CanNm_00316 / SWS_CanNm_00189] Module chưa khởi tạo và CanNmDevErrorDetect=TRUE -> Det_ReportError(0x01), hủy thực thi & trả E_NOT_OK.");
+    }
+    return false;
+  }
+  return true;
+}
+
 function getCbvByteValue() {
   let val = 0;
-  if (simState.cbv.rmr) val |= 0x01; // Bit 0
-  if (simState.cbv.csr) val |= 0x08; // Bit 3
-  if (simState.cbv.awb) val |= 0x10; // Bit 4
-  if (simState.cbv.pni || ecucConfig.CanNmPnEnabled) val |= 0x40; // Bit 6
+  if (simState.cbv.rmr) val |= 0x01; // Bit 0: RMR
+  if (simState.cbv.pnsr && ecucConfig.CanNmSynchronizedPncShutdownEnabled) val |= 0x02; // Bit 1: PNSR
+  else if (simState.cbv.pnsr) val |= 0x02;
+  if (simState.cbv.csr) val |= 0x08; // Bit 3: CSR (NM Coordinator Sleep Ready)
+  if (simState.cbv.awb) val |= 0x10; // Bit 4: AWB
+  if (simState.cbv.pnl) val |= 0x20; // Bit 5: PNL (Partial Network Learning)
+  if (ecucConfig.CanNmPnEnabled || simState.cbv.pni) val |= 0x40; // Bit 6: PNI
   return val & 0xFF;
 }
 
@@ -288,6 +398,102 @@ function formatHexBytes(arr) {
   return (arr || []).map(b => (b & 0xFF).toString(16).toUpperCase().padStart(2, "0")).join(" ");
 }
 
+function getPduLayoutDescriptor() {
+  const roles = new Array(8).fill("UNUSED");
+  let nidIdx = -1;
+  let cbvIdx = -1;
+
+  if (ecucConfig.CanNmNodeIdEnabled) {
+    if (ecucConfig.CanNmPduNidPosition === "BYTE_0") nidIdx = 0;
+    else if (ecucConfig.CanNmPduNidPosition === "BYTE_1") nidIdx = 1;
+  }
+  if (ecucConfig.CanNmPduCbvPosition === "BYTE_0") cbvIdx = 0;
+  else if (ecucConfig.CanNmPduCbvPosition === "BYTE_1") cbvIdx = 1;
+
+  if (nidIdx >= 0) roles[nidIdx] = "SNI";
+  if (cbvIdx >= 0) roles[cbvIdx] = "CBV"; // If overlapping, CBV overwrites SNI (warned by validateTimingRules)
+
+  const pnIndices = [];
+  if (ecucConfig.CanNmPnEnabled) {
+    for (let i = 0; i < ecucConfig.CanNmPnInfoLength; i++) {
+      const idx = ecucConfig.CanNmPnInfoOffset + i;
+      if (idx >= 0 && idx < 8 && roles[idx] === "UNUSED") {
+        roles[idx] = "PN";
+        pnIndices.push(idx);
+      }
+    }
+  }
+
+  // SWS_CanNm_00501: When CanNmPnEnabled is TRUE, User Data resides EXCLUSIVELY in ONE contiguous block
+  // either between System Bytes and PNC bit vector OR between PNC bit vector and end of NM-PDU.
+  const userIndices = [];
+  if (ecucConfig.CanNmUserDataEnabled) {
+    if (!ecucConfig.CanNmPnEnabled) {
+      for (let i = 0; i < 8; i++) {
+        if (roles[i] === "UNUSED") {
+          roles[i] = "USER";
+          userIndices.push(i);
+        }
+      }
+    } else {
+      let maxSysIdx = -1;
+      for (let i = 0; i < 8; i++) {
+        if (roles[i] === "SNI" || roles[i] === "CBV") maxSysIdx = i;
+      }
+      const pnStart = pnIndices.length ? pnIndices[0] : ecucConfig.CanNmPnInfoOffset;
+      const pnEnd = pnIndices.length ? pnIndices[pnIndices.length - 1] + 1 : ecucConfig.CanNmPnInfoOffset;
+      const regionA = [];
+      for (let i = maxSysIdx + 1; i < pnStart; i++) {
+        if (i >= 0 && i < 8 && roles[i] === "UNUSED") regionA.push(i);
+      }
+      const regionB = [];
+      for (let i = pnEnd; i < 8; i++) {
+        if (i >= 0 && i < 8 && roles[i] === "UNUSED") regionB.push(i);
+      }
+      const chosen = regionB.length > 0 ? regionB : regionA;
+      chosen.forEach(idx => {
+        roles[idx] = "USER";
+        userIndices.push(idx);
+      });
+    }
+  }
+
+  return { roles, nidIdx, cbvIdx, pnIndices, userIndices };
+}
+
+function getPduFrameBytes() {
+  // SWS_CanNm_00025: User data bytes initialized/padded with 0xFF
+  const bytes = [0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF];
+  const layout = getPduLayoutDescriptor();
+  const nid = ecucConfig.CanNmNodeId & 0xFF;
+  const cbv = getCbvByteValue();
+
+  if (layout.nidIdx >= 0 && layout.roles[layout.nidIdx] === "SNI") {
+    bytes[layout.nidIdx] = nid;
+  }
+  if (layout.cbvIdx >= 0 && layout.roles[layout.cbvIdx] === "CBV") {
+    bytes[layout.cbvIdx] = cbv;
+  }
+
+  // SWS_CanNm_00500 / SWS_CanNm_00518: Tx PNC vector comes from Nm_PncBitVectorTxIndication (IRA), NOT Rx FilterMask
+  if (ecucConfig.CanNmPnEnabled) {
+    const hasTxReq = simState.engine.netRequest || simState.engine.pnShutdownMsgActive;
+    const txPnArr = hasTxReq ? parseHexBytes(ecucConfig.CanNmTxPnRequestHex) : [];
+    layout.pnIndices.forEach((idx, k) => {
+      bytes[idx] = (k < txPnArr.length) ? txPnArr[k] : 0x00;
+    });
+  }
+
+  if (ecucConfig.CanNmUserDataEnabled) {
+    const userHexArr = parseHexBytes(ecucConfig.UserDataBytesHex);
+    layout.userIndices.forEach((idx, uIdx) => {
+      bytes[idx] = (uIdx < userHexArr.length) ? userHexArr[uIdx] : 0xFF;
+    });
+  }
+
+  return bytes;
+}
+
 function evaluatePnFilter(rxPni, rxPniBytes) {
   if (!ecucConfig.CanNmPnEnabled) {
     return { active: false, accepted: true, matched: true, reason: "PN_DISABLED" };
@@ -311,7 +517,7 @@ function evaluatePnFilter(rxPni, rxPniBytes) {
   }
 
   const inBusSleep = (simState.mode === "NM_MODE_BUS_SLEEP");
-  // In Bus-Sleep with CanNmPnEnabled=TRUE, wake-up requires PNI=1 AND (RxPncMask & FilterMask) != 0
+  // SWS_CanNm_00411 / SWS_CanNm_00410
   if (!rxPni) {
     const keepAwake = !inBusSleep && !!ecucConfig.CanNmAllNmMessagesKeepAwake;
     return {
@@ -324,6 +530,22 @@ function evaluatePnFilter(rxPni, rxPniBytes) {
       filterMask,
       andResult,
       reason: keepAwake ? "KEEP_AWAKE_PNI_ZERO" : "IGNORED_PNI_ZERO"
+    };
+  }
+
+  // SWS_CanNm_00503: Confirmed PN requires match (unless AllNmMessagesKeepAwake in active mode); unconfirmed PN passes all PNI=1
+  if (!ecucConfig.PnAvailabilityConfirmed) {
+    return {
+      active: true,
+      accepted: true,
+      matched: matched,
+      unconfirmed: true,
+      pniZero: false,
+      inBusSleep,
+      rxPncMask,
+      filterMask,
+      andResult,
+      reason: "UNCONFIRMED_PN"
     };
   }
 
@@ -355,145 +577,253 @@ function evaluatePnFilter(rxPni, rxPniBytes) {
   };
 }
 
-function getPduFrameBytes() {
-  const bytes = [0, 0, 0, 0, 0, 0, 0, 0];
-  const nid = ecucConfig.CanNmNodeId & 0xFF;
-  const cbv = getCbvByteValue();
+function updatePncArrayWithBytes(targetField, timerMapField, pnBytes, resetMs) {
+  let mask16 = simState.pnc[targetField] || 0;
+  const timers = simState.pnc[timerMapField] || {};
+  const b0 = pnBytes[0] || 0;
+  const b1 = pnBytes[1] || 0;
+  const word = (b0 | (b1 << 8)) & 0xFFFF;
+  for (let bit = 0; bit < 16; bit++) {
+    if (word & (1 << bit)) {
+      mask16 |= (1 << bit);
+      timers[bit] = resetMs;
+    }
+  }
+  simState.pnc[targetField] = mask16 & 0xFFFF;
+  simState.pnc[timerMapField] = timers;
+  refreshPnResetDisplayTimer();
+}
 
-  let assigned = [false, false, false, false, false, false, false, false];
+function refreshPnResetDisplayTimer() {
+  let maxT = 0;
+  Object.values(simState.pnc.eiraTimers || {}).forEach(v => { if (v > maxT) maxT = v; });
+  Object.values(simState.pnc.eraTimers || {}).forEach(v => { if (v > maxT) maxT = v; });
+  simState.timers.pnReset = maxT;
+}
 
-  if (ecucConfig.CanNmPduNidPosition === "BYTE_0") {
-    bytes[0] = nid; assigned[0] = true;
-  } else if (ecucConfig.CanNmPduNidPosition === "BYTE_1") {
-    bytes[1] = nid; assigned[1] = true;
+function tickPncTimers(deltaMs) {
+  const tickMap = (targetField, timerMapField, label) => {
+    const timers = simState.pnc[timerMapField] || {};
+    let changed = false;
+    let clearedBits = [];
+    Object.keys(timers).forEach(bitKey => {
+      timers[bitKey] = Math.max(0, timers[bitKey] - deltaMs);
+      if (timers[bitKey] === 0) {
+        const bit = parseInt(bitKey, 10);
+        simState.pnc[targetField] &= ~(1 << bit);
+        delete timers[bitKey];
+        changed = true;
+        clearedBits.push(`PNC #${16 + bit}`);
+      }
+    });
+    if (changed) {
+      addTraceLog("PN", "Nm / CanNm Engine", `${label} PnResetTimer Hết Hạn -> Xóa [${clearedBits.join(", ")}]`, `[SWS_CanNm_00502] ${label} mới = 0x${simState.pnc[targetField].toString(16).toUpperCase().padStart(4, "0")}.`);
+    }
+  };
+  tickMap("eira", "eiraTimers", "EIRA");
+  tickMap("era", "eraTimers", "ERA");
+  refreshPnResetDisplayTimer();
+}
+
+function triggerCanNmTransmit(reasonLabel, isPnShutdown = false) {
+  if (!requireInitialized("CanNm_Transmit()")) return false;
+  if (ecucConfig.CanNmPassiveModeEnabled) {
+    addTraceLog("API", "CanNm (Passive)", "Bỏ qua phát bản tin (PassiveMode = TRUE)", "Node ở chế độ thụ động chỉ nghe bus, không gọi CanIf_Transmit().");
+    return false;
+  }
+  if (!simState.engine.msgTxEnabled) {
+    addTraceLog("API", "CanNm (TxDisabled)", "Bản tin NM bị chặn (UDS 0x28 DisableCommunication)", "Đường truyền NM đang bị khóa bởi dịch vụ chẩn đoán.");
+    return false;
   }
 
-  if (ecucConfig.CanNmPduCbvPosition === "BYTE_0") {
-    bytes[0] = cbv; assigned[0] = true;
-  } else if (ecucConfig.CanNmPduCbvPosition === "BYTE_1") {
-    bytes[1] = cbv; assigned[1] = true;
-  }
-
-  // Handle PN bytes if enabled
+  // SWS_CanNm_00518: Fetch IRA PNC bit vector via Nm_PncBitVectorTxIndication before Tx
   if (ecucConfig.CanNmPnEnabled) {
-    const maskParts = parseHexBytes(ecucConfig.CanNmPnFilterMaskHex);
-    for (let i = 0; i < ecucConfig.CanNmPnInfoLength; i++) {
-      const idx = ecucConfig.CanNmPnInfoOffset + i;
-      if (idx < 8) {
-        bytes[idx] = (i < maskParts.length) ? maskParts[i] : 0x00;
-        assigned[idx] = true;
+    addTraceLog("API", "CanNm -> Nm", "Nm_PncBitVectorTxIndication(0, &TxPncBitVector)", "[SWS_CanNm_00518 / SWS_CanNm_00515] Lấy vector PNC nội bộ (IRA) mới nhất từ Nm trước khi gửi NM PDU.");
+    if (ecucConfig.CanNmPnEiraCalcEnabled) {
+      const hasTxReq = simState.engine.netRequest || simState.engine.pnShutdownMsgActive;
+      const txPnArr = hasTxReq ? parseHexBytes(ecucConfig.CanNmTxPnRequestHex) : [];
+      if ((txPnArr[0] || 0) || (txPnArr[1] || 0)) {
+        updatePncArrayWithBytes("eira", "eiraTimers", txPnArr, ecucConfig.CanNmPnResetTime);
       }
     }
   }
 
-  // Fill remaining bytes with User Data
-  const userHexArr = parseHexBytes(ecucConfig.UserDataBytesHex);
-  let uIdx = 0;
-  for (let i = 0; i < 8; i++) {
-    if (!assigned[i]) {
-      bytes[i] = (uIdx < userHexArr.length) ? userHexArr[uIdx] : 0x00;
-      uIdx++;
-    }
-  }
-  return bytes;
-}
-
-function triggerCanNmTransmit(reasonLabel) {
-  if (!ecucConfig.CanNmInitialized) {
-    addTraceLog("DET", "CanNm", "CANNM_E_UNINIT (0x01)", "Từ chối phát bản tin vì module CanNM chưa khởi tạo.");
-    return;
-  }
-  if (ecucConfig.CanNmPassiveModeEnabled) {
-    addTraceLog("API", "CanNm (Passive)", "Bỏ qua phát bản tin (PassiveMode = TRUE)", "Node ở chế độ thụ động chỉ nghe bus, không gọi CanIf_Transmit().");
-    return;
-  }
-  if (!simState.engine.msgTxEnabled) {
-    addTraceLog("API", "CanNm (TxDisabled)", "Bản tin NM bị chặn (UDS 0x28 DisableCommunication)", "Đường truyền NM đang bị khóa bởi dịch vụ chẩn đoán.");
-    return;
-  }
-
-  // Check COM User Data TriggerTransmit
   if (ecucConfig.CanNmComUserDataSupport) {
-    addTraceLog("API", "CanNm -> PduR", "PduR_CanNmTriggerTransmit(TxUserDataPduId, &PduInfo)", "[SWS_CanNm_00328] CanNM tự động gọi PduR -> Com_TriggerTransmit() để lấy 4..6 bytes User Data mới nhất từ COM.");
+    addTraceLog("API", "CanNm -> PduR", "PduR_CanNmTriggerTransmit(TxUserDataPduId, &PduInfo)", "[SWS_CanNm_00328] CanNM tự động gọi PduR -> Com_TriggerTransmit() để lấy User Data mới nhất từ COM.");
   }
 
   const canIdHex = "0x" + (ecucConfig.CanNmBaseCanId + ecucConfig.CanNmNodeId).toString(16).toUpperCase();
   const bytes = getPduFrameBytes();
   const byteStr = bytes.map(b => b.toString(16).toUpperCase().padStart(2, "0")).join(" ");
+  const cbvVal = getCbvByteValue();
 
   simState.lastBusActivity = `Tx ${canIdHex} [${byteStr}]`;
   simState.activeDirection = "Downward Request ↓";
 
-  addTraceLog("BUS", "CanNm -> CanIf", `CanIf_Transmit(CanNmTxPduId=${canIdHex}, Data=[${byteStr}])`, `${reasonLabel} | SNI=0x${(ecucConfig.CanNmNodeId).toString(16).toUpperCase()}, CBV=0x${getCbvByteValue().toString(16).toUpperCase()} (AWB=${simState.cbv.awb ? 1 : 0}, RMR=${simState.cbv.rmr ? 1 : 0}, PNI=${simState.cbv.pni || ecucConfig.CanNmPnEnabled ? 1 : 0})`);
+  addTraceLog("BUS", "CanNm -> CanIf", `LSduR/CanIf_Transmit(ID=${canIdHex}, Data=[${byteStr}])`, `${reasonLabel} | SNI=0x${(ecucConfig.CanNmNodeId).toString(16).toUpperCase()}, CBV=0x${cbvVal.toString(16).toUpperCase().padStart(2, "0")} (AWB=${simState.cbv.awb ? 1 : 0}, RMR=${simState.cbv.rmr ? 1 : 0}, PNSR=${(cbvVal & 0x02) ? 1 : 0}, PNI=${(cbvVal & 0x40) ? 1 : 0})`);
 
-  // Simulate immediate successful TxConfirmation
-  simState.timers.timeout = ecucConfig.CanNmTimeoutTime; // Reload NM-Timeout Timer
-  addTraceLog("API", "CanIf -> CanNm", "CanNm_TxConfirmation(TxPduId, E_OK)", `[SWS_CanNm_00099] Gói NM phát thành công lên bus -> Nạp lại NM-Timeout Timer đầy = ${ecucConfig.CanNmTimeoutTime}ms.`);
+  // SWS_CanNm_00071 / SWS_CanNm_00073 / SWS_CanNm_00064 / SWS_CanNm_00065
+  if (!ecucConfig.CanNmImmediateTxconfEnabled && simState.engine.simTxConfirmFail) {
+    if (!simState.engine.txPending || simState.timers.msgTimeout <= 0) {
+      simState.timers.msgTimeout = ecucConfig.CanNmMsgTimeoutTime;
+      addTraceLog("WARN", "CanNm Engine", `Chờ CanNm_TxConfirmation() -> Bật MsgTimeoutTimer = ${ecucConfig.CanNmMsgTimeoutTime}ms`, "[SWS_CanNm_00064] Đang giả lập mất TxConfirmation từ CanIf.");
+    }
+    simState.engine.txPending = true;
+  } else {
+    simState.engine.txPending = false;
+    simState.timers.msgTimeout = 0;
+    simState.timers.timeout = ecucConfig.CanNmTimeoutTime;
+    if (ecucConfig.CanNmPnEnabled) {
+      addTraceLog("API", "CanNm -> Nm", "Nm_PncBitVectorTxConfirmation(0, E_OK)", "[SWS_CanNm_00516] Chuyển tiếp xác nhận Tx PNC thành công lên Nm.");
+    }
+    if (isPnShutdown) {
+      simState.engine.pnShutdownMsgActive = false;
+      simState.cbv.pnsr = false;
+    }
+    addTraceLog("API", "CanIf -> CanNm", "CanNm_TxConfirmation(TxPduId, E_OK)", `[SWS_CanNm_00099 / SWS_CanNm_00065] Xác nhận phát thành công -> Dừng MsgTimeoutTimer & Nạp lại NM-Timeout Timer = ${ecucConfig.CanNmTimeoutTime}ms.`);
+  }
+  return true;
+}
+
+function apiTxConfirmationResult(isOk = true) {
+  if (!requireInitialized("CanNm_TxConfirmation()")) return;
+  simState.timers.msgTimeout = 0;
+  simState.engine.txPending = false;
+  if (isOk) {
+    simState.timers.timeout = ecucConfig.CanNmTimeoutTime;
+    if (simState.engine.pnShutdownMsgActive) {
+      simState.engine.pnShutdownMsgActive = false;
+      simState.cbv.pnsr = false;
+    }
+    addTraceLog("API", "CanIf -> CanNm", "CanNm_TxConfirmation(TxPduId, E_OK)", `[SWS_CanNm_00065 / SWS_CanNm_00099] Đã nhận TxConfirmation(E_OK) -> Dừng MsgTimeoutTimer, nạp lại NM-Timeout = ${ecucConfig.CanNmTimeoutTime}ms.`);
+    if (ecucConfig.CanNmPnEnabled) {
+      addTraceLog("API", "CanNm -> Nm", "Nm_PncBitVectorTxConfirmation(0, E_OK)", "[SWS_CanNm_00516]");
+    }
+  } else {
+    addTraceLog("WARN", "CanIf -> CanNm", "CanNm_TxConfirmation(TxPduId, E_NOT_OK)", "[SWS_CanNm_00066] Truyền thất bại (E_NOT_OK) -> Báo Nm_TxTimeoutException()!");
+    addTraceLog("API", "CanNm -> Nm", "Nm_TxTimeoutException(nmChannelHandle=0)", "[SWS_CanNm_00066]");
+    if (ecucConfig.CanNmPnEnabled) {
+      addTraceLog("API", "CanNm -> Nm", "Nm_PncBitVectorTxConfirmation(0, E_NOT_OK)", "[SWS_CanNm_00517] Báo Nm biết PN Tx không được xác nhận.");
+    }
+  }
+  renderAll();
 }
 
 // 5. CORE API TRIGGER IMPLEMENTATIONS
 function apiNetworkRequest() {
-  if (!ecucConfig.CanNmInitialized) {
-    addTraceLog("DET", "CanNm", "CANNM_E_UNINIT (0x01)", "CanNm_NetworkRequest() gọi khi module chưa khởi tạo.");
-    return;
-  }
+  if (!requireInitialized("CanNm_NetworkRequest()")) return;
   if (ecucConfig.CanNmPassiveModeEnabled) {
-    addTraceLog("API", "CanNm", "CanNm_NetworkRequest() -> E_NOT_OK", "[SWS_CanNm_00130] Từ chối yêu cầu mạng vì CanNmPassiveModeEnabled = TRUE.");
+    addTraceLog("API", "CanNm", "CanNm_NetworkRequest() -> E_NOT_OK", "[SWS_CanNm_00257 / SWS_CanNm_00189] Từ chối yêu cầu mạng vì CanNmPassiveModeEnabled = TRUE.");
     return;
   }
 
+  const prevFull = getNmFullStateName(simState.mode, simState.subState);
   simState.engine.netRequest = true;
   simState.wakeupSource = "Active SWC Request";
-  addTraceLog("API", "ComM -> Nm -> CanNm", "CanNm_NetworkRequest(nmChannelHandle=0)", "[SWS_CanNm_00104] Ứng dụng yêu cầu giữ mạng CAN (COMM_FULL_COMMUNICATION).");
+  addTraceLog("API", "ComM -> Nm -> CanNm", "CanNm_NetworkRequest(nmChannelHandle=0)", "[SWS_CanNm_00104 / SWS_CanNm_00255] Ứng dụng yêu cầu giữ mạng CAN (Network State = requested).");
+
+  const scheduleRepeatEntryTx = (useImmediateRestart = false) => {
+    if (useImmediateRestart) {
+      addTraceLog("API", "CanNm Engine", "Immediate Restart Enabled -> Phát ngay gói NM PDU tại t=0ms", "[SWS_CanNm_00122] Khởi động lại mạng ngay tại Prepare Bus-Sleep.");
+      triggerCanNmTransmit("Đánh thức khẩn cấp tại Prepare Bus-Sleep");
+      simState.engine.immBurstActive = false;
+      simState.engine.burstLeft = 0;
+      simState.timers.msgCycle = ecucConfig.CanNmMsgCycleTime;
+    } else if (ecucConfig.CanNmImmediateNmTransmissions > 0) {
+      const totalBurst = ecucConfig.CanNmImmediateNmTransmissions;
+      addTraceLog("API", "CanNm Engine", `Immediate Burst Tx (${totalBurst} gói, chu kỳ ${ecucConfig.CanNmImmediateNmCycleTime}ms)`, "[PRS_Nm_00005 / SWS_CanNm_00335] Phát ngay gói đầu tiên để đánh thức nhanh toàn mạng.");
+      triggerCanNmTransmit("Gói chùm Burst Tx #1");
+      const left = totalBurst - 1;
+      if (left > 0) {
+        simState.engine.immBurstActive = true;
+        simState.engine.burstLeft = left;
+        simState.timers.msgCycle = ecucConfig.CanNmImmediateNmCycleTime;
+      } else {
+        // SWS_CanNm_00335: Only 1 immediate Tx -> afterwards continue with CanNmMsgCycleTime
+        simState.engine.immBurstActive = false;
+        simState.engine.burstLeft = 0;
+        simState.timers.msgCycle = ecucConfig.CanNmMsgCycleTime;
+      }
+    } else {
+      simState.engine.immBurstActive = false;
+      simState.engine.burstLeft = 0;
+      simState.timers.msgCycle = ecucConfig.CanNmMsgCycleOffset;
+    }
+  };
 
   if (simState.mode === "NM_MODE_BUS_SLEEP") {
-    // Active Wakeup from Bus-Sleep
     simState.mode = "NM_MODE_NETWORK";
     simState.subState = "NM_STATE_REPEAT_MESSAGE";
+    simState.engine.busLoadReductionActive = false; // SWS_CanNm_00156
     if (ecucConfig.CanNmActiveWakeupBitEnabled) {
       simState.cbv.awb = true; // SWS_CanNm_00401
     }
     simState.timers.repeatMsg = ecucConfig.CanNmRepeatMessageTime;
     simState.timers.timeout = ecucConfig.CanNmTimeoutTime;
 
-    addTraceLog("STATE", "CanNm State Machine", "BUS_SLEEP -> NETWORK_MODE (REPEAT_MESSAGE)", `[SWS_CanNm_00129] Active Wakeup! Bật Bit 4 (AWB=1) trong CBV, khởi động RepeatMessageTimer=${ecucConfig.CanNmRepeatMessageTime}ms và NM-TimeoutTimer=${ecucConfig.CanNmTimeoutTime}ms.`);
+    addTraceLog("STATE", "CanNm State Machine", "BUS_SLEEP -> NETWORK_MODE (REPEAT_MESSAGE)", `[SWS_CanNm_00129 / SWS_CanNm_00314] Active Wakeup! Nm_NetworkMode() [SWS_CanNm_00097], RepeatMsgTimer=${ecucConfig.CanNmRepeatMessageTime}ms, TimeoutTimer=${ecucConfig.CanNmTimeoutTime}ms.`);
+    reportStateChange(prevFull, getNmFullStateName(simState.mode, simState.subState));
+    scheduleRepeatEntryTx(false);
 
-    if (ecucConfig.CanNmImmediateNmTransmissions > 0) {
-      simState.engine.immBurstActive = true;
-      simState.engine.burstLeft = ecucConfig.CanNmImmediateNmTransmissions;
-      simState.timers.msgCycle = 0; // Transmit immediately!
-      addTraceLog("API", "CanNm Engine", `Bắt đầu bắn chùm Immediate Burst Tx (${ecucConfig.CanNmImmediateNmTransmissions} gói, chu kỳ ${ecucConfig.CanNmImmediateNmCycleTime}ms)`, "[SWS_CanNm_00334] Đánh thức nhanh toàn bộ các ECU khác trên bus.");
-      triggerCanNmTransmit("Gói chùm Burst Tx #1");
-      simState.engine.burstLeft--;
-      simState.timers.msgCycle = ecucConfig.CanNmImmediateNmCycleTime;
-    } else {
-      simState.timers.msgCycle = ecucConfig.CanNmMsgCycleOffset;
+    if (ecucConfig.CanNmRepeatMessageTime === 0) {
+      const p = getNmFullStateName(simState.mode, simState.subState);
+      simState.subState = "NM_STATE_NORMAL_OPERATION";
+      simState.cbv.rmr = false;
+      simState.engine.immBurstActive = false;
+      simState.engine.burstLeft = 0;
+      simState.engine.busLoadReductionActive = !!ecucConfig.CanNmBusLoadReductionEnabled;
+      reportStateChange(p, "NM_STATE_NORMAL_OPERATION");
     }
 
   } else if (simState.mode === "NM_MODE_PREPARE_BUS_SLEEP") {
-    // Wakeup from Prepare Bus-Sleep
     simState.mode = "NM_MODE_NETWORK";
     simState.subState = "NM_STATE_REPEAT_MESSAGE";
-    if (ecucConfig.CanNmActiveWakeupBitEnabled) simState.cbv.awb = true;
+    simState.engine.busLoadReductionActive = false; // SWS_CanNm_00156
+    if (ecucConfig.CanNmActiveWakeupBitEnabled) simState.cbv.awb = true; // SWS_CanNm_00401
     simState.timers.waitBusSleep = 0;
     simState.timers.repeatMsg = ecucConfig.CanNmRepeatMessageTime;
     simState.timers.timeout = ecucConfig.CanNmTimeoutTime;
 
-    addTraceLog("STATE", "CanNm State Machine", "PREPARE_BUS_SLEEP -> REPEAT_MESSAGE", "[SWS_CanNm_00123] Đánh thức lại tại Prepare Bus-Sleep! Hủy WaitBusSleepTimer.");
+    addTraceLog("STATE", "CanNm State Machine", "PREPARE_BUS_SLEEP -> REPEAT_MESSAGE", "[SWS_CanNm_00123 / SWS_CanNm_00315] Đánh thức lại từ Prepare Bus-Sleep! Hủy WaitBusSleepTimer & báo Nm_NetworkMode() [SWS_CanNm_00097].");
+    reportStateChange(prevFull, getNmFullStateName(simState.mode, simState.subState));
+    scheduleRepeatEntryTx(!!ecucConfig.CanNmImmediateRestartEnabled);
 
-    if (ecucConfig.CanNmImmediateRestartEnabled) {
-      addTraceLog("API", "CanNm Engine", "Immediate Restart Enabled -> Phát ngay gói NM PDU tại t=0ms", "[SWS_CanNm_00122] Ngăn toàn mạng rơi vào trạng thái ngủ lỡ dở.");
-      triggerCanNmTransmit("Đánh thức khẩn cấp tại Prepare Bus-Sleep");
-      simState.timers.msgCycle = ecucConfig.CanNmMsgCycleTime;
-    } else {
-      simState.timers.msgCycle = ecucConfig.CanNmMsgCycleTime;
+    if (ecucConfig.CanNmRepeatMessageTime === 0) {
+      const p = getNmFullStateName(simState.mode, simState.subState);
+      simState.subState = "NM_STATE_NORMAL_OPERATION";
+      simState.cbv.rmr = false;
+      simState.engine.immBurstActive = false;
+      simState.engine.burstLeft = 0;
+      simState.engine.busLoadReductionActive = !!ecucConfig.CanNmBusLoadReductionEnabled;
+      reportStateChange(p, "NM_STATE_NORMAL_OPERATION");
     }
 
   } else if (simState.mode === "NM_MODE_NETWORK") {
     if (simState.subState === "NM_STATE_READY_SLEEP") {
       simState.subState = "NM_STATE_NORMAL_OPERATION";
-      simState.timers.msgCycle = ecucConfig.CanNmMsgCycleTime;
-      addTraceLog("STATE", "CanNm State Machine", "READY_SLEEP -> NORMAL_OPERATION", "[SWS_CanNm_00110] Ứng dụng yêu cầu mạng lại -> Mở lại phát bản tin định kỳ MsgCycleTime.");
+      simState.engine.busLoadReductionActive = !!ecucConfig.CanNmBusLoadReductionEnabled; // SWS_CanNm_00157
+      if (ecucConfig.CanNmRemoteSleepIndEnabled && simState.engine.msgTxEnabled) {
+        simState.timers.remoteSleep = ecucConfig.CanNmRemoteSleepIndTime;
+      }
+      addTraceLog("STATE", "CanNm State Machine", "READY_SLEEP -> NORMAL_OPERATION", "[SWS_CanNm_00110 / SWS_CanNm_00116] Vào Normal Operation -> Phát ngay NM PDU [SWS_CanNm_00006] & chạy chu kỳ MsgCycleTime.");
+      reportStateChange(prevFull, "NM_STATE_NORMAL_OPERATION");
+      if (simState.engine.msgTxEnabled) {
+        triggerCanNmTransmit("Immediate Tx khi vào Normal Operation (SWS_CanNm_00006)");
+        simState.timers.msgCycle = ecucConfig.CanNmMsgCycleTime;
+      }
+    } else if (ecucConfig.CanNmPnHandleMultipleNetworkRequests) {
+      // Section 7.11.4 / State Chart 7.18: Re-enter Repeat Message on additional NetworkRequest
+      simState.subState = "NM_STATE_REPEAT_MESSAGE";
+      simState.engine.busLoadReductionActive = false; // SWS_CanNm_00156
+      if (simState.engine.remoteSleepDetected) {
+        simState.engine.remoteSleepDetected = false;
+        addTraceLog("API", "CanNm -> Nm", "Nm_RemoteSleepCancellation(0)", "[SWS_CanNm_00152] Hủy Remote Sleep khi vào lại Repeat Message.");
+      }
+      simState.timers.remoteSleep = 0;
+      simState.timers.repeatMsg = ecucConfig.CanNmRepeatMessageTime;
+      addTraceLog("STATE", "CanNm State Machine", `${prevFull.replace("NM_STATE_", "")} -> REPEAT_MESSAGE (MultiNetReq)`, "[ECUC_CanNm_00073 / State Chart 7.18] CanNmPnHandleMultipleNetworkRequests=TRUE -> Chuyển/restart Repeat Message State & bắn Immediate Tx.");
+      reportStateChange(prevFull, "NM_STATE_REPEAT_MESSAGE");
+      scheduleRepeatEntryTx(false);
     }
   }
 
@@ -501,167 +831,268 @@ function apiNetworkRequest() {
 }
 
 function apiNetworkRelease() {
-  if (!ecucConfig.CanNmInitialized) return;
-  simState.engine.netRequest = false;
-  addTraceLog("API", "ComM -> Nm -> CanNm", "CanNm_NetworkRelease(nmChannelHandle=0)", "[SWS_CanNm_00105] Ứng dụng nhả mạng (COMM_NO_COMMUNICATION).");
+  if (!requireInitialized("CanNm_NetworkRelease()")) return;
+  if (ecucConfig.CanNmPassiveModeEnabled) {
+    addTraceLog("API", "CanNm", "CanNm_NetworkRelease() -> E_NOT_OK", "[SWS_CanNm_00260 / SWS_CanNm_00189] Từ chối vì CanNmPassiveModeEnabled = TRUE.");
+    return;
+  }
 
-  if (simState.mode === "NM_MODE_NETWORK") {
-    if (simState.subState === "NM_STATE_NORMAL_OPERATION") {
-      simState.subState = "NM_STATE_READY_SLEEP";
-      addTraceLog("STATE", "CanNm State Machine", "NORMAL_OPERATION -> READY_SLEEP", "[SWS_CanNm_00118] Chuyển sang Ready Sleep State: NGƯNG PHÁT bản tin NM định kỳ, chỉ lắng nghe bus và chờ NM-Timeout Timer hết hạn.");
-    }
+  const prevFull = getNmFullStateName(simState.mode, simState.subState);
+  simState.engine.netRequest = false;
+  addTraceLog("API", "ComM -> Nm -> CanNm", "CanNm_NetworkRelease(nmChannelHandle=0)", "[SWS_CanNm_00105] Ứng dụng nhả mạng (Network State = released).");
+
+  if (simState.mode === "NM_MODE_NETWORK" && simState.subState === "NM_STATE_NORMAL_OPERATION") {
+    simState.subState = "NM_STATE_READY_SLEEP";
+    simState.timers.msgCycle = 0; // SWS_CanNm_00108 / SWS_CanNm_00051: Cancel Message Cycle Timer
+    simState.engine.immBurstActive = false;
+    simState.engine.burstLeft = 0;
+    simState.engine.busLoadReductionActive = false;
+    simState.timers.remoteSleep = 0;
+    simState.engine.remoteSleepDetected = false;
+    addTraceLog("STATE", "CanNm State Machine", "NORMAL_OPERATION -> READY_SLEEP", "[SWS_CanNm_00118 / SWS_CanNm_00108 / SWS_CanNm_00051] Chuyển sang Ready Sleep: Dừng phát NM PDU, hủy MsgCycleTimer = 0ms và chờ NM-Timeout Timer.");
+    reportStateChange(prevFull, "NM_STATE_READY_SLEEP");
   }
   renderAll();
 }
 
 function apiPassiveStartUp() {
-  if (!ecucConfig.CanNmInitialized) return;
+  if (!requireInitialized("CanNm_PassiveStartUp()")) return;
+  if (simState.mode === "NM_MODE_NETWORK") {
+    addTraceLog("API", "CanNm", "CanNm_PassiveStartUp(0) -> E_NOT_OK", "[SWS_CanNm_00147] Không thực thi và trả E_NOT_OK vì CanNm đang ở Network Mode.");
+    renderAll();
+    return;
+  }
+
+  const prevFull = getNmFullStateName(simState.mode, simState.subState);
+  const fromLbl = simState.mode === "NM_MODE_PREPARE_BUS_SLEEP" ? "PREPARE_BUS_SLEEP" : "BUS_SLEEP";
   simState.wakeupSource = "Passive Bus Wakeup";
-  addTraceLog("API", "EcuM / ComM -> CanNm", "CanNm_PassiveStartUp(nmChannelHandle=0)", "[SWS_CanNm_00128] Đánh thức thụ động từ bus CAN.");
+  addTraceLog("API", "EcuM / ComM -> CanNm", "CanNm_PassiveStartUp(nmChannelHandle=0)", "[SWS_CanNm_00128] Đánh thức thụ động.");
 
-  if (simState.mode === "NM_MODE_BUS_SLEEP" || simState.mode === "NM_MODE_PREPARE_BUS_SLEEP") {
-    simState.mode = "NM_MODE_NETWORK";
-    simState.subState = "NM_STATE_REPEAT_MESSAGE";
-    simState.cbv.awb = false; // Passive startup: AWB must be 0!
-    simState.engine.netRequest = false;
-    simState.timers.repeatMsg = ecucConfig.CanNmRepeatMessageTime;
-    simState.timers.timeout = ecucConfig.CanNmTimeoutTime;
-    simState.timers.waitBusSleep = 0;
-    simState.timers.msgCycle = ecucConfig.CanNmMsgCycleOffset; // Delay first Tx by offset!
+  simState.mode = "NM_MODE_NETWORK";
+  simState.subState = "NM_STATE_REPEAT_MESSAGE";
+  simState.cbv.awb = false; // Passive startup: AWB must be 0
+  simState.engine.netRequest = false;
+  simState.engine.busLoadReductionActive = false; // SWS_CanNm_00156
+  simState.engine.immBurstActive = false;
+  simState.engine.burstLeft = 0;
+  simState.timers.repeatMsg = ecucConfig.CanNmRepeatMessageTime;
+  simState.timers.timeout = ecucConfig.CanNmTimeoutTime;
+  simState.timers.waitBusSleep = 0;
+  simState.timers.msgCycle = ecucConfig.CanNmPassiveModeEnabled ? 0 : ecucConfig.CanNmMsgCycleOffset;
 
-    addTraceLog("STATE", "CanNm State Machine", "BUS_SLEEP -> NETWORK_MODE (REPEAT_MESSAGE)", `[SWS_CanNm_00128] Passive Wakeup! Giữ Bit 4 AWB=0 trong CBV (0x00), phát gói đầu tiên trễ sau CanNmMsgCycleOffset=${ecucConfig.CanNmMsgCycleOffset}ms để tránh đụng độ.`);
+  addTraceLog("STATE", "CanNm State Machine", `${fromLbl} -> NETWORK_MODE (REPEAT_MESSAGE)`, `[SWS_CanNm_00128 / SWS_CanNm_00097] Passive Wakeup! Giữ AWB=0, gọi Nm_NetworkMode()${ecucConfig.CanNmPassiveModeEnabled ? "" : `, phát gói đầu sau MsgCycleOffset=${ecucConfig.CanNmMsgCycleOffset}ms [PRS_Nm_00334]`}.`);
+  reportStateChange(prevFull, "NM_STATE_REPEAT_MESSAGE");
+
+  if (ecucConfig.CanNmRepeatMessageTime === 0) {
+    simState.subState = "NM_STATE_READY_SLEEP";
+    simState.timers.msgCycle = 0;
+    reportStateChange("NM_STATE_REPEAT_MESSAGE", "NM_STATE_READY_SLEEP");
   }
   renderAll();
 }
 
 function apiRepeatMessageRequest() {
-  if (!ecucConfig.CanNmInitialized) return;
-  if (!ecucConfig.CanNmNodeDetectionEnabled) {
-    addTraceLog("API", "CanNm", "CanNm_RepeatMessageRequest() -> E_NOT_OK", "[SWS_CanNm_00113] Bị từ chối vì CanNmNodeDetectionEnabled = FALSE.");
+  if (!requireInitialized("CanNm_RepeatMessageRequest()")) return;
+  if (!ecucConfig.CanNmNodeDetectionEnabled || ecucConfig.CanNmPassiveModeEnabled) {
+    addTraceLog("API", "CanNm", "CanNm_RepeatMessageRequest() -> E_NOT_OK", "[ECUC_CanNm_00088 / SWS_CanNm_00221] Bị từ chối vì CanNmNodeDetectionEnabled = FALSE hoặc CanNmPassiveModeEnabled = TRUE.");
+    renderAll();
+    return;
+  }
+  if (simState.mode !== "NM_MODE_NETWORK" || simState.subState === "NM_STATE_REPEAT_MESSAGE") {
+    addTraceLog("WARN", "CanNm", "CanNm_RepeatMessageRequest() -> E_NOT_OK", `[SWS_CanNm_00137] Không thực thi và trả E_NOT_OK khi gọi trong ${getNmFullStateName(simState.mode, simState.subState)}.`);
+    renderAll();
     return;
   }
 
-  addTraceLog("API", "SWC/Diag -> Nm -> CanNm", "CanNm_RepeatMessageRequest(nmChannelHandle=0)", "[SWS_CanNm_00113] Yêu cầu toàn mạng điểm danh.");
+  const prevSub = simState.subState;
+  const isFromReadySleep = (prevSub === "NM_STATE_READY_SLEEP");
+  const swsRef = isFromReadySleep ? "SWS_CanNm_00112 / SWS_CanNm_00113" : "SWS_CanNm_00120 / SWS_CanNm_00121";
 
-  if (simState.mode === "NM_MODE_NETWORK") {
-    simState.subState = "NM_STATE_REPEAT_MESSAGE";
-    simState.cbv.rmr = true; // Set Bit 0 RMR = 1
-    simState.timers.repeatMsg = ecucConfig.CanNmRepeatMessageTime;
-    simState.timers.timeout = ecucConfig.CanNmTimeoutTime;
-
-    addTraceLog("STATE", "CanNm State Machine", "-> REPEAT_MESSAGE (RMR = 1)", `[SWS_CanNm_00121] Bật Bit 0 (RMR=1) trong byte CBV (0x${getCbvByteValue().toString(16).toUpperCase()}), khởi chạy lại RepeatMessageTimer=${ecucConfig.CanNmRepeatMessageTime}ms và phát ngay bản tin để ép các ECU khác điểm danh.`);
-    triggerCanNmTransmit("Yêu cầu điểm danh (Bit RMR = 1)");
+  addTraceLog("API", "SWC/Diag -> Nm -> CanNm", "CanNm_RepeatMessageRequest(nmChannelHandle=0)", `[${swsRef}] Yêu cầu toàn mạng điểm danh.`);
+  if (simState.engine.remoteSleepDetected) {
+    simState.engine.remoteSleepDetected = false;
+    addTraceLog("API", "CanNm -> Nm", "Nm_RemoteSleepCancellation(0)", "[SWS_CanNm_00152] Hủy trạng thái Remote Sleep khi chuyển về Repeat Message.");
   }
+  simState.timers.remoteSleep = 0;
+  simState.engine.busLoadReductionActive = false; // SWS_CanNm_00156
+  simState.subState = "NM_STATE_REPEAT_MESSAGE";
+  simState.cbv.rmr = true; // Bit 0 RMR = 1
+  simState.timers.repeatMsg = ecucConfig.CanNmRepeatMessageTime;
+  if (simState.engine.msgTxEnabled && !ecucConfig.CanNmPassiveModeEnabled) {
+    // SWS_CanNm_00100 & SWS_CanNm_00221: (Re-)start PDU Tx with RMR=1 for next transmitted PDUs
+    if (isFromReadySleep || simState.timers.msgCycle <= 0) {
+      simState.timers.msgCycle = ecucConfig.CanNmMsgCycleOffset;
+    }
+  }
+
+  addTraceLog("STATE", "CanNm State Machine", `${prevSub.replace("NM_STATE_", "")} -> REPEAT_MESSAGE (RMR = 1)`, `[${swsRef} / SWS_CanNm_00100] Bật Bit 0 RMR=1 cho các bản tin kế tiếp, chạy RepeatMsgTimer=${ecucConfig.CanNmRepeatMessageTime}ms.`);
+  reportStateChange(prevSub, "NM_STATE_REPEAT_MESSAGE");
   renderAll();
 }
 
 function apiSimulatedRxIndication() {
-  if (!ecucConfig.CanNmInitialized) return;
+  if (!requireInitialized("CanNm_RxIndication()")) return;
 
   const rxRmr = document.getElementById("simRxRmr")?.checked || false;
-  const rxAwb = document.getElementById("simRxAwb")?.checked || false;
-  const rxPni = document.getElementById("simRxPni")?.checked || false;
+  const rxPnsr = document.getElementById("simRxPnsr")?.checked || false;
   const rxCsr = document.getElementById("simRxCsr")?.checked || false;
+  const rxAwb = document.getElementById("simRxAwb")?.checked || false;
+  const rxPnl = document.getElementById("simRxPnl")?.checked || false;
+  const rxPni = document.getElementById("simRxPni")?.checked || false;
+  const rxCwu = document.getElementById("simRxCwu")?.checked || false;
+  const autoPassive = document.getElementById("simAutoPassiveOnRx")?.checked || false;
   const rxPniHexStr = (document.getElementById("simRxPniHex")?.value || "05 00").trim();
   const rxPniBytes = parseHexBytes(rxPniHexStr);
 
   let rxCbv = 0;
   if (rxRmr) rxCbv |= 0x01;
+  if (rxPnsr) rxCbv |= 0x02;
   if (rxCsr) rxCbv |= 0x08;
   if (rxAwb) rxCbv |= 0x10;
+  if (rxPnl) rxCbv |= 0x20;
   if (rxPni) rxCbv |= 0x40;
 
-  const remoteNodeId = 0x2B; // ECU #2
+  const remoteNodeId = 0x2B;
   const rxCanId = "0x" + (ecucConfig.CanNmBaseCanId + remoteNodeId).toString(16).toUpperCase();
   const rxPduStr = `CanNm_RxIndication(ID=${rxCanId}, CBV=0x${rxCbv.toString(16).toUpperCase().padStart(2, "0")}, PNI=[${rxPniHexStr}])`;
 
-  simState.lastBusActivity = `Rx ${rxCanId} [2B ${rxCbv.toString(16).toUpperCase()} ${rxPniHexStr} ...]`;
+  simState.lastBusActivity = `Rx ${rxCanId} [2B ${rxCbv.toString(16).toUpperCase().padStart(2, "0")} ${rxPniHexStr} ...]`;
   simState.activeDirection = "Upward Indication ↑";
 
-  addTraceLog("BUS", "CanIf -> CanNm", rxPduStr, `Nhận khung NM từ Remote Node 0x2B (RMR=${rxRmr ? 1 : 0}, AWB=${rxAwb ? 1 : 0}, PNI=${rxPni ? 1 : 0}, CSR=${rxCsr ? 1 : 0})`);
+  addTraceLog("BUS", "CanIf -> CanNm", rxPduStr, `Nhận NM từ Node 0x2B (RMR=${rxRmr ? 1 : 0}, PNSR=${rxPnsr ? 1 : 0}, CSR=${rxCsr ? 1 : 0}, AWB=${rxAwb ? 1 : 0}, PNL=${rxPnl ? 1 : 0}, PNI=${rxPni ? 1 : 0}, CWU=${rxCwu ? 1 : 0})`);
 
-  // Evaluate Partial Networking Filter BEFORE wakeup / Bus-Sleep / Timer handling (SWS_CanNm_00409 / 00411 / 00503)
+  // Evaluate Partial Networking Filter (SWS_CanNm_00409 / 00410 / 00411 / 00502 / 00503 / 00504)
   const pnEval = evaluatePnFilter(rxPni, rxPniBytes);
   if (pnEval.active) {
     const rxHex = formatHexBytes(pnEval.rxPncMask);
     const maskHex = formatHexBytes(pnEval.filterMask);
     const andHex = formatHexBytes(pnEval.andResult);
 
+    if (rxPni && rxPnsr && ecucConfig.CanNmSynchronizedPncShutdownEnabled) {
+      addTraceLog("PN", "CanNm -> Nm", "Nm_ForwardSynchronizedPncShutdown(0, &PncBitVector)", `[SWS_CanNm_00504] PNI=1 & PNSR=1 -> Chuyển tiếp PNC Shutdown [${rxHex}] lên Nm.`);
+    } else if (rxPni) {
+      addTraceLog("API", "CanNm -> Nm", "Nm_PncBitVectorRxIndication(0, &PncBitVector, &Relevant)", `[SWS_CanNm_00502] Chuyển tiếp PNC vector [${rxHex}] sang Nm để lọc theo Mask [${maskHex}] -> Relevant=${pnEval.matched}.`);
+    }
+
     if (pnEval.matched) {
-      simState.timers.pnReset = ecucConfig.CanNmPnResetTime;
-      simState.pnc.eira = (pnEval.rxPncMask[0] || 0) | ((pnEval.rxPncMask[1] || 0) << 8);
-      addTraceLog("PN", "CanNm Engine", "PN Filter Algorithm: MATCHED! (Khớp PNC Filter Mask)", `[SWS_CanNm_00409] ([${rxHex}] & [${maskHex}] = [${andHex}] != 0) -> Chấp nhận gói tin, reset PnResetTimer = ${ecucConfig.CanNmPnResetTime}ms và cập nhật EIRA = 0x${simState.pnc.eira.toString(16).toUpperCase().padStart(4, "0")}.`);
+      const relevantBits = pnEval.andResult;
       if (ecucConfig.CanNmPnEiraCalcEnabled) {
-        addTraceLog("API", "CanNm -> PduR -> ComM", "PduR_CanNmRxIndication(PnEiraRxPduId, &EiraData)", "[SWS_CanNm_00431] Báo mảng EIRA cập nhật lên ComM.");
+        updatePncArrayWithBytes("eira", "eiraTimers", relevantBits, ecucConfig.CanNmPnResetTime);
       }
+      if (ecucConfig.CanNmPnEraCalcEnabled) {
+        updatePncArrayWithBytes("era", "eraTimers", relevantBits, ecucConfig.CanNmPnResetTime);
+      }
+      addTraceLog("PN", "CanNm / Nm Engine", "PN Filter: MATCHED! (Khớp PNC Filter Mask)", `[SWS_CanNm_00503] ([${rxHex}] & [${maskHex}] = [${andHex}] != 0) -> EIRA=0x${simState.pnc.eira.toString(16).toUpperCase().padStart(4, "0")}, ERA=0x${simState.pnc.era.toString(16).toUpperCase().padStart(4, "0")}.`);
     } else if (!pnEval.accepted) {
       const reasonTitle = pnEval.pniZero
-        ? "PN Filter Algorithm: IGNORED! (CBV PNI = 0)"
-        : "PN Filter Algorithm: IGNORED! (Không khớp PNC Filter Mask)";
+        ? "PN Filter: IGNORED! (CBV PNI = 0)"
+        : "PN Filter: IGNORED! (Không khớp PNC Filter Mask)";
       const reasonDesc = pnEval.pniZero
-        ? `[SWS_CanNm_00411] CanNmPnEnabled = TRUE nhưng bản tin từ ECU #2 có PNI=0 -> BỘ LỌC PN BỎ QUA GÓI TIN NÀY${pnEval.inBusSleep ? " (ECU giữ nguyên Bus-Sleep Mode)" : ""}.`
-        : `[SWS_CanNm_00409] ([${rxHex}] & [${maskHex}] = [${andHex}] == 0) -> BỘ LỌC PN BỎ QUA GÓI TIN NÀY${pnEval.inBusSleep ? " (Không đánh thức ECU 1 khỏi Bus-Sleep Mode)" : ""}!`;
+        ? `[SWS_CanNm_00411] CanNmPnEnabled = TRUE nhưng PNI=0 và AllNmMessagesKeepAwake=FALSE -> Bỏ qua bản tin${pnEval.inBusSleep ? " (Giữ nguyên Bus-Sleep Mode)" : ""}.`
+        : `[SWS_CanNm_00503] ([${rxHex}] & [${maskHex}] = [${andHex}] == 0) -> Bỏ qua bản tin${pnEval.inBusSleep ? " (Không đánh thức Bus-Sleep Mode)" : ""}!`;
       addTraceLog("PN", "CanNm Engine", reasonTitle, reasonDesc);
       renderAll();
       return;
     } else {
-      addTraceLog("PN", "CanNm Engine", "PN Filter Override: CanNmAllNmMessagesKeepAwake = TRUE", `[SWS_CanNm_00503] Gói tin (${pnEval.pniZero ? "PNI=0" : `[${rxHex}] & [${maskHex}] == 0`}) không khớp PNC nhưng CanNmAllNmMessagesKeepAwake=TRUE -> Tiếp tục xử lý giữ mạng.`);
+      addTraceLog("PN", "CanNm Engine", pnEval.unconfirmed ? "PN Availability Unconfirmed -> Chấp nhận gói (SWS_CanNm_00503)" : "PN Override: CanNmAllNmMessagesKeepAwake = TRUE", `[SWS_CanNm_00410 / SWS_CanNm_00503] Gói tin (${pnEval.pniZero ? "PNI=0" : `[${rxHex}] & [${maskHex}] == 0`}) vẫn được xử lý.`);
     }
   }
 
-  // Check Car Wakeup Bit (CSR=1)
-  if (rxCsr && ecucConfig.CanNmCarWakeUpRxEnabled) {
+  // SWS_CanNm_00405 / 00406 / 00408: Car Wakeup (CWU) is in User Data at CanNmCarWakeUpBytePosition/BitPosition
+  if (rxCwu && ecucConfig.CanNmCarWakeUpRxEnabled) {
     if (ecucConfig.CanNmCarWakeUpFilterEnabled && remoteNodeId !== ecucConfig.CanNmCarWakeUpFilterNodeId) {
-      addTraceLog("API", "CanNm Engine", "Bỏ qua Car Wakeup (Sai Filter Node ID)", `Gói tin có CSR=1 từ Node 0x${remoteNodeId.toString(16).toUpperCase()} không khớp CanNmCarWakeUpFilterNodeId=0x${ecucConfig.CanNmCarWakeUpFilterNodeId.toString(16).toUpperCase()}.`);
+      addTraceLog("API", "CanNm Engine", "Bỏ qua Car Wakeup CWU=1 (Sai Filter Node ID)", `[SWS_CanNm_00408] CWU=1 tại Byte ${ecucConfig.CanNmCarWakeUpBytePosition} Bit ${ecucConfig.CanNmCarWakeUpBitPosition} từ Node 0x${remoteNodeId.toString(16).toUpperCase()} không khớp FilterNodeId=0x${ecucConfig.CanNmCarWakeUpFilterNodeId.toString(16).toUpperCase()}.`);
     } else {
-      addTraceLog("API", "CanNm -> Nm -> ComM", "Nm_CarWakeUpIndication(nmChannelHandle=0)", "[SWS_CanNm_00406] Phát hiện cờ CSR=1 -> Kích hoạt đánh thức toàn bộ kiến trúc điện trên xe!");
+      addTraceLog("API", "CanNm -> Nm -> ComM", "Nm_CarWakeUpIndication(nmChannelHandle=0)", `[SWS_CanNm_00405 / SWS_CanNm_00406] Phát hiện bit CWU=1 tại Byte ${ecucConfig.CanNmCarWakeUpBytePosition} Bit ${ecucConfig.CanNmCarWakeUpBitPosition} trong User Data -> Đánh thức toàn xe!`);
     }
   }
 
-  // Check if ECU is in BUS-SLEEP: Runtime error CANNM_E_NET_START_IND + Wakeup
+  // SWS_CanNm_00341: Coordinator Sleep Ready (CBV Bit 3 CSR)
+  if (rxCsr && ecucConfig.CanNmCoordinatorSyncSupport && simState.mode === "NM_MODE_NETWORK") {
+    addTraceLog("API", "CanNm -> Nm", "Nm_CoordReadyToSleepIndication(nmChannelHandle=0)", "[SWS_CanNm_00341] Nhận Bit 3 CBV (CSR=1) từ Coordinator.");
+  }
+
+  // SWS_CanNm_00127 / SWS_CanNm_00336: RxIndication in Bus-Sleep reports CANNM_E_NET_START_IND + Nm_NetworkStartIndication() WITHOUT auto-entering Network Mode
   if (simState.mode === "NM_MODE_BUS_SLEEP") {
-    addTraceLog("DET", "CanNm", "CANNM_E_NET_START_IND (0x04)", "[SWS_CanNm_00336] Nhận gói tin NM hợp lệ khi đang ở Bus-Sleep Mode -> Báo Nm_NetworkStartIndication().");
-    addTraceLog("API", "CanNm -> Nm -> ComM", "ComM_Nm_NetworkStartIndication()", "ComM gọi Nm_PassiveStartUp() để đánh thức ECU.");
-    apiPassiveStartUp();
+    addTraceLog("DET", "CanNm", "CANNM_E_NET_START_IND (0x04)", "[SWS_CanNm_00336 / SWS_CanNm_00317] Nhận NM PDU khi đang ở Bus-Sleep Mode -> Báo runtime error CANNM_E_NET_START_IND.");
+    addTraceLog("API", "CanNm -> Nm -> ComM", "Nm_NetworkStartIndication(nmChannelHandle=0)", "[SWS_CanNm_00127] CanNm KHÔNG tự chuyển sang Network Mode mà chỉ báo lớp trên (ComM/EcuM tự quyết định gọi CanNm_PassiveStartUp).");
+    if (autoPassive) {
+      apiPassiveStartUp();
+    } else {
+      renderAll();
+    }
     return;
   }
 
-  // If in PREPARE_BUS_SLEEP: Wakeup to REPEAT_MESSAGE
+  // SWS_CanNm_00124: RxIndication in Prepare Bus-Sleep enters Network Mode (Repeat Message State)
   if (simState.mode === "NM_MODE_PREPARE_BUS_SLEEP") {
+    const prevFull = "NM_STATE_PREPARE_BUS_SLEEP";
     simState.mode = "NM_MODE_NETWORK";
     simState.subState = "NM_STATE_REPEAT_MESSAGE";
     simState.cbv.awb = false;
+    simState.engine.busLoadReductionActive = false; // SWS_CanNm_00156
     simState.timers.waitBusSleep = 0;
     simState.timers.repeatMsg = ecucConfig.CanNmRepeatMessageTime;
     simState.timers.timeout = ecucConfig.CanNmTimeoutTime;
-    simState.timers.msgCycle = ecucConfig.CanNmMsgCycleOffset;
-    addTraceLog("STATE", "CanNm State Machine", "PREPARE_BUS_SLEEP -> REPEAT_MESSAGE", "[SWS_CanNm_00124] Nhận gói NM khi đang ở Prepare Sleep -> Quay lại Repeat Message State (AWB=0).");
+    simState.timers.msgCycle = ecucConfig.CanNmPassiveModeEnabled ? 0 : ecucConfig.CanNmMsgCycleOffset;
+    addTraceLog("STATE", "CanNm State Machine", "PREPARE_BUS_SLEEP -> REPEAT_MESSAGE", "[SWS_CanNm_00124 / SWS_CanNm_00315] Nhận NM PDU khi ở Prepare Bus-Sleep -> Vào Repeat Message (AWB=0) & gọi Nm_NetworkMode() [SWS_CanNm_00097].");
+    reportStateChange(prevFull, "NM_STATE_REPEAT_MESSAGE");
+    if (ecucConfig.CanNmRepeatMessageTime === 0) {
+      simState.subState = "NM_STATE_READY_SLEEP";
+      simState.timers.msgCycle = 0;
+      reportStateChange("NM_STATE_REPEAT_MESSAGE", "NM_STATE_READY_SLEEP");
+    }
     renderAll();
     return;
   }
 
-  // Reload NM-Timeout Timer
+  // Network Mode Rx handling
   if (simState.mode === "NM_MODE_NETWORK") {
-    simState.timers.timeout = ecucConfig.CanNmTimeoutTime; // Reload Timeout Timer!
-    addTraceLog("API", "CanNm Engine", `Nạp lại NM-Timeout Timer = ${ecucConfig.CanNmTimeoutTime}ms`, "[SWS_CanNm_00098] Nhận gói NM từ bus giữ cho toàn mạng không bị ngủ.");
+    // SWS_CanNm_00098: Restart NM-Timeout Timer ONLY if PDU transmission ability is enabled
+    if (simState.engine.msgTxEnabled) {
+      simState.timers.timeout = ecucConfig.CanNmTimeoutTime;
+      addTraceLog("API", "CanNm Engine", `Nạp lại NM-Timeout Timer = ${ecucConfig.CanNmTimeoutTime}ms`, "[SWS_CanNm_00098] Nhận NM PDU khi PDU Tx đang bật -> Nạp lại NM-Timeout Timer.");
+    } else {
+      addTraceLog("API", "CanNm Engine", "KHÔNG nạp lại NM-Timeout Timer (Tx đang bị khóa UDS 0x28)", "[SWS_CanNm_00098] PDU transmission ability đang tắt -> Không restart NM-Timeout Timer.");
+    }
 
-    // Handle Repeat Message Request from remote node (Bit RMR = 1)
-    if (rxRmr && ecucConfig.CanNmNodeDetectionEnabled) {
-      if (simState.subState === "NM_STATE_NORMAL_OPERATION" || simState.subState === "NM_STATE_READY_SLEEP") {
-        simState.subState = "NM_STATE_REPEAT_MESSAGE";
-        simState.timers.repeatMsg = ecucConfig.CanNmRepeatMessageTime;
-        simState.timers.msgCycle = ecucConfig.CanNmMsgCycleOffset;
-        addTraceLog("STATE", "CanNm State Machine", "-> REPEAT_MESSAGE (Do nhận Bit RMR=1 từ Node #2)", "[SWS_CanNm_00119] Remote Node yêu cầu điểm danh -> Chuyển về Repeat Message và phát bản tin điểm danh.");
-        if (ecucConfig.CanNmRepeatMsgIndEnabled) {
-          addTraceLog("API", "CanNm -> Nm", "Nm_RepeatMessageIndication(nmChannelHandle=0)", "[SWS_CanNm_00014] Báo lên Nm.");
-        }
+    // SWS_CanNm_00151: Remote Sleep Cancellation on Rx in Normal Operation / Ready Sleep
+    if (simState.subState === "NM_STATE_NORMAL_OPERATION" || simState.subState === "NM_STATE_READY_SLEEP") {
+      if (simState.engine.remoteSleepDetected) {
+        simState.engine.remoteSleepDetected = false;
+        addTraceLog("API", "CanNm -> Nm", "Nm_RemoteSleepCancellation(nmChannelHandle=0)", "[SWS_CanNm_00151] Nhận gói NM từ bus -> Hủy trạng thái Remote Sleep!");
+      }
+      if (simState.subState === "NM_STATE_NORMAL_OPERATION" && ecucConfig.CanNmRemoteSleepIndEnabled && simState.engine.msgTxEnabled && !ecucConfig.CanNmPassiveModeEnabled) {
+        simState.timers.remoteSleep = ecucConfig.CanNmRemoteSleepIndTime;
       }
     }
 
-    // Bus Load Reduction: reset Tx timer to MsgCycleTime
-    if (ecucConfig.CanNmBusLoadReductionEnabled && simState.subState === "NM_STATE_NORMAL_OPERATION") {
-      simState.timers.msgCycle = ecucConfig.CanNmMsgCycleTime;
-      addTraceLog("API", "CanNm Engine", `Bus Load Reduction: Hoãn lượt phát (Reload MsgCycleTimer = ${ecucConfig.CanNmMsgCycleTime}ms)`, "[SWS_CanNm_00052] Nhường đường truyền khi có node khác vừa phát.");
+    // SWS_CanNm_00119 (Normal Operation) / SWS_CanNm_00111 (Ready Sleep): Remote Repeat Message Request RMR=1
+    if (rxRmr && ecucConfig.CanNmNodeDetectionEnabled) {
+      if (simState.subState === "NM_STATE_NORMAL_OPERATION" || simState.subState === "NM_STATE_READY_SLEEP") {
+        const prevSub = simState.subState;
+        const rmrSws = prevSub === "NM_STATE_READY_SLEEP" ? "SWS_CanNm_00111" : "SWS_CanNm_00119";
+        if (simState.engine.remoteSleepDetected) {
+          simState.engine.remoteSleepDetected = false;
+          addTraceLog("API", "CanNm -> Nm", "Nm_RemoteSleepCancellation(0)", "[SWS_CanNm_00152] Hủy Remote Sleep khi vào Repeat Message.");
+        }
+        simState.timers.remoteSleep = 0;
+        simState.engine.busLoadReductionActive = false; // SWS_CanNm_00156
+        simState.subState = "NM_STATE_REPEAT_MESSAGE";
+        simState.timers.repeatMsg = ecucConfig.CanNmRepeatMessageTime;
+        if (simState.engine.msgTxEnabled && !ecucConfig.CanNmPassiveModeEnabled) {
+          simState.timers.msgCycle = ecucConfig.CanNmMsgCycleOffset;
+        }
+        addTraceLog("STATE", "CanNm State Machine", `${prevSub.replace("NM_STATE_", "")} -> REPEAT_MESSAGE (Nhận RMR=1)`, `[${rmrSws}] Remote Node yêu cầu điểm danh -> Vào Repeat Message State.`);
+        if (ecucConfig.CanNmRepeatMsgIndEnabled) {
+          addTraceLog("API", "CanNm -> Nm", "Nm_RepeatMessageIndication(nmChannelHandle=0)", "[SWS_CanNm_00014] Báo lên Nm.");
+        }
+        reportStateChange(prevSub, "NM_STATE_REPEAT_MESSAGE");
+      }
+    } else if (ecucConfig.CanNmBusLoadReductionEnabled && simState.subState === "NM_STATE_NORMAL_OPERATION" && simState.engine.msgTxEnabled && !ecucConfig.CanNmPassiveModeEnabled) {
+      // SWS_CanNm_00069: Restart Message Cycle Timer with CanNmMsgReducedTime
+      simState.timers.msgCycle = ecucConfig.CanNmMsgReducedTime;
+      addTraceLog("API", "CanNm Engine", `Bus Load Reduction: Nạp MsgCycleTimer = CanNmMsgReducedTime (${ecucConfig.CanNmMsgReducedTime}ms)`, "[SWS_CanNm_00069] Nhường đường truyền bằng CanNmMsgReducedTime khi nhận Rx ở Normal Operation.");
     }
   }
 
@@ -669,88 +1100,176 @@ function apiSimulatedRxIndication() {
 }
 
 function apiToggleCommunication() {
-  if (!ecucConfig.CanNmInitialized) return;
+  if (!requireInitialized("CanNm_DisableCommunication / EnableCommunication")) return;
   if (!ecucConfig.CanNmComControlEnabled) {
-    addTraceLog("DET", "CanNm", "CANNM_E_UNINIT", "Tính năng CanNmComControlEnabled không được bật.");
+    addTraceLog("WARN", "CanNm", "CanNm_Disable/EnableCommunication() -> E_NOT_OK", "[SWS_CanNm_00262 / SWS_CanNm_00264] API bị vô hiệu do CanNmComControlEnabled = FALSE.");
+    return;
+  }
+  if (simState.mode !== "NM_MODE_NETWORK") {
+    const fnName = simState.engine.msgTxEnabled ? "CanNm_DisableCommunication(0)" : "CanNm_EnableCommunication(0)";
+    const swsId = simState.engine.msgTxEnabled ? "SWS_CanNm_00172" : "SWS_CanNm_00295";
+    addTraceLog("WARN", "CanNm", `${fnName} -> E_NOT_OK`, `[${swsId}] Không thực thi và trả E_NOT_OK vì hiện tại không ở Network Mode (${simState.mode}).`);
     return;
   }
 
-  simState.engine.msgTxEnabled = !simState.engine.msgTxEnabled;
-  const btn = document.getElementById("btnToggleComm");
-
-  if (!simState.engine.msgTxEnabled) {
-    addTraceLog("API", "Dcm -> BswM -> Nm -> CanNm", "CanNm_DisableCommunication(nmChannelHandle=0)", "[SWS_CanNm_00170] Dịch vụ UDS 0x28 CommunicationControl: KHÓA PHÁT BẢN TIN NM và tạm dừng NM-Timeout Timer.");
-    if (btn) { btn.innerText = "🔊 Enable Comm"; btn.classList.add("amber"); }
+  if (simState.engine.msgTxEnabled) {
+    simState.engine.msgTxEnabled = false;
+    simState.timers.msgCycle = 0; // SWS_CanNm_00173: Stop Message Cycle Timer
+    simState.timers.timeout = 0; // SWS_CanNm_00174: Stop NM-Timeout Timer
+    simState.timers.remoteSleep = 0; // SWS_CanNm_00175: Stop Remote Sleep Indication Detection
+    simState.engine.remoteSleepDetected = false;
+    simState.engine.immBurstActive = false;
+    simState.engine.burstLeft = 0;
+    addTraceLog("API", "Dcm -> BswM -> Nm -> CanNm", "CanNm_DisableCommunication(nmChannelHandle=0) -> E_OK", "[SWS_CanNm_00170 / 00173 / 00174 / 00175] Khóa Tx, DỪNG MsgCycleTimer, NM-Timeout Timer và Remote Sleep Detection.");
   } else {
-    addTraceLog("API", "Dcm -> BswM -> Nm -> CanNm", "CanNm_EnableCommunication(nmChannelHandle=0)", "[SWS_CanNm_00176] Dịch vụ UDS 0x28: MỞ LẠI TRUYỀN THÔNG NM và chạy lại các bộ đếm thời gian.");
-    simState.timers.msgCycle = ecucConfig.CanNmMsgCycleOffset;
-    if (btn) { btn.innerText = "🔇 Toggle Comm"; btn.classList.remove("amber"); }
+    simState.engine.msgTxEnabled = true;
+    simState.timers.timeout = ecucConfig.CanNmTimeoutTime; // SWS_CanNm_00179: Restart NM-Timeout Timer
+    if (simState.subState === "NM_STATE_REPEAT_MESSAGE" || simState.subState === "NM_STATE_NORMAL_OPERATION") {
+      simState.timers.msgCycle = ecucConfig.CanNmMainFunctionPeriod; // SWS_CanNm_00178: Start Tx within next MainFunction
+    }
+    if (simState.subState === "NM_STATE_NORMAL_OPERATION" && ecucConfig.CanNmRemoteSleepIndEnabled && !ecucConfig.CanNmPassiveModeEnabled) {
+      simState.timers.remoteSleep = ecucConfig.CanNmRemoteSleepIndTime; // SWS_CanNm_00180
+    }
+    addTraceLog("API", "Dcm -> BswM -> Nm -> CanNm", "CanNm_EnableCommunication(nmChannelHandle=0) -> E_OK", `[SWS_CanNm_00176 / 00178 / 00179 / 00180] Mở lại Tx, khởi động lại NM-Timeout Timer = ${ecucConfig.CanNmTimeoutTime}ms & phát trong MainFunction kế tiếp.`);
   }
   renderAll();
 }
 
+function apiCheckRemoteSleepIndication() {
+  if (!requireInitialized("CanNm_CheckRemoteSleepIndication()")) return;
+  if (!ecucConfig.CanNmRemoteSleepIndEnabled || simState.mode !== "NM_MODE_NETWORK" || simState.subState === "NM_STATE_REPEAT_MESSAGE") {
+    addTraceLog("WARN", "SWC -> CanNm", "CanNm_CheckRemoteSleepIndication(0) -> E_NOT_OK", `[SWS_CanNm_00154] Trả E_NOT_OK trong Bus-Sleep, Prepare Bus-Sleep, Repeat Message hoặc khi RemoteSleepIndEnabled=FALSE.`);
+  } else {
+    addTraceLog("API", "SWC -> CanNm", `CanNm_CheckRemoteSleepIndication(0, *detected=${simState.engine.remoteSleepDetected}) -> E_OK`, "[SWS_CanNm_00154 / SWS_CanNm_00227] Đọc trạng thái Remote Sleep hợp lệ.");
+  }
+  renderAll();
+}
+
+function apiActivateTxPnShutdownMsg() {
+  if (!requireInitialized("CanNm_ActivateTxPnShutdownMsg()")) return;
+  if (!ecucConfig.CanNmSynchronizedPncShutdownEnabled) {
+    addTraceLog("WARN", "Nm -> CanNm", "CanNm_ActivateTxPnShutdownMsg(0) -> E_NOT_OK", "[SWS_CanNm_00520] Chỉ khả dụng khi CanNmSynchronizedPncShutdownEnabled = TRUE.");
+    renderAll();
+    return;
+  }
+  simState.engine.pnShutdownMsgActive = true;
+  simState.cbv.pnsr = true;
+  addTraceLog("PN", "Nm -> CanNm", "CanNm_ActivateTxPnShutdownMsg(0) -> E_OK", "[SWS_CanNm_00521 / SWS_CanNm_00519] Bật PNSR=1 (CBV Bit 1); ưu tiên gửi PN Shutdown Message ở MainFunction kế tiếp (SWS_CanNm_00513).");
+  renderAll();
+}
+
 // 6. SCHM MAINFUNCTION CLOCK TICK & STATE TRANSITIONS
-function stepClockTick(deltaMs) {
-  if (!ecucConfig.CanNmInitialized) return;
+function stepSingleMainFunctionTick(deltaMs) {
   simState.clockMs += deltaMs;
 
-  // 1. Tick NM-Timeout Timer
-  if (simState.mode === "NM_MODE_NETWORK" && simState.engine.msgTxEnabled) {
-    if (simState.timers.timeout > 0) {
-      simState.timers.timeout = Math.max(0, simState.timers.timeout - deltaMs);
-      if (simState.timers.timeout === 0) {
-        if (simState.subState === "NM_STATE_READY_SLEEP") {
-          // NM-Timeout expired in Ready Sleep -> Transition to Prepare Bus-Sleep!
-          simState.mode = "NM_MODE_PREPARE_BUS_SLEEP";
-          simState.cbv.awb = false; // SWS_CanNm_00402: Clear AWB on exit from Network Mode!
-          simState.timers.waitBusSleep = ecucConfig.CanNmWaitBusSleepTime;
-          addTraceLog("STATE", "CanNm State Machine", "READY_SLEEP -> PREPARE_BUS_SLEEP", `[SWS_CanNm_00115] NM-Timeout Timer hết hạn (0ms) -> Xóa cờ Bit 4 AWB=0 và chuyển sang Prepare Bus-Sleep Mode (WaitBusSleepTimer = ${ecucConfig.CanNmWaitBusSleepTime}ms).`);
-          addTraceLog("API", "CanNm -> Nm -> ComM", "ComM_Nm_PrepareBusSleepMode()", "[SWS_CanNm_00114] Báo ComM chuẩn bị tắt nguồn.");
-        }
+  // 1. Tick MsgTimeoutTimer (SWS_CanNm_00064 / 00066 / 00446)
+  if (simState.engine.txPending && simState.timers.msgTimeout > 0) {
+    simState.timers.msgTimeout = Math.max(0, simState.timers.msgTimeout - deltaMs);
+    if (simState.timers.msgTimeout === 0) {
+      simState.engine.txPending = false;
+      addTraceLog("WARN", "CanNm Engine", "CanNmMsgTimeoutTime Hết Hạn (0ms)!", "[SWS_CanNm_00066 / SWS_CanNm_00446] Không nhận được CanNm_TxConfirmation() đúng hạn -> Gọi Nm_TxTimeoutException() & CanSM_TxTimeoutException().");
+      addTraceLog("API", "CanNm -> Nm / CanSM", "Nm_TxTimeoutException(0) & CanSM_TxTimeoutException(0)", "[SWS_CanNm_00066 / SWS_CanNm_00446] Báo lỗi nghẽn truyền CAN.");
+    }
+  }
+
+  // 2. Tick NM-Timeout Timer (SWS_CanNm_00101 / 00193 / 00117 / 00194 / 00109)
+  if (simState.mode === "NM_MODE_NETWORK" && simState.engine.msgTxEnabled && simState.timers.timeout > 0) {
+    simState.timers.timeout = Math.max(0, simState.timers.timeout - deltaMs);
+    if (simState.timers.timeout === 0) {
+      if (simState.subState === "NM_STATE_READY_SLEEP") {
+        const prevFull = "NM_STATE_READY_SLEEP";
+        simState.mode = "NM_MODE_PREPARE_BUS_SLEEP";
+        simState.cbv.awb = false; // SWS_CanNm_00402
+        simState.timers.msgCycle = 0;
+        simState.timers.remoteSleep = 0;
+        simState.engine.remoteSleepDetected = false;
+        simState.engine.immBurstActive = false;
+        simState.engine.burstLeft = 0;
+        simState.engine.busLoadReductionActive = false;
+        simState.timers.waitBusSleep = ecucConfig.CanNmWaitBusSleepTime;
+        addTraceLog("STATE", "CanNm State Machine", "READY_SLEEP -> PREPARE_BUS_SLEEP", `[SWS_CanNm_00109 / SWS_CanNm_00402] NM-Timeout hết hạn -> Xóa AWB=0, chạy WaitBusSleepTimer=${ecucConfig.CanNmWaitBusSleepTime}ms.`);
+        addTraceLog("API", "CanNm -> Nm -> ComM", "Nm_PrepareBusSleepMode(0)", "[SWS_CanNm_00114] Báo tầng trên chuẩn bị tắt nguồn.");
+        reportStateChange(prevFull, "NM_STATE_PREPARE_BUS_SLEEP");
+      } else if (simState.subState === "NM_STATE_REPEAT_MESSAGE") {
+        simState.timers.timeout = ecucConfig.CanNmTimeoutTime; // SWS_CanNm_00101
+        addTraceLog("DET", "CanNm", "CANNM_E_NETWORK_TIMEOUT (0x11) -> Restart TimeoutTimer", `[SWS_CanNm_00101 / SWS_CanNm_00193] NM-Timeout hết hạn trong Repeat Message -> Nạp lại = ${ecucConfig.CanNmTimeoutTime}ms & báo Runtime Error 0x11.`);
+      } else if (simState.subState === "NM_STATE_NORMAL_OPERATION") {
+        simState.timers.timeout = ecucConfig.CanNmTimeoutTime; // SWS_CanNm_00117
+        addTraceLog("DET", "CanNm", "CANNM_E_NETWORK_TIMEOUT (0x11) -> Restart TimeoutTimer", `[SWS_CanNm_00117 / SWS_CanNm_00194] NM-Timeout hết hạn trong Normal Operation -> Nạp lại = ${ecucConfig.CanNmTimeoutTime}ms & báo Runtime Error 0x11.`);
       }
     }
   }
 
-  // 2. Tick RepeatMessageTimer
-  if (simState.mode === "NM_MODE_NETWORK" && simState.subState === "NM_STATE_REPEAT_MESSAGE") {
-    if (simState.timers.repeatMsg > 0) {
-      simState.timers.repeatMsg = Math.max(0, simState.timers.repeatMsg - deltaMs);
-      if (simState.timers.repeatMsg === 0) {
-        simState.cbv.rmr = false; // SWS_CanNm_00107: Clear RMR on exit from Repeat Message!
-        if (simState.engine.netRequest) {
-          simState.subState = "NM_STATE_NORMAL_OPERATION";
+  // 3. Tick RepeatMessageTimer (SWS_CanNm_00102 / 00103 / 00106 / 00107)
+  if (simState.mode === "NM_MODE_NETWORK" && simState.subState === "NM_STATE_REPEAT_MESSAGE" && simState.timers.repeatMsg > 0) {
+    simState.timers.repeatMsg = Math.max(0, simState.timers.repeatMsg - deltaMs);
+    if (simState.timers.repeatMsg === 0) {
+      simState.cbv.rmr = false; // SWS_CanNm_00107
+      simState.cbv.pnl = false; // SWS_CanNm_00382
+      simState.engine.immBurstActive = false;
+      simState.engine.burstLeft = 0;
+      if (simState.engine.netRequest) {
+        simState.subState = "NM_STATE_NORMAL_OPERATION";
+        simState.engine.busLoadReductionActive = !!ecucConfig.CanNmBusLoadReductionEnabled; // SWS_CanNm_00157
+        if (ecucConfig.CanNmRemoteSleepIndEnabled && simState.engine.msgTxEnabled && !ecucConfig.CanNmPassiveModeEnabled) {
+          simState.timers.remoteSleep = ecucConfig.CanNmRemoteSleepIndTime;
+        }
+        // Keep running msgCycle uninterrupted if already counting; only init if <= 0
+        if (simState.timers.msgCycle <= 0 && simState.engine.msgTxEnabled && !ecucConfig.CanNmPassiveModeEnabled) {
           simState.timers.msgCycle = ecucConfig.CanNmMsgCycleTime;
-          addTraceLog("STATE", "CanNm State Machine", "REPEAT_MESSAGE -> NORMAL_OPERATION", "[SWS_CanNm_00103] Hết CanNmRepeatMessageTime và Network Requested -> Chuyển sang Normal Operation State.");
-        } else {
-          simState.subState = "NM_STATE_READY_SLEEP";
-          addTraceLog("STATE", "CanNm State Machine", "REPEAT_MESSAGE -> READY_SLEEP", "[SWS_CanNm_00106] Hết CanNmRepeatMessageTime và Network Released -> Chuyển sang Ready Sleep State (Ngưng phát Tx).");
         }
+        addTraceLog("STATE", "CanNm State Machine", "REPEAT_MESSAGE -> NORMAL_OPERATION", "[SWS_CanNm_00103 / SWS_CanNm_00107] Hết RepeatMessageTime & NetReq=1 -> Normal Operation (Xóa RMR=0).");
+        reportStateChange("NM_STATE_REPEAT_MESSAGE", "NM_STATE_NORMAL_OPERATION");
+      } else {
+        simState.subState = "NM_STATE_READY_SLEEP";
+        simState.timers.msgCycle = 0; // SWS_CanNm_00108 / SWS_CanNm_00051
+        simState.engine.busLoadReductionActive = false;
+        addTraceLog("STATE", "CanNm State Machine", "REPEAT_MESSAGE -> READY_SLEEP", "[SWS_CanNm_00106 / SWS_CanNm_00108 / SWS_CanNm_00051] Hết RepeatMessageTime & NetReq=0 -> Ready Sleep (Xóa RMR=0, hủy MsgCycleTimer).");
+        reportStateChange("NM_STATE_REPEAT_MESSAGE", "NM_STATE_READY_SLEEP");
       }
     }
   }
 
-  // 3. Tick WaitBusSleepTimer
-  if (simState.mode === "NM_MODE_PREPARE_BUS_SLEEP") {
-    if (simState.timers.waitBusSleep > 0) {
-      simState.timers.waitBusSleep = Math.max(0, simState.timers.waitBusSleep - deltaMs);
-      if (simState.timers.waitBusSleep === 0) {
-        // WaitBusSleep expired -> Enter Bus-Sleep Mode!
-        simState.mode = "NM_MODE_BUS_SLEEP";
-        addTraceLog("STATE", "CanNm State Machine", "PREPARE_BUS_SLEEP -> BUS_SLEEP", "[SWS_CanNm_00117] Hết WaitBusSleepTime (0ms) -> Chuyển sang Bus-Sleep Mode.");
-        addTraceLog("API", "CanNm -> Nm -> ComM", "ComM_Nm_BusSleepMode()", "[SWS_CanNm_00126] Báo ComM tắt hoàn toàn Controller và Transceiver (CanSM_RequestComMode(NO_COM)).");
-      }
+  // 4. Tick RemoteSleepTimer in NORMAL_OPERATION (SWS_CanNm_00150)
+  if (
+    simState.mode === "NM_MODE_NETWORK" &&
+    simState.subState === "NM_STATE_NORMAL_OPERATION" &&
+    ecucConfig.CanNmRemoteSleepIndEnabled &&
+    simState.engine.msgTxEnabled &&
+    !ecucConfig.CanNmPassiveModeEnabled &&
+    !simState.engine.remoteSleepDetected &&
+    simState.timers.remoteSleep > 0
+  ) {
+    simState.timers.remoteSleep = Math.max(0, simState.timers.remoteSleep - deltaMs);
+    if (simState.timers.remoteSleep === 0) {
+      simState.engine.remoteSleepDetected = true;
+      addTraceLog("API", "CanNm -> Nm", "Nm_RemoteSleepIndication(nmChannelHandle=0)", `[SWS_CanNm_00150] Suốt ${ecucConfig.CanNmRemoteSleepIndTime}ms không nhận gói NM từ bus -> Toàn bộ node con đã sẵn sàng ngủ!`);
     }
   }
 
-  // 4. Tick Periodic MsgCycleTimer & Immediate Burst Tx
+  // 5. Tick WaitBusSleepTimer (SWS_CanNm_00248 / SWS_CanNm_00088 / SWS_CanNm_00126)
+  if (simState.mode === "NM_MODE_PREPARE_BUS_SLEEP" && simState.timers.waitBusSleep > 0) {
+    simState.timers.waitBusSleep = Math.max(0, simState.timers.waitBusSleep - deltaMs);
+    if (simState.timers.waitBusSleep === 0) {
+      simState.mode = "NM_MODE_BUS_SLEEP";
+      simState.wakeupSource = "None";
+      addTraceLog("STATE", "CanNm State Machine", "PREPARE_BUS_SLEEP -> BUS_SLEEP", "[SWS_CanNm_00248 / SWS_CanNm_00088] Hết WaitBusSleepTime (0ms) -> Bus-Sleep Mode.");
+      addTraceLog("API", "CanNm -> Nm -> ComM", "Nm_BusSleepMode(0) -> CanSM(NO_COM)", "[SWS_CanNm_00126] Báo lớp trên tắt Controller và Transceiver.");
+      reportStateChange("NM_STATE_PREPARE_BUS_SLEEP", "NM_STATE_BUS_SLEEP");
+    }
+  }
+
+  // 6. Synchronized PNC Shutdown priority Tx (SWS_CanNm_00513 / SWS_CanNm_00519) OR Periodic / Burst Tx (SWS_CanNm_00040 / SWS_CanNm_00335 / SWS_CanNm_00512)
   if (simState.mode === "NM_MODE_NETWORK" && simState.engine.msgTxEnabled && !ecucConfig.CanNmPassiveModeEnabled) {
-    if (simState.subState === "NM_STATE_REPEAT_MESSAGE" || simState.subState === "NM_STATE_NORMAL_OPERATION") {
+    if (ecucConfig.CanNmSynchronizedPncShutdownEnabled && simState.engine.pnShutdownMsgActive) {
+      triggerCanNmTransmit("PN Shutdown Message (PNSR=1, ưu tiên SWS_CanNm_00513/00519)", true);
+    } else if (simState.subState === "NM_STATE_REPEAT_MESSAGE" || simState.subState === "NM_STATE_NORMAL_OPERATION") {
       if (simState.timers.msgCycle > 0) {
         simState.timers.msgCycle = Math.max(0, simState.timers.msgCycle - deltaMs);
         if (simState.timers.msgCycle === 0) {
-          // Time to transmit NM PDU!
           if (simState.engine.immBurstActive && simState.engine.burstLeft > 0) {
-            triggerCanNmTransmit(`Gói chùm Burst Tx #${ecucConfig.CanNmImmediateNmTransmissions - simState.engine.burstLeft + 1}`);
+            const idxFrame = ecucConfig.CanNmImmediateNmTransmissions - simState.engine.burstLeft + 1;
+            triggerCanNmTransmit(`Gói chùm Burst Tx #${idxFrame}`);
             simState.engine.burstLeft--;
             if (simState.engine.burstLeft > 0) {
               simState.timers.msgCycle = ecucConfig.CanNmImmediateNmCycleTime;
@@ -761,38 +1280,59 @@ function stepClockTick(deltaMs) {
             }
           } else {
             triggerCanNmTransmit("Bản tin NM định kỳ (Periodic Tx)");
-            simState.timers.msgCycle = ecucConfig.CanNmMsgCycleTime;
+            simState.timers.msgCycle = ecucConfig.CanNmMsgCycleTime; // SWS_CanNm_00040
           }
         }
       }
     }
   }
 
-  // 5. Tick PN Reset Timer (ERA/EIRA)
-  if (simState.timers.pnReset > 0) {
-    simState.timers.pnReset = Math.max(0, simState.timers.pnReset - deltaMs);
-    if (simState.timers.pnReset === 0) {
-      simState.pnc.eira = 0x0000;
-      addTraceLog("PN", "CanNm Engine", "PnResetTimer Hết Hạn (0ms) -> Xóa cờ PNC trong EIRA", "[SWS_CanNm_00431] Không còn node nào trên bus yêu cầu PNC -> Báo ComM tắt cụm mạng con.");
-    }
-  }
+  // 7. Tick independent per-PNC timers (EIRA & ERA)
+  tickPncTimers(deltaMs);
+}
 
+function stepClockTick(deltaMs) {
+  if (!ecucConfig.CanNmInitialized) return;
+  const period = Math.max(10, ecucConfig.CanNmMainFunctionPeriod || 100);
+  let remaining = Math.max(0, Number(deltaMs) || 0);
+  if (remaining === 0) {
+    renderAll();
+    return;
+  }
+  while (remaining > 0) {
+    const step = Math.min(remaining, period);
+    stepSingleMainFunctionTick(step);
+    remaining -= step;
+  }
   renderAll();
 }
 
 function resetSimulation() {
   simState.mode = "NM_MODE_BUS_SLEEP";
   simState.subState = "NM_STATE_REPEAT_MESSAGE";
-  simState.cbv = { rmr: false, csr: false, awb: false, pni: false };
-  simState.engine = { netRequest: false, immBurstActive: false, burstLeft: 0, msgTxEnabled: true };
-  simState.timers = { repeatMsg: 0, timeout: 0, waitBusSleep: 0, msgCycle: 0, pnReset: 0, remoteSleep: 0 };
-  simState.pnc = { eira: 0x0000, era: 0x0000 };
+  simState.cbv = { rmr: false, pnsr: false, csr: false, awb: false, pnl: false, pni: false };
+  simState.engine = {
+    netRequest: false,
+    immBurstActive: false,
+    burstLeft: 0,
+    msgTxEnabled: true,
+    busLoadReductionActive: false,
+    remoteSleepDetected: false,
+    pnShutdownMsgActive: false,
+    txPending: false,
+    simTxConfirmFail: false
+  };
+  simState.timers = { repeatMsg: 0, timeout: 0, waitBusSleep: 0, msgCycle: 0, msgTimeout: 0, pnReset: 0, remoteSleep: 0 };
+  simState.pnc = { eira: 0x0000, era: 0x0000, eiraTimers: {}, eraTimers: {} };
   simState.clockMs = 0;
   simState.lastBusActivity = "Chưa có";
   simState.wakeupSource = "None";
   simState.activeDirection = "None";
 
-  addTraceLog("API", "System", "Khởi tạo lại trạng thái CanNM (Reset Simulation)", "Module ở trạng thái NM_MODE_BUS_SLEEP, mọi bộ đếm Timer = OFF, CBV = 0x00.");
+  const chkFail = document.getElementById("simTxConfirmFail");
+  if (chkFail) chkFail.checked = false;
+
+  addTraceLog("API", "System", "Khởi tạo lại trạng thái CanNM (CanNm_Init)", "[SWS_CanNm_00141 / 00143 / 00025 / 00085] NM_MODE_BUS_SLEEP, Released, Timers=OFF, CBV=0x00, UserData=0xFF.");
   renderAll();
 }
 
@@ -908,21 +1448,21 @@ const SCENARIOS = {
         action: () => {
           resetSimulation();
           apiNetworkRequest();
-          stepClockTick(1600); // Into Normal Operation
+          stepClockTick(2200); // Into Normal Operation right after Periodic Tx -> Timeout=2000ms
           addTraceLog("INIT", "Precondition", "S3 Sẵn Sàng: ECU đang ở Normal Operation State", "SWC đang giữ mạng, truyền phát bản tin định kỳ. Sẵn sàng theo dõi chu trình đi ngủ 4 pha.");
         }
       },
       {
         api: "Bước 1: SWC nhả mạng -> CanNm_NetworkRelease()",
         io: "Input: SWC -> ComM -> Nm -> CanNm -> Ready Sleep State",
-        desc: "ECU đang ở Normal Operation State. Ứng dụng đã hoàn tất nhiệm vụ và gọi CanNm_NetworkRelease(). CanNM chuyển ngay sang Ready Sleep State và dừng phát bản tin NM định kỳ.",
+        desc: "ECU đang ở Normal Operation State. Ứng dụng đã hoàn tất nhiệm vụ và gọi CanNm_NetworkRelease(). CanNM chuyển ngay sang Ready Sleep State và hủy MsgCycleTimer = 0ms.",
         action: () => {
           apiNetworkRelease(); // Into Ready Sleep
         }
       },
       {
         api: "Bước 2: Đếm ngược NM-Timeout Timer (CanNmTimeoutTime = 2000ms)",
-        io: "Input: SchM Clock -> Giảm Timeout Timer từ 2000ms về 0ms",
+        io: "Input: SchM Clock -> Giảm Timeout Timer từ 2000ms xuống 1000ms",
         desc: "Trên bus không có bất kỳ ECU nào phát bản tin NM. NM-Timeout Timer đếm lùi. Nếu có node nào phát trong thời gian này, timer sẽ lập tức nạp lại đầy 2000ms để giữ mạng thức.",
         action: () => {
           stepClockTick(1000);
@@ -930,7 +1470,7 @@ const SCENARIOS = {
       },
       {
         api: "Bước 3: Hết NM-Timeout -> Chuyển sang Prepare Bus-Sleep Mode",
-        io: "Input: CanNm_MainFunction() -> CanNm -> Prepare Bus-Sleep Mode",
+        io: "Input: CanNm_MainFunction() -> CanNm -> Prepare Bus-Sleep Mode (SWS_CanNm_00109)",
         desc: "NM-Timeout Timer chạm 0ms! Toàn mạng đồng ý đi ngủ. CanNM xóa cờ AWB về 0, chuyển sang Prepare Bus-Sleep Mode, báo Nm_PrepareBusSleepMode() và chạy WaitBusSleepTimer (1500ms).",
         action: () => {
           stepClockTick(1000);
@@ -938,7 +1478,7 @@ const SCENARIOS = {
       },
       {
         api: "Bước 4: Hết WaitBusSleepTime (1500ms) -> Vào Bus-Sleep Mode & Tắt Phần Cứng",
-        io: "Input: CanNm_MainFunction() -> CanNm -> Bus-Sleep Mode",
+        io: "Input: CanNm_MainFunction() -> CanNm -> Bus-Sleep Mode (SWS_CanNm_00248)",
         desc: "Sau 1500ms yên ắng tuyệt đối tại pha đệm, CanNM chuyển sang Bus-Sleep Mode, gọi Nm_BusSleepMode() để ComM ra lệnh CanSM tắt nguồn CAN Controller & Transceiver.",
         action: () => {
           stepClockTick(1500);
@@ -961,8 +1501,10 @@ const SCENARIOS = {
         desc: "ECU vừa hết hạn NM-Timeout Timer và đang nằm đếm ngược ở Prepare Bus-Sleep Mode (WaitBusSleepTimer = 1500ms). Còn 1000ms nữa là tắt nguồn. Bấm 'Tiếp Theo ▶' để SWC gọi lệnh khẩn cấp.",
         action: () => {
           resetSimulation();
+          ecucConfig.CanNmImmediateRestartEnabled = true;
+          ecucConfig.CanNmImmediateNmTransmissions = 0; // ECUC_CanNm_00056
           apiNetworkRequest();
-          stepClockTick(1600);
+          stepClockTick(2200);
           apiNetworkRelease();
           stepClockTick(2000);
           stepClockTick(500); // 1000ms left in Prepare Bus-Sleep
@@ -995,7 +1537,7 @@ const SCENARIOS = {
         action: () => {
           resetSimulation();
           apiNetworkRequest();
-          stepClockTick(1600);
+          stepClockTick(2200);
           apiNetworkRelease();
           addTraceLog("INIT", "Precondition", "S5 Sẵn Sàng: ECU đang ở Ready Sleep State (im lặng)", "Sẵn sàng nhận yêu cầu điểm danh toàn mạng CanNm_RepeatMessageRequest() từ máy chẩn đoán Tester.");
         }
@@ -1003,7 +1545,7 @@ const SCENARIOS = {
       {
         api: "Bước 1: Gọi CanNm_RepeatMessageRequest() -> Bật Bit 0 (RMR = 1)",
         io: "Input: Diag SWC -> CanNm_RepeatMessageRequest()",
-        desc: "CanNM chuyển ngay về Repeat Message State, bật Bit 0 (RMR = 1) trong byte CBV và phát ngay bản tin ra bus để ép tất cả các ECU khác cùng điểm danh.",
+        desc: "CanNM chuyển về Repeat Message State, bật Bit 0 (RMR = 1) cho các bản tin phát kế tiếp (SWS_CanNm_00112 / 00113 / 00221) và lên lịch phát sau CanNmMsgCycleOffset.",
         action: () => {
           apiRepeatMessageRequest();
         }
@@ -1011,7 +1553,7 @@ const SCENARIOS = {
       {
         api: "Bước 2: Hết RepeatMessageTime (1500ms) -> Tự động xóa Bit RMR về 0",
         io: "Input: CanNm_MainFunction() -> CanNm -> Ready Sleep (RMR = 0)",
-        desc: "Theo SWS_CanNm_00107, ngay khi hết CanNmRepeatMessageTime, CanNM tự động hạ Bit 0 (RMR: 1 -> 0) để tránh mạng bị lặp điểm danh vô tận.",
+        desc: "Trong 1500ms ECU phát các bản tin mang RMR=1; ngay khi hết CanNmRepeatMessageTime (SWS_CanNm_00107), CanNM tự hạ Bit 0 (RMR: 1 -> 0) và hủy MsgCycleTimer.",
         action: () => {
           stepClockTick(1500);
         }
@@ -1029,21 +1571,22 @@ const SCENARIOS = {
     steps: [
       {
         api: "Bước 0: Chuẩn bị kịch bản & Thiết lập điều kiện ban đầu (Precondition)",
-        io: "Trạng thái sẵn sàng: NM_STATE_NORMAL_OPERATION | BusLoadReduction = TRUE | MsgCycle = 1000ms",
-        desc: "ECU đang ở Normal Operation State với tính năng Bus Load Reduction được kích hoạt. Bấm 'Tiếp Theo ▶' để xem cách CanNM phản ứng khi Remote Node #2 phát bản tin.",
+        io: "Trạng thái sẵn sàng: NM_STATE_NORMAL_OPERATION | BusLoadReduction = TRUE | MsgReducedTime = 500ms",
+        desc: "ECU đang ở Normal Operation State với Bus Load Reduction được kích hoạt (CanNmMsgReducedTime = 500ms). Bấm 'Tiếp Theo ▶' để xem cách CanNM nạp lại timer khi Remote Node #2 phát bản tin.",
         action: () => {
-          ecucConfig.CanNmBusLoadReductionEnabled = true;
-          onConfigChange("CanNmBusLoadReductionEnabled", true);
           resetSimulation();
+          ecucConfig.CanNmBusLoadReductionEnabled = true;
+          ecucConfig.CanNmMsgReducedTime = 500;
+          onConfigChange("CanNmBusLoadReductionEnabled", true);
           apiNetworkRequest();
-          stepClockTick(1600); // In Normal Operation
-          addTraceLog("INIT", "Precondition", "S6 Sẵn Sàng: ECU ở Normal Operation, Bus Load Reduction = TRUE", "Sẵn sàng nhận bản tin NM từ Remote Node #2 để kiểm tra cơ chế hoãn phát bản tin.");
+          stepClockTick(2200); // In Normal Operation
+          addTraceLog("INIT", "Precondition", "S6 Sẵn Sàng: ECU ở Normal Operation, Bus Load Reduction = TRUE, MsgReducedTime=500ms", "Sẵn sàng nhận bản tin NM từ Remote Node #2 để kiểm tra SWS_CanNm_00069.");
         }
       },
       {
-        api: "Bước 1: Remote Node #2 phát bản tin NM -> CanNM hoãn lượt phát",
-        io: "Input: CanNm_RxIndication() -> CanNm -> Nạp lại MsgCycleTimer = 1000ms",
-        desc: "Khi nhận bản tin từ Node #2, CanNM nạp lại bộ đếm phát MsgCycleTimer về 1000ms (SWS_CanNm_00052) thay vì tự phát bản tin của mình, giảm 70% tải trên bus!",
+        api: "Bước 1: Remote Node #2 phát bản tin NM -> Nạp CanNmMsgReducedTime (500ms)",
+        io: "Input: CanNm_RxIndication() -> CanNm -> Nạp lại MsgCycleTimer = 500ms (SWS_CanNm_00069)",
+        desc: "Khi nhận bản tin từ Node #2 trong Normal Operation State, CanNM nạp lại bộ đếm phát MsgCycleTimer bằng CanNmMsgReducedTime (500ms theo SWS_CanNm_00069) để nhường đường truyền!",
         action: () => {
           apiSimulatedRxIndication();
         }
@@ -1152,17 +1695,18 @@ const SCENARIOS = {
         io: "Trạng thái sẵn sàng: CanNmPnEnabled = TRUE | EIRA = 0x0000 | PnResetTimer = OFF | Network Mode",
         desc: "ECU đang ở Network Mode với Partial Networking sẵn sàng. Vector EIRA rỗng. Bấm 'Tiếp Theo ▶' để kích hoạt PNC #16 và quan sát bộ đếm CanNmPnResetTime.",
         action: () => {
-          ecucConfig.CanNmPnEnabled = true;
-          onConfigChange("CanNmPnEnabled", true);
           resetSimulation();
+          ecucConfig.CanNmPnEnabled = true;
+          ecucConfig.CanNmTxPnRequestHex = "00 00"; // Keep Tx IRA 0 so Rx PNC #16 isolation is clear
+          onConfigChange("CanNmPnEnabled", true);
           apiNetworkRequest();
-          addTraceLog("INIT", "Precondition", "S9 Sẵn Sàng: Bật Partial Networking, ECU ở Network Mode", "Sẵn sàng kích hoạt cụm PNC để theo dõi tính toán vector EIRA và PnResetTimer.");
+          addTraceLog("INIT", "Precondition", "S9 Sẵn Sàng: Bật Partial Networking, ECU ở Network Mode", "Sẵn sàng kích hoạt cụm PNC để theo dõi tính toán vector EIRA/ERA và bộ đếm PnResetTimer.");
         }
       },
       {
         api: "Bước 1: Kích hoạt PNC #16 -> Cập nhật mảng EIRA = 0x0001",
-        io: "Input: CanNm -> PduR_CanNmRxIndication(PnEiraRxPduId, &EiraBytes)",
-        desc: "Khi PNC #16 được yêu cầu, CanNM cập nhật vector EIRA và đẩy lên ComM qua PduR. Bộ đếm CanNmPnResetTime (1500ms) được kích hoạt.",
+        io: "Input: CanNm -> Nm_PncBitVectorRxIndication(0, &PncBitVector, &Relevant)",
+        desc: "Khi PNC #16 được yêu cầu, CanNm chuyển tiếp lên Nm và cập nhật vector EIRA = 0x0001 (SWS_CanNm_00502). Bộ đếm PnResetTimer (1500ms) cho PNC #16 được kích hoạt.",
         action: () => {
           document.getElementById("simRxPni").checked = true;
           document.getElementById("simRxPniHex").value = "01 00";
@@ -1170,49 +1714,51 @@ const SCENARIOS = {
         }
       },
       {
-        api: "Bước 2: Hết thời gian CanNmPnResetTime (1500ms) -> Xóa bit PNC trong EIRA",
-        io: "Input: CanNm_MainFunction() -> PduR_CanNmRxIndication(EIRA = 0x0000)",
-        desc: "Suốt 1500ms không có thêm gói tin nào yêu cầu PNC #16. PnResetTimer hết hạn, CanNM tự động xóa bit PNC #16 về 0 trong EIRA và báo ComM tắt cụm mạng con.",
+        api: "Bước 2: Hết thời gian PnResetTime (1500ms) -> Xóa bit PNC #16 trong EIRA",
+        io: "Input: CanNm_MainFunction() -> EIRA = 0x0000",
+        desc: "Suốt 1500ms không có thêm gói tin hay yêu cầu nội bộ nào giữ PNC #16. PnResetTimer hết hạn, bit PNC #16 tự động xóa về 0 trong EIRA.",
         action: () => {
           stepClockTick(1500);
         }
       }
     ],
     whatIf: [
-      { label: "Bật Synchronized PNC Shutdown", action: () => { ecucConfig.CanNmSynchronizedPncShutdownEnabled = true; onConfigChange("CanNmSynchronizedPncShutdownEnabled", true); } },
-      { label: "Yêu cầu đồng thời cả PNC #16 và PNC #18 (Mask 0x05)", action: () => { document.getElementById("simRxPniHex").value = "05 00"; apiSimulatedRxIndication(); } },
+      { label: "Bật SyncPNCShutdown & Gửi PNSR=1 (ActivateTxPnShutdownMsg)", action: () => { ecucConfig.CanNmSynchronizedPncShutdownEnabled = true; onConfigChange("CanNmSynchronizedPncShutdownEnabled", true); apiActivateTxPnShutdownMsg(); } },
+      { label: "Nhận thêm PNC #18 (0x04 00) -> EIRA |= thành 0x0005", action: () => { document.getElementById("simRxPni").checked = true; document.getElementById("simRxPniHex").value = "04 00"; apiSimulatedRxIndication(); } },
       { label: "Thay đổi PnResetTime = 3000ms", action: () => { ecucConfig.CanNmPnResetTime = 3000; onConfigChange("CanNmPnResetTime", true); } }
     ]
   },
 
   10: {
-    title: "S10: Đánh Thức Toàn Xe Qua Car Wakeup Bit (CSR = 1)",
+    title: "S10: Đánh Thức Toàn Xe Qua Car Wakeup Bit (CWU = 1)",
     steps: [
       {
         api: "Bước 0: Chuẩn bị kịch bản & Thiết lập điều kiện ban đầu (Precondition)",
-        io: "Trạng thái sẵn sàng: CanNmCarWakeUpFilterNodeId = 0x2B | ECU ở Bus-Sleep Mode",
-        desc: "Bộ lọc Car Wakeup được cài đặt chỉ chấp nhận cờ CSR từ SmartKey ECU Node 0x2B. ECU đang ngủ ở Bus-Sleep Mode. Bấm 'Tiếp Theo ▶' để phát bản tin đánh thức toàn xe.",
+        io: "Trạng thái sẵn sàng: CWU Byte 2 Bit 0 | FilterNodeId = 0x2B | ECU ở Bus-Sleep Mode",
+        desc: "Bộ lọc Car Wakeup kiểm tra bit CWU trong User Data tại Byte 2 Bit 0 (SWS_CanNm_00405), chỉ chấp nhận từ Node 0x2B. ECU đang ở Bus-Sleep Mode. Bấm 'Tiếp Theo ▶' để gửi bản tin có CWU=1.",
         action: () => {
+          resetSimulation();
           ecucConfig.CanNmCarWakeUpRxEnabled = true;
           ecucConfig.CanNmCarWakeUpFilterEnabled = true;
           ecucConfig.CanNmCarWakeUpFilterNodeId = 0x2B;
+          ecucConfig.CanNmCarWakeUpBytePosition = 2;
+          ecucConfig.CanNmCarWakeUpBitPosition = 0;
           onConfigChange("CanNmCarWakeUpFilterEnabled", true);
-          resetSimulation();
-          addTraceLog("INIT", "Precondition", "S10 Chuẩn Bị: Car Wakeup Filter = Node 0x2B, ECU ở Bus-Sleep", "Sẵn sàng nhận bản tin Car Wakeup từ SmartKey ECU 0x2B.");
+          addTraceLog("INIT", "Precondition", "S10 Chuẩn Bị: Car Wakeup (Byte 2, Bit 0), Filter = Node 0x2B, ECU ở Bus-Sleep", "Sẵn sàng nhận bản tin có bit CWU=1 (KHÔNG phải Bit 3 CSR trong CBV).");
         }
       },
       {
-        api: "Bước 1: Remote ECU 0x2B gửi gói NM có Bit 3 (CSR = 1) -> Kích hoạt Car Wakeup!",
-        io: "Input: CanNm_RxIndication(CSR=1, NodeId=0x2B) -> Nm_CarWakeUpIndication()",
-        desc: "Khớp đúng Node ID được cấp phép! CanNM gọi ngay Nm_CarWakeUpIndication() để ComM và BswM đánh thức toàn bộ hệ thống điện trên xe.",
+        api: "Bước 1: Remote ECU 0x2B gửi gói NM có CWU=1 -> Kích hoạt Car Wakeup!",
+        io: "Input: CanNm_RxIndication(CWU=1 @ Byte 2 Bit 0, NodeId=0x2B) -> Nm_CarWakeUpIndication()",
+        desc: "Đúng vị trí Byte/Bit và Node ID hợp lệ! CanNM gọi Nm_CarWakeUpIndication() đánh thức toàn hệ thống và báo Nm_NetworkStartIndication() theo SWS_CanNm_00127.",
         action: () => {
-          document.getElementById("simRxCsr").checked = true;
+          document.getElementById("simRxCwu").checked = true;
           apiSimulatedRxIndication();
         }
       }
     ],
     whatIf: [
-      { label: "Tắt bộ lọc Car Wakeup Filter (Chấp nhận CSR từ mọi Node)", action: () => { ecucConfig.CanNmCarWakeUpFilterEnabled = false; onConfigChange("CanNmCarWakeUpFilterEnabled", true); } },
+      { label: "Tắt bộ lọc Car Wakeup Filter (Chấp nhận CWU từ mọi Node)", action: () => { ecucConfig.CanNmCarWakeUpFilterEnabled = false; onConfigChange("CanNmCarWakeUpFilterEnabled", true); } },
       { label: "Đổi Filter Node ID thành 0x99 (làm lệch NodeId để xem lệnh bị chặn)", action: () => { ecucConfig.CanNmCarWakeUpFilterNodeId = 0x99; onConfigChange("CanNmCarWakeUpFilterNodeId", true); } },
       { label: "Tắt tính năng Car Wakeup (CanNmCarWakeUpRxEnabled = FALSE)", action: () => { ecucConfig.CanNmCarWakeUpRxEnabled = false; onConfigChange("CanNmCarWakeUpRxEnabled", true); } }
     ]
@@ -1226,10 +1772,10 @@ const SCENARIOS = {
         io: "Trạng thái sẵn sàng: CanNmComUserDataSupport = TRUE | UserData = 'DE AD BE EF CA FE' | Bus-Sleep",
         desc: "Module COM đã nạp sẵn chuỗi dữ liệu 'DE AD BE EF CA FE' vào buffer PduR. CanNM đang ở Bus-Sleep Mode. Bấm 'Tiếp Theo ▶' để khởi động mạng và quan sát TriggerTransmit.",
         action: () => {
+          resetSimulation();
           ecucConfig.CanNmComUserDataSupport = true;
           ecucConfig.UserDataBytesHex = "DE AD BE EF CA FE";
           onConfigChange("CanNmComUserDataSupport", true);
-          resetSimulation();
           addTraceLog("INIT", "Precondition", "S11 Chuẩn Bị: COM User Data Support = TRUE, Data = 'DE AD BE EF CA FE'", "Sẵn sàng thực hiện Active Wakeup và quan sát TriggerTransmit.");
         }
       },
@@ -1267,38 +1813,38 @@ const SCENARIOS = {
         action: () => {
           resetSimulation();
           apiNetworkRequest();
-          stepClockTick(1600);
+          stepClockTick(2200);
           addTraceLog("INIT", "Precondition", "S12 Chuẩn Bị: ECU đang ở Normal Operation State", "Sẵn sàng nhận lệnh UDS 0x28 CanNm_DisableCommunication() từ máy chẩn đoán Dcm.");
         }
       },
       {
         api: "Bước 1: Dcm gọi CanNm_DisableCommunication() (UDS 0x28)",
         io: "Input: UDS 0x28 -> Dcm -> BswM -> Nm -> CanNm_DisableCommunication()",
-        desc: "Kỹ thuật viên nạp phần mềm Flash Bootloader. Dịch vụ UDS 0x28 khóa truyền thông: CanNM hạ Bit 1 (TX_EN: 1 -> 0), ngưng phát bản tin NM và tạm dừng NM-Timeout Timer.",
+        desc: "Dịch vụ UDS 0x28 khóa truyền thông: CanNM hạ Bit 1 (TX_EN: 1 -> 0), DỪNG MsgCycleTimer (SWS_CanNm_00173) và DỪNG NM-Timeout Timer (SWS_CanNm_00174).",
         action: () => {
           apiToggleCommunication();
         }
       },
       {
         api: "Bước 2: Tiến đồng hồ +1000ms -> Không có gói tin nào phát ra",
-        io: "Input: SchM MainFunction +1000ms -> Tx bị chặn hoàn toàn",
-        desc: "Trong suốt quá trình nạp phần mềm, bus CAN được giải phóng hoàn toàn khỏi các bản tin NM.",
+        io: "Input: SchM MainFunction +1000ms -> Tx bị chặn & Timeout không chạy",
+        desc: "Trong suốt quá trình nạp phần mềm, bus CAN được giải phóng hoàn toàn khỏi các bản tin NM và các bộ đếm đều dừng.",
         action: () => {
           stepClockTick(1000);
         }
       },
       {
         api: "Bước 3: Dcm gọi CanNm_EnableCommunication() khôi phục mạng",
-        io: "Input: Dcm -> CanNm_EnableCommunication() -> Mở lại phát bản tin NM",
-        desc: "Quá trình Flash hoàn tất. CanNM bật lại Bit 1 (TX_EN = 1), chạy lại NM-Timeout Timer và tiếp tục phát bản tin NM định kỳ.",
+        io: "Input: Dcm -> CanNm_EnableCommunication() -> Khởi động lại Timeout & Tx",
+        desc: "Quá trình Flash hoàn tất. CanNM bật lại Bit 1 (TX_EN = 1), khởi động lại NM-Timeout Timer = 2000ms (SWS_CanNm_00179) và mở phát lại trong MainFunction kế tiếp (SWS_CanNm_00178).",
         action: () => {
           apiToggleCommunication();
         }
       }
     ],
     whatIf: [
-      { label: "Thử gọi DisableCommunication khi đang ở Bus-Sleep", action: () => { resetSimulation(); apiToggleCommunication(); } },
-      { label: "Bắn gói Rx từ Node #2 trong khi đang DisableComm", action: () => apiSimulatedRxIndication() },
+      { label: "Thử gọi DisableCommunication ở Bus-Sleep (Trả E_NOT_OK SWS_CanNm_00172)", action: () => { resetSimulation(); apiToggleCommunication(); } },
+      { label: "Bắn gói Rx từ Node #2 khi đang DisableComm (Không nạp Timeout SWS_CanNm_00098)", action: () => apiSimulatedRxIndication() },
       { label: "Tắt tính năng ComControl (CanNmComControlEnabled = FALSE)", action: () => { ecucConfig.CanNmComControlEnabled = false; onConfigChange("CanNmComControlEnabled", true); } }
     ]
   },
@@ -1309,79 +1855,82 @@ const SCENARIOS = {
       {
         api: "Bước 0: Chuẩn bị kịch bản & Thiết lập điều kiện ban đầu (Precondition)",
         io: "Trạng thái sẵn sàng: NM_STATE_NORMAL_OPERATION | RemoteSleepIndEnabled = TRUE | RemoteSleepTime = 1500ms",
-        desc: "ECU Gateway đang ở Normal Operation State. Bộ đếm Remote Sleep Indication (1500ms) sẵn sàng theo dõi các node con. Bấm 'Tiếp Theo ▶' để bắt đầu giám sát bus yên ắng.",
+        desc: "ECU Gateway đang ở Normal Operation State. Bộ đếm Remote Sleep Indication (1500ms) đang đếm ngược. Bấm 'Tiếp Theo ▶' để hết thời gian yên ắng.",
         action: () => {
+          resetSimulation();
           ecucConfig.CanNmRemoteSleepIndEnabled = true;
           ecucConfig.CanNmRemoteSleepIndTime = 1500;
           onConfigChange("CanNmRemoteSleepIndEnabled", true);
-          resetSimulation();
           apiNetworkRequest();
-          stepClockTick(1600); // Normal Operation
-          addTraceLog("INIT", "Precondition", "S13 Chuẩn Bị: Remote Sleep Indication = TRUE, ECU ở Normal Operation", "Sẵn sàng theo dõi bus yên ắng 1500ms để kích hoạt Nm_RemoteSleepIndication().");
+          stepClockTick(2200); // Normal Operation (entered at 1500ms -> 800ms left)
+          addTraceLog("INIT", "Precondition", "S13 Chuẩn Bị: Remote Sleep Indication = TRUE, ECU ở Normal Operation", "Bộ đếm RemoteSleep đang chạy thực tế; sẵn sàng chờ hết hạn để kích hoạt Nm_RemoteSleepIndication().");
         }
       },
       {
-        api: "Bước 1: Không có gói Rx nào từ các node con suốt 1500ms",
-        io: "Input: CanNm_MainFunction() -> Nm_RemoteSleepIndication()",
-        desc: "Suốt 1500ms yên ắng từ các node con, CanNM phát hiện tất cả các node đều đã ở Ready Sleep và gọi Nm_RemoteSleepIndication() báo cho Gateway!",
+        api: "Bước 1: Không có gói Rx nào từ các node con -> Hết RemoteSleepIndTime",
+        io: "Input: CanNm_MainFunction() -> Nm_RemoteSleepIndication() (SWS_CanNm_00150)",
+        desc: "Suốt CanNmRemoteSleepIndTime không nhận được Rx từ các node con, engine thực sự đếm về 0 và tự gọi Nm_RemoteSleepIndication()!",
         action: () => {
           stepClockTick(1500);
-          addTraceLog("API", "CanNm -> Nm", "Nm_RemoteSleepIndication(nmChannelHandle=0)", "[SWS_CanNm_00150] Báo cho Gateway: Toàn bộ node con trên nhánh CAN này đã sẵn sàng ngủ!");
         }
       },
       {
         api: "Bước 2: Node con bất ngờ thức dậy -> Báo Nm_RemoteSleepCancellation()",
-        io: "Input: CanNm_RxIndication() -> Nm_RemoteSleepCancellation()",
-        desc: "Một node con bất ngờ thức lại phát bản tin NM. CanNM lập tức hủy trạng thái ngủ từ xa và gọi Nm_RemoteSleepCancellation()!",
+        io: "Input: CanNm_RxIndication() -> Nm_RemoteSleepCancellation() (SWS_CanNm_00151)",
+        desc: "Nhận gói Rx từ Remote Node, engine tự động hủy cờ Remote Sleep và gọi Nm_RemoteSleepCancellation()!",
         action: () => {
           apiSimulatedRxIndication();
-          addTraceLog("API", "CanNm -> Nm", "Nm_RemoteSleepCancellation(nmChannelHandle=0)", "[SWS_CanNm_00151] Hủy trạng thái Remote Sleep vì có node con vừa thức dậy!");
         }
       }
     ],
     whatIf: [
-      { label: "Gọi CanNm_CheckRemoteSleepIndication()", action: () => addTraceLog("API", "SWC -> CanNm", "CanNm_CheckRemoteSleepIndication() -> E_OK", "[SWS_CanNm_00152] Đọc trạng thái Remote Sleep.") },
+      { label: "Gọi CanNm_CheckRemoteSleepIndication()", action: () => apiCheckRemoteSleepIndication() },
       { label: "Đổi RemoteSleepIndTime = 2500ms", action: () => { ecucConfig.CanNmRemoteSleepIndTime = 2500; onConfigChange("CanNmRemoteSleepIndTime", true); } },
       { label: "Tắt tính năng Remote Sleep", action: () => { ecucConfig.CanNmRemoteSleepIndEnabled = false; onConfigChange("CanNmRemoteSleepIndEnabled", true); } }
     ]
   },
 
   14: {
-    title: "S14: Xử Lý Lỗi TxTimeoutException & Phối Hợp CanSM Bus-Off",
+    title: "S14: Xử Lý Lỗi TxTimeoutException & Rx Tại Bus-Sleep (CANNM_E_NET_START_IND)",
     steps: [
       {
-        api: "Bước 0: Chuẩn bị kịch bản & Thiết lập điều kiện ban đầu (Precondition)",
+        api: "Bước 0: Chuẩn bị kịch bản & Giả lập đường truyền mất TxConfirmation",
         io: "Trạng thái sẵn sàng: NM_STATE_REPEAT_MESSAGE | MsgTimeoutTime = 500ms | Chờ TxConfirmation",
-        desc: "ECU vừa chuyển vào Network Mode và phát lệnh gửi bản tin NM. Bộ đếm CanNmMsgTimeoutTime (500ms) bắt đầu đếm. Bấm 'Tiếp Theo ▶' để kiểm tra tình huống mất TxConfirmation.",
+        desc: "Bật giả lập mất TxConfirmation và gọi NetworkRequest(). CanNM gửi lệnh Tx và bắt đầu chạy bộ đếm thực CanNmMsgTimeoutTime (500ms). Bấm 'Tiếp Theo ▶' để đợi hết timeout.",
         action: () => {
           resetSimulation();
+          ecucConfig.CanNmPnEnabled = true;
+          onConfigChange("CanNmPnEnabled", true);
+          onSimTxFailToggle(true);
           apiNetworkRequest();
-          addTraceLog("INIT", "Precondition", "S14 Chuẩn Bị: ECU ở Network Mode (Repeat Message)", "Sẵn sàng kiểm tra tình huống timeout mất TxConfirmation từ phần cứng.");
+          addTraceLog("INIT", "Precondition", "S14 Chuẩn Bị: ECU ở Repeat Message đang chờ TxConfirmation (MsgTimeout=500ms)", "Sẵn sàng để đồng hồ đếm hết CanNmMsgTimeoutTime và tự gọi Nm_TxTimeoutException().");
         }
       },
       {
-        api: "Bước 1: CanNM phát bản tin nhưng không nhận được TxConfirmation (Timeout)",
-        io: "Input: CanNmMsgTimeoutTime (500ms) hết hạn -> Nm_TxTimeoutException()",
-        desc: "Do đường truyền bị ngắt hoặc phần cứng CAN Controller bị kẹt, sau 500ms gọi CanIf_Transmit() mà không có TxConfirmation. CanNM gọi Nm_TxTimeoutException() và CanSM_TxTimeoutException().",
+        api: "Bước 1: Đợi hết CanNmMsgTimeoutTime (500ms) -> Nm_TxTimeoutException()",
+        io: "Input: stepClockTick(500) -> MsgTimeoutTimer = 0 -> TxTimeoutException (SWS_CanNm_00066/00446)",
+        desc: "Sau 500ms gọi CanIf_Transmit() mà không có TxConfirmation, bộ đếm CanNmMsgTimeoutTime về 0 và tự động gọi Nm_TxTimeoutException() + CanSM_TxTimeoutException().",
         action: () => {
-          addTraceLog("WARN", "CanNm Engine", "CanNmMsgTimeoutTime (500ms) Hết Hạn!", "[SWS_CanNm_00066] Không nhận được CanIf_TxConfirmation().");
-          addTraceLog("API", "CanNm -> Nm", "Nm_TxTimeoutException(nmChannelHandle=0)", "Báo lỗi timeout truyền bản tin NM.");
-          addTraceLog("API", "CanNm -> CanSM", "CanSM_TxTimeoutException(nmChannelHandle=0)", "Yêu cầu CanSM kiểm tra và khởi động lại CAN Controller.");
+          stepClockTick(500);
         }
       },
       {
-        api: "Bước 2: Nhận gói NM bất ngờ tại Bus-Sleep Mode -> Báo lỗi DET CANNM_E_NET_START_IND",
-        io: "Input: CanNm_RxIndication() tại Bus-Sleep -> Det_ReportRuntimeError(0x04)",
-        desc: "Khi ECU đang ở Bus-Sleep Mode mà nhận được gói NM trên bus, CanNM vừa chuyển vào Network Mode vừa ghi nhận lỗi Runtime CANNM_E_NET_START_IND lên bảng DET.",
+        api: "Bước 2: Nhận gói NM ở Bus-Sleep -> Báo CANNM_E_NET_START_IND & Nm_NetworkStartIndication()",
+        io: "Input: CanNm_RxIndication() tại Bus-Sleep -> Giữ nguyên BUS_SLEEP & báo Upper Layer",
+        desc: "Theo SWS_CanNm_00336 và SWS_CanNm_00127: khi nhận NM PDU ở Bus-Sleep, CanNm báo runtime error CANNM_E_NET_START_IND (0x04) và gọi Nm_NetworkStartIndication(), KHÔNG tự nhảy sang Network Mode!",
         action: () => {
           resetSimulation();
+          ecucConfig.CanNmPnEnabled = false;
+          onConfigChange("CanNmPnEnabled", true);
+          const chkAuto = document.getElementById("simAutoPassiveOnRx");
+          if (chkAuto) chkAuto.checked = false;
           apiSimulatedRxIndication();
         }
       }
     ],
     whatIf: [
       { label: "Tắt CanNmInitialized = FALSE rồi gọi API (Test CANNM_E_UNINIT)", action: () => { ecucConfig.CanNmInitialized = false; onConfigChange("CanNmInitialized", true); apiNetworkRequest(); } },
-      { label: "Giả lập CanSM phục hồi và gọi CanNm_ConfirmPnAvailability()", action: () => addTraceLog("API", "CanSM -> CanNm", "CanNm_ConfirmPnAvailability(nmChannelHandle=0)", "CanSM phục hồi phần cứng thành công.") },
+      { label: "Gửi TxConfirmation(E_OK) để giải phóng Tx Pending", action: () => apiTxConfirmationResult(true) },
       { label: "Bật lại CanNmInitialized = TRUE", action: () => { ecucConfig.CanNmInitialized = true; onConfigChange("CanNmInitialized", true); } }
     ]
   }
