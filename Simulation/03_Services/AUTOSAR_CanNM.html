@@ -1427,7 +1427,7 @@
       </div>
       <div class="panel-b">
 
-        <!-- Level 1 Navigation Tabs (7 Main Tabs) -->
+        <!-- Level 1 Navigation Tabs (8 Main Tabs) -->
         <div class="hb-nav1" id="hbNav1">
           <button class="hb-tab1 active" onclick="switchHbTab1(0)">1. Kiến Trúc &amp; Hệ Sinh Thái</button>
           <button class="hb-tab1" onclick="switchHbTab1(1)">2. Máy Trạng Thái CanNM</button>
@@ -1435,10 +1435,11 @@
           <button class="hb-tab1" onclick="switchHbTab1(3)">4. Thuật Toán Fig 7-1 &amp; Timers</button>
           <button class="hb-tab1" onclick="switchHbTab1(4)">5. Partial Networking (PN)</button>
           <button class="hb-tab1" onclick="switchHbTab1(5)">6. Từ Điển API &amp; ECUC</button>
-          <button class="hb-tab1" onclick="switchHbTab1(6)" style="color:#fbbf24">🔤 7. Thuật Ngữ (Abbreviation)</button>
+          <button class="hb-tab1" onclick="switchHbTab1(6)">7. Tích Hợp ComM &amp; CanIf</button>
+          <button class="hb-tab1" onclick="switchHbTab1(7)" style="color:#fbbf24">🔤 8. Thuật Ngữ (Abbreviation)</button>
         </div>
 
-        <!-- Level 2 Sub-topics Pills (Tabs 0..5 only) -->
+        <!-- Level 2 Sub-topics Pills (Tabs 0..6 only) -->
         <div class="hb-nav2" id="hbNav2">
           <button class="hb-pill active" onclick="switchHbSubTab(0)">1.1. Nguyên Lý Quản Lý Mạng Phân Tán</button>
           <button class="hb-pill" onclick="switchHbSubTab(1)">1.2. Chuỗi Tương Tác SWC ↔ RTE ↔ ComM ↔ Nm ↔ CanNm ↔ CanSM</button>
@@ -5645,7 +5646,7 @@ const HANDBOOK_DATA = [
       {
         title: "1.1. Nguyên Lý Quản Lý Mạng Phân Tán (Decentralized Direct NM)",
         swsRefs: [
-          { id: "SWS_CanNm_00087", desc: "Thuật toán quản lý mạng phân tán trực tiếp (Direct Decentralized NM)" },
+          { id: "SWS_CanNm_00092", desc: "3 chế độ vận hành phân tán: Network, Prepare Bus-Sleep, Bus-Sleep Mode" },
           { id: "SWS_CanNm_00088", desc: "Chuyển Bus-Sleep khi nhả mạng & im lặng suốt CanNmTimeoutTime + CanNmWaitBusSleepTime" },
           { id: "SWS_CanNm_00089", desc: "Máy trạng thái độc lập cho từng node trong cụm mạng" },
           { id: "SWS_CanNm_00096", desc: "Khởi chạy NM-Timeout Timer khi bước vào Network Mode" },
@@ -5705,11 +5706,11 @@ const HANDBOOK_DATA = [
       {
         title: "1.2. Chuỗi Tương Tác SWC ↔ RTE ↔ ComM ↔ Nm ↔ CanNm ↔ CanSM",
         swsRefs: [
-          { id: "SWS_ComM_00110", desc: "ComM_RequestComMode() kích hoạt FULL_COM và gọi xuống Nm / CanSM" },
-          { id: "SWS_Nm_00032", desc: "Nm_NetworkRequest() định tuyến lệnh từ ComM xuống CanNm" },
-          { id: "SWS_CanSM_00062", desc: "CanSM_RequestComMode() điều khiển trạng thái CAN Controller / Transceiver" },
-          { id: "SWS_CanNm_00032", desc: "Gọi xuống lớp dưới CanIf_Transmit() khi đến chu kỳ phát NM PDU" },
-          { id: "SWS_CanIf_00005", desc: "CanIf_Transmit() truyền khung NM L-PDU xuống CAN Driver phần cứng" }
+          { id: "SWS_ComM_00110", desc: "ComM_RequestComMode(User, ComMode) kích hoạt nhu cầu truyền thông từ SWC" },
+          { id: "SWS_ComM_00866", desc: "ComM điều phối xuống Nm (Nm_NetworkRequest / Nm_NetworkRelease) theo ComMNmVariant" },
+          { id: "SWS_CanNm_00238", desc: "CanNm thực thi truyền NM PDU định kỳ (PRS_Nm_00237) hoặc Bus Load Reduction" },
+          { id: "SWS_CANIF_00005", desc: "CanIf_Transmit() truyền khung NM L-PDU xuống CAN Driver phần cứng" },
+          { id: "SWS_CANIF_00003", desc: "CanIf_SetControllerMode() / CanIf_SetTrcvMode() (SWS_CANIF_00287) được CanSM điều khiển" }
         ],
         content: `
           <h2>1.2. Chuỗi Tương Tác SWC ↔ RTE ↔ ComM ↔ Nm ↔ CanNm ↔ CanSM</h2>
@@ -5740,10 +5741,10 @@ const HANDBOOK_DATA = [
               </tr>
               <tr>
                 <td><b>Bước 2</b></td>
-                <td>ComM</td>
-                <td><code>CanSM_RequestComMode()</code></td>
-                <td>ComM ➔ CanSM</td>
-                <td>ComM ra lệnh cho CanSM bật Controller CAN (<code>CAN_CS_STARTED</code>) và Transceiver (<code>NORMAL</code>).</td>
+                <td>ComM ➔ CanSM ➔ CanIf</td>
+                <td><code>&lt;Bus&gt;SM_RequestComMode()</code><br/><code>CanIf_SetControllerMode()</code></td>
+                <td>ComM ➔ CanSM ➔ CanIf</td>
+                <td>ComM ra lệnh CanSM; CanSM gọi xuống CanIf bật Controller (<code>CAN_CS_STARTED</code>), Transceiver (<code>CANTRCV_TRCVMODE_NORMAL</code>) và mở PDU channel (<code>CANIF_ONLINE</code>).</td>
               </tr>
               <tr>
                 <td><b>Bước 3</b></td>
@@ -5868,7 +5869,7 @@ const HANDBOOK_DATA = [
                 <td>Services</td>
                 <td>COM Signals, CanNM User Data</td>
                 <td>Đóng gói tín hiệu ứng dụng vào User Data của NM PDU</td>
-                <td>Route User Data qua <code>CanNm_Transmit()</code></td>
+                <td>Hỗ trợ <code>CanNm_TriggerTransmit()</code> (<code>SWS_CanNm_91001</code>) / <code>PduR_CanNmTriggerTransmit()</code> (<code>SWS_CanNm_00328</code>) &amp; kích phát qua <code>CanNm_Transmit()</code> (<code>SWS_CanNm_00331</code>)</td>
               </tr>
             </tbody>
           </table>
@@ -5877,9 +5878,9 @@ const HANDBOOK_DATA = [
       {
         title: "1.4. Phân Biệt Vai Trò Của ComM vs CanSM vs CanNm",
         swsRefs: [
-          { id: "SWS_ComM_00110", desc: "ComM phân xử chính sách & điều phối mode NO_COM / SILENT_COM / FULL_COM" },
-          { id: "SWS_CanSM_00062", desc: "CanSM điều khiển phần cứng CAN Controller, Transceiver & Bus-Off" },
-          { id: "SWS_Nm_00031", desc: "Nm trừu tượng hóa giao diện mạng (Nm_PassiveStartUp / Nm_NetworkRequest)" },
+          { id: "SWS_ComM_00880", desc: "ComM phân xử chính sách & điều phối mode NO_COM / SILENT_COM / FULL_COM" },
+          { id: "SWS_ComM_00133", desc: "ComM gọi Nm_NetworkRelease() khi vào COMM_FULL_COM_READY_SLEEP (Variant FULL)" },
+          { id: "SWS_CANIF_00003", desc: "CanSM điều khiển Controller / Transceiver (SWS_CANIF_00287) qua CanIf" },
           { id: "SWS_CanNm_00092", desc: "CanNm thực thi máy trạng thái 3 Mode & thuật toán giữ bus phân tán" }
         ],
         content: `
@@ -5998,7 +5999,7 @@ const HANDBOOK_DATA = [
           { id: "SWS_CanNm_00102", desc: "Cố định thời lượng lưu lại CanNmRepeatMessageTime (không reload bởi Rx)" },
           { id: "SWS_CanNm_00103", desc: "Hết RepeatMessageTime & NetReq==1 ➔ Normal Operation State" },
           { id: "SWS_CanNm_00106", desc: "Hết RepeatMessageTime & NetReq==0 ➔ Ready Sleep State" },
-          { id: "SWS_CanNm_00334", desc: "Bắn chùm Immediate Burst Tx (CanNmImmediateNmTransmissions) khi Active Wakeup" }
+          { id: "PRS_Nm_00005", desc: "Bắn chùm Immediate Burst Tx (CanNmImmediateNmTransmissions / ECUC_CanNm_00056) khi khởi động" }
         ],
         content: `
           <h2>2.2. Chuyên Sâu Repeat Message State: Bản Chất, Lý Do Phải Vào Đầu Tiên &amp; Cơ Chế Burst Mode</h2>
@@ -6195,7 +6196,7 @@ const HANDBOOK_DATA = [
                   </td>
                   <td>
                     • ECU1 tiếp tục duy trì phát bản tin định kỳ của mình theo <code>CanNmMsgCycleTime</code>.<br/>
-                    • Nếu có Partial Networking (PN): CanNM trích xuất PNC bitmask của ECU2 để cập nhật ERA/EIRA và reload <code>CanNmPnResetTime</code>.
+                    • Nếu có Partial Networking (PN): CanNM trích xuất PNC bitmask của ECU2 chuyển lên <code>Nm_PncBitVectorRxIndication()</code> để <code>ComM</code> cập nhật EIRA/ERA (<code>SWS_CanNm_00503</code>).
                   </td>
                 </tr>
                 <tr>
@@ -6407,10 +6408,10 @@ const HANDBOOK_DATA = [
         title: "3.1. Cấu Trúc Khung 8-Byte NM PDU & Quy Tắc Định Địa Chỉ CAN ID",
         swsRefs: [
           { id: "SWS_CanNm_00013", desc: "Đóng gói Source Node Identifier (SNI) từ CanNmNodeId vào NM PDU" },
-          { id: "SWS_CanNm_00045", desc: "Định dạng byte Control Bit Vector (CBV) chuẩn 8-bit" },
+          { id: "SWS_CanNm_00085", desc: "Khởi tạo thanh ghi Control Bit Vector (CBV) = 0x00 khi CanNm_Init" },
           { id: "SWS_CanNm_00074", desc: "Cấu hình vị trí byte SNI qua CanNmPduNidPosition" },
           { id: "SWS_CanNm_00075", desc: "Cấu hình vị trí byte CBV qua CanNmPduCbvPosition" },
-          { id: "SWS_CanNm_00158", desc: "Bố trí khoang User Data vào các byte còn lại của khung NM 8-byte" }
+          { id: "SWS_CanNm_00501", desc: "Các byte còn lại ngoài System Bytes / PNC Bit Vector dành cho User Data (SWS_CanNm_00025 pad 0xFF)" }
         ],
         content: `
           <h2>3.1. Cấu Trúc Khung 8-Byte NM PDU &amp; Quy Tắc Định Địa Chỉ CAN ID</h2>
@@ -6446,8 +6447,8 @@ const HANDBOOK_DATA = [
               <tr>
                 <td><b>Byte 2 .. 7</b></td>
                 <td>User Data / PN Info</td>
-                <td><code>0x00 .. 0x00</code></td>
-                <td>Khoang dữ liệu 6-byte mang cờ Partial Network Cluster (PNC Bitmask) hoặc tín hiệu ứng dụng từ COM module.</td>
+                <td><code>0xFF .. 0xFF</code> (<code>SWS_CanNm_00025</code>)</td>
+                <td>Khoang dữ liệu 6-byte liên tiếp (<code>SWS_CanNm_00501</code>) mang PNC Bit Vector hoặc tín hiệu User Data từ COM (khởi tạo mặc định <code>0xFF</code>).</td>
               </tr>
             </tbody>
           </table>
@@ -6456,7 +6457,7 @@ const HANDBOOK_DATA = [
       {
         title: "3.2. Giải Mã Từng Bit Trong Thanh Ghi CBV (R25-11: RMR, PNSR, CSR, AWB, PNL, PNI)",
         swsRefs: [
-          { id: "SWS_CanNm_00045", desc: "Control Bit Vector Table 7.2 R25-11: b0 RMR, b1 PNSR, b3 CSR, b4 AWB, b5 PNL, b6 PNI (b2/b7 Reserved=0)" },
+          { id: "SWS_CanNm_00075", desc: "Control Bit Vector (Table 7.2 R25-11): b0 RMR, b1 PNSR, b3 CSR, b4 AWB, b5 PNL, b6 PNI (b2/b7 Reserved=0)" },
           { id: "SWS_CanNm_00107", desc: "Tự động xóa bit RMR = 0 khi thoát khỏi Repeat Message State" },
           { id: "SWS_CanNm_00401", desc: "Bật Bit 4 (AWB = 1) khi Active Wakeup với CanNmActiveWakeupBitEnabled" },
           { id: "SWS_CanNm_00402", desc: "Xóa Bit 4 (AWB = 0) khi rời Network Mode sang Prepare Bus-Sleep" },
@@ -6669,7 +6670,7 @@ const HANDBOOK_DATA = [
           { id: "SWS_CanNm_00098", desc: "Reload NM-Timeout Timer khi nhận NM PDU (CanNm_RxIndication)" },
           { id: "SWS_CanNm_00099", desc: "Reload NM-Timeout Timer khi phát thành công (CanNm_TxConfirmation)" },
           { id: "SWS_CanNm_00102", desc: "Đếm thời gian lưu tại Repeat Message State (CanNmRepeatMessageTime)" },
-          { id: "SWS_CanNm_00032", desc: "Phát định kỳ qua CanIf_Transmit() mỗi khi hết CanNmMsgCycleTime" },
+          { id: "SWS_CanNm_00238", desc: "Truyền định kỳ qua CanNmMsgCycleTime (PRS_Nm_00237 / ECUC_CanNm_00028) & Bus Load Reduction" },
           { id: "SWS_CanNm_00064", desc: "Giám sát xác nhận truyền TxConfirmation qua CanNmMsgTimeoutTime" },
           { id: "SWS_CanNm_00248", desc: "Hết CanNmWaitBusSleepTime ở Prepare Bus-Sleep ➔ Bus-Sleep Mode" }
         ],
@@ -6780,9 +6781,9 @@ const HANDBOOK_DATA = [
       {
         title: "4.4. Cơ Chế Immediate Burst Tx & Bus Load Reduction",
         swsRefs: [
-          { id: "SWS_CanNm_00334", desc: "Bắn chùm Immediate Burst khi vào Repeat Message từ Bus-Sleep / PBSM (CanNmImmediateNmTransmissions)" },
-          { id: "SWS_CanNm_00335", desc: "Nếu > 1 khung dùng CanNmImmediateNmCycleTime; khung cuối (hoặc == 1) chuyển về CanNmMsgCycleTime" },
-          { id: "SWS_CanNm_00019", desc: "Độ lệch pha phát đầu tiên (CanNmMsgCycleOffset) khi khởi động thụ động" },
+          { id: "PRS_Nm_00005", desc: "Bắn chùm Immediate Burst khi vào Repeat Message từ Sleep/PBSM (ECUC_CanNm_00056)" },
+          { id: "SWS_CanNm_00335", desc: "Nếu > 1 khung dùng CanNmImmediateNmCycleTime (ECUC_CanNm_00057); khung cuối (hoặc == 1) chuyển về CanNmMsgCycleTime" },
+          { id: "PRS_Nm_00334", desc: "Độ lệch pha phát đầu tiên (CanNmMsgCycleOffset / ECUC_CanNm_00029) khi khởi động thụ động" },
           { id: "SWS_CanNm_00052", desc: "Giảm tải bus trong Normal Operation (CanNmBusLoadReductionEnabled)" },
           { id: "SWS_CanNm_00069", desc: "Nạp lại MsgCycleTimer = CanNmMsgReducedTime (dành riêng node) khi nhận PDU trong Normal Op" }
         ],
@@ -6833,11 +6834,11 @@ const HANDBOOK_DATA = [
       {
         title: "5.1. Nguyên Lý Partial Networking (ISO 11898-6) & Bộ Lọc PN Mask",
         swsRefs: [
-          { id: "SWS_CanNm_00409", desc: "Cơ chế CanNmPnEnabled & lọc PNC theo mặt nạ CanNmPnFilterMaskByte" },
-          { id: "SWS_CanNm_00413", desc: "Bit PNI trong CBV & bộ lọc loại bỏ bản tin không khớp cụm PNC" },
-          { id: "SWS_CanNm_00411", desc: "Hành vi CanNmAllNmMessagesKeepAwake khi nhận bản tin có PNI = 0" },
-          { id: "SWS_CanNm_00412", desc: "Vị trí và độ dài vùng bit PNC (CanNmPnInfoOffset, CanNmPnInfoLength)" },
-          { id: "SWS_CanNm_00344", desc: "API CanNm_ConfirmPnAvailability() xác nhận khả năng lọc PN từ CanSM" }
+          { id: "SWS_CanNm_00409", desc: "Kích hoạt Partial Networking trên kênh qua CanNmPnEnabled (ECUC_CanNm_00066)" },
+          { id: "SWS_CanNm_00413", desc: "Ghi Bit 6 CBV (PNI = 1) trên mọi NM PDU phát đi khi CanNmPnEnabled = TRUE" },
+          { id: "SWS_CanNm_00411", desc: "Lọc/bỏ qua NM PDU khi PNI=0 & CanNmAllNmMessagesKeepAwake=FALSE (SWS_CanNm_00503)" },
+          { id: "SWS_CanNm_00502", desc: "Trích xuất PNC Bit Vector (theo NmPncBitVectorOffset/Length) chuyển lên Nm_PncBitVectorRxIndication()" },
+          { id: "SWS_CanNm_00344", desc: "CanNm_ConfirmPnAvailability() mở khóa bộ lọc PN (kích hoạt từ CanIf_ConfirmPnAvailability SWS_CANIF_00815)" }
         ],
         content: `
           <h2>5.1. Nguyên Lý Partial Networking (ISO 11898-6) &amp; Bộ Lọc PN Mask</h2>
@@ -6852,40 +6853,41 @@ const HANDBOOK_DATA = [
             <thead>
               <tr>
                 <th style="width:160px">Tiêu Chí Kỹ Thuật</th>
-                <th style="width:230px">Nguyên Lý Bitwise PN Filter Mask</th>
-                <th>Ý Nghĩa Kỹ Thuật &amp; Căn Cứ Chuẩn ISO 11898-6</th>
+                <th style="width:230px">Cơ Chế Lọc PN Trong R25-11</th>
+                <th>Ý Nghĩa Kỹ Thuật &amp; Căn Cứ SWS_CanNm / SWS_CANIF</th>
               </tr>
             </thead>
             <tbody>
               <tr>
-                <td><b>Thuật toán lọc PN</b></td>
-                <td><code>(RxPnInfoByte &amp; PnFilterMaskByte) != 0</code></td>
-                <td>CanNM thực hiện phép AND từng bit giữa Byte PN Info nhận được từ bus với Mask được cấu hình nội bộ của node. Nếu kết quả khác 0 ➔ Bản tin có liên quan đến ECU này!</td>
+                <td><b>Luồng lọc PNC (R25-11)</b></td>
+                <td><code>(RxPncBitVector &amp; FilterMask) != 0</code> qua <code>Nm_PncBitVectorRxIndication()</code></td>
+                <td>Trong R25-11 (<code>SWS_CanNm_00502 / 00503</code>), CanNm trích PNC Bit Vector chuyển lên <b>Nm</b> đánh giá khớp Mask và trả về <code>RelevantPncRequestDetectedPtr</code>. Nếu <code>FALSE</code> (và <code>PnAvailabilityConfirmed=TRUE</code>, <code>KeepAwake=FALSE</code>) ➔ Bỏ qua NM PDU!</td>
               </tr>
               <tr>
-                <td><b>Transceiver hỗ trợ PN</b></td>
-                <td>CAN Transceiver hỗ trợ <b>Selective Wakeup</b> (ISO 11898-6)</td>
-                <td>Transceiver phần cứng có bộ giải mã frame độc lập, chỉ kích hoạt chân WAKE khi nhận đúng frame có cờ PNC tương ứng.</td>
+                <td><b>Phần cứng CAN (CanTrcv / CanIf)</b></td>
+                <td><b>Selective Wakeup</b> (ISO 11898-6) + <code>CanIf_ConfirmPnAvailability()</code></td>
+                <td>Transceiver lọc WUF phần cứng khi ECU ngủ; khi khởi động, <code>CanIf</code> báo <code>CanSM_ConfirmPnAvailability()</code> (<code>SWS_CANIF_00815 / 00826</code>) ➔ <code>CanNm_ConfirmPnAvailability()</code> (<code>SWS_CanNm_00344</code>) mở khóa bộ lọc PN và <code>CanIfTxPduPnFilterPdu</code> (<code>SWS_CANIF_00747</code>).</td>
               </tr>
             </tbody>
           </table>
         `
       },
       {
-        title: "5.2. Cơ Chế Tính Toán ERA / EIRA & Bộ Đếm CanNmPnResetTime",
+        title: "5.2. Cơ Chế Tính Toán ERA / EIRA Trong Kiến Trúc CanNm ↔ Nm ↔ ComM (R25-11)",
         swsRefs: [
-          { id: "SWS_CanNm_00431", desc: "Bộ đếm CanNmPnResetTime & tự động xóa bit PNC trong EIRA khi hết hạn" },
-          { id: "SWS_CanNm_00437", desc: "Cập nhật mảng ERA (External Request Array) riêng từng kênh cho Gateway" },
-          { id: "SWS_CanNm_00409", desc: "Chỉ ghi nhận bit PNC vượt qua bộ lọc PN Mask của node" },
-          { id: "ECUC_CanNm_00064", desc: "Tham số cấu hình bộ đếm giữ trạng thái PNC (CanNmPnResetTime)" }
+          { id: "SWS_CanNm_00502", desc: "CanNm trích xuất PNC bit vector Rx & truyền sang Nm_PncBitVectorRxIndication()" },
+          { id: "SWS_CanNm_00518", desc: "CanNm lấy IRA Tx từ Nm_PncBitVectorTxIndication() trước khi phát NM PDU" },
+          { id: "SWS_ComM_01060", desc: "ComM cập nhật EIRA / ERA qua callback ComM_Nm_UpdateEIRA() & ComM_Nm_UpdateERA()" },
+          { id: "SWS_ComM_01065", desc: "EIRA bật = 1 chuyển PNC từ COMM_PNC_NO_COMMUNICATION sang COMM_PNC_READY_SLEEP" },
+          { id: "SWS_ComM_01066", desc: "ERAn bật = 1 chuyển PNC Gateway sang COMM_PNC_READY_SLEEP trên các kênh liên kết" }
         ],
         content: `
-          <h2>5.2. Cơ Chế Tính Toán ERA / EIRA &amp; Bộ Đếm CanNmPnResetTime</h2>
-          <p>Phân biệt 2 luồng đánh giá nhu cầu cụm mạng cục bộ trong AUTOSAR CanNM:</p>
+          <h2>5.2. Cơ Chế Tính Toán EIRA / ERA &amp; Vai Trò CanNm ↔ Nm ↔ ComM (R25-11)</h2>
+          <p>Trong chuẩn <b>AUTOSAR CP R25-11</b>, trách nhiệm lưu trữ vector <b>EIRA / ERA</b> và chạy bộ đếm <b>PnResetTime</b> đã được tập trung lên tầng <b>Nm &amp; ComM</b> thay vì nằm cục bộ ở từng module BusNm:</p>
 
           <div style="margin:12px 0; background:var(--code); border:1px solid var(--border); border-radius:8px; padding:12px">
-            <div class="mono small" style="font-weight:700; color:#fbbf24; margin-bottom:8px">🔀 SƠ ĐỒ ĐƯỜNG ỐNG ĐÁNH GIÁ NHU CẦU CỤM MẠNG: EIRA VS ERA</div>
-            <svg viewBox="0 0 920 224" class="hb-svg" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Diagram b22"><defs><marker id="b22_arr_sky" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-sky)"/></marker><marker id="b22_arr_ok" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-ok)"/></marker><marker id="b22_arr_warn" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-warn)"/></marker><marker id="b22_arr_err" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-err)"/></marker><marker id="b22_arr_vio" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-vio)"/></marker><marker id="b22_arr_ind" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-ind)"/></marker><marker id="b22_arr_mut" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-stroke)"/></marker></defs><rect x="16" y="20" width="175" height="48" rx="8" fill="var(--hb-card)" stroke="var(--hb-sky)" stroke-width="2"/><rect x="16" y="20" width="175" height="48" rx="8" fill="var(--hb-sky-bg)" stroke="none"/><text x="103.5" y="40.5" fill="var(--hb-sky)" font-size="10.8" font-weight="800" text-anchor="middle">Bản tin NM Rx từ bus</text><text x="103.5" y="55.5" fill="var(--muted)" font-size="9.5" text-anchor="middle">CanNm_RxIndication()</text><line x1="191" y1="44" x2="232" y2="44" stroke="var(--hb-sky)" stroke-width="2" marker-end="url(#b22_arr_sky)"/><rect x="232" y="20" width="165" height="48" rx="8" fill="var(--hb-card)" stroke="var(--hb-vio)" stroke-width="2"/><rect x="232" y="20" width="165" height="48" rx="8" fill="var(--hb-vio-bg)" stroke="none"/><text x="314.5" y="40.5" fill="var(--hb-vio)" font-size="11" font-weight="800" text-anchor="middle">Bộ lọc PN Mask</text><text x="314.5" y="55.5" fill="var(--muted)" font-size="10.5" text-anchor="middle">So Bitwise AND</text><line x1="397" y1="44" x2="444" y2="44" stroke="var(--hb-vio)" stroke-width="2" marker-end="url(#b22_arr_vio)"/><rect x="444" y="20" width="224" height="48" rx="8" fill="var(--hb-card)" stroke="var(--hb-ok)" stroke-width="2"/><rect x="444" y="20" width="224" height="48" rx="8" fill="var(--hb-ok-bg)" stroke="none"/><rect x="448" y="24" width="216" height="40" rx="5" fill="none" stroke="var(--hb-ok)" stroke-width="1.2" stroke-opacity="0.8"/><path d="M 444 28 Q 444 20 452 20 L 660 20 Q 668 20 668 28 L 668 42 L 444 42 Z" fill="var(--hb-ok)" fill-opacity="0.22"/><line x1="444" y1="42" x2="668" y2="42" stroke="var(--hb-ok)" stroke-width="1" stroke-opacity="0.5"/><text x="556.0" y="35.0" fill="var(--hb-ok)" font-size="10.8" font-weight="800" text-anchor="middle">EIRA (Ext + Int Req)</text><text x="556.0" y="58.5" fill="var(--text)" font-size="10.5" text-anchor="middle">Hợp nhất tất cả kênh &amp; nội bộ</text><line x1="668" y1="44" x2="714" y2="44" stroke="var(--hb-ok)" stroke-width="2" marker-end="url(#b22_arr_ok)"/><rect x="714" y="20" width="190" height="48" rx="8" fill="var(--hb-card)" stroke="var(--hb-ok)" stroke-width="2"/><rect x="714" y="20" width="190" height="48" rx="8" fill="var(--hb-ok-bg)" stroke="none"/><text x="809.0" y="40.5" fill="var(--hb-ok)" font-size="10.5" font-weight="800" text-anchor="middle">ComM PNC State Machine</text><text x="809.0" y="55.5" fill="var(--muted)" font-size="10.5" text-anchor="middle">Bật/Tắt cụm PNC toàn ECU</text><rect x="232" y="92" width="165" height="42" rx="8" fill="var(--hb-card)" stroke="var(--hb-ind)" stroke-width="2"/><rect x="232" y="92" width="165" height="42" rx="8" fill="var(--hb-ind-bg)" stroke="none"/><text x="314.5" y="109.5" fill="var(--hb-ind)" font-size="10.5" font-weight="800" text-anchor="middle">Nhu cầu nội bộ SWC</text><text x="314.5" y="124.5" fill="var(--muted)" font-size="10.5" text-anchor="middle">ComM_RequestComMode</text><path d="M 397 113 L 556 113 L 556 68" fill="none" stroke="var(--hb-ind)" stroke-width="2" stroke-linejoin="round" marker-end="url(#b22_arr_ind)"/><rect x="16" y="158" width="175" height="48" rx="8" fill="var(--hb-card)" stroke="var(--hb-warn)" stroke-width="2"/><rect x="16" y="158" width="175" height="48" rx="8" fill="var(--hb-warn-bg)" stroke="none"/><text x="103.5" y="178.5" fill="var(--hb-warn)" font-size="10.8" font-weight="800" text-anchor="middle">Kênh CAN Gateway</text><text x="103.5" y="193.5" fill="var(--muted)" font-size="9.5" text-anchor="middle">Từng kênh vật lý riêng</text><line x1="191" y1="182" x2="232" y2="182" stroke="var(--hb-warn)" stroke-width="2" marker-end="url(#b22_arr_warn)"/><rect x="232" y="158" width="165" height="48" rx="8" fill="var(--hb-card)" stroke="var(--hb-warn)" stroke-width="2"/><rect x="232" y="158" width="165" height="48" rx="8" fill="var(--hb-warn-bg)" stroke="none"/><text x="314.5" y="178.5" fill="var(--hb-warn)" font-size="10.8" font-weight="800" text-anchor="middle">Bộ lọc Gateway ERA</text><text x="314.5" y="193.5" fill="var(--muted)" font-size="10.5" text-anchor="middle">Tách riêng từng bus CAN</text><line x1="397" y1="182" x2="444" y2="182" stroke="var(--hb-warn)" stroke-width="2" marker-end="url(#b22_arr_warn)"/><rect x="444" y="158" width="224" height="48" rx="8" fill="var(--hb-card)" stroke="var(--hb-warn)" stroke-width="2"/><rect x="444" y="158" width="224" height="48" rx="8" fill="var(--hb-warn-bg)" stroke="none"/><path d="M 444 166 Q 444 158 452 158 L 660 158 Q 668 158 668 166 L 668 180 L 444 180 Z" fill="var(--hb-warn)" fill-opacity="0.22"/><line x1="444" y1="180" x2="668" y2="180" stroke="var(--hb-warn)" stroke-width="1" stroke-opacity="0.5"/><text x="556.0" y="173.0" fill="var(--hb-warn)" font-size="10.8" font-weight="800" text-anchor="middle">ERA (External Only)</text><text x="556.0" y="196.5" fill="var(--text)" font-size="10.5" text-anchor="middle">Chỉ tính yêu cầu từ bus ngoài</text><line x1="668" y1="182" x2="714" y2="182" stroke="var(--hb-warn)" stroke-width="2" marker-end="url(#b22_arr_warn)"/><rect x="714" y="158" width="190" height="48" rx="8" fill="var(--hb-card)" stroke="var(--hb-warn)" stroke-width="2"/><rect x="714" y="158" width="190" height="48" rx="8" fill="var(--hb-warn-bg)" stroke="none"/><text x="809.0" y="178.5" fill="var(--hb-warn)" font-size="10.5" font-weight="800" text-anchor="middle">ComM Router Gateway</text><text x="809.0" y="193.5" fill="var(--muted)" font-size="10.5" text-anchor="middle">Chuyển tiếp PNC sang bus khác</text></svg>
+            <div class="mono small" style="font-weight:700; color:#fbbf24; margin-bottom:8px">🔀 SƠ ĐỒ ĐƯỜNG ỐNG PNC R25-11: CANNM ➔ NM ➔ COMM (EIRA VS ERA)</div>
+            <svg viewBox="0 0 920 224" class="hb-svg" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Diagram b22"><defs><marker id="b22_arr_sky" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-sky)"/></marker><marker id="b22_arr_ok" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-ok)"/></marker><marker id="b22_arr_warn" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-warn)"/></marker><marker id="b22_arr_err" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-err)"/></marker><marker id="b22_arr_vio" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-vio)"/></marker><marker id="b22_arr_ind" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-ind)"/></marker><marker id="b22_arr_mut" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-stroke)"/></marker></defs><rect x="16" y="20" width="175" height="48" rx="8" fill="var(--hb-card)" stroke="var(--hb-sky)" stroke-width="2"/><rect x="16" y="20" width="175" height="48" rx="8" fill="var(--hb-sky-bg)" stroke="none"/><text x="103.5" y="40.5" fill="var(--hb-sky)" font-size="10.8" font-weight="800" text-anchor="middle">CanNm (Rx / Tx)</text><text x="103.5" y="55.5" fill="var(--muted)" font-size="9.5" text-anchor="middle">Trích PNC Bit Vector</text><line x1="191" y1="44" x2="232" y2="44" stroke="var(--hb-sky)" stroke-width="2" marker-end="url(#b22_arr_sky)"/><rect x="232" y="20" width="165" height="48" rx="8" fill="var(--hb-card)" stroke="var(--hb-vio)" stroke-width="2"/><rect x="232" y="20" width="165" height="48" rx="8" fill="var(--hb-vio-bg)" stroke="none"/><text x="314.5" y="40.5" fill="var(--hb-vio)" font-size="10.5" font-weight="800" text-anchor="middle">Nm Interface (R25-11)</text><text x="314.5" y="55.5" fill="var(--muted)" font-size="9.5" text-anchor="middle">Lọc Mask &amp; PnResetTimer</text><line x1="397" y1="44" x2="444" y2="44" stroke="var(--hb-vio)" stroke-width="2" marker-end="url(#b22_arr_vio)"/><rect x="444" y="20" width="224" height="48" rx="8" fill="var(--hb-card)" stroke="var(--hb-ok)" stroke-width="2"/><rect x="444" y="20" width="224" height="48" rx="8" fill="var(--hb-ok-bg)" stroke="none"/><rect x="448" y="24" width="216" height="40" rx="5" fill="none" stroke="var(--hb-ok)" stroke-width="1.2" stroke-opacity="0.8"/><path d="M 444 28 Q 444 20 452 20 L 660 20 Q 668 20 668 28 L 668 42 L 444 42 Z" fill="var(--hb-ok)" fill-opacity="0.22"/><line x1="444" y1="42" x2="668" y2="42" stroke="var(--hb-ok)" stroke-width="1" stroke-opacity="0.5"/><text x="556.0" y="35.0" fill="var(--hb-ok)" font-size="10.8" font-weight="800" text-anchor="middle">EIRA (Ext + Int Req)</text><text x="556.0" y="58.5" fill="var(--text)" font-size="10.5" text-anchor="middle">ComM_Nm_UpdateEIRA()</text><line x1="668" y1="44" x2="714" y2="44" stroke="var(--hb-ok)" stroke-width="2" marker-end="url(#b22_arr_ok)"/><rect x="714" y="20" width="190" height="48" rx="8" fill="var(--hb-card)" stroke="var(--hb-ok)" stroke-width="2"/><rect x="714" y="20" width="190" height="48" rx="8" fill="var(--hb-ok-bg)" stroke="none"/><text x="809.0" y="40.5" fill="var(--hb-ok)" font-size="10.5" font-weight="800" text-anchor="middle">ComM PNC State Machine</text><text x="809.0" y="55.5" fill="var(--muted)" font-size="10.5" text-anchor="middle">Bật/Tắt cụm PNC toàn ECU</text><rect x="232" y="92" width="165" height="42" rx="8" fill="var(--hb-card)" stroke="var(--hb-ind)" stroke-width="2"/><rect x="232" y="92" width="165" height="42" rx="8" fill="var(--hb-ind-bg)" stroke="none"/><text x="314.5" y="109.5" fill="var(--hb-ind)" font-size="10.5" font-weight="800" text-anchor="middle">Nhu cầu nội bộ IRA</text><text x="314.5" y="124.5" fill="var(--muted)" font-size="10.5" text-anchor="middle">ComM ➔ Nm (00518)</text><path d="M 397 113 L 556 113 L 556 68" fill="none" stroke="var(--hb-ind)" stroke-width="2" stroke-linejoin="round" marker-end="url(#b22_arr_ind)"/><rect x="16" y="158" width="175" height="48" rx="8" fill="var(--hb-card)" stroke="var(--hb-warn)" stroke-width="2"/><rect x="16" y="158" width="175" height="48" rx="8" fill="var(--hb-warn-bg)" stroke="none"/><text x="103.5" y="178.5" fill="var(--hb-warn)" font-size="10.8" font-weight="800" text-anchor="middle">Kênh CAN Gateway</text><text x="103.5" y="193.5" fill="var(--muted)" font-size="9.5" text-anchor="middle">Từng kênh vật lý riêng</text><line x1="191" y1="182" x2="232" y2="182" stroke="var(--hb-warn)" stroke-width="2" marker-end="url(#b22_arr_warn)"/><rect x="232" y="158" width="165" height="48" rx="8" fill="var(--hb-card)" stroke="var(--hb-warn)" stroke-width="2"/><rect x="232" y="158" width="165" height="48" rx="8" fill="var(--hb-warn-bg)" stroke="none"/><text x="314.5" y="178.5" fill="var(--hb-warn)" font-size="10.8" font-weight="800" text-anchor="middle">Nm Gateway ERA</text><text x="314.5" y="193.5" fill="var(--muted)" font-size="10.5" text-anchor="middle">Tách riêng từng kênh</text><line x1="397" y1="182" x2="444" y2="182" stroke="var(--hb-warn)" stroke-width="2" marker-end="url(#b22_arr_warn)"/><rect x="444" y="158" width="224" height="48" rx="8" fill="var(--hb-card)" stroke="var(--hb-warn)" stroke-width="2"/><rect x="444" y="158" width="224" height="48" rx="8" fill="var(--hb-warn-bg)" stroke="none"/><path d="M 444 166 Q 444 158 452 158 L 660 158 Q 668 158 668 166 L 668 180 L 444 180 Z" fill="var(--hb-warn)" fill-opacity="0.22"/><line x1="444" y1="180" x2="668" y2="180" stroke="var(--hb-warn)" stroke-width="1" stroke-opacity="0.5"/><text x="556.0" y="173.0" fill="var(--hb-warn)" font-size="10.8" font-weight="800" text-anchor="middle">ERA (External Only)</text><text x="556.0" y="196.5" fill="var(--text)" font-size="10.5" text-anchor="middle">ComM_Nm_UpdateERA()</text><line x1="668" y1="182" x2="714" y2="182" stroke="var(--hb-warn)" stroke-width="2" marker-end="url(#b22_arr_warn)"/><rect x="714" y="158" width="190" height="48" rx="8" fill="var(--hb-card)" stroke="var(--hb-warn)" stroke-width="2"/><rect x="714" y="158" width="190" height="48" rx="8" fill="var(--hb-warn-bg)" stroke="none"/><text x="809.0" y="178.5" fill="var(--hb-warn)" font-size="10.5" font-weight="800" text-anchor="middle">ComM PNC Gateway</text><text x="809.0" y="193.5" fill="var(--muted)" font-size="10.5" text-anchor="middle">ACTIVE / PASSIVE Routing</text></svg>
           </div>
 
           <table class="tbl">
@@ -6893,24 +6895,24 @@ const HANDBOOK_DATA = [
               <tr>
                 <th style="width:140px">Khái Niệm</th>
                 <th style="width:200px">Tên Tiếng Anh Chuẩn</th>
-                <th>Mục Đích Sử Dụng &amp; Cơ Chế Vận Hành</th>
+                <th>Cơ Chế Vận Hành Trong R25-11 (CanNm ➔ Nm ➔ ComM)</th>
               </tr>
             </thead>
             <tbody>
               <tr>
                 <td><b>EIRA</b></td>
-                <td>External / Internal Requests Aggregated</td>
-                <td>Tập hợp tất cả các yêu cầu PNC từ cả bên ngoài (nhận qua bus CAN) và bên trong (từ ứng dụng SWC nội bộ). Quyết định ECU có cần thức hay không.</td>
+                <td>External &amp; Internal Request Array</td>
+                <td>Hợp nhất yêu cầu PNC từ bus ngoài và IRA nội bộ (<code>SWS_ComM_01060</code>). Khi 1 bit EIRA lên <code>1</code>, ComM chuyển PNC từ <code>COMM_PNC_NO_COMMUNICATION</code> sang <code>COMM_PNC_READY_SLEEP</code> (<code>SWS_ComM_01065</code>).</td>
               </tr>
               <tr>
                 <td><b>ERA</b></td>
-                <td>External Requests Aggregated</td>
-                <td>Chỉ tính toán các yêu cầu PNC từ bên ngoài nhận qua bus. Dùng cho các nút Gateway để quyết định có cần chuyển tiếp sóng sang kênh bus khác hay không.</td>
+                <td>External Request Array (theo kênh)</td>
+                <td>Tách riêng theo từng <code>ComMChannel</code> (khi bật <code>ComMPncGatewayType</code>), giúp ECU Gateway quyết định định tuyến yêu cầu PNC sang các bus khác qua <code>ComM_Nm_UpdateERA()</code> (<code>SWS_ComM_01060 / 01066</code>).</td>
               </tr>
               <tr>
-                <td><b>CanNmPnResetTime</b></td>
-                <td>Bộ đếm thời gian sống của PNC (ví dụ: <code>1500 ms</code>)</td>
-                <td>Mỗi khi nhận được cờ PNC, bộ đếm được nạp lại. Nếu sau 1500ms không còn ai yêu cầu PNC đó nữa, CanNM thông báo cho ComM biết cụm PNC này đã hết nhu cầu.</td>
+                <td><b>IRA &amp; Reset Time</b></td>
+                <td>Internal Request Array / <code>NmPnResetTime</code></td>
+                <td><code>CanNm</code> gọi <code>Nm_PncBitVectorTxIndication()</code> (<code>SWS_CanNm_00518</code>) để lấy vector IRA cần phát khi truyền khung NM; còn bộ đếm giữ/reset bit PNC độc lập do tầng <b>Nm &amp; ComM</b> quản lý (Simulator hiển thị hợp nhất EIRA/ERA ngay trên workspace để dễ quan sát).</td>
               </tr>
             </tbody>
           </table>
@@ -6919,10 +6921,11 @@ const HANDBOOK_DATA = [
       {
         title: "5.3. Đồng Bộ Tắt PNC (Synchronized PNC Shutdown — R20-11 .. R25-11)",
         swsRefs: [
-          { id: "SWS_CanNm_91003", desc: "API CanNm_RequestSynchronizedPncShutdown() phát động tắt cụm PNC đồng bộ" },
-          { id: "SWS_CanNm_00462", desc: "Lưu pending request khi bật CanNmSynchronizedPncShutdownEnabled" },
-          { id: "SWS_CanNm_00045", desc: "Bit 1 (PNSR — PN Shutdown Request Bit) trong thanh ghi CBV" },
-          { id: "ECUC_CanNm_00095", desc: "Tham số cấu hình CanNmSynchronizedPncShutdownEnabled" }
+          { id: "SWS_CanNm_91005", desc: "CanNm_ActivateTxPnShutdownMsg() & CanNm_DeactivateTxPnShutdownMsg() (SWS_CanNm_91006)" },
+          { id: "SWS_CanNm_00513", desc: "Trì hoãn NM PDU định kỳ nếu đang có yêu cầu phát PN Shutdown (PNSR=1, SWS_CanNm_00519)" },
+          { id: "SWS_CanNm_00504", desc: "Nhận PNI=1 & PNSR=1 ➔ trích PNC bit vector chuyển lên Nm_ForwardSynchronizedPncShutdown()" },
+          { id: "ECUC_CanNm_00097", desc: "Tham số bật tính năng CanNmSynchronizedPncShutdownEnabled (kèm lỗi 0x20 SWS_CanNm_00461)" },
+          { id: "SWS_ComM_01083", desc: "Top-level PNC Coordinator trong ComM phát động Nm_RequestSynchronizedPncShutdown()" }
         ],
         content: `
           <h2>5.3. Đồng Bộ Tắt PNC (Synchronized PNC Shutdown — R20-11 .. R25-11)</h2>
@@ -6930,7 +6933,7 @@ const HANDBOOK_DATA = [
 
           <div style="margin:12px 0; background:var(--code); border:1px solid var(--border); border-radius:8px; padding:12px">
             <div class="mono small" style="font-weight:700; color:#34d399; margin-bottom:8px">⏱️ SƠ ĐỒ BẮT TAY ĐỒNG BỘ TẮT CỤM MẠNG (PNC SHUTDOWN HANDSHAKE SEQUENCE)</div>
-            <svg viewBox="0 0 920 248" class="hb-svg" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Diagram b23"><defs><marker id="b23_arr_sky" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-sky)"/></marker><marker id="b23_arr_ok" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-ok)"/></marker><marker id="b23_arr_warn" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-warn)"/></marker><marker id="b23_arr_err" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-err)"/></marker><marker id="b23_arr_vio" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-vio)"/></marker><marker id="b23_arr_ind" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-ind)"/></marker><marker id="b23_arr_mut" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-stroke)"/></marker></defs><line x1="220" y1="54" x2="220" y2="210" stroke="var(--hb-stroke)" stroke-dasharray="5,4" stroke-width="1.6"/><line x1="700" y1="54" x2="700" y2="210" stroke="var(--hb-stroke)" stroke-dasharray="5,4" stroke-width="1.6"/><rect x="95" y="14" width="250" height="42" rx="8" fill="var(--hb-card)" stroke="var(--hb-sky)" stroke-width="2"/><rect x="95" y="14" width="250" height="42" rx="8" fill="var(--hb-sky-bg)" stroke="none"/><path d="M 95 22 Q 95 14 103 14 L 337 14 Q 345 14 345 22 L 345 36 L 95 36 Z" fill="var(--hb-sky)" fill-opacity="0.22"/><line x1="95" y1="36" x2="345" y2="36" stroke="var(--hb-sky)" stroke-width="1" stroke-opacity="0.5"/><text x="220.0" y="29.0" fill="var(--hb-sky)" font-size="12" font-weight="800" text-anchor="middle">ECU #1 (PNC Coordinator)</text><text x="220.0" y="49.5" fill="var(--text)" font-size="10.5" text-anchor="middle">Điều phối đồng bộ tắt PNC</text><rect x="575" y="14" width="250" height="42" rx="8" fill="var(--hb-card)" stroke="var(--hb-vio)" stroke-width="2"/><rect x="575" y="14" width="250" height="42" rx="8" fill="var(--hb-vio-bg)" stroke="none"/><path d="M 575 22 Q 575 14 583 14 L 817 14 Q 825 14 825 22 L 825 36 L 575 36 Z" fill="var(--hb-vio)" fill-opacity="0.22"/><line x1="575" y1="36" x2="825" y2="36" stroke="var(--hb-vio)" stroke-width="1" stroke-opacity="0.5"/><text x="700.0" y="29.0" fill="var(--hb-vio)" font-size="12" font-weight="800" text-anchor="middle">ECU #2 (PNC Client)</text><text x="700.0" y="49.5" fill="var(--text)" font-size="10.5" text-anchor="middle">Thực thi tắt cụm mạng con</text><line x1="220" y1="88" x2="700" y2="88" stroke="var(--hb-warn)" stroke-width="2.4" marker-end="url(#b23_arr_warn)"/><rect x="275.0" y="66.0" width="370" height="20" rx="5" fill="var(--hb-bg)" stroke="var(--hb-warn)" stroke-width="1" stroke-opacity="0.7"/><text x="460" y="79.5" fill="var(--hb-warn)" font-size="10" font-weight="700" text-anchor="middle">Phát NM PDU: Bit PNC cần tắt = 1, CBV Bit 1 PNSR = 1</text><rect x="584.0" y="109.0" width="232" height="26" rx="13.0" fill="var(--hb-card)" stroke="none"/><rect x="584.0" y="109.0" width="232" height="26" rx="13.0" fill="var(--hb-vio-bg)" stroke="var(--hb-vio)" stroke-width="1.5"/><text x="700" y="125.8" fill="var(--hb-vio)" font-size="10" font-weight="800" text-anchor="middle">Báo Nm_ForwardSynchronizedPncShutdown</text><line x1="220" y1="160" x2="700" y2="160" stroke="var(--hb-sky)" stroke-width="2" stroke-dasharray="5,4" marker-start="url(#b23_arr_sky)" marker-end="url(#b23_arr_sky)"/><rect x="344.0" y="150.0" width="232" height="20" rx="5" fill="var(--hb-bg)" stroke="var(--hb-sky)" stroke-width="1" stroke-opacity="0.7"/><text x="460" y="163.5" fill="var(--hb-sky)" font-size="10" font-weight="700" text-anchor="middle">Đợi đồng bộ hết CanNmPnResetTime</text><rect x="120" y="192" width="680" height="42" rx="8" fill="var(--hb-card)" stroke="var(--hb-ok)" stroke-width="2"/><rect x="120" y="192" width="680" height="42" rx="8" fill="var(--hb-ok-bg)" stroke="none"/><rect x="124" y="196" width="672" height="34" rx="5" fill="none" stroke="var(--hb-ok)" stroke-width="1.2" stroke-opacity="0.8"/><text x="460.0" y="209.5" fill="var(--hb-ok)" font-size="11.5" font-weight="800" text-anchor="middle">TẮT ĐỒNG THỜI CỤM PNC #1 TRÊN CẢ 2 ECU</text><text x="460.0" y="224.5" fill="var(--muted)" font-size="10.5" text-anchor="middle">Không gây mất gói hoặc lỗi truyền thông dữ liệu cuối chu kỳ!</text></svg>
+            <svg viewBox="0 0 920 248" class="hb-svg" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Diagram b23"><defs><marker id="b23_arr_sky" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-sky)"/></marker><marker id="b23_arr_ok" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-ok)"/></marker><marker id="b23_arr_warn" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-warn)"/></marker><marker id="b23_arr_err" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-err)"/></marker><marker id="b23_arr_vio" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-vio)"/></marker><marker id="b23_arr_ind" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-ind)"/></marker><marker id="b23_arr_mut" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-stroke)"/></marker></defs><line x1="220" y1="54" x2="220" y2="210" stroke="var(--hb-stroke)" stroke-dasharray="5,4" stroke-width="1.6"/><line x1="700" y1="54" x2="700" y2="210" stroke="var(--hb-stroke)" stroke-dasharray="5,4" stroke-width="1.6"/><rect x="95" y="14" width="250" height="42" rx="8" fill="var(--hb-card)" stroke="var(--hb-sky)" stroke-width="2"/><rect x="95" y="14" width="250" height="42" rx="8" fill="var(--hb-sky-bg)" stroke="none"/><path d="M 95 22 Q 95 14 103 14 L 337 14 Q 345 14 345 22 L 345 36 L 95 36 Z" fill="var(--hb-sky)" fill-opacity="0.22"/><line x1="95" y1="36" x2="345" y2="36" stroke="var(--hb-sky)" stroke-width="1" stroke-opacity="0.5"/><text x="220.0" y="29.0" fill="var(--hb-sky)" font-size="12" font-weight="800" text-anchor="middle">ECU #1 (PNC Coordinator)</text><text x="220.0" y="49.5" fill="var(--text)" font-size="10.5" text-anchor="middle">Điều phối đồng bộ tắt PNC</text><rect x="575" y="14" width="250" height="42" rx="8" fill="var(--hb-card)" stroke="var(--hb-vio)" stroke-width="2"/><rect x="575" y="14" width="250" height="42" rx="8" fill="var(--hb-vio-bg)" stroke="none"/><path d="M 575 22 Q 575 14 583 14 L 817 14 Q 825 14 825 22 L 825 36 L 575 36 Z" fill="var(--hb-vio)" fill-opacity="0.22"/><line x1="575" y1="36" x2="825" y2="36" stroke="var(--hb-vio)" stroke-width="1" stroke-opacity="0.5"/><text x="700.0" y="29.0" fill="var(--hb-vio)" font-size="12" font-weight="800" text-anchor="middle">ECU #2 (PNC Client)</text><text x="700.0" y="49.5" fill="var(--text)" font-size="10.5" text-anchor="middle">Thực thi tắt cụm mạng con</text><line x1="220" y1="88" x2="700" y2="88" stroke="var(--hb-warn)" stroke-width="2.4" marker-end="url(#b23_arr_warn)"/><rect x="275.0" y="66.0" width="370" height="20" rx="5" fill="var(--hb-bg)" stroke="var(--hb-warn)" stroke-width="1" stroke-opacity="0.7"/><text x="460" y="79.5" fill="var(--hb-warn)" font-size="10" font-weight="700" text-anchor="middle">Phát NM PDU: Bit PNC cần tắt = 1, CBV Bit 1 PNSR = 1</text><rect x="584.0" y="109.0" width="232" height="26" rx="13.0" fill="var(--hb-card)" stroke="none"/><rect x="584.0" y="109.0" width="232" height="26" rx="13.0" fill="var(--hb-vio-bg)" stroke="var(--hb-vio)" stroke-width="1.5"/><text x="700" y="125.8" fill="var(--hb-vio)" font-size="10" font-weight="800" text-anchor="middle">Báo Nm_ForwardSynchronizedPncShutdown</text><line x1="220" y1="160" x2="700" y2="160" stroke="var(--hb-sky)" stroke-width="2" stroke-dasharray="5,4" marker-start="url(#b23_arr_sky)" marker-end="url(#b23_arr_sky)"/><rect x="344.0" y="150.0" width="232" height="20" rx="5" fill="var(--hb-bg)" stroke="var(--hb-sky)" stroke-width="1" stroke-opacity="0.7"/><text x="460" y="163.5" fill="var(--hb-sky)" font-size="10" font-weight="700" text-anchor="middle">Đợi ComMPncPrepareSleepTimer</text><rect x="120" y="192" width="680" height="42" rx="8" fill="var(--hb-card)" stroke="var(--hb-ok)" stroke-width="2"/><rect x="120" y="192" width="680" height="42" rx="8" fill="var(--hb-ok-bg)" stroke="none"/><rect x="124" y="196" width="672" height="34" rx="5" fill="none" stroke="var(--hb-ok)" stroke-width="1.2" stroke-opacity="0.8"/><text x="460.0" y="209.5" fill="var(--hb-ok)" font-size="11.5" font-weight="800" text-anchor="middle">TẮT ĐỒNG THỜI CỤM PNC #1 TRÊN CẢ 2 ECU</text><text x="460.0" y="224.5" fill="var(--muted)" font-size="10.5" text-anchor="middle">Không gây mất gói hoặc lỗi truyền thông dữ liệu cuối chu kỳ!</text></svg>
           </div>
 
           <table class="tbl">
@@ -6949,7 +6952,7 @@ const HANDBOOK_DATA = [
               </tr>
               <tr>
                 <td><b>Giai đoạn 2: Đếm lùi</b></td>
-                <td>Các ECU tiếp nhận <code>PNSR = 1</code> chuyển tiếp lên <code>Nm</code> &amp; giữ trạng thái PNC trong <code>CanNmPnResetTime</code>.</td>
+                <td>Các ECU tiếp nhận <code>PNSR = 1</code> chuyển tiếp qua <code>Nm_ForwardSynchronizedPncShutdown()</code> lên <code>ComM</code> để đếm <code>ComMPncPrepareSleepTimer</code> đồng bộ (<code>SWS_CanNm_00504</code>).</td>
                 <td>Cho phép các thông điệp dữ liệu ứng dụng (Application Messages) đang nằm trong hàng đợi CAN buffer kịp phát hết.</td>
               </tr>
               <tr>
@@ -7013,45 +7016,62 @@ const HANDBOOK_DATA = [
     title: "6. Từ Điển API & Bảng Cấu Hình ECUC CanNM",
     subtopics: [
       {
-        title: "6.1. Bảng API Chuẩn CanNM (Standard & Control APIs)",
+        title: "6.1. Bảng API Chuẩn CanNM (27 API R25-11)",
         swsRefs: [
-          { id: "SWS_CanNm_00208", desc: "CanNm_Init() (SID 0x00) & SWS_CanNm_91002: CanNm_DeInit() (SID 0x10)" },
-          { id: "SWS_CanNm_00211", desc: "CanNm_PassiveStartUp() (SID 0x01) đánh thức thụ động" },
-          { id: "SWS_CanNm_00213", desc: "CanNm_NetworkRequest() (SID 0x02) & SWS_CanNm_00214: CanNm_NetworkRelease()" },
-          { id: "SWS_CanNm_00217", desc: "CanNm_SetUserData() (SID 0x04) & SWS_CanNm_00218: CanNm_GetUserData()" },
-          { id: "SWS_CanNm_00221", desc: "CanNm_RepeatMessageRequest() (SID 0x08) & SWS_CanNm_00223: CanNm_GetState() (SID 0x0B)" },
-          { id: "SWS_CanNm_00234", desc: "CanNm_MainFunction() & SWS_CanNm_00215 / SWS_CanNm_00216: Disable / EnableCommunication()" }
+          { id: "SWS_CanNm_00208", desc: "CanNm_Init() (0x00) & SWS_CanNm_91002: CanNm_DeInit() (0x10)" },
+          { id: "SWS_CanNm_00211", desc: "CanNm_PassiveStartUp() (0x01), NetworkRequest() (0x02), NetworkRelease() (0x03)" },
+          { id: "SWS_CanNm_00217", desc: "CanNm_SetUserData() (0x04), GetUserData() (0x05) & SWS_CanNm_00331: CanNm_Transmit() (0x49)" },
+          { id: "SWS_CanNm_00221", desc: "RepeatMessageRequest() (0x08), GetState() (0x0B), GetPduData() (0x0A)" },
+          { id: "SWS_CanNm_91004", desc: "R25-11 PN APIs: PnLearningRequest (0xF2), ActivateTxPnShutdownMsg (0xF4), DeactivateTxPnShutdownMsg (0xF5)" },
+          { id: "SWS_CanNm_00234", desc: "CanNm_MainFunction() (0x13), SetSleepReadyBit() (0x17), RequestBusSynchronization() (0xC0)" }
         ],
         content: `
-          <h2>6.1. Bảng Từ Điển API Chuẩn CanNM (AUTOSAR Classic R25-11)</h2>
-          <p>Danh sách các API chuẩn được gọi bởi các module tầng trên (ComM, Nm Interface):</p>
+          <h2>6.1. Bảng Từ Điển 27 API Chuẩn CanNM (AUTOSAR Classic R25-11)</h2>
+          <p>Toàn bộ 27 Service API chính thức trong Chương 8 tài liệu <code>AUTOSAR_CP_SWS_CANNetworkManagement</code> (R25-11), kèm đúng <b>Service ID [hex]</b> dùng cho báo lỗi DET và tracing:</p>
 
           <div style="margin:12px 0; background:var(--code); border:1px solid var(--border); border-radius:8px; padding:12px">
             <div class="mono small" style="font-weight:700; color:#38bdf8; margin-bottom:8px">🔄 SƠ ĐỒ VÒNG ĐỜI GỌI API THEO CHU TRÌNH SỐNG CỦA CANNM</div>
-            <svg viewBox="0 0 920 212" class="hb-svg" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Diagram b25"><defs><marker id="b25_arr_sky" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-sky)"/></marker><marker id="b25_arr_ok" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-ok)"/></marker><marker id="b25_arr_warn" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-warn)"/></marker><marker id="b25_arr_err" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-err)"/></marker><marker id="b25_arr_vio" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-vio)"/></marker><marker id="b25_arr_ind" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-ind)"/></marker><marker id="b25_arr_mut" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-stroke)"/></marker></defs><rect x="18" y="26" width="200" height="74" rx="8" fill="var(--hb-card)" stroke="var(--hb-ind)" stroke-width="2"/><rect x="18" y="26" width="200" height="74" rx="8" fill="var(--hb-ind-bg)" stroke="none"/><path d="M 18 34 Q 18 26 26 26 L 210 26 Q 218 26 218 34 L 218 51 L 18 51 Z" fill="var(--hb-ind)" fill-opacity="0.22"/><line x1="18" y1="51" x2="218" y2="51" stroke="var(--hb-ind)" stroke-width="1" stroke-opacity="0.5"/><text x="118.0" y="42.5" fill="var(--hb-ind)" font-size="11" font-weight="800" text-anchor="middle">1. Khởi động BSW</text><text x="118.0" y="79.0" fill="var(--text)" class="mono-svg" font-size="10" text-anchor="middle">CanNm_Init(&amp;Config)</text><line x1="218" y1="63" x2="246" y2="63" stroke="var(--hb-ind)" stroke-width="2.2" marker-end="url(#b25_arr_ind)"/><rect x="246" y="26" width="200" height="74" rx="8" fill="var(--hb-card)" stroke="var(--hb-ok)" stroke-width="2"/><rect x="246" y="26" width="200" height="74" rx="8" fill="var(--hb-ok-bg)" stroke="none"/><path d="M 246 34 Q 246 26 254 26 L 438 26 Q 446 26 446 34 L 446 51 L 246 51 Z" fill="var(--hb-ok)" fill-opacity="0.22"/><line x1="246" y1="51" x2="446" y2="51" stroke="var(--hb-ok)" stroke-width="1" stroke-opacity="0.5"/><text x="346.0" y="42.5" fill="var(--hb-ok)" font-size="11" font-weight="800" text-anchor="middle">2. Đánh thức mạng</text><text x="346.0" y="71.5" fill="var(--text)" class="mono-svg" font-size="10" text-anchor="middle">NetworkRequest() /</text><text x="346.0" y="86.5" fill="var(--text)" class="mono-svg" font-size="10" text-anchor="middle">PassiveStartUp()</text><line x1="446" y1="63" x2="474" y2="63" stroke="var(--hb-ok)" stroke-width="2.2" marker-end="url(#b25_arr_ok)"/><rect x="474" y="26" width="200" height="74" rx="8" fill="var(--hb-card)" stroke="var(--hb-sky)" stroke-width="2"/><rect x="474" y="26" width="200" height="74" rx="8" fill="var(--hb-sky-bg)" stroke="none"/><rect x="478" y="30" width="192" height="66" rx="5" fill="none" stroke="var(--hb-sky)" stroke-width="1.2" stroke-opacity="0.8"/><path d="M 474 34 Q 474 26 482 26 L 666 26 Q 674 26 674 34 L 674 51 L 474 51 Z" fill="var(--hb-sky)" fill-opacity="0.22"/><line x1="474" y1="51" x2="674" y2="51" stroke="var(--hb-sky)" stroke-width="1" stroke-opacity="0.5"/><text x="574.0" y="42.5" fill="var(--hb-sky)" font-size="11" font-weight="800" text-anchor="middle">3. Chu kỳ vận hành</text><text x="574.0" y="71.5" fill="var(--text)" class="mono-svg" font-size="10" text-anchor="middle">CanNm_MainFunction()</text><text x="574.0" y="86.5" fill="var(--text)" class="mono-svg" font-size="10" text-anchor="middle">(Chu kỳ 100ms)</text><line x1="674" y1="63" x2="702" y2="63" stroke="var(--hb-sky)" stroke-width="2.2" marker-end="url(#b25_arr_sky)"/><rect x="702" y="26" width="200" height="74" rx="8" fill="var(--hb-card)" stroke="var(--hb-err)" stroke-width="2"/><rect x="702" y="26" width="200" height="74" rx="8" fill="var(--hb-err-bg)" stroke="none"/><path d="M 702 34 Q 702 26 710 26 L 894 26 Q 902 26 902 34 L 902 51 L 702 51 Z" fill="var(--hb-err)" fill-opacity="0.22"/><line x1="702" y1="51" x2="902" y2="51" stroke="var(--hb-err)" stroke-width="1" stroke-opacity="0.5"/><text x="802.0" y="42.5" fill="var(--hb-err)" font-size="11" font-weight="800" text-anchor="middle">4. Nhả &amp; Tắt ECU</text><text x="802.0" y="71.5" fill="var(--text)" class="mono-svg" font-size="10" text-anchor="middle">NetworkRelease() -&gt;</text><text x="802.0" y="86.5" fill="var(--text)" class="mono-svg" font-size="10" text-anchor="middle">CanNm_DeInit()</text><line x1="574" y1="100" x2="574" y2="146" stroke="var(--hb-vio)" stroke-width="2" marker-start="url(#b25_arr_vio)" marker-end="url(#b25_arr_vio)"/><rect x="591.0" y="114.0" width="118" height="20" rx="5" fill="var(--hb-bg)" stroke="var(--hb-vio)" stroke-width="1" stroke-opacity="0.7"/><text x="650" y="127.5" fill="var(--hb-vio)" font-size="10" font-weight="700" text-anchor="middle">Cập nhật payload</text><rect x="454" y="146" width="240" height="48" rx="8" fill="var(--hb-card)" stroke="var(--hb-vio)" stroke-width="2"/><rect x="454" y="146" width="240" height="48" rx="8" fill="var(--hb-vio-bg)" stroke="none"/><text x="574.0" y="166.5" fill="var(--hb-vio)" font-size="11" font-weight="800" text-anchor="middle">CanNm_SetUserData()</text><text x="574.0" y="181.5" fill="var(--muted)" font-size="10.5" text-anchor="middle">Ghi 6 bytes User Data đồng bộ</text></svg>
+            <svg viewBox="0 0 920 212" class="hb-svg" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Diagram b25"><defs><marker id="b25_arr_sky" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-sky)"/></marker><marker id="b25_arr_ok" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-ok)"/></marker><marker id="b25_arr_warn" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-warn)"/></marker><marker id="b25_arr_err" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-err)"/></marker><marker id="b25_arr_vio" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-vio)"/></marker><marker id="b25_arr_ind" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-ind)"/></marker><marker id="b25_arr_mut" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-stroke)"/></marker></defs><rect x="18" y="26" width="200" height="74" rx="8" fill="var(--hb-card)" stroke="var(--hb-ind)" stroke-width="2"/><rect x="18" y="26" width="200" height="74" rx="8" fill="var(--hb-ind-bg)" stroke="none"/><path d="M 18 34 Q 18 26 26 26 L 210 26 Q 218 26 218 34 L 218 51 L 18 51 Z" fill="var(--hb-ind)" fill-opacity="0.22"/><line x1="18" y1="51" x2="218" y2="51" stroke="var(--hb-ind)" stroke-width="1" stroke-opacity="0.5"/><text x="118.0" y="42.5" fill="var(--hb-ind)" font-size="11" font-weight="800" text-anchor="middle">1. Khởi động BSW</text><text x="118.0" y="79.0" fill="var(--text)" class="mono-svg" font-size="10" text-anchor="middle">CanNm_Init(&amp;Config)</text><line x1="218" y1="63" x2="246" y2="63" stroke="var(--hb-ind)" stroke-width="2.2" marker-end="url(#b25_arr_ind)"/><rect x="246" y="26" width="200" height="74" rx="8" fill="var(--hb-card)" stroke="var(--hb-ok)" stroke-width="2"/><rect x="246" y="26" width="200" height="74" rx="8" fill="var(--hb-ok-bg)" stroke="none"/><path d="M 246 34 Q 246 26 254 26 L 438 26 Q 446 26 446 34 L 446 51 L 246 51 Z" fill="var(--hb-ok)" fill-opacity="0.22"/><line x1="246" y1="51" x2="446" y2="51" stroke="var(--hb-ok)" stroke-width="1" stroke-opacity="0.5"/><text x="346.0" y="42.5" fill="var(--hb-ok)" font-size="11" font-weight="800" text-anchor="middle">2. Đánh thức mạng</text><text x="346.0" y="71.5" fill="var(--text)" class="mono-svg" font-size="10" text-anchor="middle">NetworkRequest() /</text><text x="346.0" y="86.5" fill="var(--text)" class="mono-svg" font-size="10" text-anchor="middle">PassiveStartUp()</text><line x1="446" y1="63" x2="474" y2="63" stroke="var(--hb-ok)" stroke-width="2.2" marker-end="url(#b25_arr_ok)"/><rect x="474" y="26" width="200" height="74" rx="8" fill="var(--hb-card)" stroke="var(--hb-sky)" stroke-width="2"/><rect x="474" y="26" width="200" height="74" rx="8" fill="var(--hb-sky-bg)" stroke="none"/><rect x="478" y="30" width="192" height="66" rx="5" fill="none" stroke="var(--hb-sky)" stroke-width="1.2" stroke-opacity="0.8"/><path d="M 474 34 Q 474 26 482 26 L 666 26 Q 674 26 674 34 L 674 51 L 474 51 Z" fill="var(--hb-sky)" fill-opacity="0.22"/><line x1="474" y1="51" x2="674" y2="51" stroke="var(--hb-sky)" stroke-width="1" stroke-opacity="0.5"/><text x="574.0" y="42.5" fill="var(--hb-sky)" font-size="11" font-weight="800" text-anchor="middle">3. Chu kỳ vận hành</text><text x="574.0" y="71.5" fill="var(--text)" class="mono-svg" font-size="10" text-anchor="middle">CanNm_MainFunction()</text><text x="574.0" y="86.5" fill="var(--text)" class="mono-svg" font-size="10" text-anchor="middle">(CanNmMainFunctionPeriod)</text><line x1="674" y1="63" x2="702" y2="63" stroke="var(--hb-sky)" stroke-width="2.2" marker-end="url(#b25_arr_sky)"/><rect x="702" y="26" width="200" height="74" rx="8" fill="var(--hb-card)" stroke="var(--hb-err)" stroke-width="2"/><rect x="702" y="26" width="200" height="74" rx="8" fill="var(--hb-err-bg)" stroke="none"/><path d="M 702 34 Q 702 26 710 26 L 894 26 Q 902 26 902 34 L 902 51 L 702 51 Z" fill="var(--hb-err)" fill-opacity="0.22"/><line x1="702" y1="51" x2="902" y2="51" stroke="var(--hb-err)" stroke-width="1" stroke-opacity="0.5"/><text x="802.0" y="42.5" fill="var(--hb-err)" font-size="11" font-weight="800" text-anchor="middle">4. Nhả &amp; Tắt ECU</text><text x="802.0" y="71.5" fill="var(--text)" class="mono-svg" font-size="10" text-anchor="middle">NetworkRelease() -&gt;</text><text x="802.0" y="86.5" fill="var(--text)" class="mono-svg" font-size="10" text-anchor="middle">CanNm_DeInit()</text><line x1="574" y1="100" x2="574" y2="146" stroke="var(--hb-vio)" stroke-width="2" marker-start="url(#b25_arr_vio)" marker-end="url(#b25_arr_vio)"/><rect x="591.0" y="114.0" width="118" height="20" rx="5" fill="var(--hb-bg)" stroke="var(--hb-vio)" stroke-width="1" stroke-opacity="0.7"/><text x="650" y="127.5" fill="var(--hb-vio)" font-size="10" font-weight="700" text-anchor="middle">Cập nhật payload</text><rect x="454" y="146" width="240" height="48" rx="8" fill="var(--hb-card)" stroke="var(--hb-vio)" stroke-width="2"/><rect x="454" y="146" width="240" height="48" rx="8" fill="var(--hb-vio-bg)" stroke="none"/><text x="574.0" y="166.5" fill="var(--hb-vio)" font-size="11" font-weight="800" text-anchor="middle">CanNm_SetUserData()</text><text x="574.0" y="181.5" fill="var(--muted)" font-size="10.5" text-anchor="middle">Ghi User Data đồng bộ</text></svg>
           </div>
 
           <table class="tbl">
             <thead>
               <tr>
-                <th style="width:210px">Tên Hàm API</th>
-                <th style="width:140px">Tham Số Truyền Vào</th>
-                <th style="width:90px">Trả Về</th>
+                <th style="width:72px">SID</th>
+                <th style="width:235px">Tên Hàm API (SWS_CanNm)</th>
                 <th style="width:120px">Module Gọi</th>
-                <th>Mô Tả Chức Năng Kỹ Thuật</th>
+                <th style="width:95px">Trả Về</th>
+                <th>Mô Tả Chức Năng Kỹ Thuật (AUTOSAR CP R25-11)</th>
               </tr>
             </thead>
             <tbody>
-              <tr><td><code>CanNm_Init(const ConfigPtr)</code></td><td>Con trỏ cấu hình</td><td>void</td><td>EcuM / BswM</td><td>Khởi tạo module CanNM, đưa các biến và timer về giá trị mặc định.</td></tr>
-              <tr><td><code>CanNm_DeInit()</code></td><td>void</td><td>void</td><td>BswM</td><td>Hủy khởi tạo module khi ECU chuẩn bị tắt nguồn hoàn toàn.</td></tr>
-              <tr><td><code>CanNm_NetworkRequest(nmChannel)</code></td><td>NetworkHandleType</td><td>Std_ReturnType</td><td>Nm ➔ ComM</td><td>Yêu cầu giữ mạng (Active Wakeup), đưa module vào Repeat Message / Normal Operation.</td></tr>
-              <tr><td><code>CanNm_NetworkRelease(nmChannel)</code></td><td>NetworkHandleType</td><td>Std_ReturnType</td><td>Nm ➔ ComM</td><td>Nhả mạng, cho phép module chuyển từ Normal Operation sang Ready Sleep.</td></tr>
-              <tr><td><code>CanNm_PassiveStartUp(nmChannel)</code></td><td>NetworkHandleType</td><td>Std_ReturnType</td><td>Nm ➔ ComM</td><td>Khởi động mạng thụ động khi nhận được sóng CAN từ bus ngoài.</td></tr>
-              <tr><td><code>CanNm_MainFunction()</code></td><td>void (kênh 0)</td><td>void</td><td>SchM / OS Task</td><td>Hàm chu kỳ (mặc định 100ms), xử lý đếm lùi các Timer và logic chuyển state.</td></tr>
-              <tr><td><code>CanNm_SetUserData(nmChannel, ptr)</code></td><td>Kênh, con trỏ mảng</td><td>Std_ReturnType</td><td>SWC / COM</td><td>Cập nhật User Data tĩnh để truyền đi trong các bản tin NM tiếp theo.</td></tr>
-              <tr><td><code>CanNm_GetUserData(nmChannel, ptr)</code></td><td>Kênh, con trỏ đích</td><td>Std_ReturnType</td><td>SWC / COM</td><td>Đọc User Data nhận được từ bản tin NM PDU mới nhất của bus.</td></tr>
-              <tr><td><code>CanNm_GetState(nmChannel, state, mode)</code></td><td>Kênh, 2 con trỏ</td><td>Std_ReturnType</td><td>Nm / Diagnostic</td><td>Lấy trạng thái con và chế độ vận hành hiện tại của module.</td></tr>
-              <tr><td><code>CanNm_RepeatMessageRequest(nmChannel)</code></td><td>NetworkHandleType</td><td>Std_ReturnType</td><td>Nm / Tester</td><td>Yêu cầu phát bản tin có bit RMR = 1 để ép các node khác báo danh.</td></tr>
+              <tr><td><code>0x00</code></td><td><code>CanNm_Init(ConfigPtr)</code></td><td>EcuM / BswM</td><td><code>void</code></td><td>Khởi tạo toàn bộ biến, state về <b>Bus-Sleep</b> và timer về mặc định (<code>SWS_CanNm_00208</code>).</td></tr>
+              <tr><td><code>0x10</code></td><td><code>CanNm_DeInit()</code></td><td>BswM</td><td><code>void</code></td><td>Hủy khởi tạo CanNM; báo <code>CANNM_E_NOT_IN_BUS_SLEEP</code> nếu có kênh chưa ngủ (<code>SWS_CanNm_91002</code>).</td></tr>
+              <tr><td><code>0x01</code></td><td><code>CanNm_PassiveStartUp(nmChannelHandle)</code></td><td>Nm &larr; ComM</td><td><code>Std_ReturnType</code></td><td>Khởi động mạng thụ động từ Bus-Sleep/Prepare Bus-Sleep &rarr; Repeat Message (<code>SWS_CanNm_00211</code>).</td></tr>
+              <tr><td><code>0x02</code></td><td><code>CanNm_NetworkRequest(nmChannelHandle)</code></td><td>Nm &larr; ComM</td><td><code>Std_ReturnType</code></td><td>Yêu cầu giữ mạng chủ động (Active Wakeup / Network Requested) (<code>SWS_CanNm_00213</code>).</td></tr>
+              <tr><td><code>0x03</code></td><td><code>CanNm_NetworkRelease(nmChannelHandle)</code></td><td>Nm &larr; ComM</td><td><code>Std_ReturnType</code></td><td>Nhả yêu cầu mạng; ở Normal Operation sẽ chuyển sang Ready Sleep (<code>SWS_CanNm_00214</code>).</td></tr>
+              <tr><td><code>0x0C</code></td><td><code>CanNm_DisableCommunication(nmChannelHandle)</code></td><td>Nm / ComM</td><td><code>Std_ReturnType</code></td><td>Tắt tạm thời việc phát NM PDU trên kênh khi đang ở Network Mode (<code>SWS_CanNm_00215</code>).</td></tr>
+              <tr><td><code>0x0D</code></td><td><code>CanNm_EnableCommunication(nmChannelHandle)</code></td><td>Nm / ComM</td><td><code>Std_ReturnType</code></td><td>Khôi phục phát NM PDU trên kênh và reload <code>NM-Timeout Timer</code> (<code>SWS_CanNm_00216</code>).</td></tr>
+              <tr><td><code>0x04</code></td><td><code>CanNm_SetUserData(nmChannelHandle, nmUserDataPtr)</code></td><td>Nm</td><td><code>Std_ReturnType</code></td><td>Ghi User Data cho bản tin NM PDU phát tiếp theo khi không dùng COM User Data (<code>SWS_CanNm_00217</code>).</td></tr>
+              <tr><td><code>0x05</code></td><td><code>CanNm_GetUserData(nmChannelHandle, nmUserDataPtr)</code></td><td>Nm</td><td><code>Std_ReturnType</code></td><td>Đọc User Data từ bản tin NM PDU nhận được gần nhất trên kênh (<code>SWS_CanNm_00218</code>).</td></tr>
+              <tr><td><code>0x49</code></td><td><code>CanNm_Transmit(TxPduId, PduInfoPtr)</code></td><td>PduR (COM)</td><td><code>Std_ReturnType</code></td><td>Kích hoạt phát bổ sung NM PDU mang COM User Data cập nhật mới (<code>SWS_CanNm_00331</code>).</td></tr>
+              <tr><td><code>0x06</code></td><td><code>CanNm_GetNodeIdentifier(nmChannelHandle, nmNodeIdPtr)</code></td><td>Nm</td><td><code>Std_ReturnType</code></td><td>Đọc Node Identifier (SNI) của bản tin NM PDU nhận được gần nhất (<code>SWS_CanNm_00219</code>).</td></tr>
+              <tr><td><code>0x07</code></td><td><code>CanNm_GetLocalNodeIdentifier(nmChannelHandle, nmNodeIdPtr)</code></td><td>Nm</td><td><code>Std_ReturnType</code></td><td>Đọc <code>CanNmNodeId</code> cấu hình cho chính ECU cục bộ trên kênh (<code>SWS_CanNm_00220</code>).</td></tr>
+              <tr><td><code>0x08</code></td><td><code>CanNm_RepeatMessageRequest(nmChannelHandle)</code></td><td>Nm</td><td><code>Std_ReturnType</code></td><td>Chuyển sang Repeat Message State (nếu ở NOS/RSS) và đặt bit <code>RMR=1</code> (<code>SWS_CanNm_00221</code>).</td></tr>
+              <tr><td><code>0x0A</code></td><td><code>CanNm_GetPduData(nmChannelHandle, nmPduDataPtr)</code></td><td>Nm</td><td><code>Std_ReturnType</code></td><td>Đọc toàn bộ payload NM PDU (bao gồm NID, CBV, User Data) mới nhận nhất (<code>SWS_CanNm_00222</code>).</td></tr>
+              <tr><td><code>0x0B</code></td><td><code>CanNm_GetState(nmChannelHandle, nmStatePtr, nmModePtr)</code></td><td>Nm</td><td><code>Std_ReturnType</code></td><td>Lấy State (5 trạng thái) và Mode (Bus-Sleep / Prepare Bus-Sleep / Network) hiện tại (<code>SWS_CanNm_00223</code>).</td></tr>
+              <tr><td><code>0xF1</code></td><td><code>CanNm_GetVersionInfo(versioninfo)</code></td><td>Upper Layer</td><td><code>void</code></td><td>Trả về Vendor ID, Module ID (<code>31</code>) và phiên bản SW của CanNm (<code>SWS_CanNm_00224</code>).</td></tr>
+              <tr><td><code>0xC0</code></td><td><code>CanNm_RequestBusSynchronization(nmChannelHandle)</code></td><td>Nm (Coord)</td><td><code>Std_ReturnType</code></td><td>Phát 1 NM PDU đồng bộ bus khi kênh đang ở Network Mode (trừ passive mode) (<code>SWS_CanNm_00226</code>).</td></tr>
+              <tr><td><code>0xD0</code></td><td><code>CanNm_CheckRemoteSleepIndication(nmChannelHandle, nmRemoteSleepIndPtr)</code></td><td>Nm (Coord)</td><td><code>Std_ReturnType</code></td><td>Kiểm tra cờ báo toàn bộ các node khác trên kênh đã sẵn sàng ngủ chưa (<code>SWS_CanNm_00227</code>).</td></tr>
+              <tr><td><code>0x17</code></td><td><code>CanNm_SetSleepReadyBit(nmChannelHandle, nmSleepReadyBit)</code></td><td>Nm (Coord)</td><td><code>Std_ReturnType</code></td><td>Đặt/xóa bit <code>CSB</code> (Coordinator Sleep Ready Bit 3 trong CBV) khi phối hợp ngủ (<code>SWS_CanNm_00338</code>).</td></tr>
+              <tr><td><code>0xF2</code></td><td><code>CanNm_PnLearningRequest(nmChannelHandle)</code></td><td>Nm</td><td><code>Std_ReturnType</code></td><td>Khởi động cơ chế Partial Network Learning: vào RMS và đặt bit <code>PNL=1</code> (<code>SWS_CanNm_91004</code>).</td></tr>
+              <tr><td><code>0xF4</code></td><td><code>CanNm_ActivateTxPnShutdownMsg(nmChannelHandle, pncBitVectorPtr)</code></td><td>Nm &larr; ComM</td><td><code>Std_ReturnType</code></td><td>R25-11 Sync PN Shutdown: nạp <code>PNC Bit Vector</code> cần tắt và kích hoạt phát NM PDU với <code>PNSR=1</code> (<code>SWS_CanNm_91005</code>).</td></tr>
+              <tr><td><code>0xF5</code></td><td><code>CanNm_DeactivateTxPnShutdownMsg(nmChannelHandle)</code></td><td>Nm &larr; ComM</td><td><code>Std_ReturnType</code></td><td>Ngừng phát cờ <code>PNSR=1</code> khi tiến trình Synchronized PNC Shutdown hoàn tất (<code>SWS_CanNm_91006</code>).</td></tr>
+              <tr><td><code>0x40</code></td><td><code>CanNm_TxConfirmation(TxPduId, result)</code></td><td>CanIf</td><td><code>void</code></td><td>Callback xác nhận phát NM PDU (<code>result == E_OK</code>) từ CanIf (<code>SWS_CanNm_00228</code>).</td></tr>
+              <tr><td><code>0x42</code></td><td><code>CanNm_RxIndication(RxPduId, PduInfoPtr)</code></td><td>CanIf</td><td><code>void</code></td><td>Callback báo nhận NM PDU từ bus (kèm lọc PN, trích xuất SNI/CBV/PNC) (<code>SWS_CanNm_00231</code>).</td></tr>
+              <tr><td><code>0x16</code></td><td><code>CanNm_ConfirmPnAvailability(nmChannelHandle)</code></td><td>CanSM</td><td><code>void</code></td><td>Báo transceiver phần cứng hỗ trợ Selective Wakeup &rarr; bật bộ lọc PN Tx/Rx (<code>SWS_CanNm_00344</code>).</td></tr>
+              <tr><td><code>0x41</code></td><td><code>CanNm_TriggerTransmit(TxPduId, PduInfoPtr)</code></td><td>CanIf</td><td><code>Std_ReturnType</code></td><td>CanIf kéo dữ liệu NM PDU mới nhất (cập nhật COM User Data) ngay trước khi nạp TX (<code>SWS_CanNm_91001</code>).</td></tr>
+              <tr><td><code>0x13</code></td><td><code>CanNm_MainFunction()</code></td><td>SchM / OS</td><td><code>void</code></td><td>Hàm chu kỳ xử lý toàn bộ Timer và chuyển trạng thái trên các kênh CanNM (<code>SWS_CanNm_00234</code>).</td></tr>
             </tbody>
           </table>
         `
@@ -7059,38 +7079,44 @@ const HANDBOOK_DATA = [
       {
         title: "6.2. Bảng Callback & Callout (CanIf, PduR, Nm, CanSM)",
         swsRefs: [
-          { id: "SWS_CanNm_00231", desc: "CanNm_RxIndication() (SID 0x42) nhận khung NM từ CanIf" },
-          { id: "SWS_CanNm_00228", desc: "CanNm_TxConfirmation() (SID 0x40) xác nhận phát từ CanIf" },
-          { id: "SWS_CanNm_91001", desc: "CanNm_TriggerTransmit() (hành vi SWS_CanNm_00351) cung cấp payload Tx" },
-          { id: "SWS_CanNm_00344", desc: "CanNm_ConfirmPnAvailability() từ CanSM mở khóa bộ lọc PN" },
-          { id: "SWS_CanNm_00166", desc: "Nm_StateChangeNotification() & SWS_CanNm_00093: thông báo đổi Mode lên Nm" },
-          { id: "SWS_CanNm_00114", desc: "Nm_PrepareBusSleepMode() & SWS_CanNm_00126: Nm_BusSleepMode()" }
+          { id: "SWS_CanNm_00231", desc: "CanNm_RxIndication (0x42), SWS_CanNm_00228: TxConfirmation (0x40), SWS_CanNm_91001: TriggerTransmit (0x41)" },
+          { id: "SWS_CanNm_00344", desc: "CanNm_ConfirmPnAvailability() & SWS_CanNm_00066 / 00446: Nm_ / CanSM_TxTimeoutException()" },
+          { id: "SWS_CanNm_00166", desc: "Nm_StateChangeNotification(), SWS_CanNm_00093: Nm_NetworkMode(), SWS_CanNm_00114: Nm_PrepareBusSleepMode()" },
+          { id: "SWS_CanNm_00126", desc: "Nm_BusSleepMode(), SWS_CanNm_00014: Nm_RepeatMessageIndication(), SWS_CanNm_00406: Nm_CarWakeUpIndication()" },
+          { id: "SWS_CanNm_00150", desc: "Nm_RemoteSleepIndication() & SWS_CanNm_00151: Nm_RemoteSleepCancellation()" },
+          { id: "SWS_CanNm_00503", desc: "R25-11 PN Callouts: Nm_PncBitVectorRxIndication(), SWS_CanNm_00515: TxIndication(), SWS_CanNm_00504: ForwardSynchronizedPncShutdown()" }
         ],
         content: `
-          <h2>6.2. Bảng Callback &amp; Callout Chuẩn AUTOSAR CanNM</h2>
-          <p>Giao diện tiếp nhận sự kiện từ driver phần cứng và thông báo ngược lên tầng trên:</p>
+          <h2>6.2. Bảng Callback &amp; Callout Chuẩn AUTOSAR CanNM (R25-11)</h2>
+          <p>Giao diện tiếp nhận sự kiện từ Driver/Router tầng dưới (<code>CanIf</code>, <code>PduR</code>, <code>CanSM</code>) và thông báo ngược lên tầng điều phối (<code>Nm</code> &rarr; <code>ComM</code>):</p>
 
           <div style="margin:12px 0; background:var(--code); border:1px solid var(--border); border-radius:8px; padding:12px">
             <div class="mono small" style="font-weight:700; color:#fbbf24; margin-bottom:8px">📡 SƠ ĐỒ ĐIỀU PHỐI CALLBACK (CALLBACK DISPATCHER PIPELINE)</div>
-            <svg viewBox="0 0 920 232" class="hb-svg" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Diagram b26"><defs><marker id="b26_arr_sky" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-sky)"/></marker><marker id="b26_arr_ok" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-ok)"/></marker><marker id="b26_arr_warn" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-warn)"/></marker><marker id="b26_arr_err" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-err)"/></marker><marker id="b26_arr_vio" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-vio)"/></marker><marker id="b26_arr_ind" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-ind)"/></marker><marker id="b26_arr_mut" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-stroke)"/></marker></defs><rect x="18" y="22" width="190" height="52" rx="8" fill="var(--hb-card)" stroke="var(--hb-ind)" stroke-width="2"/><rect x="18" y="22" width="190" height="52" rx="8" fill="var(--hb-ind-bg)" stroke="none"/><path d="M 18 30 Q 18 22 26 22 L 200 22 Q 208 22 208 30 L 208 44 L 18 44 Z" fill="var(--hb-ind)" fill-opacity="0.22"/><line x1="18" y1="44" x2="208" y2="44" stroke="var(--hb-ind)" stroke-width="1" stroke-opacity="0.5"/><text x="113.0" y="37.0" fill="var(--hb-ind)" font-size="12" font-weight="800" text-anchor="middle">CanIf Driver (Rx)</text><text x="113.0" y="62.5" fill="var(--text)" font-size="10.5" text-anchor="middle">Lớp giao tiếp CAN thấp</text><rect x="18" y="92" width="190" height="52" rx="8" fill="var(--hb-card)" stroke="var(--hb-ind)" stroke-width="2"/><rect x="18" y="92" width="190" height="52" rx="8" fill="var(--hb-ind-bg)" stroke="none"/><path d="M 18 100 Q 18 92 26 92 L 200 92 Q 208 92 208 100 L 208 114 L 18 114 Z" fill="var(--hb-ind)" fill-opacity="0.22"/><line x1="18" y1="114" x2="208" y2="114" stroke="var(--hb-ind)" stroke-width="1" stroke-opacity="0.5"/><text x="113.0" y="107.0" fill="var(--hb-ind)" font-size="12" font-weight="800" text-anchor="middle">CanIf Driver (Tx)</text><text x="113.0" y="132.5" fill="var(--text)" font-size="10.5" text-anchor="middle">Xác nhận phát xong</text><rect x="18" y="162" width="190" height="52" rx="8" fill="var(--hb-card)" stroke="var(--hb-vio)" stroke-width="2"/><rect x="18" y="162" width="190" height="52" rx="8" fill="var(--hb-vio-bg)" stroke="none"/><path d="M 18 170 Q 18 162 26 162 L 200 162 Q 208 162 208 170 L 208 184 L 18 184 Z" fill="var(--hb-vio)" fill-opacity="0.22"/><line x1="18" y1="184" x2="208" y2="184" stroke="var(--hb-vio)" stroke-width="1" stroke-opacity="0.5"/><text x="113.0" y="177.0" fill="var(--hb-vio)" font-size="12" font-weight="800" text-anchor="middle">PduR Router</text><text x="113.0" y="202.5" fill="var(--text)" font-size="10.5" text-anchor="middle">Cung cấp User Data</text><rect x="360" y="42" width="200" height="152" rx="8" fill="var(--hb-card)" stroke="var(--hb-sky)" stroke-width="2"/><rect x="360" y="42" width="200" height="152" rx="8" fill="var(--hb-sky-bg)" stroke="none"/><rect x="364" y="46" width="192" height="144" rx="5" fill="none" stroke="var(--hb-sky)" stroke-width="1.2" stroke-opacity="0.8"/><path d="M 360 50 Q 360 42 368 42 L 552 42 Q 560 42 560 50 L 560 68 L 360 68 Z" fill="var(--hb-sky)" fill-opacity="0.22"/><line x1="360" y1="68" x2="560" y2="68" stroke="var(--hb-sky)" stroke-width="1" stroke-opacity="0.5"/><text x="460.0" y="59.0" fill="var(--hb-sky)" font-size="12.5" font-weight="800" text-anchor="middle">CanNM Engine</text><text x="460.0" y="119.5" fill="var(--text)" font-size="10.5" text-anchor="middle">• Máy Trạng Thái</text><text x="460.0" y="134.5" fill="var(--text)" font-size="10.5" text-anchor="middle">• Quản Lý 5 Timers</text><text x="460.0" y="149.5" fill="var(--text)" font-size="10.5" text-anchor="middle">• Đóng Gói CBV &amp; SNI</text><rect x="712" y="42" width="190" height="152" rx="8" fill="var(--hb-card)" stroke="var(--hb-ok)" stroke-width="2"/><rect x="712" y="42" width="190" height="152" rx="8" fill="var(--hb-ok-bg)" stroke="none"/><path d="M 712 50 Q 712 42 720 42 L 894 42 Q 902 42 902 50 L 902 68 L 712 68 Z" fill="var(--hb-ok)" fill-opacity="0.22"/><line x1="712" y1="68" x2="902" y2="68" stroke="var(--hb-ok)" stroke-width="1" stroke-opacity="0.5"/><text x="807.0" y="59.0" fill="var(--hb-ok)" font-size="12" font-weight="800" text-anchor="middle">Nm / ComM</text><text x="807.0" y="119.5" fill="var(--text)" font-size="10" text-anchor="middle">Tầng Điều Phối Trên</text><text x="807.0" y="134.5" fill="var(--text)" font-size="10" text-anchor="middle">(Thông báo trạng thái</text><text x="807.0" y="149.5" fill="var(--text)" font-size="10" text-anchor="middle">mạng theo chuẩn Nm)</text><line x1="208" y1="48" x2="360" y2="74" stroke="var(--hb-ind)" stroke-width="2" marker-end="url(#b26_arr_ind)"/><rect x="215.0" y="51.0" width="138" height="20" rx="5" fill="var(--hb-bg)" stroke="var(--hb-ind)" stroke-width="1" stroke-opacity="0.7"/><text x="284" y="64.5" fill="var(--hb-ind)" font-size="10" font-weight="700" text-anchor="middle">CanNm_RxIndication()</text><line x1="208" y1="118" x2="360" y2="118" stroke="var(--hb-ind)" stroke-width="2" marker-end="url(#b26_arr_ind)"/><rect x="213.0" y="108.0" width="142" height="20" rx="5" fill="var(--hb-bg)" stroke="var(--hb-ind)" stroke-width="1" stroke-opacity="0.7"/><text x="284" y="121.5" fill="var(--hb-ind)" font-size="10" font-weight="700" text-anchor="middle">CanNm_TxConfirmation()</text><line x1="360" y1="166" x2="208" y2="188" stroke="var(--hb-vio)" stroke-width="2" marker-end="url(#b26_arr_vio)"/><rect x="212.0" y="167.0" width="144" height="20" rx="5" fill="var(--hb-bg)" stroke="var(--hb-vio)" stroke-width="1" stroke-opacity="0.7"/><text x="284" y="180.5" fill="var(--hb-vio)" font-size="10" font-weight="700" text-anchor="middle">CanNm_TriggerTransmit()</text><line x1="560" y1="74" x2="712" y2="74" stroke="var(--hb-ok)" stroke-width="2" marker-end="url(#b26_arr_ok)"/><rect x="570.0" y="64.0" width="132" height="20" rx="5" fill="var(--hb-bg)" stroke="var(--hb-ok)" stroke-width="1" stroke-opacity="0.7"/><text x="636" y="77.5" fill="var(--hb-ok)" font-size="10" font-weight="700" text-anchor="middle">Nm_NetworkMode()</text><line x1="560" y1="118" x2="712" y2="118" stroke="var(--hb-warn)" stroke-width="2" marker-end="url(#b26_arr_warn)"/><rect x="570.0" y="108.0" width="132" height="20" rx="5" fill="var(--hb-bg)" stroke="var(--hb-warn)" stroke-width="1" stroke-opacity="0.7"/><text x="636" y="121.5" fill="var(--hb-warn)" font-size="10" font-weight="700" text-anchor="middle">Nm_BusSleepMode()</text><line x1="560" y1="162" x2="712" y2="162" stroke="var(--hb-sky)" stroke-width="2" marker-end="url(#b26_arr_sky)"/><rect x="565.0" y="152.0" width="142" height="20" rx="5" fill="var(--hb-bg)" stroke="var(--hb-sky)" stroke-width="1" stroke-opacity="0.7"/><text x="636" y="165.5" fill="var(--hb-sky)" font-size="10" font-weight="700" text-anchor="middle">Nm_StateChangeNotif()</text></svg>
+            <svg viewBox="0 0 920 232" class="hb-svg" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Diagram b26"><defs><marker id="b26_arr_sky" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-sky)"/></marker><marker id="b26_arr_ok" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-ok)"/></marker><marker id="b26_arr_warn" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-warn)"/></marker><marker id="b26_arr_err" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-err)"/></marker><marker id="b26_arr_vio" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-vio)"/></marker><marker id="b26_arr_ind" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-ind)"/></marker><marker id="b26_arr_mut" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-stroke)"/></marker></defs><rect x="18" y="22" width="190" height="52" rx="8" fill="var(--hb-card)" stroke="var(--hb-ind)" stroke-width="2"/><rect x="18" y="22" width="190" height="52" rx="8" fill="var(--hb-ind-bg)" stroke="none"/><path d="M 18 30 Q 18 22 26 22 L 200 22 Q 208 22 208 30 L 208 44 L 18 44 Z" fill="var(--hb-ind)" fill-opacity="0.22"/><line x1="18" y1="44" x2="208" y2="44" stroke="var(--hb-ind)" stroke-width="1" stroke-opacity="0.5"/><text x="113.0" y="37.0" fill="var(--hb-ind)" font-size="12" font-weight="800" text-anchor="middle">CanIf Driver (Rx)</text><text x="113.0" y="62.5" fill="var(--text)" font-size="10.5" text-anchor="middle">Lớp giao tiếp CAN thấp</text><rect x="18" y="92" width="190" height="52" rx="8" fill="var(--hb-card)" stroke="var(--hb-ind)" stroke-width="2"/><rect x="18" y="92" width="190" height="52" rx="8" fill="var(--hb-ind-bg)" stroke="none"/><path d="M 18 100 Q 18 92 26 92 L 200 92 Q 208 92 208 100 L 208 114 L 18 114 Z" fill="var(--hb-ind)" fill-opacity="0.22"/><line x1="18" y1="114" x2="208" y2="114" stroke="var(--hb-ind)" stroke-width="1" stroke-opacity="0.5"/><text x="113.0" y="107.0" fill="var(--hb-ind)" font-size="12" font-weight="800" text-anchor="middle">CanIf Driver (Tx)</text><text x="113.0" y="132.5" fill="var(--text)" font-size="10.5" text-anchor="middle">Xác nhận phát xong</text><rect x="18" y="162" width="190" height="52" rx="8" fill="var(--hb-card)" stroke="var(--hb-vio)" stroke-width="2"/><rect x="18" y="162" width="190" height="52" rx="8" fill="var(--hb-vio-bg)" stroke="none"/><path d="M 18 170 Q 18 162 26 162 L 200 162 Q 208 162 208 170 L 208 184 L 18 184 Z" fill="var(--hb-vio)" fill-opacity="0.22"/><line x1="18" y1="184" x2="208" y2="184" stroke="var(--hb-vio)" stroke-width="1" stroke-opacity="0.5"/><text x="113.0" y="177.0" fill="var(--hb-vio)" font-size="12" font-weight="800" text-anchor="middle">PduR / CanIf Trigger</text><text x="113.0" y="202.5" fill="var(--text)" font-size="10.5" text-anchor="middle">Kéo User Data TX mới nhất</text><rect x="360" y="42" width="200" height="152" rx="8" fill="var(--hb-card)" stroke="var(--hb-sky)" stroke-width="2"/><rect x="360" y="42" width="200" height="152" rx="8" fill="var(--hb-sky-bg)" stroke="none"/><rect x="364" y="46" width="192" height="144" rx="5" fill="none" stroke="var(--hb-sky)" stroke-width="1.2" stroke-opacity="0.8"/><path d="M 360 50 Q 360 42 368 42 L 552 42 Q 560 42 560 50 L 560 68 L 360 68 Z" fill="var(--hb-sky)" fill-opacity="0.22"/><line x1="360" y1="68" x2="560" y2="68" stroke="var(--hb-sky)" stroke-width="1" stroke-opacity="0.5"/><text x="460.0" y="59.0" fill="var(--hb-sky)" font-size="12.5" font-weight="800" text-anchor="middle">CanNM Engine</text><text x="460.0" y="119.5" fill="var(--text)" font-size="10.5" text-anchor="middle">• Máy Trạng Thái R25-11</text><text x="460.0" y="134.5" fill="var(--text)" font-size="10.5" text-anchor="middle">• Quản Lý Timers &amp; TxTimeout</text><text x="460.0" y="149.5" fill="var(--text)" font-size="10.5" text-anchor="middle">• Lọc PN, CBV &amp; PNSR Gate</text><rect x="712" y="42" width="190" height="152" rx="8" fill="var(--hb-card)" stroke="var(--hb-ok)" stroke-width="2"/><rect x="712" y="42" width="190" height="152" rx="8" fill="var(--hb-ok-bg)" stroke="none"/><path d="M 712 50 Q 712 42 720 42 L 894 42 Q 902 42 902 50 L 902 68 L 712 68 Z" fill="var(--hb-ok)" fill-opacity="0.22"/><line x1="712" y1="68" x2="902" y2="68" stroke="var(--hb-ok)" stroke-width="1" stroke-opacity="0.5"/><text x="807.0" y="59.0" fill="var(--hb-ok)" font-size="12" font-weight="800" text-anchor="middle">Nm / ComM / CanSM</text><text x="807.0" y="119.5" fill="var(--text)" font-size="10" text-anchor="middle">Tầng Điều Phối Trên</text><text x="807.0" y="134.5" fill="var(--text)" font-size="10" text-anchor="middle">(Mode, PNC Vector, Sleep</text><text x="807.0" y="149.5" fill="var(--text)" font-size="10" text-anchor="middle">&amp; TxTimeoutException)</text><line x1="208" y1="48" x2="360" y2="74" stroke="var(--hb-ind)" stroke-width="2" marker-end="url(#b26_arr_ind)"/><rect x="215.0" y="51.0" width="138" height="20" rx="5" fill="var(--hb-bg)" stroke="var(--hb-ind)" stroke-width="1" stroke-opacity="0.7"/><text x="284" y="64.5" fill="var(--hb-ind)" font-size="10" font-weight="700" text-anchor="middle">CanNm_RxIndication()</text><line x1="208" y1="118" x2="360" y2="118" stroke="var(--hb-ind)" stroke-width="2" marker-end="url(#b26_arr_ind)"/><rect x="213.0" y="108.0" width="142" height="20" rx="5" fill="var(--hb-bg)" stroke="var(--hb-ind)" stroke-width="1" stroke-opacity="0.7"/><text x="284" y="121.5" fill="var(--hb-ind)" font-size="10" font-weight="700" text-anchor="middle">CanNm_TxConfirmation()</text><line x1="208" y1="188" x2="360" y2="166" stroke="var(--hb-vio)" stroke-width="2" marker-end="url(#b26_arr_vio)"/><rect x="212.0" y="167.0" width="144" height="20" rx="5" fill="var(--hb-bg)" stroke="var(--hb-vio)" stroke-width="1" stroke-opacity="0.7"/><text x="284" y="180.5" fill="var(--hb-vio)" font-size="10" font-weight="700" text-anchor="middle">CanNm_TriggerTransmit()</text><line x1="560" y1="74" x2="712" y2="74" stroke="var(--hb-ok)" stroke-width="2" marker-end="url(#b26_arr_ok)"/><rect x="570.0" y="64.0" width="132" height="20" rx="5" fill="var(--hb-bg)" stroke="var(--hb-ok)" stroke-width="1" stroke-opacity="0.7"/><text x="636" y="77.5" fill="var(--hb-ok)" font-size="10" font-weight="700" text-anchor="middle">Nm_NetworkMode()</text><line x1="560" y1="118" x2="712" y2="118" stroke="var(--hb-warn)" stroke-width="2" marker-end="url(#b26_arr_warn)"/><rect x="570.0" y="108.0" width="132" height="20" rx="5" fill="var(--hb-bg)" stroke="var(--hb-warn)" stroke-width="1" stroke-opacity="0.7"/><text x="636" y="121.5" fill="var(--hb-warn)" font-size="10" font-weight="700" text-anchor="middle">Nm_BusSleepMode()</text><line x1="560" y1="162" x2="712" y2="162" stroke="var(--hb-sky)" stroke-width="2" marker-end="url(#b26_arr_sky)"/><rect x="565.0" y="152.0" width="142" height="20" rx="5" fill="var(--hb-bg)" stroke="var(--hb-sky)" stroke-width="1" stroke-opacity="0.7"/><text x="636" y="165.5" fill="var(--hb-sky)" font-size="10" font-weight="700" text-anchor="middle">Nm_StateChangeNotif()</text></svg>
           </div>
 
           <table class="tbl">
             <thead>
               <tr>
-                <th style="width:230px">Tên Hàm Callback / Callout</th>
-                <th style="width:130px">Module Gọi Đến</th>
+                <th style="width:245px">Tên Hàm Callback / Callout</th>
+                <th style="width:125px">Chiều Gọi</th>
                 <th style="width:140px">Thời Điểm Kích Hoạt</th>
-                <th>Hành Vi Xử Lý Kỹ Thuật Chi Tiết</th>
+                <th>Hành Vi Xử Lý Kỹ Thuật Chi Tiết (R25-11)</th>
               </tr>
             </thead>
             <tbody>
-              <tr><td><code>CanNm_RxIndication(RxPduId, PduInfo)</code></td><td>CanIf</td><td>Khi nhận khung NM PDU từ bus</td><td>Kiểm tra PDU ID, trích xuất SNI/CBV, reload TimeoutTimer, xử lý cờ RMR và PN Mask.</td></tr>
-              <tr><td><code>CanNm_TxConfirmation(TxPduId, result)</code></td><td>CanIf</td><td>Khi CAN Controller phát xong</td><td>Với <code>result == E_OK</code>: dừng <code>MsgTimeoutTimer</code> và reload <code>NM-TimeoutTimer</code> (<code>SWS_CanNm_00099 / 00065</code>).</td></tr>
-              <tr><td><code>CanNm_TriggerTransmit(TxPduId, PduInfo)</code></td><td>CanIf</td><td>Trước thời điểm phát gói</td><td>Hỏi PduR/COM để copy User Data mới nhất vào buffer trước khi đẩy xuống transceiver.</td></tr>
-              <tr><td><code>Nm_StateChangeNotification(...)</code></td><td>CanNM gọi lên Nm</td><td>Khi đổi Mode hoặc State</td><td>Thông báo cho Nm và ComM biết trạng thái mới của kênh mạng.</td></tr>
-              <tr><td><code>Nm_NetworkMode(nmNetworkHandle)</code></td><td>CanNM gọi lên Nm</td><td>Khi vào Network Mode</td><td>ComM bật cho phép giao tiếp ứng dụng (I-PDU Group).</td></tr>
-              <tr><td><code>Nm_BusSleepMode(nmNetworkHandle)</code></td><td>CanNM gọi lên Nm</td><td>Khi hết WaitBusSleepTime</td><td>ComM ra lệnh cho CanSM tắt phần cứng Controller.</td></tr>
+              <tr><td><code>CanNm_RxIndication(RxPduId, PduInfo)</code></td><td>CanIf &rarr; CanNM</td><td>Nhận khung NM từ bus</td><td>Lọc PN/AllNmMessagesKeepAwake; nếu hợp lệ thì reload <code>NM-Timeout Timer</code>, xử lý bit <code>RMR</code>/<code>CWU</code>/<code>PNSR</code>.</td></tr>
+              <tr><td><code>CanNm_TxConfirmation(TxPduId, result)</code></td><td>CanIf &rarr; CanNM</td><td>CAN Controller phát xong</td><td>Với <code>result == E_OK</code>: dừng <code>MsgTimeoutTimer</code> và reload <code>NM-Timeout Timer</code> (<code>SWS_CanNm_00099 / 00065</code>).</td></tr>
+              <tr><td><code>CanNm_TriggerTransmit(TxPduId, PduInfo)</code></td><td>CanIf &rarr; CanNM</td><td>CanIf TX trước khi gửi</td><td>Nếu bật COM User Data: gọi <code>PduR_CanNmTriggerTransmit()</code> lấy User Data mới nhất rồi trả PDU hoàn chỉnh cho CanIf.</td></tr>
+              <tr><td><code>Nm_NetworkStartIndication(nmNetworkHandle)</code></td><td>CanNM &rarr; Nm</td><td>Rx NM PDU ở Bus-Sleep</td><td>Báo bus ngoài đã thức dậy để <code>Nm</code> &rarr; <code>ComM</code> quyết định gọi <code>PassiveStartUp()</code> (<code>SWS_CanNm_00127</code>).</td></tr>
+              <tr><td><code>Nm_NetworkMode / PrepareBusSleepMode / BusSleepMode</code></td><td>CanNM &rarr; Nm</td><td>Chuyển Mode chính</td><td>Đồng bộ vòng đời BSW: bật I-PDU Group (<code>NetworkMode</code>), chuẩn bị ngủ (<code>PrepareBusSleepMode</code>), tắt kênh (<code>BusSleepMode</code>).</td></tr>
+              <tr><td><code>Nm_StateChangeNotification(nmNetworkHandle, prev, cur)</code></td><td>CanNM &rarr; Nm</td><td>Đổi State bất kỳ</td><td>Báo cặp trạng thái cũ &rarr; mới lên <code>Nm</code> (nếu <code>CanNmStateChangeIndEnabled = TRUE</code>, <code>SWS_CanNm_00166</code>).</td></tr>
+              <tr><td><code>Nm_TxTimeoutException / CanSM_TxTimeoutException</code></td><td>CanNM &rarr; Nm/CanSM</td><td>Hết <code>MsgTimeoutTime</code></td><td>Khi <code>GlobalPnSupport=FALSE</code> gọi <code>Nm_TxTimeoutException</code> (<code>00066</code>); khi <code>TRUE</code> gọi <code>CanSM_TxTimeoutException</code> (<code>00446</code>).</td></tr>
+              <tr><td><code>Nm_RepeatMessageIndication(nmNetworkHandle)</code></td><td>CanNM &rarr; Nm</td><td>Rx có bit <code>RMR=1</code></td><td>Báo lên tầng trên khi có node yêu cầu lặp lại bản tin (nếu <code>CanNmRepeatMsgIndEnabled=TRUE</code>, <code>SWS_CanNm_00014</code>).</td></tr>
+              <tr><td><code>Nm_CarWakeUpIndication(nmNetworkHandle)</code></td><td>CanNM &rarr; Nm</td><td>Rx có bit <code>CWU=1</code></td><td>Thông báo Car Wakeup khi khớp bộ lọc NodeId (<code>SWS_CanNm_00406 / 00407</code>).</td></tr>
+              <tr><td><code>Nm_RemoteSleepIndication / Cancellation</code></td><td>CanNM &rarr; Nm</td><td>RemoteSleepTimer=0 / Rx</td><td>Báo cho NM Coordinator mọi node khác đã nhả mạng, hoặc hủy khi nhận lại bản tin NM (<code>SWS_CanNm_00150 / 00151</code>).</td></tr>
+              <tr><td><code>Nm_PncBitVectorRxIndication / TxIndication</code></td><td>CanNM &rarr; Nm</td><td>Nhận/Gửi NM PDU PN</td><td>Chuyển tiếp <code>PNC Bit Vector</code> lên <code>Nm</code>/<code>ComM</code> cập nhật EIRA/ERA (<code>SWS_CanNm_00503 / 00515</code>).</td></tr>
+              <tr><td><code>Nm_ForwardSynchronizedPncShutdown(nmHandle, pncVec)</code></td><td>CanNM &rarr; Nm</td><td>Rx <code>PNSR=1</code> hợp lệ</td><td>Chuyển tiếp yêu cầu tắt đồng bộ PNC lên <code>Nm</code> &rarr; <code>ComM</code> Passive Gateway (<code>SWS_CanNm_00504 / 00521</code>).</td></tr>
             </tbody>
           </table>
         `
@@ -7098,82 +7124,339 @@ const HANDBOOK_DATA = [
       {
         title: "6.3. Bảng Mã Lỗi DET & Runtime Errors (CANNM_E_*)",
         swsRefs: [
-          { id: "SWS_CanNm_00316", desc: "Danh mục Development Errors (CANNM_E_UNINIT, INVALID_CHANNEL, PARAM_POINTER, INIT_FAILED)" },
-          { id: "SWS_CanNm_00317", desc: "Danh mục Runtime Errors (CANNM_E_NET_START_IND, CANNM_E_NETWORK_TIMEOUT)" },
-          { id: "SWS_CanNm_00336", desc: "Ghi nhận CANNM_E_NET_START_IND khi nhận Rx lúc Bus-Sleep Mode" },
-          { id: "SWS_CanNm_00066", desc: "Xử lý quá hạn xác nhận Tx (CANNM_E_NETWORK_TIMEOUT)" },
-          { id: "SWS_CanNm_00352", desc: "Báo CANNM_E_NOT_IN_BUS_SLEEP nếu gọi CanNm_DeInit() khi kênh chưa ngủ" }
+          { id: "SWS_CanNm_00316", desc: "Development Errors: UNINIT (0x01), INVALID_CHANNEL (0x02), INVALID_PDUID (0x03), INIT_FAILED (0x05), PARAM_POINTER (0x12), NOT_IN_BUS_SLEEP (0x13)" },
+          { id: "SWS_CanNm_00317", desc: "Runtime Errors: CANNM_E_NET_START_IND (0x04), CANNM_E_NETWORK_TIMEOUT (0x11), CANNM_E_INVALID_PN_SYNC_SHUTDOWN_REQUEST (0x20)" },
+          { id: "SWS_CanNm_00336", desc: "Báo Runtime Error CANNM_E_NET_START_IND (0x04) khi Rx NM PDU ở Bus-Sleep Mode" },
+          { id: "SWS_CanNm_00193", desc: "Báo CANNM_E_NETWORK_TIMEOUT (0x11) khi NM-Timeout Timer hết hạn ở RMS (SWS_CanNm_00194: ở NOS)" },
+          { id: "SWS_CanNm_00352", desc: "Báo CANNM_E_NOT_IN_BUS_SLEEP (0x13) khi gọi CanNm_DeInit() lúc có kênh chưa ở Bus-Sleep" },
+          { id: "SWS_CanNm_00461", desc: "Báo CANNM_E_INVALID_PN_SYNC_SHUTDOWN_REQUEST (0x20) khi nhận PNSR=1 trên kênh Active Gateway" }
         ],
         content: `
-          <h2>6.3. Bảng Mã Lỗi DET &amp; Runtime Errors (CANNM_E_*)</h2>
-          <p>Mã lỗi được quy định trong chuẩn AUTOSAR SWS_CanNm để ghi nhận qua Det_ReportError hoặc Det_ReportRuntimeError:</p>
+          <h2>6.3. Bảng Mã Lỗi DET &amp; Runtime Errors (CANNM_E_*) — R25-11</h2>
+          <p>Danh sách đầy đủ <b>6 Development Errors</b> (<code>SWS_CanNm_00316</code> &rarr; <code>Det_ReportError</code>) và <b>3 Runtime Errors</b> (<code>SWS_CanNm_00317</code> &rarr; <code>Det_ReportRuntimeError</code>) theo đúng <code>AUTOSAR_CP_SWS_CANNetworkManagement</code> R25-11:</p>
 
           <div style="margin:12px 0; background:var(--code); border:1px solid var(--border); border-radius:8px; padding:12px">
             <div class="mono small" style="font-weight:700; color:#f87171; margin-bottom:8px">🚨 SƠ ĐỒ BẪY LỖI &amp; BÁO CÁO DET (ERROR TRAPPING &amp; REPORTING)</div>
-            <svg viewBox="0 0 920 224" class="hb-svg" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Diagram b27"><defs><marker id="b27_arr_sky" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-sky)"/></marker><marker id="b27_arr_ok" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-ok)"/></marker><marker id="b27_arr_warn" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-warn)"/></marker><marker id="b27_arr_err" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-err)"/></marker><marker id="b27_arr_vio" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-vio)"/></marker><marker id="b27_arr_ind" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-ind)"/></marker><marker id="b27_arr_mut" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-stroke)"/></marker></defs><rect x="16" y="72" width="158" height="56" rx="8" fill="var(--hb-card)" stroke="var(--hb-sky)" stroke-width="2"/><rect x="16" y="72" width="158" height="56" rx="8" fill="var(--hb-sky-bg)" stroke="none"/><path d="M 16 80 Q 16 72 24 72 L 166 72 Q 174 72 174 80 L 174 94 L 16 94 Z" fill="var(--hb-sky)" fill-opacity="0.22"/><line x1="16" y1="94" x2="174" y2="94" stroke="var(--hb-sky)" stroke-width="1" stroke-opacity="0.5"/><text x="95.0" y="87.0" fill="var(--hb-sky)" font-size="12" font-weight="800" text-anchor="middle">CanNM API Call</text><text x="95.0" y="114.5" fill="var(--text)" font-size="10.5" text-anchor="middle">Gọi từ lớp trên/dưới</text><line x1="174" y1="100" x2="214" y2="100" stroke="var(--hb-sky)" stroke-width="2" marker-end="url(#b27_arr_sky)"/><polygon points="324,46 434,100 324,154 214,100" fill="var(--hb-card)" stroke="var(--hb-warn)" stroke-width="2"/><polygon points="324,46 434,100 324,154 214,100" fill="var(--hb-warn-bg)" stroke="none"/><text x="324" y="97.0" fill="var(--hb-warn)" font-size="10.5" font-weight="800" text-anchor="middle">Kiểm tra Init?</text><text x="324" y="111.0" fill="var(--hb-warn)" font-size="10.5" font-weight="800" text-anchor="middle">NULL Ptr? Kênh?</text><path d="M 324 46 L 324 26 L 504 26" fill="none" stroke="var(--hb-ok)" stroke-width="2.2" stroke-linejoin="round" marker-end="url(#b27_arr_ok)"/><rect x="367.0" y="16.0" width="94" height="20" rx="5" fill="var(--hb-bg)" stroke="var(--hb-ok)" stroke-width="1" stroke-opacity="0.7"/><text x="414" y="29.5" fill="var(--hb-ok)" font-size="10" font-weight="700" text-anchor="middle">HỢP LỆ (OK)</text><rect x="504" y="8" width="396" height="42" rx="8" fill="var(--hb-card)" stroke="var(--hb-ok)" stroke-width="2"/><rect x="504" y="8" width="396" height="42" rx="8" fill="var(--hb-ok-bg)" stroke="none"/><text x="702.0" y="33.0" fill="var(--text)" font-size="11" font-weight="800" text-anchor="middle">Thực thi logic CanNM Engine bình thường</text><line x1="434" y1="100" x2="504" y2="100" stroke="var(--hb-err)" stroke-width="2.2" marker-end="url(#b27_arr_err)"/><rect x="436.0" y="70.0" width="64" height="20" rx="5" fill="var(--hb-bg)" stroke="var(--hb-err)" stroke-width="1" stroke-opacity="0.7"/><text x="468" y="83.5" fill="var(--hb-err)" font-size="10" font-weight="700" text-anchor="middle">CÓ LỖI!</text><rect x="504" y="71" width="396" height="58" rx="8" fill="var(--hb-card)" stroke="var(--hb-err)" stroke-width="2"/><rect x="504" y="71" width="396" height="58" rx="8" fill="var(--hb-err-bg)" stroke="none"/><rect x="508" y="75" width="388" height="50" rx="5" fill="none" stroke="var(--hb-err)" stroke-width="1.2" stroke-opacity="0.8"/><path d="M 504 79 Q 504 71 512 71 L 892 71 Q 900 71 900 79 L 900 93 L 504 93 Z" fill="var(--hb-err)" fill-opacity="0.22"/><line x1="504" y1="93" x2="900" y2="93" stroke="var(--hb-err)" stroke-width="1" stroke-opacity="0.5"/><text x="702.0" y="86.0" fill="var(--hb-err)" font-size="10.5" font-weight="800" text-anchor="middle">Det_ReportError(ModuleID=31, Instance=0, Api, Err)</text><text x="702.0" y="114.5" fill="var(--text)" font-size="9.5" text-anchor="middle">Từ chối &amp; báo lỗi chuẩn AUTOSAR DET (CANNM_E_*)</text><line x1="702" y1="129" x2="702" y2="158" stroke="var(--hb-err)" stroke-width="2" marker-end="url(#b27_arr_err)"/><rect x="504" y="158" width="396" height="50" rx="8" fill="var(--hb-card)" stroke="var(--hb-warn)" stroke-width="2"/><rect x="504" y="158" width="396" height="50" rx="8" fill="var(--hb-warn-bg)" stroke="none"/><text x="702.0" y="187.0" fill="var(--text)" font-size="11" font-weight="800" text-anchor="middle">Ghi RAM Freeze Frame / Báo chẩn đoán Dcm</text></svg>
+            <svg viewBox="0 0 920 224" class="hb-svg" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Diagram b27"><defs><marker id="b27_arr_sky" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-sky)"/></marker><marker id="b27_arr_ok" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-ok)"/></marker><marker id="b27_arr_warn" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-warn)"/></marker><marker id="b27_arr_err" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-err)"/></marker><marker id="b27_arr_vio" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-vio)"/></marker><marker id="b27_arr_ind" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-ind)"/></marker><marker id="b27_arr_mut" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-stroke)"/></marker></defs><rect x="16" y="72" width="158" height="56" rx="8" fill="var(--hb-card)" stroke="var(--hb-sky)" stroke-width="2"/><rect x="16" y="72" width="158" height="56" rx="8" fill="var(--hb-sky-bg)" stroke="none"/><path d="M 16 80 Q 16 72 24 72 L 166 72 Q 174 72 174 80 L 174 94 L 16 94 Z" fill="var(--hb-sky)" fill-opacity="0.22"/><line x1="16" y1="94" x2="174" y2="94" stroke="var(--hb-sky)" stroke-width="1" stroke-opacity="0.5"/><text x="95.0" y="87.0" fill="var(--hb-sky)" font-size="12" font-weight="800" text-anchor="middle">CanNM API Call</text><text x="95.0" y="114.5" fill="var(--text)" font-size="10.5" text-anchor="middle">Gọi từ lớp trên/dưới</text><line x1="174" y1="100" x2="214" y2="100" stroke="var(--hb-sky)" stroke-width="2" marker-end="url(#b27_arr_sky)"/><polygon points="324,46 434,100 324,154 214,100" fill="var(--hb-card)" stroke="var(--hb-warn)" stroke-width="2"/><polygon points="324,46 434,100 324,154 214,100" fill="var(--hb-warn-bg)" stroke="none"/><text x="324" y="97.0" fill="var(--hb-warn)" font-size="10.5" font-weight="800" text-anchor="middle">Kiểm tra Init?</text><text x="324" y="111.0" fill="var(--hb-warn)" font-size="10.5" font-weight="800" text-anchor="middle">NULL Ptr? Kênh/PDU?</text><path d="M 324 46 L 324 26 L 504 26" fill="none" stroke="var(--hb-ok)" stroke-width="2.2" stroke-linejoin="round" marker-end="url(#b27_arr_ok)"/><rect x="367.0" y="16.0" width="94" height="20" rx="5" fill="var(--hb-bg)" stroke="var(--hb-ok)" stroke-width="1" stroke-opacity="0.7"/><text x="414" y="29.5" fill="var(--hb-ok)" font-size="10" font-weight="700" text-anchor="middle">HỢP LỆ (OK)</text><rect x="504" y="8" width="396" height="42" rx="8" fill="var(--hb-card)" stroke="var(--hb-ok)" stroke-width="2"/><rect x="504" y="8" width="396" height="42" rx="8" fill="var(--hb-ok-bg)" stroke="none"/><text x="702.0" y="33.0" fill="var(--text)" font-size="11" font-weight="800" text-anchor="middle">Thực thi logic CanNM Engine bình thường</text><line x1="434" y1="100" x2="504" y2="100" stroke="var(--hb-err)" stroke-width="2.2" marker-end="url(#b27_arr_err)"/><rect x="436.0" y="70.0" width="64" height="20" rx="5" fill="var(--hb-bg)" stroke="var(--hb-err)" stroke-width="1" stroke-opacity="0.7"/><text x="468" y="83.5" fill="var(--hb-err)" font-size="10" font-weight="700" text-anchor="middle">CÓ LỖI!</text><rect x="504" y="71" width="396" height="58" rx="8" fill="var(--hb-card)" stroke="var(--hb-err)" stroke-width="2"/><rect x="504" y="71" width="396" height="58" rx="8" fill="var(--hb-err-bg)" stroke="none"/><rect x="508" y="75" width="388" height="50" rx="5" fill="none" stroke="var(--hb-err)" stroke-width="1.2" stroke-opacity="0.8"/><path d="M 504 79 Q 504 71 512 71 L 892 71 Q 900 71 900 79 L 900 93 L 504 93 Z" fill="var(--hb-err)" fill-opacity="0.22"/><line x1="504" y1="93" x2="900" y2="93" stroke="var(--hb-err)" stroke-width="1" stroke-opacity="0.5"/><text x="702.0" y="86.0" fill="var(--hb-err)" font-size="10.5" font-weight="800" text-anchor="middle">Det_ReportError / Det_ReportRuntimeError (ModuleID=31)</text><text x="702.0" y="114.5" fill="var(--text)" font-size="9.5" text-anchor="middle">Từ chối API hoặc ghi nhận Runtime Anomaly chuẩn AUTOSAR</text><line x1="702" y1="129" x2="702" y2="158" stroke="var(--hb-err)" stroke-width="2" marker-end="url(#b27_arr_err)"/><rect x="504" y="158" width="396" height="50" rx="8" fill="var(--hb-card)" stroke="var(--hb-warn)" stroke-width="2"/><rect x="504" y="158" width="396" height="50" rx="8" fill="var(--hb-warn-bg)" stroke="none"/><text x="702.0" y="187.0" fill="var(--text)" font-size="11" font-weight="800" text-anchor="middle">Ghi RAM Freeze Frame / Cảnh báo tích hợp (DET Hook)</text></svg>
           </div>
 
           <table class="tbl">
             <thead>
               <tr>
-                <th style="width:100px">Mã Lỗi Hex</th>
-                <th style="width:230px">Tên Lỗi Chuẩn AUTOSAR</th>
-                <th style="width:130px">Phân Loại</th>
-                <th>Nguyên Nhân Kích Hoạt &amp; Cách Khắc Phục Kỹ Thuật</th>
+                <th style="width:90px">Mã Hex</th>
+                <th style="width:270px">Tên Lỗi Chuẩn AUTOSAR</th>
+                <th style="width:140px">Phân Loại</th>
+                <th>Nguyên Nhân Kích Hoạt &amp; Xử Lý Kỹ Thuật (R25-11)</th>
               </tr>
             </thead>
             <tbody>
-              <tr><td><code>0x01</code></td><td><b>CANNM_E_UNINIT</b></td><td>Development Error</td><td>Gọi bất kỳ API nào khi CanNM chưa được khởi tạo qua <code>CanNm_Init()</code>.</td></tr>
-              <tr><td><code>0x02</code></td><td><b>CANNM_E_INVALID_CHANNEL</b></td><td>Development Error</td><td>Tham số <code>nmChannelHandle</code> truyền vào vượt quá số lượng kênh cấu hình.</td></tr>
-              <tr><td><code>0x03</code></td><td><b>CANNM_E_PARAM_POINTER</b></td><td>Development Error</td><td>Truyền con trỏ <code>NULL</code> vào các API trả về dữ liệu (như GetState, GetUserData).</td></tr>
-              <tr><td><code>0x04</code></td><td><b>CANNM_E_NET_START_IND</b></td><td>Runtime Error</td><td>Nhận được <code>CanNm_RxIndication()</code> khi ECU đang ở <b>Bus-Sleep Mode</b>. Bắt buộc gọi <code>Nm_NetworkStartIndication()</code>.</td></tr>
-              <tr><td><code>0x11</code></td><td><b>CANNM_E_NETWORK_TIMEOUT</b></td><td>Runtime Error</td><td>CanNmMsgTimeoutTime chạm 0 ms mà không nhận được TxConfirmation từ CanIf.</td></tr>
-              <tr><td><code>0x12</code></td><td><b>CANNM_E_INIT_FAILED</b></td><td>Development Error</td><td>Khởi tạo thất bại do con trỏ cấu hình <code>ConfigPtr</code> không hợp lệ.</td></tr>
+              <tr><td><code>0x01</code></td><td><b>CANNM_E_UNINIT</b></td><td>Development Error</td><td>Gọi bất kỳ API nào của CanNM trước khi module được khởi tạo thành công qua <code>CanNm_Init()</code>.</td></tr>
+              <tr><td><code>0x02</code></td><td><b>CANNM_E_INVALID_CHANNEL</b></td><td>Development Error</td><td>Tham số kênh <code>nmChannelHandle</code> không tồn tại / chưa cấu hình cho CanNM.</td></tr>
+              <tr><td><code>0x03</code></td><td><b>CANNM_E_INVALID_PDUID</b></td><td>Development Error</td><td>Truyền sai <code>TxPduId</code> / <code>RxPduId</code> (vượt phạm vi hoặc không ánh xạ tới kênh hợp lệ).</td></tr>
+              <tr><td><code>0x05</code></td><td><b>CANNM_E_INIT_FAILED</b></td><td>Development Error</td><td>Khởi tạo CanNM thất bại (ví dụ <code>ConfigPtr</code> không hợp lệ hoặc Post-Build set không tồn tại).</td></tr>
+              <tr><td><code>0x12</code></td><td><b>CANNM_E_PARAM_POINTER</b></td><td>Development Error</td><td>Truyền con trỏ <code>NULL</code> vào tham số con trỏ của API (<code>GetState</code>, <code>GetUserData</code>, <code>RxIndication</code>, v.v.).</td></tr>
+              <tr><td><code>0x13</code></td><td><b>CANNM_E_NOT_IN_BUS_SLEEP</b></td><td>Development Error</td><td>Gọi <code>CanNm_DeInit()</code> trong khi vẫn còn ít nhất một kênh CanNM chưa về <b>Bus-Sleep Mode</b> (<code>SWS_CanNm_00352</code>).</td></tr>
+              <tr><td><code>0x04</code></td><td><b>CANNM_E_NET_START_IND</b></td><td>Runtime Error</td><td>Nhận được <code>CanNm_RxIndication()</code> khi kênh đang ở <b>Bus-Sleep Mode</b>; báo DET và gọi <code>Nm_NetworkStartIndication()</code> (<code>SWS_CanNm_00336</code>).</td></tr>
+              <tr><td><code>0x11</code></td><td><b>CANNM_E_NETWORK_TIMEOUT</b></td><td>Runtime Error</td><td><code>NM-Timeout Timer</code> hết hạn bất thường khi đang ở <b>Repeat Message</b> (<code>SWS_CanNm_00193</code>) hoặc <b>Normal Operation</b> (<code>SWS_CanNm_00194</code>) &rarr; tự restart NM-Timeout Timer. <i>(Lưu ý: quá hạn Tx confirmation ở <code>MsgTimeoutTime</code> gọi <code>Nm_TxTimeoutException / CanSM_TxTimeoutException</code>, không báo 0x11)</i>.</td></tr>
+              <tr><td><code>0x20</code></td><td><b>CANNM_E_INVALID_PN_SYNC_SHUTDOWN_REQUEST</b></td><td>Runtime Error</td><td>Nhận được bản tin NM có bit <code>PNI=1</code> và <code>PNSR=1</code> trên kênh đang do <b>ComM Active PNC Gateway</b> điều phối (<code>SWS_CanNm_00461</code>).</td></tr>
             </tbody>
           </table>
         `
       },
       {
-        title: "6.4. Từ Điển Đầy Đủ 34 Tham Số Cấu Hình ECUC CanNM",
+        title: "6.4. Từ Điển 53 Tham Số Cấu Hình ECUC CanNM",
         swsRefs: [
-          { id: "ECUC_CanNm_00002", desc: "CanNmDevErrorDetect (nhóm tham số CanNmGlobalConfig)" },
-          { id: "SWS_CanNm_00060", desc: "Cờ khởi tạo & cấu trúc cấu hình CanNmInitialized / CanNm_ConfigType" },
-          { id: "SWS_CanNm_00130", desc: "ECUC_CanNm_00010 (PassiveMode) & SWS_CanNm_00401 (ActiveWakeupBitEnabled)" },
-          { id: "ECUC_CanNm_00020", desc: "CanNmTimeoutTime, ECUC_CanNm_00021 (WaitBusSleepTime), ECUC_CanNm_00022 (RepeatMessageTime)" },
-          { id: "SWS_CanNm_00334", desc: "Nhóm tham số Burst Tx (ECUC_CanNm_00056 / ECUC_CanNm_00057)" },
-          { id: "SWS_CanNm_00409", desc: "Nhóm cấu hình Partial Networking, User Data (SWS_CanNm_00159) & SyncPncShutdown (ECUC_CanNm_00095)" }
+          { id: "ECUC_CanNm_00002", desc: "Nhóm CanNmGlobalConfig (17 tham số): DevErrorDetect, PassiveModeEnabled, GlobalPnSupport..." },
+          { id: "ECUC_CanNm_00017", desc: "CanNmActiveWakeupBitEnabled, ECUC_CanNm_00068 (AllNmMessagesKeepAwake), ECUC_CanNm_00092 (StayInPbsEnabled)" },
+          { id: "ECUC_CanNm_00020", desc: "CanNmTimeoutTime, ECUC_CanNm_00021 (WaitBusSleepTime), ECUC_CanNm_00022 (RepeatMessageTime), ECUC_CanNm_00028 (MsgCycleTime)" },
+          { id: "ECUC_CanNm_00056", desc: "Burst Tx: CanNmImmediateNmTransmissions & ECUC_CanNm_00057 (CanNmImmediateNmCycleTime)" },
+          { id: "ECUC_CanNm_00066", desc: "CanNmPnEnabled, ECUC_CanNm_00073 (PnHandleMultipleNetworkRequests), ECUC_CanNm_00097 (SynchronizedPncShutdownEnabled)" },
+          { id: "ECUC_CanNm_00038", desc: "Nhóm PDU Containers (6 tham số): CanNmRxPdu (00038/00039), CanNmTxPdu (00036/00037), UserDataTxPdu (00045/00046)" }
         ],
         content: `
-          <h2>6.4. Từ Điển Đầy Đủ 34 Tham Số Cấu Hình ECUC CanNM (Autosar CanNm ECUC)</h2>
-          <p>Bảng tra cứu toàn diện 34 tham số cấu hình CanNM theo tài liệu AUTOSAR SWS_CanNm:</p>
+          <h2>6.4. Từ Điển Cấu Hình ECUC CanNM — 53 Tham Số Chuẩn R25-11</h2>
+          <p>Theo Chương 10 của <code>AUTOSAR_CP_SWS_CANNetworkManagement</code> (R25-11), cây cấu hình ECUC của CanNm gồm tổng cộng <b>53 tham số &amp; tham chiếu</b> chia thành <b>CanNmGlobalConfig (17)</b>, <b>CanNmChannelConfig (30)</b> và <b>3 PDU Sub-containers (6)</b>. <i>(Lưu ý R25-11: các tham số PnFilterMask và PnResetTime cũ trên CanNm đã được chuyển sang mô hình tập trung ở <code>Nm</code> &amp; <code>ComM</code>)</i>.</p>
 
           <div style="margin:12px 0; background:var(--code); border:1px solid var(--border); border-radius:8px; padding:12px">
-            <div class="mono small" style="font-weight:700; color:#34d399; margin-bottom:8px">📦 SƠ ĐỒ 6 NHÓM CẤU HÌNH ECUC CONTAINER HIERARCHY</div>
-            <svg viewBox="0 0 920 316" class="hb-svg" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Diagram b28"><defs><marker id="b28_arr_sky" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-sky)"/></marker><marker id="b28_arr_ok" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-ok)"/></marker><marker id="b28_arr_warn" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-warn)"/></marker><marker id="b28_arr_err" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-err)"/></marker><marker id="b28_arr_vio" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-vio)"/></marker><marker id="b28_arr_ind" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-ind)"/></marker><marker id="b28_arr_mut" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-stroke)"/></marker></defs><rect x="16" y="116" width="210" height="74" rx="8" fill="var(--hb-card)" stroke="var(--hb-sky)" stroke-width="2"/><rect x="16" y="116" width="210" height="74" rx="8" fill="var(--hb-sky-bg)" stroke="none"/><rect x="20" y="120" width="202" height="66" rx="5" fill="none" stroke="var(--hb-sky)" stroke-width="1.2" stroke-opacity="0.8"/><path d="M 16 124 Q 16 116 24 116 L 218 116 Q 226 116 226 124 L 226 141 L 16 141 Z" fill="var(--hb-sky)" fill-opacity="0.22"/><line x1="16" y1="141" x2="226" y2="141" stroke="var(--hb-sky)" stroke-width="1" stroke-opacity="0.5"/><text x="121.0" y="132.5" fill="var(--hb-sky)" font-size="12" font-weight="800" text-anchor="middle">CanNmGlobalConfig</text><text x="121.0" y="161.5" fill="var(--text)" font-size="10.5" text-anchor="middle">Gốc Cây Cấu Hình ECUC</text><text x="121.0" y="176.5" fill="var(--text)" font-size="10.5" text-anchor="middle">(AUTOSAR ARXML Container)</text><line x1="226" y1="153" x2="276" y2="153" stroke="var(--hb-sky)" stroke-width="2.2"/><line x1="276" y1="34" x2="276" y2="284" stroke="var(--hb-sky)" stroke-width="2.2"/><line x1="276" y1="34" x2="316" y2="34" stroke="var(--hb-ind)" stroke-width="2" marker-end="url(#b28_arr_ind)"/><rect x="316" y="14" width="224" height="40" rx="8" fill="var(--hb-card)" stroke="var(--hb-ind)" stroke-width="2"/><rect x="316" y="14" width="224" height="40" rx="8" fill="var(--hb-ind-bg)" stroke="none"/><text x="428.0" y="38.0" fill="var(--text)" font-size="11" font-weight="800" text-anchor="middle">1. CanNmGeneral</text><rect x="548" y="14" width="354" height="40" rx="8" fill="var(--hb-card)" stroke="var(--hb-stroke)" stroke-width="2"/><rect x="548" y="14" width="354" height="40" rx="8" fill="var(--hb-card2)" stroke="none"/><text x="725.0" y="38.0" fill="var(--text)" font-size="10" font-weight="800" text-anchor="middle">DevErrorDetect, PassiveMode, ActiveWakeupBit...</text><line x1="276" y1="84" x2="316" y2="84" stroke="var(--hb-sky)" stroke-width="2" marker-end="url(#b28_arr_sky)"/><rect x="316" y="64" width="224" height="40" rx="8" fill="var(--hb-card)" stroke="var(--hb-sky)" stroke-width="2"/><rect x="316" y="64" width="224" height="40" rx="8" fill="var(--hb-sky-bg)" stroke="none"/><text x="428.0" y="88.0" fill="var(--text)" font-size="11" font-weight="800" text-anchor="middle">2. CanNmChannelConfig</text><rect x="548" y="64" width="354" height="40" rx="8" fill="var(--hb-card)" stroke="var(--hb-stroke)" stroke-width="2"/><rect x="548" y="64" width="354" height="40" rx="8" fill="var(--hb-card2)" stroke="none"/><text x="725.0" y="88.0" fill="var(--text)" font-size="10" font-weight="800" text-anchor="middle">MainFunctionPeriod, MsgCycleTime, TimeoutTime...</text><line x1="276" y1="134" x2="316" y2="134" stroke="var(--hb-ok)" stroke-width="2" marker-end="url(#b28_arr_ok)"/><rect x="316" y="114" width="224" height="40" rx="8" fill="var(--hb-card)" stroke="var(--hb-ok)" stroke-width="2"/><rect x="316" y="114" width="224" height="40" rx="8" fill="var(--hb-ok-bg)" stroke="none"/><text x="428.0" y="138.0" fill="var(--text)" font-size="11" font-weight="800" text-anchor="middle">3. CanNmPduConfig</text><rect x="548" y="114" width="354" height="40" rx="8" fill="var(--hb-card)" stroke="var(--hb-stroke)" stroke-width="2"/><rect x="548" y="114" width="354" height="40" rx="8" fill="var(--hb-card2)" stroke="none"/><text x="725.0" y="138.0" fill="var(--text)" font-size="10" font-weight="800" text-anchor="middle">PduNidPosition, PduCbvPosition, BaseCanId, NodeId...</text><line x1="276" y1="184" x2="316" y2="184" stroke="var(--hb-warn)" stroke-width="2" marker-end="url(#b28_arr_warn)"/><rect x="316" y="164" width="224" height="40" rx="8" fill="var(--hb-card)" stroke="var(--hb-warn)" stroke-width="2"/><rect x="316" y="164" width="224" height="40" rx="8" fill="var(--hb-warn-bg)" stroke="none"/><text x="428.0" y="188.0" fill="var(--text)" font-size="11" font-weight="800" text-anchor="middle">4. CanNmBurstConfig</text><rect x="548" y="164" width="354" height="40" rx="8" fill="var(--hb-card)" stroke="var(--hb-stroke)" stroke-width="2"/><rect x="548" y="164" width="354" height="40" rx="8" fill="var(--hb-card2)" stroke="none"/><text x="725.0" y="188.0" fill="var(--text)" font-size="10" font-weight="800" text-anchor="middle">ImmediateTransmissions, ImmediateCycleTime...</text><line x1="276" y1="234" x2="316" y2="234" stroke="var(--hb-vio)" stroke-width="2" marker-end="url(#b28_arr_vio)"/><rect x="316" y="214" width="224" height="40" rx="8" fill="var(--hb-card)" stroke="var(--hb-vio)" stroke-width="2"/><rect x="316" y="214" width="224" height="40" rx="8" fill="var(--hb-vio-bg)" stroke="none"/><text x="428.0" y="238.0" fill="var(--text)" font-size="11" font-weight="800" text-anchor="middle">5. CanNmPnFilterConfig</text><rect x="548" y="214" width="354" height="40" rx="8" fill="var(--hb-card)" stroke="var(--hb-stroke)" stroke-width="2"/><rect x="548" y="214" width="354" height="40" rx="8" fill="var(--hb-card2)" stroke="none"/><text x="725.0" y="238.0" fill="var(--text)" font-size="10" font-weight="800" text-anchor="middle">PnEnabled, PnFilterMask, PnResetTime...</text><line x1="276" y1="284" x2="316" y2="284" stroke="var(--hb-err)" stroke-width="2" marker-end="url(#b28_arr_err)"/><rect x="316" y="264" width="224" height="40" rx="8" fill="var(--hb-card)" stroke="var(--hb-err)" stroke-width="2"/><rect x="316" y="264" width="224" height="40" rx="8" fill="var(--hb-err-bg)" stroke="none"/><text x="428.0" y="288.0" fill="var(--text)" font-size="11" font-weight="800" text-anchor="middle">6. CanNmUserDataConfig</text><rect x="548" y="264" width="354" height="40" rx="8" fill="var(--hb-card)" stroke="var(--hb-stroke)" stroke-width="2"/><rect x="548" y="264" width="354" height="40" rx="8" fill="var(--hb-card2)" stroke="none"/><text x="725.0" y="288.0" fill="var(--text)" font-size="10" font-weight="800" text-anchor="middle">UserDataSupport, ComUserDataSupport...</text></svg>
+            <div class="mono small" style="font-weight:700; color:#34d399; margin-bottom:8px">📦 SƠ ĐỒ CẤU TRÚC CONTAINER ECUC CANNM R25-11 (53 THAM SỐ)</div>
+            <svg viewBox="0 0 920 316" class="hb-svg" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Diagram b28"><defs><marker id="b28_arr_sky" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-sky)"/></marker><marker id="b28_arr_ok" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-ok)"/></marker><marker id="b28_arr_warn" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-warn)"/></marker><marker id="b28_arr_err" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-err)"/></marker><marker id="b28_arr_vio" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-vio)"/></marker><marker id="b28_arr_ind" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-ind)"/></marker><marker id="b28_arr_mut" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-stroke)"/></marker></defs><rect x="16" y="116" width="210" height="74" rx="8" fill="var(--hb-card)" stroke="var(--hb-sky)" stroke-width="2"/><rect x="16" y="116" width="210" height="74" rx="8" fill="var(--hb-sky-bg)" stroke="none"/><rect x="20" y="120" width="202" height="66" rx="5" fill="none" stroke="var(--hb-sky)" stroke-width="1.2" stroke-opacity="0.8"/><path d="M 16 124 Q 16 116 24 116 L 218 116 Q 226 116 226 124 L 226 141 L 16 141 Z" fill="var(--hb-sky)" fill-opacity="0.22"/><line x1="16" y1="141" x2="226" y2="141" stroke="var(--hb-sky)" stroke-width="1" stroke-opacity="0.5"/><text x="121.0" y="132.5" fill="var(--hb-sky)" font-size="12" font-weight="800" text-anchor="middle">CanNmGlobalConfig</text><text x="121.0" y="161.5" fill="var(--text)" font-size="10.5" text-anchor="middle">Gốc Cây Cấu Hình ECUC</text><text x="121.0" y="176.5" fill="var(--text)" font-size="10.5" text-anchor="middle">(17 Global + N Channels)</text><line x1="226" y1="153" x2="276" y2="153" stroke="var(--hb-sky)" stroke-width="2.2"/><line x1="276" y1="34" x2="276" y2="284" stroke="var(--hb-sky)" stroke-width="2.2"/><line x1="276" y1="34" x2="316" y2="34" stroke="var(--hb-ind)" stroke-width="2" marker-end="url(#b28_arr_ind)"/><rect x="316" y="14" width="224" height="40" rx="8" fill="var(--hb-card)" stroke="var(--hb-ind)" stroke-width="2"/><rect x="316" y="14" width="224" height="40" rx="8" fill="var(--hb-ind-bg)" stroke="none"/><text x="428.0" y="38.0" fill="var(--text)" font-size="11" font-weight="800" text-anchor="middle">1. Global Config (17)</text><rect x="548" y="14" width="354" height="40" rx="8" fill="var(--hb-card)" stroke="var(--hb-stroke)" stroke-width="2"/><rect x="548" y="14" width="354" height="40" rx="8" fill="var(--hb-card2)" stroke="none"/><text x="725.0" y="38.0" fill="var(--text)" font-size="10" font-weight="800" text-anchor="middle">DevErrorDetect, MainFunctionPeriod, GlobalPnSupport...</text><line x1="276" y1="84" x2="316" y2="84" stroke="var(--hb-sky)" stroke-width="2" marker-end="url(#b28_arr_sky)"/><rect x="316" y="64" width="224" height="40" rx="8" fill="var(--hb-card)" stroke="var(--hb-sky)" stroke-width="2"/><rect x="316" y="64" width="224" height="40" rx="8" fill="var(--hb-sky-bg)" stroke="none"/><text x="428.0" y="88.0" fill="var(--text)" font-size="11" font-weight="800" text-anchor="middle">2. Channel Timers (30 total)</text><rect x="548" y="64" width="354" height="40" rx="8" fill="var(--hb-card)" stroke="var(--hb-stroke)" stroke-width="2"/><rect x="548" y="64" width="354" height="40" rx="8" fill="var(--hb-card2)" stroke="none"/><text x="725.0" y="88.0" fill="var(--text)" font-size="10" font-weight="800" text-anchor="middle">TimeoutTime, WaitBusSleepTime, MsgCycleTime, Offset...</text><line x1="276" y1="134" x2="316" y2="134" stroke="var(--hb-ok)" stroke-width="2" marker-end="url(#b28_arr_ok)"/><rect x="316" y="114" width="224" height="40" rx="8" fill="var(--hb-card)" stroke="var(--hb-ok)" stroke-width="2"/><rect x="316" y="114" width="224" height="40" rx="8" fill="var(--hb-ok-bg)" stroke="none"/><text x="428.0" y="138.0" fill="var(--text)" font-size="11" font-weight="800" text-anchor="middle">3. PDU Format &amp; Node</text><rect x="548" y="114" width="354" height="40" rx="8" fill="var(--hb-card)" stroke="var(--hb-stroke)" stroke-width="2"/><rect x="548" y="114" width="354" height="40" rx="8" fill="var(--hb-card2)" stroke="none"/><text x="725.0" y="138.0" fill="var(--text)" font-size="10" font-weight="800" text-anchor="middle">PduNidPosition, PduCbvPosition, NodeId, StayInPbsEnabled</text><line x1="276" y1="184" x2="316" y2="184" stroke="var(--hb-warn)" stroke-width="2" marker-end="url(#b28_arr_warn)"/><rect x="316" y="164" width="224" height="40" rx="8" fill="var(--hb-card)" stroke="var(--hb-warn)" stroke-width="2"/><rect x="316" y="164" width="224" height="40" rx="8" fill="var(--hb-warn-bg)" stroke="none"/><text x="428.0" y="188.0" fill="var(--text)" font-size="11" font-weight="800" text-anchor="middle">4. Burst &amp; CarWakeUp</text><rect x="548" y="164" width="354" height="40" rx="8" fill="var(--hb-card)" stroke="var(--hb-stroke)" stroke-width="2"/><rect x="548" y="164" width="354" height="40" rx="8" fill="var(--hb-card2)" stroke="none"/><text x="725.0" y="188.0" fill="var(--text)" font-size="10" font-weight="800" text-anchor="middle">ImmediateNmTransmissions, CarWakeUpRx/FilterNodeId...</text><line x1="276" y1="234" x2="316" y2="234" stroke="var(--hb-vio)" stroke-width="2" marker-end="url(#b28_arr_vio)"/><rect x="316" y="214" width="224" height="40" rx="8" fill="var(--hb-card)" stroke="var(--hb-vio)" stroke-width="2"/><rect x="316" y="214" width="224" height="40" rx="8" fill="var(--hb-vio-bg)" stroke="none"/><text x="428.0" y="238.0" fill="var(--text)" font-size="11" font-weight="800" text-anchor="middle">5. Partial Networking R25-11</text><rect x="548" y="214" width="354" height="40" rx="8" fill="var(--hb-card)" stroke="var(--hb-stroke)" stroke-width="2"/><rect x="548" y="214" width="354" height="40" rx="8" fill="var(--hb-card2)" stroke="none"/><text x="725.0" y="238.0" fill="var(--text)" font-size="10" font-weight="800" text-anchor="middle">PnEnabled, AllNmMessagesKeepAwake, SyncPncShutdown</text><line x1="276" y1="284" x2="316" y2="284" stroke="var(--hb-err)" stroke-width="2" marker-end="url(#b28_arr_err)"/><rect x="316" y="264" width="224" height="40" rx="8" fill="var(--hb-card)" stroke="var(--hb-err)" stroke-width="2"/><rect x="316" y="264" width="224" height="40" rx="8" fill="var(--hb-err-bg)" stroke="none"/><text x="428.0" y="288.0" fill="var(--text)" font-size="11" font-weight="800" text-anchor="middle">6. Rx / Tx / UserData PDU (6)</text><rect x="548" y="264" width="354" height="40" rx="8" fill="var(--hb-card)" stroke="var(--hb-stroke)" stroke-width="2"/><rect x="548" y="264" width="354" height="40" rx="8" fill="var(--hb-card2)" stroke="none"/><text x="725.0" y="288.0" fill="var(--text)" font-size="10" font-weight="800" text-anchor="middle">CanNmRxPdu, CanNmTxPdu, CanNmUserDataTxPdu (Id &amp; Ref)</text></svg>
           </div>
 
           <table class="tbl">
             <thead>
               <tr>
-                <th style="width:220px">Tên Tham Số ECUC</th>
-                <th style="width:90px">Kiểu Dữ Liệu</th>
-                <th style="width:90px">Mặc Định</th>
-                <th>Ý Nghĩa Kỹ Thuật &amp; Tác Động Trực Tiếp Đến Module</th>
+                <th style="width:140px">ECUC ID</th>
+                <th style="width:240px">Tên Tham Số ECUC</th>
+                <th style="width:125px">Container</th>
+                <th>Ý Nghĩa Kỹ Thuật &amp; Tác Động Trực Tiếp Đến Module (R25-11)</th>
               </tr>
             </thead>
             <tbody>
-              <tr><td><code>CanNmDevErrorDetect</code></td><td>EcucBoolean</td><td>TRUE</td><td>Bật/tắt kiểm tra và báo lỗi phát triển phần mềm qua Det_ReportError.</td></tr>
-              <tr><td><code>CanNmPassiveModeEnabled</code></td><td>EcucBoolean</td><td>FALSE</td><td>Nếu TRUE: ECU chỉ lắng nghe, không bao giờ phát bất kỳ bản tin NM PDU nào.</td></tr>
-              <tr><td><code>CanNmActiveWakeupBitEnabled</code></td><td>EcucBoolean</td><td>TRUE</td><td>Bật/tắt việc ghi Bit 4 (AWB=1) trong CBV khi thức dậy chủ động.</td></tr>
-              <tr><td><code>CanNmMainFunctionPeriod</code></td><td>EcucFloat</td><td>0.1 s (100ms)</td><td>Chu kỳ gọi hàm <code>CanNm_MainFunction()</code> từ hệ điều hành OS Task.</td></tr>
-              <tr><td><code>CanNmMsgCycleTime</code></td><td>EcucFloat</td><td>1.0 s (1000ms)</td><td>Chu kỳ phát bản tin NM PDU định kỳ khi ở Normal Operation / Repeat Message.</td></tr>
-              <tr><td><code>CanNmTimeoutTime</code></td><td>EcucFloat</td><td>2.0 s (2000ms)</td><td>Hết hạn ở Ready Sleep ➔ Prepare Bus-Sleep (<code>SWS_CanNm_00109</code>); ở RMS/NOS ➔ restart Timeout &amp; báo <code>CANNM_E_NETWORK_TIMEOUT</code> (<code>SWS_CanNm_00101 / 00117</code>).</td></tr>
-              <tr><td><code>CanNmRepeatMessageTime</code></td><td>EcucFloat</td><td>1.5 s (1500ms)</td><td>Thời gian lưu lại ở Repeat Message State để ổn định mạng và báo danh.</td></tr>
-              <tr><td><code>CanNmWaitBusSleepTime</code></td><td>EcucFloat</td><td>1.5 s (1500ms)</td><td>Thời gian lưu lại ở Prepare Bus-Sleep Mode trước khi ngắt phần cứng về Bus-Sleep.</td></tr>
-              <tr><td><code>CanNmImmediateNmTransmissions</code></td><td>EcucInteger</td><td>3</td><td>Số lượng bản tin phát dồn dập (Burst Tx) ngay khi thức dậy chủ động.</td></tr>
-              <tr><td><code>CanNmImmediateNmCycleTime</code></td><td>EcucFloat</td><td>0.02 s (20ms)</td><td>Chu kỳ phát giữa các bản tin Burst Tx (20ms).</td></tr>
-              <tr><td><code>CanNmPnEnabled</code></td><td>EcucBoolean</td><td>TRUE</td><td>Bật/tắt tính năng quản lý mạng cục bộ Partial Networking.</td></tr>
-              <tr><td><code>CanNmPnResetTime</code></td><td>EcucFloat</td><td>1.5 s (1500ms)</td><td>Thời gian duy trì cụm PNC trước khi giải phóng nếu không có yêu cầu mới.</td></tr>
+              <tr><td><code>ECUC_CanNm_00002</code></td><td><code>CanNmDevErrorDetect</code></td><td>Global (17)</td><td>Bật/tắt kiểm tra và báo lỗi phát triển phần mềm qua <code>Det_ReportError()</code>.</td></tr>
+              <tr><td><code>ECUC_CanNm_00003 / 00004</code></td><td><code>CanNmVersionInfoApi</code> / <code>CanNmUserDataEnabled</code></td><td>Global</td><td>Mở API đọc version (<code>0xF1</code>) và bật API <code>SetUserData / GetUserData</code> tĩnh.</td></tr>
+              <tr><td><code>ECUC_CanNm_00006 / 00009 / 00010</code></td><td><code>BusSynchronization</code> / <code>ImmediateRestart</code> / <code>PassiveMode</code></td><td>Global</td><td>Bật đồng bộ bus cho Coordinator, phát ngay khi rời PBS (Active), hoặc chỉ lắng nghe (Passive).</td></tr>
+              <tr><td><code>ECUC_CanNm_00011..00013</code></td><td><code>PduRxInd</code> / <code>StateChangeInd</code> / <code>ComControl</code></td><td>Global</td><td>Bật callback báo nhận PDU, thông báo đổi state lên Nm, và cặp API <code>Disable/EnableCommunication</code>.</td></tr>
+              <tr><td><code>ECUC_CanNm_00032</code></td><td><code>CanNmMainFunctionPeriod</code></td><td>Global</td><td>Chu kỳ gọi hàm <code>CanNm_MainFunction()</code> từ hệ điều hành OS Task (ví dụ <code>0.01s</code> hoặc <code>0.1s</code>).</td></tr>
+              <tr><td><code>ECUC_CanNm_00041 / 00044</code></td><td><code>ImmediateTxconf</code> / <code>ComUserDataSupport</code></td><td>Global</td><td>Bỏ qua chờ xác nhận TX phần cứng (nếu TRUE) hoặc nối User Data trực tiếp với COM/PduR qua <code>TriggerTransmit</code>.</td></tr>
+              <tr><td><code>ECUC_CanNm_00055 / 00056 / 00080</code></td><td><code>RemoteSleepInd</code> / <code>BusLoadReduction</code> / <code>CoordinatorSyncSupport</code></td><td>Global</td><td>Bật phát hiện Remote Sleep, giảm tải bus toàn cục, và hỗ trợ bit <code>CSB</code> đồng bộ ngủ đa bus.</td></tr>
+              <tr><td><code>ECUC_CanNm_00086 / 00094</code></td><td><code>GlobalPnSupport</code> / <code>DynamicPncToChannelMappingSupport</code></td><td>Global</td><td>Bật tính năng Partial Networking toàn cục &amp; ánh xạ động PNC-to-Channel trong R25-11.</td></tr>
+              <tr><td><code>ECUC_CanNm_00017 / 00092</code></td><td><code>CanNmActiveWakeupBitEnabled</code> / <code>CanNmStayInPbsEnabled</code></td><td>Channel (30)</td><td>Ghi bit <code>AWB=1</code> khi Active Wakeup; giữ yên ở PBS nếu được phép ở R25-11 (<code>00092</code>).</td></tr>
+              <tr><td><code>ECUC_CanNm_00020..00023</code></td><td><code>TimeoutTime</code> / <code>WaitBusSleep</code> / <code>RepeatMsg</code> / <code>RemoteSleepIndTime</code></td><td>Channel</td><td>4 Timer nền tảng điều phối tốc độ giữ mạng, báo danh RMS, đồng thuận ngủ và Prepare Bus-Sleep.</td></tr>
+              <tr><td><code>ECUC_CanNm_00025 / 00026</code></td><td><code>CanNmPduNidPosition</code> / <code>CanNmPduCbvPosition</code></td><td>Channel</td><td>Vị trí byte của SNI và CBV (<code>BYTE_0</code>, <code>BYTE_1</code>, hoặc <code>OFF</code>).</td></tr>
+              <tr><td><code>ECUC_CanNm_00028..00030 / 00043</code></td><td><code>MsgCycleTime</code> / <code>Offset</code> / <code>MsgTimeoutTime</code> / <code>MsgReducedTime</code></td><td>Channel</td><td>Chu kỳ phát, độ lệch pha ban đầu, giới hạn chờ TxConfirmation và chu kỳ giãn khi Bus Load Reduction.</td></tr>
+              <tr><td><code>ECUC_CanNm_00031 / 00088..00090</code></td><td><code>NodeId</code> / <code>NodeDetectionEnabled</code> / <code>RepeatMsgInd</code> / <code>NodeIdEnabled</code></td><td>Channel</td><td>Định danh node cục bộ và bật cơ chế phát hiện node / thông báo cờ <code>RMR</code>.</td></tr>
+              <tr><td><code>ECUC_CanNm_00056 / 00057</code></td><td><code>CanNmImmediateNmTransmissions</code> / <code>ImmediateNmCycleTime</code></td><td>Channel</td><td>Số lần &amp; chu kỳ Burst Tx nhanh khi thức dậy từ Bus-Sleep / Prepare Bus-Sleep (nếu &gt; 0).</td></tr>
+              <tr><td><code>ECUC_CanNm_00066 / 00068 / 00073</code></td><td><code>CanNmPnEnabled</code> / <code>AllNmMessagesKeepAwake</code> / <code>PnHandleMultipleNetworkRequests</code></td><td>Channel</td><td>Bật PN theo kênh, quy định NM PDU không khớp PN có giữ thức không, và cho phép re-enter RMS khi có <code>NetworkRequest</code> mới.</td></tr>
+              <tr><td><code>ECUC_CanNm_00074..00078</code></td><td><code>CanNmCarWakeUpRxEnabled</code> / <code>Bit/BytePos</code> / <code>FilterEnabled</code> / <code>FilterNodeId</code></td><td>Channel</td><td>Cấu hình bắt bit Car WakeUp (CWU) và lọc đúng NodeId nguồn hợp lệ.</td></tr>
+              <tr><td><code>ECUC_CanNm_00093 / 00097 / 00018</code></td><td><code>DynamicPncMapping</code> / <code>SynchronizedPncShutdownEnabled</code> / <code>ComMNetworkHandleRef</code></td><td>Channel</td><td>Bật ánh xạ PNC động, bật cơ chế R25-11 Synchronized PNC Shutdown, và liên kết kênh tới <code>ComMChannel</code>.</td></tr>
+              <tr><td><code>ECUC_CanNm_00036..00039 / 00045..00046</code></td><td><code>CanNmRxPdu</code> / <code>CanNmTxPdu</code> / <code>CanNmUserDataTxPdu</code> (6)</td><td>PDU Refs</td><td>3 sub-container định nghĩa <code>Id</code> &amp; <code>PduRef</code> (kết nối xuống <code>CanIf</code> và lên <code>PduR/COM</code>).</td></tr>
+            </tbody>
+          </table>
+        `
+      }
+    ]
+  },
+  {
+    id: 6,
+    title: "7. Tích Hợp Liên Tầng ComM ↔ CanNm ↔ CanIf",
+    subtopics: [
+      {
+        title: "7.1. ComM State Machine, ComMNmVariant & Handshake với CanNm",
+        swsRefs: [
+          { id: "SWS_ComM_00110", desc: "ComM_RequestComMode(): User yêu cầu FULL_COM / NO_COM" },
+          { id: "SWS_ComM_00880", desc: "Trạng thái COMM_FULL_COM_NETWORK_REQUESTED & COMM_FULL_COM_READY_SLEEP" },
+          { id: "SWS_ComM_00151", desc: "COMM_SILENT_COMMUNICATION chỉ kích hoạt cho kênh đồng bộ NM (SWS_ComM_00868)" },
+          { id: "SWS_ComM_00866", desc: "ECUC_ComM_00568 ComMNmVariant: FULL | LIGHT | NONE | PASSIVE (ECUC_ComM_00606 LightTimeout)" },
+          { id: "SWS_ComM_00133", desc: "Rời NETWORK_REQUESTED -> READY_SLEEP gọi Nm_NetworkRelease() khi Variant=FULL" },
+          { id: "SWS_ComM_00383", desc: "Callbacks từ Nm/CanNm: NetworkStartIndication (00383), NetworkMode (00390), PrepareBusSleepMode (00391), BusSleepMode (00392)" }
+        ],
+        content: `
+          <h2>7.1. Kiến Trúc Phối Hợp ComM ↔ Nm ↔ CanNm &amp; ComMNmVariant</h2>
+          <p><code>ComM</code> (Communication Manager) đóng vai trò "nhạc trưởng" phân phối quyền truyền thông cho ứng dụng (<code>BswM</code> / I-PDU Groups) và ra lệnh giữ/nhả mạng xuống <code>Nm</code> &rarr; <code>CanNm</code>. Ngược lại, mọi chuyển dịch pha thức/ngủ trên bus CAN đều do <code>CanNm</code> phát hiện và báo ngược lên <code>ComM</code> qua các callback <code>ComM_Nm_*</code>.</p>
+
+          <div style="margin:12px 0; background:var(--code); border:1px solid var(--border); border-radius:8px; padding:12px">
+            <div class="mono small" style="font-weight:700; color:#38bdf8; margin-bottom:8px">🔗 SƠ ĐỒ ĐỒNG BỘ MÁY TRẠNG THÁI COMM ↔ CANNM (R25-11)</div>
+            <svg viewBox="0 0 920 280" class="hb-svg" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Diagram b29"><defs><marker id="b29_arr_sky" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-sky)"/></marker><marker id="b29_arr_ok" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-ok)"/></marker><marker id="b29_arr_warn" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-warn)"/></marker><marker id="b29_arr_vio" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-vio)"/></marker></defs>
+              <rect x="20" y="18" width="880" height="106" rx="10" fill="var(--hb-card2)" stroke="var(--hb-sky)" stroke-width="1.5" stroke-dasharray="5 3"/>
+              <text x="34" y="36" fill="var(--hb-sky)" font-size="11" font-weight="800">COMM CHANNEL STATE MACHINE (AUTOSAR_CP_SWS_COMManager)</text>
+              <rect x="34" y="48" width="188" height="62" rx="8" fill="var(--hb-card)" stroke="var(--hb-stroke)" stroke-width="2"/>
+              <text x="128" y="69" fill="var(--text)" font-size="11" font-weight="800" text-anchor="middle">NO_COMMUNICATION</text>
+              <text x="128" y="85" fill="var(--muted)" font-size="9.5" text-anchor="middle">NO_PENDING / REQUEST_PENDING</text>
+              <text x="128" y="99" fill="var(--muted)" font-size="9.5" text-anchor="middle">Tx/Rx I-PDU OFF</text>
+              <rect x="256" y="48" width="212" height="62" rx="8" fill="var(--hb-card)" stroke="var(--hb-ok)" stroke-width="2"/>
+              <text x="362" y="69" fill="var(--hb-ok)" font-size="11" font-weight="800" text-anchor="middle">FULL_COM_REQ</text>
+              <text x="362" y="85" fill="var(--text)" font-size="9.5" text-anchor="middle">User cần mạng (FULL_COM)</text>
+              <text x="362" y="99" fill="var(--hb-ok)" font-size="9.5" font-weight="700" text-anchor="middle">Tx/Rx I-PDU ON + Nm_NetworkRequest</text>
+              <rect x="500" y="48" width="194" height="62" rx="8" fill="var(--hb-card)" stroke="var(--hb-sky)" stroke-width="2"/>
+              <text x="597" y="69" fill="var(--hb-sky)" font-size="11" font-weight="800" text-anchor="middle">FULL_COM_READY_SLEEP</text>
+              <text x="597" y="85" fill="var(--text)" font-size="9.5" text-anchor="middle">User thả hết / Passive Wakeup</text>
+              <text x="597" y="99" fill="var(--hb-sky)" font-size="9.5" font-weight="700" text-anchor="middle">Tx/Rx I-PDU ON + Nm_NetworkRelease</text>
+              <rect x="726" y="48" width="160" height="62" rx="8" fill="var(--hb-card)" stroke="var(--hb-warn)" stroke-width="2"/>
+              <text x="806" y="69" fill="var(--hb-warn)" font-size="11" font-weight="800" text-anchor="middle">SILENT_COM</text>
+              <text x="806" y="85" fill="var(--text)" font-size="9.5" text-anchor="middle">Tx I-PDU OFF, Rx ON</text>
+              <text x="806" y="99" fill="var(--hb-warn)" font-size="9.5" font-weight="700" text-anchor="middle">Chờ WaitBusSleepTime</text>
+
+              <rect x="20" y="156" width="880" height="108" rx="10" fill="var(--hb-card2)" stroke="var(--hb-vio)" stroke-width="1.5" stroke-dasharray="5 3"/>
+              <text x="34" y="174" fill="var(--hb-vio)" font-size="11" font-weight="800">CANNM MODE &amp; STATE (THÔNG QUA NM INTERFACE)</text>
+              <rect x="34" y="186" width="188" height="64" rx="8" fill="var(--hb-card)" stroke="var(--hb-stroke)" stroke-width="2"/>
+              <text x="128" y="210" fill="var(--text)" font-size="11" font-weight="800" text-anchor="middle">Bus-Sleep Mode</text>
+              <text x="128" y="227" fill="var(--muted)" font-size="9.5" text-anchor="middle">CanSM tắt CAN Controller</text>
+              <rect x="256" y="186" width="212" height="64" rx="8" fill="var(--hb-card)" stroke="var(--hb-ok)" stroke-width="2"/>
+              <text x="362" y="210" fill="var(--hb-ok)" font-size="11" font-weight="800" text-anchor="middle">RMS / Normal Operation</text>
+              <text x="362" y="227" fill="var(--text)" font-size="9.5" text-anchor="middle">Giữ NM-Timeout &amp; phát NM PDU</text>
+              <rect x="500" y="186" width="194" height="64" rx="8" fill="var(--hb-card)" stroke="var(--hb-sky)" stroke-width="2"/>
+              <text x="597" y="210" fill="var(--hb-sky)" font-size="11" font-weight="800" text-anchor="middle">Ready Sleep State</text>
+              <text x="597" y="227" fill="var(--text)" font-size="9.5" text-anchor="middle">Ngừng Tx NM, đếm NM-Timeout</text>
+              <rect x="726" y="186" width="160" height="64" rx="8" fill="var(--hb-card)" stroke="var(--hb-warn)" stroke-width="2"/>
+              <text x="806" y="210" fill="var(--hb-warn)" font-size="11" font-weight="800" text-anchor="middle">Prepare Bus-Sleep</text>
+              <text x="806" y="227" fill="var(--text)" font-size="9.5" text-anchor="middle">Đếm WaitBusSleepTime</text>
+
+              <line x1="362" y1="110" x2="362" y2="186" stroke="var(--hb-ok)" stroke-width="2" marker-end="url(#b29_arr_ok)"/>
+              <line x1="597" y1="110" x2="597" y2="186" stroke="var(--hb-sky)" stroke-width="2" marker-end="url(#b29_arr_sky)"/>
+              <line x1="806" y1="186" x2="806" y2="110" stroke="var(--hb-warn)" stroke-width="2" marker-end="url(#b29_arr_warn)"/>
+              <line x1="128" y1="186" x2="128" y2="110" stroke="var(--hb-vio)" stroke-width="2" marker-end="url(#b29_arr_vio)"/>
+              <rect x="275" y="132" width="174" height="18" rx="4" fill="var(--hb-bg)" stroke="var(--hb-ok)" stroke-width="1"/><text x="362" y="144" fill="var(--hb-ok)" font-size="9.5" font-weight="700" text-anchor="middle">NetworkRequest / Mode</text>
+              <rect x="520" y="132" width="154" height="18" rx="4" fill="var(--hb-bg)" stroke="var(--hb-sky)" stroke-width="1"/><text x="597" y="144" fill="var(--hb-sky)" font-size="9.5" font-weight="700" text-anchor="middle">NetworkRelease()</text>
+              <rect x="734" y="132" width="144" height="18" rx="4" fill="var(--hb-bg)" stroke="var(--hb-warn)" stroke-width="1"/><text x="806" y="144" fill="var(--hb-warn)" font-size="9.5" font-weight="700" text-anchor="middle">PrepareBusSleepMode()</text>
+              <rect x="50" y="132" width="156" height="18" rx="4" fill="var(--hb-bg)" stroke="var(--hb-vio)" stroke-width="1"/><text x="128" y="144" fill="var(--hb-vio)" font-size="9.5" font-weight="700" text-anchor="middle">BusSleep / NetStartInd</text>
+            </svg>
+          </div>
+
+          <h3>1. Bốn biến thể cấu hình ComMNmVariant (ECUC_ComM_00568)</h3>
+          <table class="tbl">
+            <thead>
+              <tr>
+                <th style="width:120px">Variant</th>
+                <th style="width:155px">Dùng CanNm?</th>
+                <th>Hành vi phối hợp giữa ComM &amp; NM theo SWS_ComM_00866 / 00599</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td><code>FULL</code></td><td><b>Có (Chủ động)</b></td><td>Đầy đủ 2 chiều: ComM gọi <code>NetworkRequest / NetworkRelease / PassiveStartUp</code> xuống CanNm và nhận callback đồng bộ <code>PrepareBusSleepMode / BusSleepMode</code>.</td></tr>
+              <tr><td><code>PASSIVE</code></td><td><b>Có (Thụ động)</b></td><td>ECU chỉ lắng nghe bus: ComM chỉ gọi <code>Nm_PassiveStartUp()</code> khi có Network Start từ bus, không gọi <code>NetworkRequest()</code>; đồng bộ ngủ theo bus qua CanNm.</td></tr>
+              <tr><td><code>LIGHT</code></td><td><b>Không</b></td><td>Không có CanNm; ComM tự giữ <code>FULL_COM</code> bằng bộ đếm nội bộ <code>ComMNmLightTimeout</code> (<code>ECUC_ComM_00606</code>) rồi tự về <code>NO_COM</code>.</td></tr>
+              <tr><td><code>NONE</code></td><td><b>Không</b></td><td>Kênh không dùng NM (ví dụ LIN/FlexRay nội bộ); vừa nhả User là ComM rút thẳng về <code>NO_COM</code>, không qua <code>SILENT_COM</code>.</td></tr>
+            </tbody>
+          </table>
+
+          <h3>2. Bảng Handshake Sự Kiện &amp; Xử Lý Race-Condition</h3>
+          <table class="tbl">
+            <thead>
+              <tr>
+                <th style="width:210px">Kịch Bản / Callback</th>
+                <th>Quy Trình Chuyển Trạng Thái Giữa CanNm &amp; ComM</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td><b>1. Bus-Sleep đánh thức thụ động</b></td><td><code>CanNm_RxIndication</code> ở Bus-Sleep &rarr; báo <code>CANNM_E_NET_START_IND</code> + gọi <code>Nm_NetworkStartIndication()</code> &rarr; <code>ComM_Nm_NetworkStartIndication()</code> (<code>SWS_ComM_00383</code>) ép ComM vào <code>FULL_COM_READY_SLEEP</code> và gọi ngược lại <code>Nm_PassiveStartUp()</code>.</td></tr>
+              <tr><td><b>2. Vào Prepare Bus-Sleep</b></td><td>CanNm hết <code>NM-Timeout</code> ở Ready Sleep &rarr; gọi <code>Nm_PrepareBusSleepMode()</code> &rarr; <code>ComM_Nm_PrepareBusSleepMode()</code> (<code>SWS_ComM_00391</code>) &rarr; ComM sang <code>COMM_SILENT_COMMUNICATION</code> (cắt Tx I-PDU ứng dụng, chỉ giữ Rx).</td></tr>
+              <tr><td><b>3. Re-wakeup ngay trong PBS</b></td><td>Nếu nhận NM PDU mới hoặc User gọi <code>ComM_RequestComMode(FULL_COM)</code> khi đang ở <code>Prepare Bus-Sleep</code> &rarr; CanNm quay lại Network Mode và gọi <code>Nm_NetworkMode()</code> &rarr; <code>ComM_Nm_NetworkMode()</code> (<code>SWS_ComM_00390</code>) / <code>ComM_Nm_RestartIndication()</code> (<code>SWS_ComM_00894</code>) mở lại <code>FULL_COM</code>.</td></tr>
+              <tr><td><b>4. Ngủ hẳn (Bus-Sleep Mode)</b></td><td>Hết <code>CanNmWaitBusSleepTime</code> &rarr; CanNm gọi <code>Nm_BusSleepMode()</code> &rarr; <code>ComM_Nm_BusSleepMode()</code> (<code>SWS_ComM_00392 / 00637</code>) &rarr; ComM chuyển sang <code>NO_COMMUNICATION</code> và lệnh <code>CanSM</code> ngắt Controller/Transceiver.</td></tr>
+            </tbody>
+          </table>
+        `
+      },
+      {
+        title: "7.2. ComM PNC State Machine, EIRA/ERA & Synchronized PNC Shutdown",
+        swsRefs: [
+          { id: "SWS_ComM_00907", desc: "PNC State Machine: NO_COM, REQUESTED, READY_SLEEP, PREPARE_SLEEP (ComMPncPrepareSleepTimer)" },
+          { id: "SWS_ComM_01060", desc: "ComM tổng hợp EIRA / ERA từ Nm_PncBitVectorRxIndication (SWS_CanNm_00503) & TxIndication (00515)" },
+          { id: "SWS_ComM_01083", desc: "Active Gateway (Top-level): ComMSynchronizedPncShutdownEnabled -> CanNm_ActivateTxPnShutdownMsg (91005)" },
+          { id: "SWS_ComM_01082", desc: "Passive Gateway: CanNm (PNSR=1) -> Nm_ForwardSynchronizedPncShutdown (00504) -> ComM_Nm_ForwardSynchronizedPncShutdown" },
+          { id: "SWS_CanNm_91006", desc: "CanNm_DeactivateTxPnShutdownMsg() kết thúc phát bit PNSR=1 khi shutdown xong" },
+          { id: "SWS_CanNm_00461", desc: "Nếu nhận PNSR=1 trên kênh Active Gateway -> báo CANNM_E_INVALID_PN_SYNC_SHUTDOWN_REQUEST (0x20)" }
+        ],
+        content: `
+          <h2>7.2. Phối Hợp ComM PNC, EIRA/ERA &amp; Synchronized PNC Shutdown (R25-11)</h2>
+          <p>Trong kiến trúc <b>AUTOSAR R25-11</b>, trách nhiệm tổng hợp bit PNC (<code>EIRA / ERA</code>) và đếm timer ngủ PNC (<code>ComMPncPrepareSleepTimer</code>) đã được chuẩn hóa về <b>ComM</b>, còn <b>CanNm</b> tập trung truyền/nhận <code>PNC Bit Vector</code>, lọc bản tin và phát/chuyển tiếp cờ <b>PNSR (PN Shutdown Request Bit - Bit 1 CBV, 0x02)</b>.</p>
+
+          <div style="margin:12px 0; background:var(--code); border:1px solid var(--border); border-radius:8px; padding:12px">
+            <div class="mono small" style="font-weight:700; color:#c084fc; margin-bottom:8px">⚡ LUỒNG SYNCHRONIZED PNC SHUTDOWN (ACTIVE ↔ PASSIVE GATEWAY R25-11)</div>
+            <svg viewBox="0 0 920 236" class="hb-svg" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Diagram b30"><defs><marker id="b30_arr_ok" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-ok)"/></marker><marker id="b30_arr_warn" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-warn)"/></marker><marker id="b30_arr_vio" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-vio)"/></marker><marker id="b30_arr_err" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-err)"/></marker></defs>
+              <rect x="20" y="24" width="248" height="188" rx="10" fill="var(--hb-card)" stroke="var(--hb-vio)" stroke-width="2"/>
+              <text x="144" y="46" fill="var(--hb-vio)" font-size="11.5" font-weight="800" text-anchor="middle">1. Top-Level PNC Coordinator</text>
+              <text x="144" y="64" fill="var(--muted)" font-size="10" text-anchor="middle">(ComM COMM_GATEWAY_TYPE_ACTIVE)</text>
+              <rect x="34" y="80" width="220" height="50" rx="6" fill="var(--hb-vio-bg)" stroke="var(--hb-vio)" stroke-width="1"/>
+              <text x="144" y="100" fill="var(--text)" font-size="10" font-weight="700" text-anchor="middle">PNC X nhả về PREPARE_SLEEP</text>
+              <text x="144" y="116" fill="var(--hb-vio)" font-size="9.5" text-anchor="middle">Gọi Nm_ActivateTxPnShutdownMsg()</text>
+              <rect x="34" y="144" width="220" height="52" rx="6" fill="var(--hb-card2)" stroke="var(--hb-stroke)" stroke-width="1"/>
+              <text x="144" y="164" fill="var(--text)" font-size="10" font-weight="700" text-anchor="middle">CanNm phát NM PDU (CBV):</text>
+              <text x="144" y="180" fill="var(--hb-ok)" font-size="10" font-weight="800" text-anchor="middle">PNI = 1, PNSR = 1 + PNC Bit=1</text>
+
+              <line x1="268" y1="118" x2="338" y2="118" stroke="var(--hb-warn)" stroke-width="2.5" marker-end="url(#b30_arr_warn)"/>
+              <rect x="276" y="92" width="54" height="18" rx="4" fill="var(--hb-bg)" stroke="var(--hb-warn)" stroke-width="1"/><text x="303" y="104" fill="var(--hb-warn)" font-size="9" font-weight="700" text-anchor="middle">CAN Bus</text>
+
+              <rect x="338" y="24" width="256" height="188" rx="10" fill="var(--hb-card)" stroke="var(--hb-ok)" stroke-width="2"/>
+              <text x="466" y="46" fill="var(--hb-ok)" font-size="11.5" font-weight="800" text-anchor="middle">2. Intermediate / Passive GW</text>
+              <text x="466" y="64" fill="var(--muted)" font-size="10" text-anchor="middle">(ComM COMM_GATEWAY_TYPE_PASSIVE)</text>
+              <rect x="352" y="80" width="228" height="50" rx="6" fill="var(--hb-ok-bg)" stroke="var(--hb-ok)" stroke-width="1"/>
+              <text x="466" y="100" fill="var(--text)" font-size="10" font-weight="700" text-anchor="middle">CanNm Rx (PNI=1 &amp; PNSR=1)</text>
+              <text x="466" y="116" fill="var(--hb-ok)" font-size="9.5" text-anchor="middle">Nm_ForwardSynchronizedPncShutdown()</text>
+              <rect x="352" y="144" width="228" height="52" rx="6" fill="var(--hb-card2)" stroke="var(--hb-stroke)" stroke-width="1"/>
+              <text x="466" y="164" fill="var(--text)" font-size="10" font-weight="700" text-anchor="middle">ComM nhận Forward Shutdown</text>
+              <text x="466" y="180" fill="var(--muted)" font-size="9.5" text-anchor="middle">Chuyển tiếp xuống kênh Active phụ</text>
+
+              <rect x="634" y="24" width="266" height="188" rx="10" fill="var(--hb-card)" stroke="var(--hb-err)" stroke-width="2"/>
+              <text x="767" y="46" fill="var(--hb-err)" font-size="11.5" font-weight="800" text-anchor="middle">3. Quy Tắc Bảo Vệ &amp; Hoàn Tất</text>
+              <rect x="648" y="72" width="238" height="60" rx="6" fill="var(--hb-err-bg)" stroke="var(--hb-err)" stroke-width="1"/>
+              <text x="767" y="92" fill="var(--hb-err)" font-size="10" font-weight="800" text-anchor="middle">Nếu nhận PNSR=1 trên kênh Active?</text>
+              <text x="767" y="108" fill="var(--text)" font-size="9.5" text-anchor="middle">Báo DET Runtime Error 0x20</text>
+              <text x="767" y="122" fill="var(--muted)" font-size="9" text-anchor="middle">(INVALID_PN_SYNC_SHUTDOWN_REQUEST)</text>
+              <rect x="648" y="144" width="238" height="52" rx="6" fill="var(--hb-card2)" stroke="var(--hb-stroke)" stroke-width="1"/>
+              <text x="767" y="164" fill="var(--text)" font-size="10" font-weight="700" text-anchor="middle">Khi toàn cụm PNC về NO_COM:</text>
+              <text x="767" y="180" fill="var(--hb-ok)" font-size="9.5" font-weight="700" text-anchor="middle">CanNm_DeactivateTxPnShutdownMsg()</text>
+
+              <line x1="594" y1="118" x2="634" y2="118" stroke="var(--hb-err)" stroke-width="2" marker-end="url(#b30_arr_err)"/>
+            </svg>
+          </div>
+
+          <table class="tbl">
+            <thead>
+              <tr>
+                <th style="width:210px">Thành Phần / Trạng Thái PNC</th>
+                <th>Chức Năng &amp; Phân Tách Trách Nhiệm R25-11</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td><b>ComM PNC Sub-states</b> (<code>SWS_ComM_00907</code>)</td><td>Mỗi PNC trên ComM có 4 pha: <code>COMM_PNC_NO_COMMUNICATION</code> &harr; <code>COMM_PNC_REQUESTED</code> (User cần PNC hoặc Gateway kích) &rarr; <code>COMM_PNC_READY_SLEEP</code> (User nhả hết, bus khác vẫn giữ EIRA=1) &rarr; <code>COMM_PNC_PREPARE_SLEEP</code> (chờ hết <code>ComMPncPrepareSleepTimer</code> rồi ngủ đồng loạt).</td></tr>
+              <tr><td><b>EIRA &amp; ERA Update</b> (<code>SWS_ComM_01060</code>)</td><td>CanNm không còn giữ EIRA/ERA riêng mà đẩy bit vector qua <code>Nm_PncBitVectorRxIndication</code> (<code>00503</code>) &amp; <code>TxIndication</code> (<code>00515</code>) để ComM cập nhật trạng thái từng PNC.</td></tr>
+              <tr><td><b>Dynamic PNC Learning</b> (<code>SWS_CanNm_91004</code>)</td><td>Khi bật <code>CanNmDynamicPncToChannelMappingEnabled</code>, gọi <code>CanNm_PnLearningRequest()</code> để vào RMS và gài bit <code>PNL=1</code> giúp các node học bảng ánh xạ PNC-to-Channel mới.</td></tr>
+              <tr><td><b>Sync PNC Shutdown APIs</b> (<code>91005 / 91006</code>)</td><td>ComM Active Gateway gọi <code>CanNm_ActivateTxPnShutdownMsg()</code> để phát <code>PNSR=1</code> khi muốn đồng bộ tắt các PNC đang rảnh, và gọi <code>DeactivateTxPnShutdownMsg()</code> ngay khi hoàn tất quá trình tắt.</td></tr>
+            </tbody>
+          </table>
+        `
+      },
+      {
+        title: "7.3. Tích Hợp CanIf ↔ CanNm (Tx/Rx, TriggerTransmit, Wakeup & PN Filter)",
+        swsRefs: [
+          { id: "SWS_CANIF_00005", desc: "CanIf_Transmit(), SWS_CANIF_00006 (RxIndication -> CanNm), SWS_CANIF_00007 (TxConfirmation -> CanNm)" },
+          { id: "SWS_CANIF_00883", desc: "CanIf_TriggerTransmit() (ECUC_CanIf_00840 CanIfTxPduTriggerTransmit) gọi CanNm_TriggerTransmit()" },
+          { id: "SWS_CANIF_00003", desc: "Điều khiển phần cứng từ CanSM: SetControllerMode (00003), SetTrcvMode (00287), SetPduMode (00008)" },
+          { id: "SWS_CANIF_00219", desc: "CanIf_CheckWakeup() & SWS_CANIF_00178 / 00563: CanIf_CheckValidation() (CanIfPublicWakeupCheckValidByNM)" },
+          { id: "SWS_CANIF_00815", desc: "CanIf_ConfirmPnAvailability() -> CanSM_ConfirmPnAvailability -> CanNm_ConfirmPnAvailability (00344)" },
+          { id: "SWS_CANIF_00747", desc: "PnTxFilter (SWS_CANIF_00748 CanIfTxPduPnFilterPdu): chặn phát I-PDU khi Selective Wakeup khóa" }
+        ],
+        content: `
+          <h2>7.3. Tích Hợp Giao Tiếp CanIf ↔ CanNm &amp; Kiểm Soát Phần Cứng (R25-11)</h2>
+          <p><code>CanIf</code> (CAN Interface) là lớp trừu tượng phần cứng duy nhất nằm ngay dưới <code>CanNm</code> (và nằm song song dưới <code>PduR</code>, <code>CanSM</code>). Mọi khung NM TX/RX, xác thực đánh thức (Wakeup Validation) và bộ lọc Selective Wakeup đều đi qua CanIf.</p>
+
+          <div style="margin:12px 0; background:var(--code); border:1px solid var(--border); border-radius:8px; padding:12px">
+            <div class="mono small" style="font-weight:700; color:#34d399; margin-bottom:8px">🔌 SƠ ĐỒ DATA PATH &amp; WAKEUP VALIDATION GIỮA CANNM ↔ CANIF ↔ CANSM</div>
+            <svg viewBox="0 0 920 236" class="hb-svg" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Diagram b31"><defs><marker id="b31_arr_sky" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-sky)"/></marker><marker id="b31_arr_ok" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-ok)"/></marker><marker id="b31_arr_warn" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-warn)"/></marker><marker id="b31_arr_vio" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 1 1.5 L 9 5 L 1 8.5 z" fill="var(--hb-vio)"/></marker></defs>
+              <rect x="20" y="20" width="186" height="196" rx="8" fill="var(--hb-card)" stroke="var(--hb-vio)" stroke-width="2"/>
+              <text x="113" y="42" fill="var(--hb-vio)" font-size="11.5" font-weight="800" text-anchor="middle">CanSM / EcuM</text>
+              <text x="113" y="68" fill="var(--text)" font-size="9.5" text-anchor="middle">1. Wakeup Check / Valid</text>
+              <text x="113" y="84" fill="var(--muted)" font-size="9" text-anchor="middle">CanIf_CheckWakeup()</text>
+              <text x="113" y="98" fill="var(--muted)" font-size="9" text-anchor="middle">CanIf_CheckValidation()</text>
+              <line x1="34" y1="112" x2="192" y2="112" stroke="var(--hb-stroke)" stroke-width="1"/>
+              <text x="113" y="132" fill="var(--text)" font-size="9.5" text-anchor="middle">2. Mode Controller/Trcv</text>
+              <text x="113" y="148" fill="var(--muted)" font-size="9" text-anchor="middle">SetControllerMode()</text>
+              <text x="113" y="162" fill="var(--muted)" font-size="9" text-anchor="middle">SetTrcvMode() / SetPduMode()</text>
+              <text x="113" y="188" fill="var(--hb-vio)" font-size="9.5" font-weight="700" text-anchor="middle">ConfirmPnAvailability()</text>
+
+              <rect x="282" y="20" width="220" height="196" rx="8" fill="var(--hb-card)" stroke="var(--hb-sky)" stroke-width="2"/>
+              <text x="392" y="42" fill="var(--hb-sky)" font-size="12" font-weight="800" text-anchor="middle">CanNm Module</text>
+              <rect x="296" y="60" width="192" height="44" rx="6" fill="var(--hb-sky-bg)" stroke="var(--hb-sky)" stroke-width="1"/>
+              <text x="392" y="79" fill="var(--text)" font-size="10" font-weight="700" text-anchor="middle">Tx Path (Chu kỳ / Burst)</text>
+              <text x="392" y="94" fill="var(--muted)" font-size="9" text-anchor="middle">Gọi CanIf_Transmit() + Retry</text>
+              <rect x="296" y="114" width="192" height="44" rx="6" fill="var(--hb-ok-bg)" stroke="var(--hb-ok)" stroke-width="1"/>
+              <text x="392" y="133" fill="var(--text)" font-size="10" font-weight="700" text-anchor="middle">TriggerTransmit Pull (0x41)</text>
+              <text x="392" y="148" fill="var(--muted)" font-size="9" text-anchor="middle">Lấy COM UserData trước khi Tx</text>
+              <rect x="296" y="168" width="192" height="36" rx="6" fill="var(--hb-warn-bg)" stroke="var(--hb-warn)" stroke-width="1"/>
+              <text x="392" y="190" fill="var(--text)" font-size="10" font-weight="700" text-anchor="middle">RxIndication &amp; TxConfirmation</text>
+
+              <rect x="578" y="20" width="322" height="196" rx="8" fill="var(--hb-card)" stroke="var(--hb-ok)" stroke-width="2"/>
+              <text x="739" y="42" fill="var(--hb-ok)" font-size="12" font-weight="800" text-anchor="middle">CanIf (CAN Interface - R25-11)</text>
+              <rect x="594" y="60" width="290" height="44" rx="6" fill="var(--hb-card2)" stroke="var(--hb-stroke)" stroke-width="1"/>
+              <text x="739" y="79" fill="var(--text)" font-size="10" font-weight="700" text-anchor="middle">Tx Buffer + PnTxFilter Gate (00747)</text>
+              <text x="739" y="94" fill="var(--muted)" font-size="9" text-anchor="middle">Chỉ pass PDU nếu PNC mở hoặc PduMode=ONLINE</text>
+              <rect x="594" y="114" width="290" height="44" rx="6" fill="var(--hb-card2)" stroke="var(--hb-stroke)" stroke-width="1"/>
+              <text x="739" y="133" fill="var(--text)" font-size="10" font-weight="700" text-anchor="middle">WakeupValidationFlag (00741)</text>
+              <text x="739" y="148" fill="var(--muted)" font-size="9" text-anchor="middle">Chờ khung NM hợp lệ mới báo EcuM_ValidateWakeup</text>
+              <rect x="594" y="168" width="290" height="36" rx="6" fill="var(--hb-card2)" stroke="var(--hb-stroke)" stroke-width="1"/>
+              <text x="739" y="190" fill="var(--text)" font-size="10" font-weight="700" text-anchor="middle">CanDrv &amp; CanTrcv Hardware (CAN Bus)</text>
+
+              <line x1="206" y1="86" x2="594" y2="136" stroke="var(--hb-vio)" stroke-width="1.6" stroke-dasharray="4 3" marker-end="url(#b31_arr_vio)"/>
+              <line x1="488" y1="82" x2="578" y2="82" stroke="var(--hb-sky)" stroke-width="2" marker-end="url(#b31_arr_sky)"/>
+              <line x1="578" y1="136" x2="488" y2="136" stroke="var(--hb-ok)" stroke-width="2" marker-end="url(#b31_arr_ok)"/>
+              <line x1="578" y1="186" x2="488" y2="186" stroke="var(--hb-warn)" stroke-width="2" marker-end="url(#b31_arr_warn)"/>
+            </svg>
+          </div>
+
+          <table class="tbl">
+            <thead>
+              <tr>
+                <th style="width:225px">Cơ Chế / API CanIf</th>
+                <th style="width:130px">SWS_CANIF ID</th>
+                <th>Tương Tác Với CanNm &amp; Ý Nghĩa Thực Tế</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td><b>Tx / Rx / Confirmation chuẩn</b></td><td><code>00005 / 00006 / 00007</code></td><td>CanNm phát qua <code>CanIf_Transmit()</code>; khi xong hardware ngắt gọi <code>CanNm_TxConfirmation()</code>; nhận khung lọc ID gọi <code>CanNm_RxIndication()</code>.</td></tr>
+              <tr><td><b>TriggerTransmit JIT Payload</b></td><td><code>SWS_CANIF_00883</code></td><td>Khi bật <code>CanIfTxPduTriggerTransmit</code> (<code>ECUC_CanIf_00840</code>), CanIf gọi <code>CanNm_TriggerTransmit()</code> để lấy snapshot COM User Data mới nhất trước lúc gửi.</td></tr>
+              <tr><td><b>Control Modes (CanSM &rarr; CanIf)</b></td><td><code>00003 / 00287 / 00008</code></td><td>CanSM đóng/mở Controller (<code>STARTED/STOPPED/SLEEP</code>), Transceiver (<code>NORMAL/STANDBY</code>) và <code>PduMode</code> (<code>ONLINE / TX_OFFLINE</code>) theo các pha <code>BusSleep / NetworkMode</code> của CanNm.</td></tr>
+              <tr><td><b>Wakeup Validation by NM</b></td><td><code>00219 / 00178 / 00563</code></td><td>Khi bật <code>CanIfPublicWakeupCheckValidByNM</code> (<code>ECUC_CanIf_00741</code>), xung Wakeup phần cứng phải được xác thực bằng một <b>NM PDU</b> qua <code>CanIf_RxIndication</code> trước khi <code>CanIf_CheckValidation()</code> báo <code>EcuM_ValidateWakeupEvent()</code>.</td></tr>
+              <tr><td><b>Selective Wakeup &amp; PnTxFilter</b></td><td><code>00815 / 00747 / 00748</code></td><td>Transceiver PN thức dậy báo <code>CanIf_ConfirmPnAvailability()</code> &rarr; <code>CanSM</code> &rarr; <code>CanNm_ConfirmPnAvailability()</code>; đồng thời <code>CanIf</code> dùng <code>PnTxFilter</code> (<code>CanIfTxPduPnFilterPdu</code>) ngăn các I-PDU không có quyền làm đánh thức bus ngoài ý muốn.</td></tr>
             </tbody>
           </table>
         `
@@ -7199,13 +7482,13 @@ function renderCurrentHandbookView() {
   const filterBox = document.getElementById("hbAbbrFilterBox");
   const nav2 = document.getElementById("hbNav2");
 
-  if (activeHbTab1 === 6) {
-    // Tab 7: Abbreviation Table
+  if (activeHbTab1 === HANDBOOK_DATA.length) {
+    // Last Tab: Abbreviation Table
     if (nav2) nav2.innerHTML = "";
     if (filterBox) filterBox.classList.remove("hidden");
     renderAbbreviationTable();
   } else {
-    // Tabs 0..5: Technical Topics
+    // Tabs 0..(HANDBOOK_DATA.length-1): Technical Topics
     if (filterBox) filterBox.classList.add("hidden");
     renderHbSubNav();
     renderHandbookContent();
@@ -7270,7 +7553,7 @@ function renderHandbookContent() {
   const contentArea = document.getElementById("hbContentArea");
   if (!contentArea) return;
 
-  if (activeHbTab1 === 6) {
+  if (activeHbTab1 === HANDBOOK_DATA.length) {
     renderAbbreviationTable();
     return;
   }
