@@ -3,7 +3,7 @@ import subprocess
 import sys
 
 BUILD_DIR = Path(__file__).resolve().parent
-OUT_FILE = BUILD_DIR.parent / "Simulation" / "AUTOSAR_ComM.html"
+OUT_FILE = BUILD_DIR.parent.parent / "Simulation" / "03_Services" / "AUTOSAR_ComM.html"
 
 PARTS = [
     "part1_head_and_styles.html",

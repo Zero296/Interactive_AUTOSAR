@@ -80,23 +80,23 @@ def path_arrow(d, color="var(--hb-pri)", marker="hbArr", dashed=False):
 def diag_comm_ecosystem():
     inner = (
         box_ml(20, 18, 220, 62, "SWC Users (0 / 1 / 2)", ["ComM_RequestComMode()", "ComM_GetCurrentComMode()"], "var(--hb-acc)")
-        + box_ml(290, 18, 220, 62, "DCM (UDS Diagnostics)", ["ComM_DCM_ActiveDiagnostic()", "ComM_DCM_InactiveDiagnostic()"], "var(--hb-warn)")
-        + box_ml(560, 18, 220, 62, "EcuM & BswM", ["ComM_CommunicationAllowed()", "BswM_ComM_CurrentMode()"], "var(--hb-ok)")
+        + box_ml(290, 18, 220, 62, "DCM (UDS Diagnostics)", ["ActiveDiag / InactiveDiag()", "Dcm_ComM_*ModeEntered()"], "var(--hb-warn)")
+        + box_ml(560, 18, 220, 62, "EcuM (Wakeup & Init)", ["ComM_Init / WakeUpInd()", "ComM_CommunicationAllowed()"], "var(--hb-ok)")
 
         + box_ml(20, 134, 195, 78, "RTE & SchM", ["SchM_ComM_MainFunction()", "Rte_Switch_UM_currentMode"], "var(--hb-acc)")
-        + box_ml(260, 128, 280, 90, "ComM Core (SWS_ComM)", ["Bộ phân xử Đa User & Mode Inhibition", "Channel State Machine (3 Modes)", "PNC State Machine (4 Trạng thái)"], "var(--hb-pri)", "var(--hb-card2)", "var(--hb-pri)")
+        + box_ml(260, 128, 280, 90, "ComM Core (SWS_ComM)", ["Bộ phân xử Đa User & Mode Inhibition", "Channel SM (SWS_ComM_00879..00881)", "PNC SM (SWS_ComM_00909 / 00978)"], "var(--hb-pri)", "var(--hb-card2)", "var(--hb-pri)")
         + box_ml(585, 134, 195, 78, "NvM & DET Services", ["NvM_SetRamBlockStatus()", "Det_ReportError(Module = 12)"], "var(--hb-err)")
 
-        + box_ml(20, 274, 225, 66, "AUTOSAR COM / PduR", ["Com_SendSignal() [Tx PNC]", "ComM_COMCbk() [Rx EIRA/ERA]"], "var(--hb-cyan)")
-        + box_ml(288, 274, 224, 66, "Nm / CanNm", ["Nm_NetworkRequest / Release()", "PrepareBusSleep / BusSleep Ind"], "var(--hb-pur)")
-        + box_ml(555, 274, 225, 66, "BusSM (CanSM / EthSM)", ["CanSM_RequestComMode()", "ComM_BusSM_ModeIndication()"], "var(--hb-ok)")
+        + box_ml(20, 274, 225, 66, "BswM -> COM (I-PDU Ctrl)", ["BswM_ComM_CurrentMode()", "CurrentPNCMode / InitiateReset"], "var(--hb-cyan)")
+        + box_ml(288, 274, 224, 66, "NmIf / CanNm (NM & PNC)", ["Nm_NetworkRequest / Passive()", "Nm_UpdateIRA & EIRA/ERA (NmIf)"], "var(--hb-pur)")
+        + box_ml(555, 274, 225, 66, "<Bus>SM (CanSM / EthSM)", ["<Bus>SM_RequestComMode()", "ComM_<Bus>SM_ModeIndication()"], "var(--hb-ok)")
 
         + line_arrow(118, 80, 118, 134, "var(--hb-acc)", "hbArr")
         + pill_label(118, 107, "Cổng SWC Request", "var(--hb-acc)")
 
         + line_arrow(215, 173, 260, 173, "var(--hb-pri)", "hbArr")
         + line_arrow(400, 80, 400, 128, "var(--hb-warn)", "hbArrWarn")
-        + pill_label(400, 104, "Quyền ưu tiên DCM", "var(--hb-warn)")
+        + pill_label(400, 104, "DCM Active / ModeAck", "var(--hb-warn)")
 
         + path_arrow("M 625 80 L 625 104 L 495 104 L 495 128", "var(--hb-ok)", "hbArrOk")
         + pill_label(615, 104, "CommAllowed & Wakeup", "var(--hb-ok)")
@@ -104,10 +104,10 @@ def diag_comm_ecosystem():
         + line_arrow(540, 173, 585, 173, "var(--hb-err)", "hbArrErr")
 
         + path_arrow("M 315 218 L 315 246 L 132 246 L 132 274", "var(--hb-cyan)", "hbArrCyan")
-        + pill_label(175, 246, "Tín hiệu PNC Bit Vector", "var(--hb-cyan)")
+        + pill_label(175, 246, "Chỉ thị BswM I-PDU", "var(--hb-cyan)")
 
         + line_arrow(400, 218, 400, 274, "var(--hb-pur)", "hbArrPur")
-        + pill_label(400, 246, "Điều phối NM", "var(--hb-pur)")
+        + pill_label(400, 246, "NM & PNC (EIRA/ERA/IRA)", "var(--hb-pur)")
 
         + path_arrow("M 485 218 L 485 246 L 667 246 L 667 274", "var(--hb-ok)", "hbArrOk")
         + pill_label(625, 246, "Chế độ phần cứng", "var(--hb-ok)")
@@ -156,16 +156,16 @@ def diag_bussm_handshake():
         + box_ml(540, 148, 240, 66, "3. Wait Confirmation Gate", ["Trong lúc chờ: Bit 1 BUSSM = 0", "User CurrentMode VẪN LÀ NO_COM!"], "var(--hb-warn)")
         + box_ml(20, 148, 240, 66, "4. ComM Confirm Handler", ["Nhận ModeIndication(FULL_COM)", "Bật Bit 1 BUSSM = 1"], "var(--hb-ok)")
 
-        + box_ml(355, 248, 265, 66, "5. BswM & SWC Notification", ["BswM mở Tx/Rx I-PDU Group", "Rte_Switch báo User FULL_COM"], "var(--hb-pur)")
+        + box_ml(355, 248, 265, 66, "5. BswM, DCM & SWC Notification", ["BswM mở Tx/Rx I-PDU Group", "Dcm_ComM_Full & Rte_Switch(FULL)"], "var(--hb-pur)")
 
         + line_arrow(260, 55, 540, 55, "var(--hb-pri)", "hbArr")
-        + pill_label(400, 40, "1. CanSM_RequestComMode(0, FULL_COM)", "var(--hb-pri)")
+        + pill_label(400, 40, "1. <Bus>SM_RequestComMode(0, FULL_COM)", "var(--hb-pri)")
 
         + line_arrow(660, 88, 660, 148, "var(--hb-warn)", "hbArrWarn")
         + pill_label(644, 118, "Đang khởi động HW", "var(--hb-warn)", anchor="end")
 
         + line_arrow(540, 181, 260, 181, "var(--hb-ok)", "hbArrOk")
-        + pill_label(400, 165, "2. ComM_BusSM_ModeIndication(0, FULL_COM)", "var(--hb-ok)")
+        + pill_label(400, 165, "2. ComM_BusSM_ModeIndication(0, Mode)", "var(--hb-ok)")
 
         + path_arrow("M 140 214 L 140 281 L 355 281", "var(--hb-pur)", "hbArrPur")
         + pill_label(248, 252, ["3. BswM_ComM_CurrentMode()", "& Rte_Switch(FULL_COM)"], "var(--hb-pur)", anchor="middle")
@@ -193,7 +193,7 @@ def diag_sync_wakeup():
     return svg_wrap(800, 236, inner)
 
 
-# 2.1 Bản đồ 3 Modes & 5 Sub-States (SWS_ComM_00298)
+# 2.1 Bản đồ 3 Modes & 5 Sub-States (SWS_ComM_00879..00881)
 def diag_channel_sm():
     inner = (
         f'<rect class="svg-box" x="16" y="22" width="272" height="162" rx="10" fill="var(--hb-card)" stroke="var(--hb-pri)" stroke-width="2"/>'
@@ -203,16 +203,16 @@ def diag_channel_sm():
 
         + f'<rect class="svg-box" x="532" y="22" width="272" height="162" rx="10" fill="var(--hb-card)" stroke="var(--hb-ok)" stroke-width="2"/>'
         + f'<text x="668" y="46" text-anchor="middle" fill="var(--hb-ok)" font-weight="800" font-size="12">3. COMM_FULL_COMMUNICATION</text>'
-        + box_ml(544, 62, 248, 50, "COMM_FULL_COM_NETWORK_REQUESTED", ["User / DCM / TMinFull giữ mạng"], "var(--hb-ok)", "var(--hb-card2)", "var(--hb-ok)", title_size=10.5, line_size=9.5)
+        + box_ml(544, 62, 248, 50, "COMM_FULL_COM_NETWORK_REQUESTED", ["User / DCM / Passive / TMinFull"], "var(--hb-ok)", "var(--hb-card2)", "var(--hb-ok)", title_size=10.5, line_size=9.5)
         + box_ml(544, 122, 248, 50, "COMM_FULL_COM_READY_SLEEP", ["Hết User Req / Đếm NmLightTimeout"], "var(--hb-cyan)", "var(--hb-card2)", "var(--hb-cyan)", title_size=10.5, line_size=9.5)
 
-        + box_ml(275, 238, 270, 68, "2. COMM_SILENT_COMMUNICATION", ["Sub-state: COMM_SILENT_COM", "Chỉ nhận (Rx), cấm phát Tx (FULL/PASSIVE)"], "var(--hb-pur)", "var(--hb-card2)", "var(--hb-pur)")
+        + box_ml(275, 238, 270, 68, "2. COMM_SILENT_COMMUNICATION", ["Chỉ Rx, bỏ qua CommAllowed (00896)", "Chuyển FULL_COM nếu Req / NmMode"], "var(--hb-pur)", "var(--hb-card2)", "var(--hb-pur)")
 
         + line_arrow(288, 82, 532, 82, "var(--hb-ok)", "hbArrOk")
-        + pill_label(410, 58, ["CommunicationAllowed == TRUE", "& (User Req / Passive Wakeup)"], "var(--hb-ok)")
+        + pill_label(410, 58, ["CommunicationAllowed == TRUE", "(Passive quá cảnh NET_REQ)"], "var(--hb-ok)")
 
         + line_arrow(532, 152, 288, 152, "var(--hb-warn)", "hbArrWarn", dashed=True)
-        + pill_label(410, 152, "NmLightTimeout == 0 (LIGHT) / NONE", "var(--hb-warn)")
+        + pill_label(410, 152, "NmLight==0 (LIGHT) | INTERNAL", "var(--hb-warn)")
 
         + path_arrow("M 668 184 L 668 272 L 545 272", "var(--hb-pur)", "hbArrPur")
         + pill_label(675, 236, ["ComM_Nm_PrepareBusSleepMode()", "(Biến thể FULL / PASSIVE)"], "var(--hb-pur)")
@@ -223,7 +223,7 @@ def diag_channel_sm():
     return svg_wrap(820, 326, inner)
 
 
-# 2.2 So sánh 4 Biến thể ComMNmVariant (Không tràn viền!)
+# 2.2 So sánh Biến thể ComMNmVariant (FULL / LIGHT / PASSIVE / SLAVE / NONE)
 def diag_nm_variants():
     inner = (
         box_ml(16, 20, 186, 180, "FULL Variant", [
@@ -240,20 +240,20 @@ def diag_nm_variants():
             "Bỏ qua SILENT_COM",
             "Tắt thẳng READY_SLEEP->NO"
         ], "var(--hb-warn)", "var(--hb-card)", "var(--hb-warn)", line_size=10)
-        + box_ml(416, 20, 186, 180, "PASSIVE Variant", [
-            "Chỉ nghe gói NM từ mạng",
-            "SWC KHÔNG được tự xin",
-            "NETWORK_REQUESTED",
-            "Chỉ vào READY_SLEEP thụ động",
-            "Có trạng thái SILENT_COM"
-        ], "var(--hb-pur)", "var(--hb-card)", "var(--hb-pur)", line_size=10)
+        + box_ml(416, 20, 186, 180, "PASSIVE / SLAVE_*", [
+            "PASSIVE: nghe NM (ReadySleep)",
+            "Qua NET_REQ (PassiveStartUp)",
+            "SLAVE_ACTIVE: User + BusSleepInd",
+            "SLAVE_PASSIVE: chỉ nghe Slave",
+            "Cấm gọi Nm_NetworkRequest()"
+        ], "var(--hb-pur)", "var(--hb-card)", "var(--hb-pur)", line_size=9.5)
         + box_ml(616, 20, 188, 180, "NONE Variant", [
             "Không dùng NM & SILENT",
             "Dùng TMinFullComMode",
             "Hết User & hết TMinFull:",
-            "Chuyển thẳng FULL_COM",
-            "xuống NO_COMMUNICATION"
-        ], "var(--hb-cyan)", "var(--hb-card)", "var(--hb-cyan)", line_size=10)
+            "Bus vật lý: dừng READY_SLEEP",
+            "INTERNAL: nhảy thẳng NO_COM"
+        ], "var(--hb-cyan)", "var(--hb-card)", "var(--hb-cyan)", line_size=9.5)
     )
     return svg_wrap(820, 220, inner)
 
@@ -297,7 +297,7 @@ def diag_shutdown_seq():
         + pill_label(616, 28, "Nm_BusSleepMode()", "var(--hb-pri)")
 
         + path_arrow("M 307 150 L 307 194 L 719 194 L 719 150", "var(--hb-warn)", "hbArrWarn", dashed=True)
-        + pill_label(513, 194, "Biến thể LIGHT: Hết ComMNmLightTimeout tắt thẳng về NO_COMMUNICATION (bỏ qua SILENT)", "var(--hb-warn)")
+        + pill_label(513, 194, "LIGHT hết NmLightTimeout / INTERNAL tắt thẳng NO_COM (bỏ qua SILENT)", "var(--hb-warn)")
     )
     return svg_wrap(820, 226, inner)
 
@@ -306,15 +306,15 @@ def diag_shutdown_seq():
 def diag_inhibition_gates():
     inner = (
         box_ml(20, 20, 205, 56, "1. SWC User Request", ["ComM_RequestComMode(FULL)"], "var(--hb-acc)")
-        + box_ml(295, 20, 225, 56, "Mode Inhibition Filter", ["Bit 0: NoWakeup (chặn Wake)", "Bit 1: LimitToNoCom (ép tắt)"], "var(--hb-err)")
-        + box_ml(295, 110, 225, 56, "InhibitCounter++ & NvM", ["Từ chối User Request -> ++", "NvM_SetRamBlockStatus(TRUE)"], "var(--hb-warn)")
+        + box_ml(295, 20, 225, 56, "Mode Inhibition Filter", ["Bit 0: NoWakeup (chặn Wake)", "Bit 1: LimitToNoCom (xóa Req)"], "var(--hb-err)")
+        + box_ml(295, 110, 225, 56, "InhibitCounter++ & NvM", ["Trả COMM_E_MODE_LIMITATION", "NvM_SetRamBlockStatus(TRUE)"], "var(--hb-warn)")
 
         + box_ml(20, 190, 205, 56, "2. Passive Bus Wakeup", ["EcuM / CanNm từ bus ngoài"], "var(--hb-cyan)")
         + box_ml(20, 264, 205, 56, "3. DCM ActiveDiagnostic", ["Phiên chẩn đoán UDS OBD"], "var(--hb-ok)", "var(--hb-card2)", "var(--hb-ok)")
 
         + box_ml(585, 114, 195, 120, "Channel State Action", [
-            "User bị chặn -> NO_COM",
-            "User qua gate -> FULL_COM",
+            "Limit -> XÓA User (NO_COM)",
+            "NoWakeup -> GIỮ User Req",
             "Passive -> READY_SLEEP",
             "DCM -> OVERRIDE TẤT CẢ!"
         ], "var(--hb-pri)", "var(--hb-card2)", "var(--hb-pri)")
@@ -335,19 +335,19 @@ def diag_inhibition_gates():
     return svg_wrap(800, 336, inner)
 
 
-# 3.2 EcuGroupClassification Mask Truth Logic
+# 3.2 EcuGroupClassification API Gate (SWS_ComM_01102 / 01103)
 def diag_mask_truth():
     inner = (
-        box_ml(20, 24, 225, 62, "PreventWakeUp (Bit 0)", ["ComM_PreventWakeUp(Ch, TRUE)"], "var(--hb-warn)")
-        + box_ml(20, 120, 225, 62, "LimitToNoCom (Bit 1)", ["ComM_LimitChannelToNoCom(TRUE)"], "var(--hb-err)")
-        + box_ml(300, 58, 220, 92, "AND Classification Mask", ["ComMEcuGroupClassification:", "Bit 0 (0x01) · Bit 1 (0x02)", "0x00 = Vô hiệu hóa tất cả!"], "var(--hb-pri)", "var(--hb-card2)", "var(--hb-pri)")
-        + box_ml(575, 24, 205, 62, "Effective CH_NW", ["Bit 0 Active = Status & 0x01"], "var(--hb-warn)")
-        + box_ml(575, 120, 205, 62, "Effective CH_LIM", ["Bit 1 Active = Status & 0x02"], "var(--hb-err)")
+        box_ml(20, 24, 225, 62, "API ComM_PreventWakeUp()", ["Kiểm tra Classification & 0x01"], "var(--hb-warn)")
+        + box_ml(20, 120, 225, 62, "API LimitToNoComMode()", ["Kiểm tra Classification & 0x02"], "var(--hb-err)")
+        + box_ml(296, 54, 228, 98, "Classification API Gate", ["Bit=1 -> E_OK (Cho đổi cờ)", "Bit=0 -> E_NOT_OK (Từ chối)", "Không xóa cờ đã bật trước đó!"], "var(--hb-pri)", "var(--hb-card2)", "var(--hb-pri)", line_size=9.5)
+        + box_ml(575, 24, 205, 62, "E_OK: Cập nhật CH_NW", ["Lưu User Req (SWS_ComM_00839)"], "var(--hb-warn)")
+        + box_ml(575, 120, 205, 62, "E_OK: Cập nhật CH_LIM", ["Xóa User Req (SWS_ComM_00582)"], "var(--hb-err)")
 
-        + line_arrow(245, 55, 300, 82, "var(--hb-warn)", "hbArrWarn")
-        + line_arrow(245, 151, 300, 124, "var(--hb-err)", "hbArrErr")
-        + line_arrow(520, 82, 575, 55, "var(--hb-warn)", "hbArrWarn")
-        + line_arrow(520, 124, 575, 151, "var(--hb-err)", "hbArrErr")
+        + line_arrow(245, 55, 296, 82, "var(--hb-warn)", "hbArrWarn")
+        + line_arrow(245, 151, 296, 124, "var(--hb-err)", "hbArrErr")
+        + line_arrow(524, 82, 575, 55, "var(--hb-warn)", "hbArrWarn")
+        + line_arrow(524, 124, 575, 151, "var(--hb-err)", "hbArrErr")
     )
     return svg_wrap(800, 206, inner)
 
@@ -382,7 +382,7 @@ def diag_pnc_vector():
     inner = (
         box_ml(20, 20, 125, 52, "Byte 0", ["Source Node ID"], "var(--hb-mut)")
         + box_ml(158, 20, 115, 52, "Byte 1", ["CBV (Control)"], "var(--hb-mut)")
-        + box_ml(286, 20, 245, 52, "Byte 2 (Offset = 2)", ["PNC #16 (0x01) .. PNC #23 (0x80)"], "var(--hb-cyan)", "var(--hb-card2)", "var(--hb-cyan)")
+        + box_ml(286, 20, 245, 52, "Byte 2 (SWS_ComM_00825)", ["PNC #16 (0x01) .. PNC #23 (0x80)"], "var(--hb-cyan)", "var(--hb-card2)", "var(--hb-cyan)")
         + box_ml(544, 20, 236, 52, "Byte 3 (Length = 2)", ["PNC #24 .. PNC #31"], "var(--hb-pur)")
 
         + box_ml(100, 100, 70, 44, "b7", ["PNC#23"], "var(--hb-bdr)", line_size=9.5)
@@ -396,26 +396,26 @@ def diag_pnc_vector():
 
         + line_arrow(408, 72, 408, 96, "var(--hb-cyan)", "hbArrCyan")
 
-        + box_ml(110, 166, 580, 50, "Công thức ánh xạ bit PNC trong AUTOSAR ComM", [
-            "ByteIndex = (PncId / 8) - ComMPncInfoOffset   |   BitMask = 1 << (PncId % 8)"
+        + box_ml(110, 166, 580, 50, "Công thức ánh xạ bit PNC trong AUTOSAR R25-11 (SWS_ComM_00825)", [
+            "ByteIndex = (PncId / 8) - StartOffset   |   BitMask = 1 << (PncId % 8)"
         ], "var(--hb-pri)", "var(--hb-card2)", "var(--hb-pri)")
     )
     return svg_wrap(800, 232, inner)
 
 
-# 4.2 Máy trạng thái PNC 4 bước (SWS_ComM_00909) — Không đè mũi tên đứng!
+# 4.2 Máy trạng thái PNC 4 bước (SWS_ComM_00909 / 00938) — Rời REQUESTED luôn qua READY_SLEEP!
 def diag_pnc_sm():
     inner = (
-        box_ml(36, 24, 245, 68, "COMM_PNC_NO_COMMUNICATION", ["Cụm PNC đang tắt hẳn", "Tx PN Bit = 0, không giữ kênh"], "var(--hb-mut)", title_size=11)
-        + box_ml(518, 24, 245, 68, "COMM_PNC_REQUESTED", ["Internal User / GW yêu cầu", "Gọi Com_SendSignal(Tx Bit = 1)"], "var(--hb-ok)", "var(--hb-card2)", "var(--hb-ok)", title_size=11)
-        + box_ml(518, 182, 245, 68, "COMM_PNC_READY_SLEEP", ["Nội bộ đã nhả, Rx EIRA = 1", "Giữ kênh chỉ nghe (Tx = 0)"], "var(--hb-cyan)", title_size=11)
-        + box_ml(36, 182, 245, 68, "COMM_PNC_PREPARE_SLEEP", ["Cả User & Rx EIRA về 0", "Đếm ComMPncPrepareSleepTimer"], "var(--hb-warn)", title_size=11)
+        box_ml(36, 24, 245, 68, "COMM_PNC_NO_COMMUNICATION", ["Cụm PNC đang tắt hẳn", "Nm_UpdateIRA = 0, không giữ kênh"], "var(--hb-mut)", title_size=11)
+        + box_ml(518, 24, 245, 68, "COMM_PNC_REQUESTED", ["Internal User / GW yêu cầu", "Gọi Nm_UpdateIRA(IRA=1) & FULL"], "var(--hb-ok)", "var(--hb-card2)", "var(--hb-ok)", title_size=11)
+        + box_ml(518, 182, 245, 68, "COMM_PNC_READY_SLEEP", ["Xóa Nm_UpdateIRA=0, nhả kênh", "Nếu Rx EIRA = 1 thì giữ ở đây"], "var(--hb-cyan)", title_size=11)
+        + box_ml(36, 182, 245, 68, "COMM_PNC_PREPARE_SLEEP", ["Từ READY_SLEEP khi EIRA == 0", "Đếm ComMPncPrepareSleepTimer"], "var(--hb-warn)", title_size=11)
 
         + line_arrow(281, 58, 518, 58, "var(--hb-ok)", "hbArrOk")
-        + pill_label(400, 40, "User Request / Gateway ERA = 1", "var(--hb-ok)")
+        + pill_label(400, 40, "User Req (MainFn) / Gateway ERA = 1", "var(--hb-ok)")
 
         + line_arrow(640, 92, 640, 182, "var(--hb-cyan)", "hbArrCyan")
-        + pill_label(624, 136, ["User Release,", "nhưng Rx EIRA = 1"], "var(--hb-cyan)", anchor="end")
+        + pill_label(624, 136, ["Mọi lần rời REQUESTED:", "LUÔN vào READY_SLEEP trước!"], "var(--hb-cyan)", anchor="end")
 
         + line_arrow(518, 216, 281, 216, "var(--hb-warn)", "hbArrWarn")
         + pill_label(400, 200, "Rx EIRA == 0 (Không còn ECU giữ)", "var(--hb-warn)")
@@ -426,16 +426,16 @@ def diag_pnc_sm():
     return svg_wrap(800, 272, inner)
 
 
-# 4.3 EIRA vs ERA Signal Routing
+# 4.3 EIRA vs ERA Signal Routing (R25-11: NmIf trực tiếp, không qua COM)
 def diag_eira_era():
     inner = (
-        box_ml(20, 20, 200, 56, "EIRA (Global Array)", ["Gộp Rx ngoài bus + Nội bộ", "trên tất cả các kênh của PNC"], "var(--hb-cyan)")
-        + box_ml(295, 20, 215, 56, "ComM_COMCbk_EIRA()", ["Đọc Com_ReceiveSignal", "Cập nhật PNC_READY_SLEEP"], "var(--hb-pri)")
-        + box_ml(575, 20, 205, 56, "BswM & Local Channels", ["Giữ kênh Ch0/Ch1 thức", "Mở I-PDU nhận dữ liệu PNC"], "var(--hb-ok)")
+        box_ml(20, 20, 200, 56, "EIRA (Global Array)", ["NmIf gộp ngoài + nội bộ", "trên tất cả kênh của PNC"], "var(--hb-cyan)")
+        + box_ml(295, 20, 215, 56, "ComM_Nm_UpdateEIRA()", ["NmIf báo trực tiếp ComM", "Giữ PNC_READY_SLEEP"], "var(--hb-pri)")
+        + box_ml(575, 20, 205, 56, "BswM_ComM_CurrentPNCMode", ["Mở I-PDU thuộc cụm PNC", "Khi hết EIRA -> PREP_SLEEP"], "var(--hb-ok)")
 
         + box_ml(20, 128, 200, 56, "ERA (Per-Channel Bus)", ["Chỉ chứa Rx từ bên ngoài", "riêng từng kênh (Ch0 / Ch1)"], "var(--hb-pur)")
-        + box_ml(295, 128, 215, 56, "ComM_COMCbk_ERA()", ["Chỉ dùng cho PNC Gateway", "tránh tự dội ngược loop"], "var(--hb-warn)")
-        + box_ml(575, 128, 205, 56, "PNC Gateway Routing", ["Chuyển tiếp Tx PN Signal", "sang các kênh đích hợp lệ"], "var(--hb-pur)")
+        + box_ml(295, 128, 215, 56, "ComM_Nm_UpdateERA(Ch)", ["NmIf báo trực tiếp ComM", "Đầu vào PNC Gateway GW"], "var(--hb-warn)")
+        + box_ml(575, 128, 205, 56, "Nm_UpdateIRA(Ch, IRA)", ["ComM xuất IRA từng kênh", "trực tiếp xuống NmIf (01062)"], "var(--hb-pur)")
 
         + line_arrow(220, 48, 295, 48, "var(--hb-cyan)", "hbArrCyan")
         + line_arrow(510, 48, 575, 48, "var(--hb-ok)", "hbArrOk")
@@ -448,24 +448,24 @@ def diag_eira_era():
 # 4.4 PNC Gateway (ACTIVE / PASSIVE) & Synchronized Shutdown
 def diag_pnc_gateway():
     inner = (
-        box_ml(18, 26, 195, 72, "Ch0 (ACTIVE Gateway)", ["Rx ERA: PNC #18 = 0x04", "Ch0_GatewayType = ACTIVE"], "var(--hb-ok)")
+        box_ml(18, 26, 195, 72, "Ch0 (ACTIVE Gateway)", ["Rx ERA: ComM_Nm_UpdateERA()", "Ch0_GatewayType = ACTIVE"], "var(--hb-ok)")
         + box_ml(302, 26, 196, 72, "ComM Gateway Router", ["ACTIVE -> ACTIVE/PASSIVE", "PNC #18 -> PNC_REQUESTED"], "var(--hb-pri)", "var(--hb-card2)", "var(--hb-pri)")
-        + box_ml(587, 26, 195, 72, "Ch1 (PASSIVE Gateway)", ["Tx PNC Bit 0x04 -> Bus", "Ch1_GatewayType = PASSIVE"], "var(--hb-pur)")
+        + box_ml(587, 26, 195, 72, "Ch1 (PASSIVE Gateway)", ["Gọi Nm_UpdateIRA(Ch1, 0x04)", "Ch1_GatewayType = PASSIVE"], "var(--hb-pur)")
 
-        + box_ml(40, 168, 325, 72, "Quy tắc Chống Loop (SWS_ComM_00944)", [
+        + box_ml(40, 168, 325, 72, "Quy tắc Chống Loop (SWS_ComM_01079)", [
             "CẤM định tuyến PASSIVE -> PASSIVE!",
-            "Kênh PASSIVE chỉ được gửi tới ACTIVE GW"
+            "Kênh PASSIVE chỉ định tuyến tới ACTIVE GW"
         ], "var(--hb-err)")
-        + box_ml(435, 168, 325, 72, "Synchronized PNC Shutdown (R21-11+)", [
-            "Khi tắt PNC #18 trên Gateway Coordinator:",
-            "Gọi Nm_RequestSynchronizedPncShutdown()"
+        + box_ml(435, 168, 325, 72, "Synchronized PNC Shutdown (R25-11)", [
+            "Top: Nm_RequestSynchronizedPncShutdown()",
+            "Interm: ForwardSyncPncShutdown (01082)"
         ], "var(--hb-cyan)")
 
         + line_arrow(213, 62, 302, 62, "var(--hb-ok)", "hbArrOk")
-        + pill_label(257, 42, "Rx ERA Ch0", "var(--hb-ok)")
+        + pill_label(257, 42, "ERA Ch0", "var(--hb-ok)")
 
         + line_arrow(498, 62, 587, 62, "var(--hb-pur)", "hbArrPur")
-        + pill_label(542, 42, "Route Tx Ch1", "var(--hb-pur)")
+        + pill_label(542, 42, "Nm_UpdateIRA", "var(--hb-pur)")
 
         + path_arrow("M 350 98 L 350 132 L 202 132 L 202 168", "var(--hb-err)", "hbArrErr")
         + pill_label(232, 132, "Kiểm tra quy tắc GW", "var(--hb-err)")
@@ -481,9 +481,9 @@ def diag_ecuc_tree():
     inner = (
         box_ml(265, 18, 270, 52, "ECUC Container: ComM", ["Cấu hình Pre-Compile & Link-Time"], "var(--hb-pri)", "var(--hb-card2)", "var(--hb-pri)")
         + box_ml(16, 122, 180, 82, "ComMGeneral", ["DevErrorDetect", "ModeLimitation", "SynchronousWakeUp", "PncSupport / Gateway"], "var(--hb-acc)", line_size=9.5)
-        + box_ml(212, 122, 180, 82, "ComMChannel", ["ChannelId & BusType", "NmVariant (FULL/LIGHT)", "NmLightTimeout", "PncGatewayType"], "var(--hb-ok)", line_size=9.5)
+        + box_ml(212, 122, 180, 82, "ComMChannel", ["ChannelId & BusType", "NmVariant (FULL..SLAVE)", "NoWakeUpInhibitionNvm", "PncGatewayType"], "var(--hb-ok)", line_size=9.5)
         + box_ml(408, 122, 180, 82, "ComMUser", ["ComMUserIdentifier", "Map User -> Channel", "Map User -> PNC", "RTE Request Ports"], "var(--hb-warn)", line_size=9.5)
-        + box_ml(604, 122, 180, 82, "ComMPnc", ["ComMPncId & Bit Mask", "PncPrepareSleepTimer", "Rx EIRA / ERA Signal", "Tx PN Signal Ref"], "var(--hb-cyan)", line_size=9.5)
+        + box_ml(604, 122, 180, 82, "ComMPnc", ["ComMPncId & SWS_00825", "PncPrepareSleepTimer", "PncChannelPerPnc", "WakeupSleepRequestEn"], "var(--hb-cyan)", line_size=9.5)
 
         + path_arrow("M 400 70 L 400 95 L 106 95 L 106 122", "var(--hb-acc)", "hbArr")
         + path_arrow("M 400 70 L 400 95 L 302 95 L 302 122", "var(--hb-ok)", "hbArrOk")

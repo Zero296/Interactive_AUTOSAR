@@ -183,9 +183,9 @@ function qaToggleLimitChannel() {
 
 function qaPulseRxEiraPnc16() {
   const nextB2 = (simState.rxEiraByte2 & 0x01) ? (simState.rxEiraByte2 & ~0x01) : (simState.rxEiraByte2 | 0x01);
-  api_ComM_COMCbk_RxEira(nextB2, simState.rxEiraByte3);
+  api_ComM_Nm_UpdateEIRA(nextB2, simState.rxEiraByte3);
   syncConfigToDOM();
-  simState.stepExplain = "Quick Action: Đảo Bit PNC #16 trong Rx EIRA -> 0x" + nextB2.toString(16).toUpperCase().padStart(2, "0") + ".";
+  simState.stepExplain = "Quick Action: NmIf gọi ComM_Nm_UpdateEIRA() đảo Bit PNC #16 -> 0x" + nextB2.toString(16).toUpperCase().padStart(2, "0") + ".";
   renderAll();
 }
 
@@ -199,10 +199,10 @@ function togglePncVectorBit(rowKind, mask) {
       syncConfigToDOM();
     }
   } else if (rowKind === "EIRA") {
-    api_ComM_COMCbk_RxEira(simState.rxEiraByte2 ^ mask, simState.rxEiraByte3);
+    api_ComM_Nm_UpdateEIRA(simState.rxEiraByte2 ^ mask, simState.rxEiraByte3);
     syncConfigToDOM();
   } else if (rowKind === "ERA0") {
-    api_ComM_COMCbk_RxEra(0, simState.rxEraCh0Byte2 ^ mask, simState.rxEraCh0Byte3);
+    api_ComM_Nm_UpdateERA(0, simState.rxEraCh0Byte2 ^ mask, simState.rxEraCh0Byte3);
     syncConfigToDOM();
   }
   renderAll();
@@ -273,13 +273,16 @@ function renderHeaderAndQuickActions() {
   document.getElementById("qaTxtRxEira").textContent = "0x" + (simState.rxEiraByte2).toString(16).toUpperCase().padStart(2, "0");
   document.getElementById("qaBtnRxEira").classList.toggle("qa-active", (simState.rxEiraByte2 & 0x01) !== 0);
 
-  // Scenario Summary & What-If
+  // Scenario Summary & What-If (preserve DOM nodes across ticks for same scenario)
   document.getElementById("scenIdBadge").textContent = sc.id + " (" + sc.group + ")";
   document.getElementById("scenSummaryBox").textContent = sc.summary;
   const wfBox = document.getElementById("whatIfContainer");
-  wfBox.innerHTML = sc.whatIfs.map((w, i) =>
-    "<button class=\"whatif-btn\" onclick=\"runWhatIf(" + i + ")\">" + escapeHtmlSafe(w.label) + "</button>"
-  ).join("");
+  if (wfBox.dataset.scenId !== sc.id) {
+    wfBox.dataset.scenId = sc.id;
+    wfBox.innerHTML = sc.whatIfs.map((w, i) =>
+      "<button class=\"whatif-btn\" onclick=\"runWhatIf(" + i + ")\">" + escapeHtmlSafe(w.label) + "</button>"
+    ).join("");
+  }
 
   // Validation Box
   const alerts = validateConfigRules();
@@ -318,52 +321,81 @@ function renderArbitrationAndPncVector() {
   // PNC Bit Vector Grid
   const internalByte2 = (simState.users[2].requested === "FULL_COM" && ecucConfig.ComMPncSupport) ? 0x01 : 0x00;
   document.getElementById("pncVectorSummary").textContent =
-    "TxSignal: 0x" + simState.txPncByte2.toString(16).toUpperCase().padStart(2, "0") +
+    "TxIRA: 0x" + simState.txPncByte2.toString(16).toUpperCase().padStart(2, "0") +
     " | RxEIRA: 0x" + simState.rxEiraByte2.toString(16).toUpperCase().padStart(2, "0") +
     " | ERA_Ch0: 0x" + simState.rxEraCh0Byte2.toString(16).toUpperCase().padStart(2, "0");
 
-  let html = "<div class=\"pnc-ghdr\" style=\"text-align:left\">PNC Signal Vector</div>";
-  for (let i = 7; i >= 0; i--) {
-    const slot = PNC_BIT_SLOTS[i];
-    html += "<div class=\"pnc-ghdr\">b" + slot.bit + "<br>" + slot.label + "</div>";
-  }
-  html += "<div class=\"pnc-ghdr\" style=\"text-align:right\">Hex B2</div>";
-
+  const grid = document.getElementById("pncVectorGrid");
   const rows = [
-    { key: "INTERNAL", label: "Internal User Req", val: internalByte2, cls: "on", click: true },
-    { key: "EIRA",     label: "Rx EIRA (COM Cbk)", val: simState.rxEiraByte2, cls: "on", click: true },
-    { key: "ERA0",     label: "Rx ERA (Ch0 GW)",   val: simState.rxEraCh0Byte2, cls: "era-on", click: true },
-    { key: "TX",       label: "Tx PNC Signal",     val: simState.txPncByte2, cls: "tx-on", click: false }
+    { key: "INTERNAL", label: "Internal User Req",     val: internalByte2,            cls: "on",     click: true },
+    { key: "EIRA",     label: "Rx EIRA (NmIf Cbk)",    val: simState.rxEiraByte2,     cls: "on",     click: true },
+    { key: "ERA0",     label: "Rx ERA (Ch0 NmIf)",     val: simState.rxEraCh0Byte2,   cls: "era-on", click: true },
+    { key: "TX",       label: "Tx IRA (Nm_UpdateIRA)", val: simState.txPncByte2,      cls: "tx-on",  click: false }
   ];
 
+  // Build grid DOM once so rapid clock ticks never detach clickable .pnc-cell nodes mid-click
+  if (grid.dataset.built !== "1") {
+    let html = "<div class=\"pnc-ghdr\" style=\"text-align:left\">PNC Signal Vector</div>";
+    for (let i = 7; i >= 0; i--) {
+      const slot = PNC_BIT_SLOTS[i];
+      html += "<div class=\"pnc-ghdr\">b" + slot.bit + "<br>" + slot.label + "</div>";
+    }
+    html += "<div class=\"pnc-ghdr\" style=\"text-align:right\">Hex B2</div>";
+
+    rows.forEach((r) => {
+      html += "<div class=\"pnc-rlbl\">" + r.label + "</div>";
+      for (let i = 7; i >= 0; i--) {
+        const slot = PNC_BIT_SLOTS[i];
+        const onclickAttr = r.click ? " onclick=\"togglePncVectorBit('" + r.key + "', " + slot.mask + ")\"" : "";
+        html += "<div class=\"pnc-cell\" data-pnc-cell=\"" + r.key + ":" + slot.mask + "\"" + onclickAttr + ">0</div>";
+      }
+      html += "<div class=\"pnc-hex mono\" data-pnc-hex=\"" + r.key + "\">0x00</div>";
+    });
+    grid.innerHTML = html;
+    grid.dataset.built = "1";
+  }
+
   rows.forEach((r) => {
-    html += "<div class=\"pnc-rlbl\">" + r.label + "</div>";
     for (let i = 7; i >= 0; i--) {
       const slot = PNC_BIT_SLOTS[i];
       const bitOn = (r.val & slot.mask) !== 0;
-      const cls = "pnc-cell" + (bitOn ? " " + r.cls : "") + (r.click ? "" : " locked");
-      const onclickAttr = r.click ? " onclick=\"togglePncVectorBit('" + r.key + "', " + slot.mask + ")\"" : "";
-      html += "<div class=\"" + cls + "\"" + onclickAttr + ">" + (bitOn ? "1" : "0") + "</div>";
+      const cell = grid.querySelector("[data-pnc-cell=\"" + r.key + ":" + slot.mask + "\"]");
+      if (cell) {
+        cell.className = "pnc-cell" + (bitOn ? " " + r.cls : "") + (r.click ? "" : " locked");
+        cell.textContent = bitOn ? "1" : "0";
+      }
     }
-    html += "<div class=\"pnc-hex mono\">0x" + r.val.toString(16).toUpperCase().padStart(2, "0") + "</div>";
+    const hexEl = grid.querySelector("[data-pnc-hex=\"" + r.key + "\"]");
+    if (hexEl) hexEl.textContent = "0x" + r.val.toString(16).toUpperCase().padStart(2, "0");
   });
-
-  document.getElementById("pncVectorGrid").innerHTML = html;
 }
 
 function render8BitRegisters() {
   const renderReg = (hexElId, bitsElId, byteVal, prevVal, defs, regType) => {
     document.getElementById(hexElId).textContent = "0x" + (byteVal & 0xFF).toString(16).toUpperCase().padStart(2, "0");
-    document.getElementById(bitsElId).innerHTML = defs.map((d) => {
+    const container = document.getElementById(bitsElId);
+
+    // Build bit-box DOM nodes once so Auto Clock / 20ms ticks only update classes & text in-place
+    if (container.dataset.built !== "1" || container.children.length !== defs.length) {
+      container.innerHTML = defs.map((d) =>
+        "<div class=\"bit-box\" title=\"" + escapeHtmlSafe(d.name + ": " + d.desc) + "\" onclick=\"toggleRegisterBit('" + regType + "', " + d.mask + ")\">" +
+          "<div class=\"bit-pos\">b" + d.bit + "</div>" +
+          "<div class=\"bit-val mono\">0</div>" +
+          "<div class=\"bit-tag\">" + d.tag + "</div>" +
+        "</div>"
+      ).join("");
+      container.dataset.built = "1";
+    }
+
+    defs.forEach((d, idx) => {
+      const box = container.children[idx];
+      if (!box) return;
       const on = (byteVal & d.mask) !== 0;
       const chg = ((byteVal ^ prevVal) & d.mask) !== 0;
-      const cls = "bit-box" + (on ? " on" : "") + (d.tone ? " " + d.tone + "-bit" : "") + (chg ? " chg" : "");
-      return "<div class=\"" + cls + "\" title=\"" + escapeHtmlSafe(d.name + ": " + d.desc) + "\" onclick=\"toggleRegisterBit('" + regType + "', " + d.mask + ")\">" +
-        "<div class=\"bit-pos\">b" + d.bit + "</div>" +
-        "<div class=\"bit-val mono\">" + (on ? "1" : "0") + "</div>" +
-        "<div class=\"bit-tag\">" + d.tag + "</div>" +
-      "</div>";
-    }).join("");
+      box.className = "bit-box" + (on ? " on" : "") + (d.tone ? " " + d.tone + "-bit" : "") + (chg ? " chg" : "");
+      const valEl = box.children[1];
+      if (valEl) valEl.textContent = on ? "1" : "0";
+    });
   };
 
   renderReg("regAHex", "regABits", simState.regAByte, simState.prevRegAByte, COMM_CH_BITS, "A");
@@ -449,16 +481,16 @@ function renderStateMachines() {
 function renderSvgArchitecture() {
   const ch0 = simState.channels[0];
   document.getElementById("svgSub_MOD_SWC").textContent = "U0:" + simState.users[0].current + " | U1:" + simState.users[1].current + " | U2:" + simState.users[2].current;
-  document.getElementById("svgSub_MOD_DCM").textContent = "ActiveDiag: " + (ch0.dcmActive ? "ACTIVE (OVERRIDE)" : "OFF");
-  document.getElementById("svgSub_MOD_ECUM").textContent = "CommAllow:" + (ch0.commAllowed ? "TRUE" : "FALSE") + " | BswM:" + ch0.actualBusSmMode.replace("COMM_", "");
+  document.getElementById("svgSub_MOD_DCM").textContent = "Diag:" + (ch0.dcmActive ? "ACTIVE" : "OFF") + " | Ack:" + ch0.dcmNotifiedMode.replace("COMM_", "");
+  document.getElementById("svgSub_MOD_ECUM").textContent = "CommAllow:" + (ch0.commAllowed ? "TRUE" : "FALSE") + " | Sync:" + (ecucConfig.ComMSynchronousWakeUp ? "ON" : "OFF");
   document.getElementById("svgSub_MOD_RTE").textContent = "MainFn Period: " + ecucConfig.ComMMainFunctionPeriod + " ms";
   document.getElementById("svgSub_MOD_COMM1").textContent = "Ch0: " + ch0.subState.replace("COMM_", "");
   document.getElementById("svgSub_MOD_COMM2").textContent = "PNC16:" + simState.pncs[16].state.replace("COMM_PNC_", "") + " | PNC18:" + simState.pncs[18].state.replace("COMM_PNC_", "");
   document.getElementById("svgSub_MOD_NVM").textContent = "InhibitCnt:" + simState.inhibitCounter + " | NoWake:" + (ch0.noWakeup ? "1" : "0");
   document.getElementById("svgSub_MOD_DET").textContent = "Faults Logged: " + simState.detFaults.length + (simState.detFaults.length ? " (!)" : " (OK)");
-  document.getElementById("svgSub_MOD_COM").textContent = "TxPNC:0x" + simState.txPncByte2.toString(16).toUpperCase().padStart(2, "0") + " | RxEIRA:0x" + simState.rxEiraByte2.toString(16).toUpperCase().padStart(2, "0");
-  document.getElementById("svgSub_MOD_NM").textContent = ch0.nmState.replace("NM_STATE_", "") + " (" + ecucConfig.ComMNmVariant + ")";
-  document.getElementById("svgSub_MOD_SM").textContent = "ActualBusMode: " + ch0.actualBusSmMode.replace("COMM_", "");
+  document.getElementById("svgSub_MOD_BSWM").textContent = "BswM Ch0:" + ch0.actualBusSmMode.replace("COMM_", "") + " | P16:" + simState.pncs[16].state.replace("COMM_PNC_", "");
+  document.getElementById("svgSub_MOD_NM").textContent = ch0.nmState.replace("NM_STATE_", "") + " (" + ecucConfig.ComMNmVariant + ") | IRA:0x" + simState.txPncByte2.toString(16).toUpperCase().padStart(2, "0");
+  document.getElementById("svgSub_MOD_SM").textContent = (getBusSmPrefix(0) || "INTERNAL") + ": " + ch0.actualBusSmMode.replace("COMM_", "");
 
   Object.keys(MODULES_INFO).forEach((m) => {
     const g = document.getElementById("node_" + m);
@@ -524,17 +556,17 @@ function renderInspector() {
       "<div class=\"insp-card\"><div class=\"insp-h\">🔌 AUTOSAR Standard APIs</div><pre class=\"code-block\">" + m.apis.join("\n") + "</pre></div>";
   } else if (currentInspTab === 2) {
     const codeText =
-`/* Live ComM Runtime C Pseudocode (AUTOSAR Classic R23-11) */
+`/* Live ComM Runtime C Pseudocode (AUTOSAR Classic R25-11) */
 void ComM_MainFunction_${getSelectedChannelId()}(void)
 {
   /* 1. Arbitrate Channel ${getSelectedChannelId()} (${ecucConfig.ComMNmVariant}) */
   boolean dcmOverride = ${ch0.dcmActive ? "TRUE" : "FALSE"}; /* ComM_DCM_ActiveDiagnostic */
-  boolean commAllowed = ${ch0.commAllowed ? "TRUE" : "FALSE"}; /* Gatekeeper */
-  boolean noWakeup    = ${isNoWakeupEffective(ch0) ? "TRUE" : "FALSE"}; /* ClassMask & 0x01 */
-  boolean limitNoCom  = ${isLimitNoComEffective(ch0) ? "TRUE" : "FALSE"}; /* ClassMask & 0x02 */
+  boolean commAllowed = ${ch0.commAllowed ? "TRUE" : "FALSE"}; /* Gatekeeper (Init = FALSE) */
+  boolean noWakeup    = ${isNoWakeupEffective(ch0) ? "TRUE" : "FALSE"}; /* PreventWakeUp Active */
+  boolean limitNoCom  = ${isLimitNoComEffective(ch0) ? "TRUE" : "FALSE"}; /* LimitToNoCom Active */
 
-  /* 2. PNC Vector (Offset=2, Len=2) */
-  uint8 txPncByte2 = 0x${simState.txPncByte2.toString(16).toUpperCase().padStart(2, "0")}u; /* PNC16: ${simState.pncs[16].state} */
+  /* 2. PNC Vector via NmIf (Nm_UpdateIRA / ComM_Nm_UpdateEIRA) */
+  uint8 txIraByte2 = 0x${simState.txPncByte2.toString(16).toUpperCase().padStart(2, "0")}u; /* PNC16: ${simState.pncs[16].state} */
   uint8 rxEiraB2   = 0x${simState.rxEiraByte2.toString(16).toUpperCase().padStart(2, "0")}u;
   /* PrepareSleepTimer = ${simState.pncs[16].prepSleepLeftMs} ms */
 
@@ -613,8 +645,22 @@ function showTooltipForElement(rowEl, evt) {
     "<div class=\"tt-sec\"><b>Ảnh hưởng kịch bản:</b> " + escapeHtmlSafe(info.scenarioImpact) + "</div>";
 
   const rect = rowEl.getBoundingClientRect();
-  const px = Math.min(window.innerWidth - 405, Math.max(12, (evt ? evt.clientX + 16 : rect.right + 10)));
-  const py = Math.min(window.innerHeight - 230, Math.max(12, rect.top - 10));
+  const pad = 12;
+  const popupW = popup.offsetWidth || 390;
+  const popupH = popup.offsetHeight || 260;
+
+  let px = evt ? evt.clientX + 16 : rect.right + 12;
+  if (px + popupW > window.innerWidth - pad) {
+    px = (rect.left - popupW - 12 >= pad) ? (rect.left - popupW - 12) : (window.innerWidth - popupW - pad);
+  }
+  px = Math.max(pad, Math.min(window.innerWidth - popupW - pad, px));
+
+  let py = rect.top - 10;
+  if (py + popupH > window.innerHeight - pad) {
+    py = rect.bottom - popupH + 6;
+  }
+  py = Math.max(pad, Math.min(window.innerHeight - popupH - pad, py));
+
   popup.style.left = px + "px";
   popup.style.top = py + "px";
   popup.classList.add("show");
@@ -645,6 +691,7 @@ function initTooltipHandlers() {
       });
     }
   });
+  window.addEventListener("scroll", hideConfigTooltip, true);
 }
 
 // -------------------- ARXML / C / JSON / HTML EXPORTERS --------------------
@@ -670,6 +717,7 @@ function generateArxmlContent() {
                 <ECUC-FLOAT-PARAM-VALUE><DEFINITION-REF DEST="ECUC-FLOAT-PARAM-DEF">/AUTOSAR/EcucDefs/ComM/ComMGeneral/ComMTMinFullComModeDuration</DEFINITION-REF><VALUE>${(ecucConfig.ComMTMinFullComModeDuration / 1000).toFixed(3)}</VALUE></ECUC-FLOAT-PARAM-VALUE>
                 <ECUC-BOOLEAN-PARAM-VALUE><DEFINITION-REF DEST="ECUC-BOOLEAN-PARAM-DEF">/AUTOSAR/EcucDefs/ComM/ComMGeneral/ComMPncSupport</DEFINITION-REF><VALUE>${ecucConfig.ComMPncSupport}</VALUE></ECUC-BOOLEAN-PARAM-VALUE>
                 <ECUC-BOOLEAN-PARAM-VALUE><DEFINITION-REF DEST="ECUC-BOOLEAN-PARAM-DEF">/AUTOSAR/EcucDefs/ComM/ComMGeneral/ComMPncGatewayEnabled</DEFINITION-REF><VALUE>${ecucConfig.ComMPncGatewayEnabled}</VALUE></ECUC-BOOLEAN-PARAM-VALUE>
+                <ECUC-BOOLEAN-PARAM-VALUE><DEFINITION-REF DEST="ECUC-BOOLEAN-PARAM-DEF">/AUTOSAR/EcucDefs/ComM/ComMGeneral/ComMSynchronizedPncShutdownEnabled</DEFINITION-REF><VALUE>${ecucConfig.ComMSynchronizedPncShutdownEnabled}</VALUE></ECUC-BOOLEAN-PARAM-VALUE>
                 <ECUC-INTEGER-PARAM-VALUE><DEFINITION-REF DEST="ECUC-INTEGER-PARAM-DEF">/AUTOSAR/EcucDefs/ComM/ComMGeneral/ComMEcuGroupClassification</DEFINITION-REF><VALUE>${getEcuClassMask()}</VALUE></ECUC-INTEGER-PARAM-VALUE>
               </PARAMETER-VALUES>
             </ECUC-CONTAINER-VALUE>
@@ -677,6 +725,7 @@ function generateArxmlContent() {
               <SHORT-NAME>ComMChannel_0</SHORT-NAME>
               <PARAMETER-VALUES>
                 <ECUC-TEXTUAL-PARAM-VALUE><DEFINITION-REF DEST="ECUC-ENUMERATION-PARAM-DEF">/AUTOSAR/EcucDefs/ComM/ComMConfigSet/ComMChannel/ComMBusType</DEFINITION-REF><VALUE>${ecucConfig.ComMBusType}</VALUE></ECUC-TEXTUAL-PARAM-VALUE>
+                <ECUC-BOOLEAN-PARAM-VALUE><DEFINITION-REF DEST="ECUC-BOOLEAN-PARAM-DEF">/AUTOSAR/EcucDefs/ComM/ComMConfigSet/ComMChannel/ComMNoWakeUpInhibitionNvmStorage</DEFINITION-REF><VALUE>${ecucConfig.ComMNoWakeUpInhibitionNvmStorage}</VALUE></ECUC-BOOLEAN-PARAM-VALUE>
                 <ECUC-TEXTUAL-PARAM-VALUE><DEFINITION-REF DEST="ECUC-ENUMERATION-PARAM-DEF">/AUTOSAR/EcucDefs/ComM/ComMConfigSet/ComMChannel/ComMNetworkManagement/ComMNmVariant</DEFINITION-REF><VALUE>${ecucConfig.ComMNmVariant}</VALUE></ECUC-TEXTUAL-PARAM-VALUE>
                 <ECUC-FLOAT-PARAM-VALUE><DEFINITION-REF DEST="ECUC-FLOAT-PARAM-DEF">/AUTOSAR/EcucDefs/ComM/ComMConfigSet/ComMChannel/ComMNetworkManagement/ComMNmLightTimeout</DEFINITION-REF><VALUE>${(ecucConfig.ComMNmLightTimeout / 1000).toFixed(3)}</VALUE></ECUC-FLOAT-PARAM-VALUE>
                 <ECUC-TEXTUAL-PARAM-VALUE><DEFINITION-REF DEST="ECUC-ENUMERATION-PARAM-DEF">/AUTOSAR/EcucDefs/ComM/ComMConfigSet/ComMChannel/ComMPncGatewayType</DEFINITION-REF><VALUE>${ecucConfig.Ch0_GatewayType}</VALUE></ECUC-TEXTUAL-PARAM-VALUE>
@@ -730,7 +779,7 @@ const ComM_ChannelConfigType ComM_ChannelConfig[COMM_NUM_CHANNELS] = {
     .NmVariant         = COMM_NM_VARIANT_${ecucConfig.ComMNmVariant},
     .NmLightTimeoutMs  = ${ecucConfig.ComMNmLightTimeout}u,
     .PncGatewayType    = ${ecucConfig.Ch0_GatewayType},
-    .NoWakeupNvM       = ${ecucConfig.ComMNoWakeupNvMStorage ? "TRUE" : "FALSE"},
+    .NoWakeUpInhNvm    = ${ecucConfig.ComMNoWakeUpInhibitionNvmStorage ? "TRUE" : "FALSE"},
     .PncNmRequest      = ${ecucConfig.ComMPncNmRequest ? "TRUE" : "FALSE"}
   },
   {
@@ -739,7 +788,7 @@ const ComM_ChannelConfigType ComM_ChannelConfig[COMM_NUM_CHANNELS] = {
     .NmVariant         = COMM_NM_VARIANT_FULL,
     .NmLightTimeoutMs  = 0u,
     .PncGatewayType    = ${ecucConfig.Ch1_GatewayType},
-    .NoWakeupNvM       = ${ecucConfig.ComMNoWakeupNvMStorage ? "TRUE" : "FALSE"},
+    .NoWakeUpInhNvm    = ${ecucConfig.ComMNoWakeUpInhibitionNvmStorage ? "TRUE" : "FALSE"},
     .PncNmRequest      = FALSE
   }
 };

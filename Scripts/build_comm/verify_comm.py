@@ -2,7 +2,7 @@ import re
 import sys
 from pathlib import Path
 
-HTML_PATH = Path(__file__).resolve().parent.parent / "Simulation" / "AUTOSAR_ComM.html"
+HTML_PATH = Path(__file__).resolve().parent.parent.parent / "Simulation" / "03_Services" / "AUTOSAR_ComM.html"
 
 def check_js_balance(js_code: str):
     stack = []
@@ -229,6 +229,28 @@ def main():
                         assert ix * iy == 0.0, f"Pill ({px},{py},{pw},{ph}) overlaps Box ({bx},{by},{bw},{bh}) in {sub['label']}"
     assert svg_count == 18, f"Expected 18 Handbook SVG diagrams, found {svg_count}"
     print(f"[PASS] Audited {svg_count} Handbook SVGs: XML valid, 0 box text overflows, 0 pill-box overlaps")
+
+    # 8. Audit swsRefs header strips across all 24 handbook sub-tabs
+    sub_count = 0
+    ref_count = 0
+    for tab in hb_data:
+        for sub in tab["subs"]:
+            sub_count += 1
+            refs = sub.get("swsRefs", [])
+            assert len(refs) >= 3, f"Sub-tab '{sub['label']}' missing swsRefs (found {len(refs)})"
+            for r in refs:
+                rid = r.get("id", "")
+                assert re.match(r"^(SWS_ComM_|ECUC_ComM_)\d+$", rid), f"Invalid SWS/ECUC ID '{rid}' in '{sub['label']}'"
+                assert r.get("desc", "").strip(), f"Empty desc for '{rid}' in '{sub['label']}'"
+                ref_count += 1
+    assert sub_count == 24, f"Expected 24 Handbook sub-tabs, found {sub_count}"
+    assert ".hb-sws-bar" in text and "injectSwsRefBar" in js_part and "buildSwsRefBar" in js_part
+    print(f"[PASS] Audited {sub_count} Handbook sub-tabs with {ref_count} verified SWS/ECUC header refs")
+
+    # 9. Check no legacy R4.x or non-R25-11 symbols remain
+    for forbidden in ("ComMNoWakeupNvMStorage", "ComM_COMCbk", "arr_comm_com\"", "arr_com_comm\"", "svgSub_MOD_COM\"", "SWS_ComM_00001", "SWS_ComM_00922", "SWS_ComM_00930"):
+        assert forbidden not in text, f"Forbidden legacy symbol found in final HTML: {forbidden}"
+    print("[PASS] R25-11 symbol hygiene check: zero legacy symbols found")
 
 if __name__ == "__main__":
     main()

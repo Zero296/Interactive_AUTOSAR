@@ -2,7 +2,7 @@
 <header class="hdr">
   <div class="hdr-row">
     <div class="brand">
-      <span class="brand-badge">AUTOSAR Classic R23-11</span>
+      <span class="brand-badge">AUTOSAR Classic R25-11</span>
       <div>
         <div class="brand-title">ComM Interactive Simulator &amp; Technical Handbook</div>
         <div class="brand-sub">Communication Manager · Channel Mode Arbitration · Mode Inhibition · Partial Networking (PNC &amp; GW)</div>
@@ -26,26 +26,26 @@
       <label for="scenSelect" style="font-weight:700;font-size:11.5px;color:var(--mut)">Kịch bản:</label>
       <select id="scenSelect" class="scen-select" onchange="onScenarioSelectChange()">
         <optgroup label="Nhóm 1: Khởi Động, Phân Xử Đa User &amp; Mode Transitions">
-          <option value="S1">S1: Boot-Up ECU, ComM_Init() &amp; Gatekeeper CommunicationAllowed</option>
+          <option value="S1">S1: Boot-Up ECU, ComM_Init() (Allowed=FALSE) &amp; Pending Gatekeeper</option>
           <option value="S2">S2: Single User Request FULL_COM &amp; Bắt Tay BusSM / Nm (FULL)</option>
-          <option value="S3">S3: Multi-User Arbitration &amp; Ràng Buộc Thời Gian TMinFullComMode</option>
-          <option value="S4">S4: Release Toàn Bộ User — Graceful Shutdown (FULL_COM → SILENT → NO_COM)</option>
+          <option value="S3">S3: Multi-User Arbitration &amp; TMinFullComModeDuration (LIGHT)</option>
+          <option value="S4">S4: Release Toàn Bộ User — Graceful Shutdown (FULL → SILENT → NO_COM)</option>
         </optgroup>
-        <optgroup label="Nhóm 2: Biến Thể NM (LIGHT / PASSIVE) &amp; EcuM Wakeup">
+        <optgroup label="Nhóm 2: Biến Thể NM (LIGHT / PASSIVE / SLAVE) &amp; Wakeup">
           <option value="S5">S5: Biến Thể ComMNmVariant = LIGHT &amp; Bộ Đếm NmLightTimeout</option>
-          <option value="S6">S6: Passive Wakeup (Rx Network Wakeup) &amp; ComMSynchronousWakeUp</option>
-          <option value="S7">S7: Passive Channel (ComMNmVariant = PASSIVE) Chỉ Nghe Mạng</option>
+          <option value="S6">S6: Passive Wakeup (Pending → NetReq → ReadySleep) &amp; SyncWakeUp</option>
+          <option value="S7">S7: Passive Channel (PASSIVE) &amp; BusSM BusSleep (SLAVE_ACTIVE)</option>
         </optgroup>
-        <optgroup label="Nhóm 3: Mode Inhibition, InhibitCounter, NvM &amp; Quyền Tối Cao DCM">
-          <option value="S8">S8: Wake-Up Inhibition (NoWakeup) &amp; Bộ Đếm ComMInhibitCounter</option>
-          <option value="S9">S9: Limit Channel/ECU To NO_COM Mode &amp; Bảng Classification Bit</option>
+        <optgroup label="Nhóm 3: Mode Inhibition, Classification Mask, NvM &amp; Quyền Tối Cao DCM">
+          <option value="S8">S8: Wake-Up Inhibition (NoWakeup) &amp; Stored Request + InhibitCounter</option>
+          <option value="S9">S9: Limit To NO_COM (Clear User Req) &amp; EcuGroupClassification (0x01)</option>
           <option value="S10">S10: DCM ActiveDiagnostic Override Bỏ Qua Mọi Mode Inhibition</option>
         </optgroup>
-        <optgroup label="Nhóm 4: Partial Networking (PNC), EIRA/ERA, Gateway &amp; Error Handling">
-          <option value="S11">S11: PNC Request Internal User &amp; Truyền PNC Bit Vector Qua COM</option>
-          <option value="S12">S12: Nhận Rx EIRA Từ Bus &amp; Bộ Đếm PNC Prepare Sleep (10-Step Flow)</option>
-          <option value="S13">S13: PNC Gateway Routing (ACTIVE / PASSIVE GW) &amp; Synchronized Shutdown</option>
-          <option value="S14">S14: Bẫy DET Errors (UNINIT, BusSM Trễ, Timeout Lock, Sai Parameters)</option>
+        <optgroup label="Nhóm 4: Partial Networking (PNC), EIRA/ERA/IRA, Gateway &amp; DET">
+          <option value="S11">S11: PNC Request Internal User (MainFn) &amp; Nm_UpdateIRA() Routing</option>
+          <option value="S12">S12: ComM_Nm_UpdateEIRA() &amp; Chu Kỳ READY_SLEEP → PREPARE_SLEEP</option>
+          <option value="S13">S13: PNC Gateway (ACTIVE / PASSIVE GW) &amp; Synchronized PNC Shutdown</option>
+          <option value="S14">S14: Bẫy DET Errors (UNINIT, DeInit Block, BusSM Delay, Sai Parameters)</option>
         </optgroup>
       </select>
 
@@ -111,7 +111,7 @@
             <span>🛑 LimitToNoCom</span><span id="qaTxtLimitCh" class="mono">FALSE</span>
           </button>
           <button id="qaBtnRxEira" class="qa-btn" onclick="qaPulseRxEiraPnc16()">
-            <span>📡 Rx EIRA (PNC16)</span><span id="qaTxtRxEira" class="mono">0x00</span>
+            <span>📡 Nm_UpdateEIRA</span><span id="qaTxtRxEira" class="mono">0x00</span>
           </button>
           <button class="qa-btn" onclick="stepClockTick(20)">
             <span>⏱ +20ms MainFn</span><span class="mono">Tick</span>
@@ -140,7 +140,7 @@
     <section class="panel">
       <div class="panel-hdr">
         <span class="panel-title">⚙️ Cấu Hình ECUC ComM (Hover &gt;1s Xem SWS)</span>
-        <span class="panel-sub">34 Parameters</span>
+        <span class="panel-sub">38 Parameters</span>
       </div>
       <div class="cfg-tabs">
         <button id="cfgTabBtn0" class="cfg-tab active" onclick="switchCfgTab(0)">1. General</button>
@@ -217,6 +217,8 @@
               <option value="FULL">FULL</option>
               <option value="LIGHT">LIGHT</option>
               <option value="PASSIVE">PASSIVE</option>
+              <option value="SLAVE_ACTIVE">SLAVE_ACTIVE</option>
+              <option value="SLAVE_PASSIVE">SLAVE_PASSIVE</option>
               <option value="NONE">NONE</option>
             </select>
           </div>
@@ -307,9 +309,9 @@
           <label class="cfg-lbl" for="cfg_ComMInhibitCounterValue"><span class="cfg-i">ⓘ</span><span class="cfg-name">ComMInhibitCounterValue</span></label>
           <div class="cfg-ctrl"><input type="number" id="cfg_ComMInhibitCounterValue" min="0" max="65535" value="0" onchange="onConfigInputChanged('ComMInhibitCounterValue')" /></div>
         </div>
-        <div class="cfg-row" data-cfg-key="ComMNoWakeupNvMStorage">
-          <label class="cfg-lbl" for="cfg_ComMNoWakeupNvMStorage"><span class="cfg-i">ⓘ</span><span class="cfg-name">ComMNoWakeupNvMStorage</span></label>
-          <div class="cfg-ctrl"><input type="checkbox" id="cfg_ComMNoWakeupNvMStorage" checked onchange="onConfigInputChanged('ComMNoWakeupNvMStorage')" /></div>
+        <div class="cfg-row" data-cfg-key="ComMNoWakeUpInhibitionNvmStorage">
+          <label class="cfg-lbl" for="cfg_ComMNoWakeUpInhibitionNvmStorage"><span class="cfg-i">ⓘ</span><span class="cfg-name">NoWakeUpInhibitionNvmStorage</span></label>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_ComMNoWakeUpInhibitionNvmStorage" checked onchange="onConfigInputChanged('ComMNoWakeUpInhibitionNvmStorage')" /></div>
         </div>
       </div>
 
@@ -332,7 +334,7 @@
           <div class="cfg-ctrl"><input type="checkbox" id="cfg_Pnc18_Enabled_And_Mask" checked onchange="onConfigInputChanged('Pnc18_Enabled_And_Mask')" /></div>
         </div>
         <div class="cfg-row" data-cfg-key="RxEiraSignalHex">
-          <label class="cfg-lbl" for="cfg_RxEiraSignalHex"><span class="cfg-i">ⓘ</span><span class="cfg-name">RxEiraSignal (Byte2 Byte3)</span></label>
+          <label class="cfg-lbl" for="cfg_RxEiraSignalHex"><span class="cfg-i">ⓘ</span><span class="cfg-name">EIRA Vector (NmIf)</span></label>
           <div class="cfg-ctrl"><input type="text" id="cfg_RxEiraSignalHex" class="mono" value="00 00" style="width:72px;text-align:center" onchange="onConfigInputChanged('RxEiraSignalHex')" /></div>
         </div>
         <div class="cfg-row" data-cfg-key="ComMPncWakeupSleepRequestEnabled">
@@ -368,11 +370,11 @@
           </div>
         </div>
         <div class="cfg-row" data-cfg-key="RxEraCh0Hex">
-          <label class="cfg-lbl" for="cfg_RxEraCh0Hex"><span class="cfg-i">ⓘ</span><span class="cfg-name">RxEraSignal_Ch0 (Hex)</span></label>
+          <label class="cfg-lbl" for="cfg_RxEraCh0Hex"><span class="cfg-i">ⓘ</span><span class="cfg-name">ERA_Ch0 Vector (NmIf)</span></label>
           <div class="cfg-ctrl"><input type="text" id="cfg_RxEraCh0Hex" class="mono" value="00 00" style="width:72px;text-align:center" onchange="onConfigInputChanged('RxEraCh0Hex')" /></div>
         </div>
         <div class="cfg-row" data-cfg-key="RxEraCh1Hex">
-          <label class="cfg-lbl" for="cfg_RxEraCh1Hex"><span class="cfg-i">ⓘ</span><span class="cfg-name">RxEraSignal_Ch1 (Hex)</span></label>
+          <label class="cfg-lbl" for="cfg_RxEraCh1Hex"><span class="cfg-i">ⓘ</span><span class="cfg-name">ERA_Ch1 Vector (NmIf)</span></label>
           <div class="cfg-ctrl"><input type="text" id="cfg_RxEraCh1Hex" class="mono" value="00 00" style="width:72px;text-align:center" onchange="onConfigInputChanged('RxEraCh1Hex')" /></div>
         </div>
         <div class="cfg-row" data-cfg-key="ComMSynchronizedPncShutdownEnabled">
@@ -399,8 +401,8 @@
 
         <div class="pnc-vector-wrap">
           <div class="pnc-vec-hdr">
-            <span style="font-weight:700;font-size:11.5px;color:var(--cyan)">🌐 Thanh Giải Phẫu PNC Bit Vector (ComMPncInfoOffset = Byte 2, Length = 2 Bytes → PNC #16..#23)</span>
-            <span id="pncVectorSummary" class="mono" style="font-size:11px;color:var(--mut)">TxSignal: 0x00 | EIRA: 0x00 | ERA_Ch0: 0x00</span>
+            <span style="font-weight:700;font-size:11.5px;color:var(--cyan)">🌐 Thanh Giải Phẫu PNC Bit Vector (NmIf ↔ ComM: EIRA / ERA / IRA — Byte 2..3 → PNC #16..#23)</span>
+            <span id="pncVectorSummary" class="mono" style="font-size:11px;color:var(--mut)">TxIRA: 0x00 | EIRA: 0x00 | ERA_Ch0: 0x00</span>
           </div>
           <div id="pncVectorGrid" class="pnc-grid"></div>
         </div>
@@ -437,7 +439,7 @@
         <div class="sm-dual">
           <div class="sm-box">
             <div class="sm-title">
-              <span>🚦 Channel Mode &amp; Sub-State Machine (SWS_ComM_00298)</span>
+              <span>🚦 Channel Mode &amp; Sub-State Machine (SWS_ComM_00879..00881)</span>
               <span id="smChVariantLbl" class="mono">Ch0 (FULL)</span>
             </div>
             <div id="channelSmDiagram" class="sm-states"></div>
@@ -473,13 +475,12 @@
             <!-- ARROWS LAYER -->
             <path id="arr_swc_rte" class="flow-arrow" d="M 120 80 L 120 108" marker-end="url(#arrEnd)" />
             <path id="arr_rte_comm" class="flow-arrow" d="M 220 133 L 275 133" marker-end="url(#arrEnd)" />
-            <path id="arr_dcm_comm" class="flow-arrow" d="M 402 80 L 402 115" marker-end="url(#arrEnd)" />
-            <path id="arr_ecum_comm" class="flow-arrow" d="M 600 50 L 520 115" marker-end="url(#arrEnd)" />
-            <path id="arr_comm_bswm" class="flow-arrow" d="M 545 128 L 595 75" marker-end="url(#arrEnd)" />
+            <path id="arr_dcm_comm" class="flow-arrow" d="M 380 80 L 380 112" marker-end="url(#arrEnd)" />
+            <path id="arr_comm_dcm" class="flow-arrow" d="M 425 112 L 425 80" marker-end="url(#arrEnd)" />
+            <path id="arr_ecum_comm" class="flow-arrow" d="M 640 80 L 545 122" marker-end="url(#arrEnd)" />
             <path id="arr_comm_nvm" class="flow-arrow" d="M 545 142 L 600 137" marker-end="url(#arrEnd)" />
             <path id="arr_comm_det" class="flow-arrow" d="M 545 186 L 600 198" marker-end="url(#arrEnd)" />
-            <path id="arr_comm_com" class="flow-arrow" d="M 295 211 L 175 258" marker-end="url(#arrEnd)" />
-            <path id="arr_com_comm" class="flow-arrow" d="M 130 258 L 275 198" marker-end="url(#arrEnd)" />
+            <path id="arr_comm_bswm" class="flow-arrow" d="M 295 210 L 150 258" marker-end="url(#arrEnd)" />
             <path id="arr_comm_nm" class="flow-arrow" d="M 380 211 L 380 258" marker-end="url(#arrEnd)" />
             <path id="arr_nm_comm" class="flow-arrow" d="M 435 258 L 435 211" marker-end="url(#arrEnd)" />
             <path id="arr_comm_sm" class="flow-arrow" d="M 510 211 L 635 258" marker-end="url(#arrEnd)" />
@@ -496,22 +497,22 @@
             <g id="node_MOD_DCM" class="mod-node" onclick="selectModule('MOD_DCM')">
               <rect class="mod-rect" x="310" y="20" width="185" height="60" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
               <text x="402" y="40" text-anchor="middle" fill="var(--warn)" font-weight="700" font-size="12">DCM (Diagnostics)</text>
-              <text id="svgSub_MOD_DCM" x="402" y="56" text-anchor="middle" fill="var(--mut)" font-size="10">ActiveDiag: OFF</text>
-              <text x="402" y="70" text-anchor="middle" fill="var(--txt-soft)" font-size="9.5">ComM_DCM_ActiveDiagnostic()</text>
+              <text id="svgSub_MOD_DCM" x="402" y="56" text-anchor="middle" fill="var(--mut)" font-size="10">ActiveDiag: OFF | DcmMode: NO</text>
+              <text x="402" y="70" text-anchor="middle" fill="var(--txt-soft)" font-size="9.5">ActiveDiag / Dcm_ComM_*Entered</text>
             </g>
 
             <g id="node_MOD_ECUM" class="mod-node" onclick="selectModule('MOD_ECUM')">
               <rect class="mod-rect" x="595" y="20" width="205" height="60" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
-              <text x="697" y="40" text-anchor="middle" fill="var(--ok)" font-weight="700" font-size="12">EcuM &amp; BswM</text>
-              <text id="svgSub_MOD_ECUM" x="697" y="56" text-anchor="middle" fill="var(--mut)" font-size="10">CommAllow: TRUE | BswM: NO_COM</text>
-              <text x="697" y="70" text-anchor="middle" fill="var(--txt-soft)" font-size="9.5">WakeUpInd / BswM_ComM_Mode</text>
+              <text x="697" y="40" text-anchor="middle" fill="var(--ok)" font-weight="700" font-size="12">EcuM (Startup &amp; Wakeup)</text>
+              <text id="svgSub_MOD_ECUM" x="697" y="56" text-anchor="middle" fill="var(--mut)" font-size="10">CommAllow: FALSE</text>
+              <text x="697" y="70" text-anchor="middle" fill="var(--txt-soft)" font-size="9.5">Init / WakeUpInd / CommAllowed</text>
             </g>
 
             <g id="node_MOD_RTE" class="mod-node" onclick="selectModule('MOD_RTE')">
-              <rect class="mod-rect" x="20" y="108" width="200" height="52" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
-              <text x="120" y="128" text-anchor="middle" fill="var(--acc)" font-weight="700" font-size="12">RTE / SchM</text>
-              <text id="svgSub_MOD_RTE" x="120" y="144" text-anchor="middle" fill="var(--mut)" font-size="10">MainFn Period: 20 ms</text>
-              <text x="120" y="155" text-anchor="middle" fill="var(--txt-soft)" font-size="9">Rte_Switch_UM_currentMode</text>
+              <rect class="mod-rect" x="20" y="108" width="200" height="56" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
+              <text x="120" y="126" text-anchor="middle" fill="var(--acc)" font-weight="700" font-size="12">RTE / SchM</text>
+              <text id="svgSub_MOD_RTE" x="120" y="142" text-anchor="middle" fill="var(--mut)" font-size="10">MainFn Period: 20 ms</text>
+              <text x="120" y="157" text-anchor="middle" fill="var(--txt-soft)" font-size="9">Rte_Switch_UM_currentMode</text>
             </g>
 
             <g id="node_MOD_COMM" class="mod-node selected" onclick="selectModule('MOD_COMM')">
@@ -536,25 +537,25 @@
               <text id="svgSub_MOD_DET" x="700" y="215" text-anchor="middle" fill="var(--mut)" font-size="10">Faults Logged: 0 (OK)</text>
             </g>
 
-            <g id="node_MOD_COM" class="mod-node" onclick="selectModule('MOD_COM')">
+            <g id="node_MOD_BSWM" class="mod-node" onclick="selectModule('MOD_BSWM')">
               <rect class="mod-rect" x="20" y="258" width="220" height="76" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
-              <text x="130" y="279" text-anchor="middle" fill="var(--cyan)" font-weight="700" font-size="12">AUTOSAR COM / PduR</text>
-              <text id="svgSub_MOD_COM" x="130" y="296" text-anchor="middle" fill="var(--mut)" font-size="10">TxPNC: 0x00 | RxEIRA: 0x00</text>
-              <text x="130" y="313" text-anchor="middle" fill="var(--txt-soft)" font-size="9.5">Com_SendSignal() / ComM_COMCbk()</text>
+              <text x="130" y="279" text-anchor="middle" fill="var(--cyan)" font-weight="700" font-size="12">BswM → COM (I-PDU Ctrl)</text>
+              <text id="svgSub_MOD_BSWM" x="130" y="296" text-anchor="middle" fill="var(--mut)" font-size="10">BswM Ch0: NO_COM | PNC16: NO</text>
+              <text x="130" y="313" text-anchor="middle" fill="var(--txt-soft)" font-size="9.5">BswM_ComM_CurrentMode / PNCMode</text>
             </g>
 
             <g id="node_MOD_NM" class="mod-node" onclick="selectModule('MOD_NM')">
               <rect class="mod-rect" x="290" y="258" width="230" height="76" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
-              <text x="405" y="279" text-anchor="middle" fill="var(--acc)" font-weight="700" font-size="12">Nm / CanNm</text>
-              <text id="svgSub_MOD_NM" x="405" y="296" text-anchor="middle" fill="var(--mut)" font-size="10">State: BUS_SLEEP (FULL)</text>
-              <text x="405" y="313" text-anchor="middle" fill="var(--txt-soft)" font-size="9.5">Nm_NetworkRequest / ComM_Nm_ModeInd</text>
+              <text x="405" y="279" text-anchor="middle" fill="var(--acc)" font-weight="700" font-size="12">NmIf / CanNm (NM &amp; PNC)</text>
+              <text id="svgSub_MOD_NM" x="405" y="296" text-anchor="middle" fill="var(--mut)" font-size="10">BUS_SLEEP | TxIRA:0x00 EIRA:0x00</text>
+              <text x="405" y="313" text-anchor="middle" fill="var(--txt-soft)" font-size="9.5">Nm_UpdateIRA / ComM_Nm_UpdateEIRA</text>
             </g>
 
             <g id="node_MOD_SM" class="mod-node" onclick="selectModule('MOD_SM')">
               <rect class="mod-rect" x="570" y="258" width="230" height="76" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
-              <text x="685" y="279" text-anchor="middle" fill="var(--ok)" font-weight="700" font-size="12">CanSM / BusSM</text>
+              <text x="685" y="279" text-anchor="middle" fill="var(--ok)" font-weight="700" font-size="12">&lt;Bus&gt;SM (CanSM/EthSM)</text>
               <text id="svgSub_MOD_SM" x="685" y="296" text-anchor="middle" fill="var(--mut)" font-size="10">ActualBusMode: NO_COM</text>
-              <text x="685" y="313" text-anchor="middle" fill="var(--txt-soft)" font-size="9.5">CanSM_RequestComMode / BusSM_Ind</text>
+              <text x="685" y="313" text-anchor="middle" fill="var(--txt-soft)" font-size="9.5">BusSM_Request / ModeInd / BusSleep</text>
             </g>
           </svg>
         </div>
