@@ -2,7 +2,7 @@
 <header class="hdr">
   <div class="hdr-row">
     <div class="brand">
-      <span class="brand-badge">AUTOSAR Classic R23-11</span>
+      <span class="brand-badge">AUTOSAR Classic R25-11</span>
       <div>
         <div class="brand-title">Fee Interactive Simulator &amp; Technical Handbook</div>
         <div class="brand-sub">Flash EEPROM Emulation · 2-Bank Wear Leveling &amp; Garbage Collection · RAM LUT · Torn-Write Recovery · Fls / MemAcc</div>
@@ -25,6 +25,9 @@
     <div class="scen-bar">
       <label for="scenSelect" style="font-weight:700;font-size:11.5px;color:var(--mut)">Kịch bản:</label>
       <select id="scenSelect" class="scen-select" onchange="onScenarioSelectChange()">
+        <optgroup label="Mặc Định: Không Chạy Kịch Bản (Thao Tác Thủ Công / Reset)">
+          <option value="S0" selected>S0 (None): Không Chạy Luồng Mẫu — Fee Rỗng Ban Đầu (Thao Tác Thủ Công)</option>
+        </optgroup>
         <optgroup label="Nhóm 1: Khởi Tạo, Ghi Nguyên Tử &amp; Đọc Qua RAM LUT">
           <option value="S1">S1: Fee_Init() — Quét 2 Bank Flash, Dựng Bảng RAM LUT &amp; NvM_ReadAll()</option>
           <option value="S2">S2: Fee_Write() — Căn Chỉnh Trang Ảo 8B &amp; Quy Trình Ghi Nguyên Tử 3 Pha</option>
@@ -131,7 +134,7 @@
     </section>
 
     <!-- CARD 2: CURRENT SCENARIO SUMMARY & 3 WHAT-IF BUTTONS -->
-    <section class="panel">
+    <section id="scenSummaryCard" class="panel hidden">
       <div class="panel-hdr">
         <span class="panel-title">🎬 Kịch Bản Đang Chạy &amp; Thử Nghiệm Nhanh</span>
         <span id="scenIdBadge" class="panel-sub mono">S1</span>
@@ -162,7 +165,7 @@
       <div id="cfgPane0" class="cfg-pane">
         <div class="cfg-row" data-cfg-key="FeeInitialized">
           <label class="cfg-lbl" for="cfg_FeeInitialized"><span class="cfg-i">ⓘ</span><span class="cfg-name">FeeInitialized (State)</span></label>
-          <div class="cfg-ctrl"><input type="checkbox" id="cfg_FeeInitialized" checked onchange="onConfigInputChanged('FeeInitialized')" /></div>
+          <div class="cfg-ctrl"><input type="checkbox" id="cfg_FeeInitialized" onchange="onConfigInputChanged('FeeInitialized')" /></div>
         </div>
         <div class="cfg-row" data-cfg-key="FeeDevErrorDetect">
           <label class="cfg-lbl" for="cfg_FeeDevErrorDetect"><span class="cfg-i">ⓘ</span><span class="cfg-name">FeeDevErrorDetect</span></label>
@@ -259,6 +262,14 @@
 
       <!-- TAB 3: FLASH BANKS & GARBAGE COLLECTION (6) -->
       <div id="cfgPane3" class="cfg-pane hidden">
+        <div class="cfg-row" style="border-bottom:1px dashed var(--bdr);padding-bottom:6px;margin-bottom:4px">
+          <label class="cfg-lbl"><span class="cfg-i" title="Số lượng Bank mặc định & tối thiểu = 2, tối đa = 4. Chỉ cho phép bớt Bank khi không Active và không có GC triggered.">ⓘ</span><span class="cfg-name">SoLuongBank (2..4)</span></label>
+          <div class="cfg-ctrl" style="gap:5px">
+            <button id="btnCfgRemoveBank" class="btn btn-xs" onclick="removeFlashBank()" title="Bớt 1 Bank không Active (khi không GC)">-</button>
+            <span id="cfgBankCountVal" class="mono" style="font-weight:800;min-width:34px;text-align:center">2/4</span>
+            <button id="btnCfgAddBank" class="btn btn-xs btn-ok" onclick="addFlashBank()" title="Thêm 1 Standby Bank (tối đa 4)">+</button>
+          </div>
+        </div>
         <div class="cfg-row" data-cfg-key="FeeBank0SizeBytes">
           <label class="cfg-lbl" for="cfg_FeeBank0SizeBytes"><span class="cfg-i">ⓘ</span><span class="cfg-name">FeeBank0SizeBytes (Sim)</span></label>
           <div class="cfg-ctrl"><input type="number" id="cfg_FeeBank0SizeBytes" min="128" max="1024" step="32" value="256" onchange="onConfigInputChanged('FeeBank0SizeBytes')" /><span style="font-size:10px;color:var(--mut)">B</span></div>
@@ -292,7 +303,7 @@
           <div class="cfg-ctrl">
             <select id="cfg_FeeLowerLayerArchitecture" onchange="onConfigInputChanged('FeeLowerLayerArchitecture')">
               <option value="CLASSIC_FLS">Classic: Fls Driver</option>
-              <option value="R23_MEMACC">R23-11: MemAcc ➔ Mem</option>
+              <option value="R23_MEMACC">R23-11 / R25-11: MemAcc ➔ Mem</option>
             </select>
           </div>
         </div>
@@ -360,7 +371,7 @@
     <!-- PANEL 1: 2-BANK DATA FLASH MAP, RAM LUT, VIRTUAL PAGE & DUAL 8-BIT REGISTERS -->
     <section class="panel">
       <div class="panel-hdr">
-        <span class="panel-title">💾 Bản Đồ 2 Bank Data Flash, RAM LUT, Trang Ảo (8B) &amp; 2 Thanh Ghi 8-Bit</span>
+        <span class="panel-title">💾 Bản Đồ Bank Data Flash (2–4 Banks), RAM LUT, Trang Ảo (8B) &amp; 2 Thanh Ghi 8-Bit</span>
         <span class="panel-sub">Click ô nhớ Flash, dòng LUT hoặc ô Bit để soi chi tiết</span>
       </div>
       <div class="panel-body tier-split">
@@ -419,7 +430,7 @@
         <div class="sm-dual">
           <div class="sm-box">
             <div class="sm-title">
-              <span>🚦 Fee Module &amp; Async Job State Machine (SWS_Fee_00022)</span>
+              <span>🚦 Fee Module &amp; Async Job State Machine (SWS_Fee_00090 / SWS_Fee_00120)</span>
               <span id="smModuleLbl" class="mono">MEMIF_IDLE</span>
             </div>
             <div id="moduleSmDiagram" class="sm-states"></div>
@@ -501,8 +512,8 @@
             <g id="node_MOD_DEM" class="mod-node" onclick="selectModule('MOD_DEM')">
               <rect class="mod-rect" x="565" y="96" width="235" height="58" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
               <text x="682" y="116" text-anchor="middle" fill="var(--warn)" font-weight="700" font-size="11.5">DEM (Diagnostic Event Mgr)</text>
-              <text id="svgSub_MOD_DEM" x="682" y="132" text-anchor="middle" fill="var(--mut)" font-size="10">Flash Verify / Erase: OK</text>
-              <text x="682" y="146" text-anchor="middle" fill="var(--txt-soft)" font-size="9">DTC Storage &amp; FLS_E_FAILED</text>
+              <text id="svgSub_MOD_DEM" x="682" y="132" text-anchor="middle" fill="var(--mut)" font-size="10">Mem/Fls HW &amp; NvM DTC: OK</text>
+              <text x="682" y="146" text-anchor="middle" fill="var(--txt-soft)" font-size="9">Fee has no own DEM [SWS §7.2.3]</text>
             </g>
 
             <!-- ROW 3: FEE CORE & DET -->
@@ -512,14 +523,14 @@
               <text id="svgSub_MOD_FEE1" x="345" y="223" text-anchor="middle" fill="var(--txt)" font-weight="700" font-size="10.5">Status: MEMIF_IDLE | Job: MEMIF_JOB_OK</text>
               <text id="svgSub_MOD_FEE2" x="345" y="240" text-anchor="middle" fill="var(--cyan)" font-weight="700" font-size="10">Active: Bank 0 | VirtualPage: 8B | RAM LUT: ON</text>
               <text id="svgSub_MOD_FEE3" x="345" y="257" text-anchor="middle" fill="var(--mut)" font-size="9.5">Append-Only 3-Phase Write · GC Threshold 75%</text>
-              <text x="345" y="270" text-anchor="middle" fill="var(--mut)" font-size="9">Fee_Read/Write/Invalidate/EraseImm/MainFunction()</text>
+              <text x="345" y="270" text-anchor="middle" fill="var(--mut)" font-size="9">Fee_Init/Read/Write/Cancel/Invalidate/EraseImm/MainFn()</text>
             </g>
 
             <g id="node_MOD_DET" class="mod-node" onclick="selectModule('MOD_DET')">
               <rect class="mod-rect" x="565" y="198" width="235" height="64" rx="8" fill="var(--panel-2)" stroke="var(--bdr)" stroke-width="1.6"/>
               <text x="682" y="218" text-anchor="middle" fill="var(--err)" font-weight="700" font-size="11.5">DET (Error Tracer · Mod 21)</text>
               <text id="svgSub_MOD_DET" x="682" y="235" text-anchor="middle" fill="var(--mut)" font-size="10">Faults Logged: 0</text>
-              <text x="682" y="251" text-anchor="middle" fill="var(--txt-soft)" font-size="9">FEE_E_UNINIT / BLOCK_NO / BUSY</text>
+              <text x="682" y="251" text-anchor="middle" fill="var(--txt-soft)" font-size="9">Dev (0x01..0x05) &amp; Runtime (0x06, 0x08)</text>
             </g>
 
             <!-- ROW 4: FLS / MEMACC & PHYSICAL DFLASH -->
@@ -565,7 +576,8 @@
     <button id="hbTab1_3" class="hb-tab1" onclick="switchHbTab1(3)">4. Garbage Collection &amp; Immediate</button>
     <button id="hbTab1_4" class="hb-tab1" onclick="switchHbTab1(4)">5. Async, Mode &amp; MemAcc R23-11</button>
     <button id="hbTab1_5" class="hb-tab1" onclick="switchHbTab1(5)">6. Chuẩn API R23-11, DET &amp; ECUC</button>
-    <button id="hbTab1_6" class="hb-tab1" onclick="switchHbTab1(6)">7. Bảng Thuật Ngữ &amp; Search</button>
+    <button id="hbTab1_6" class="hb-tab1" onclick="switchHbTab1(6)">7. Khái Niệm Sector · Page · Bank · Virtual</button>
+    <button id="hbTab1_7" class="hb-tab1" onclick="switchHbTab1(7)">8. Bảng Thuật Ngữ &amp; Search</button>
   </div>
 
   <div id="hbNav2" class="hb-nav2"></div>

@@ -221,26 +221,26 @@ def get_fee_diagram(key):
 
     if key == "2-2":
         body = "\n".join([
-            heading(20, 26, "Kiến Trúc Reserved Immediate Zone & Preemption [SWS_Fee_00060]"),
+            heading(20, 26, "Kiến Trúc Reserved Immediate Zone & Preemption [SWS_Fee_00009]"),
             box_ml(20, 50, 540, 68, ["Standard Data Region (0 .. Threshold 75% = 192B)", "Chứa Blk#1, Blk#2, Blk#4. Đầy -> Bắt buộc chạy GC"], stroke="var(--hb-pri)"),
             box_ml(570, 50, 290, 68, ["Reserved Immediate Zone (64B)", "Chỉ Blk#3_Crash (Immediate=TRUE) được ghi!"], stroke="var(--hb-warn)", title_color="var(--hb-warn)"),
-            box_ml(220, 144, 440, 56, ["Immediate Preemption Flow:", "Tạm hoãn GC (pausedByImmediate) -> Ghi Crash Data -> Tiếp tục GC"], stroke="var(--hb-err)", fill="var(--hb-card2)"),
+            box_ml(220, 144, 440, 56, ["Immediate Preemption Flow:", "Xen ngang MEMIF_BUSY_INTERNAL -> Ghi Crash Data -> Tiếp tục GC"], stroke="var(--hb-err)", fill="var(--hb-card2)"),
             arrow(715, 118, 660, 144, stroke="var(--hb-err)", marker="hbArrErr")
         ])
         return svg_wrap(880, 220, body)
 
     if key == "2-3":
         body = "\n".join([
-            heading(20, 26, "Background GC (MEMIF_BUSY_INTERNAL) vs Foreground Urgent GC"),
+            heading(20, 26, "Background GC (MEMIF_BUSY_INTERNAL) vs Foreground Urgent GC (MEMIF_BUSY)"),
             box_ml(20, 48, 405, 90, [
-                "Background GC (FeeEnableBackgroundGc = TRUE)",
-                "Tự dọn rác êm ái từng chunk nhỏ trong MainFunction",
-                "Immediate Block có thể xen ngang bất kỳ lúc nào"
+                "Background GC (MEMIF_BUSY_INTERNAL)",
+                "Tự dọn rác êm ái trong nền [SWS_Fee_00074]",
+                "Không đổi JobResult [00155]; Immediate có thể preempt"
             ], stroke="var(--hb-cyan)"),
             box_ml(455, 48, 405, 90, [
-                "Foreground / Urgent GC",
-                "Standard Write tới khi bank đã kín ngưỡng -> Phải chờ",
-                "Độ trễ User Write cộng thêm thời gian Copy + Erase"
+                "Foreground Urgent GC (MEMIF_BUSY)",
+                "Standard Write vượt ngưỡng -> MEMIF_JOB_PENDING [00025]",
+                "Từ chối mọi User API mới (FEE_E_BUSY) tới khi xong"
             ], stroke="var(--hb-warn)")
         ])
         return svg_wrap(880, 158, body)
@@ -269,33 +269,33 @@ def get_fee_diagram(key):
 
     if key == "3-2":
         body = "\n".join([
-            heading(20, 26, "Hàng Rào Kiểm Lỗi Phát Triển DET (Module ID = 21)"),
-            box_ml(20, 48, 195, 62, ["FEE_E_UNINIT (0x01)", "Gọi API khi chưa Fee_Init"], stroke="var(--hb-err)"),
-            box_ml(235, 48, 200, 62, ["FEE_E_INVALID_BLOCK_NO", "ID = 0x0000 / 0xFFFF"], stroke="var(--hb-err)"),
-            box_ml(455, 48, 195, 62, ["FEE_E_INVALID_OFS/LEN", "Vượt ngoài FeeBlockSize"], stroke="var(--hb-warn)"),
-            box_ml(670, 48, 190, 62, ["FEE_E_BUSY / CANCEL", "Gửi trùng khi đang bận"], stroke="var(--hb-warn)"),
-            label(440, 134, "Mọi lỗi DET được đẩy tới Det_ReportError(ModuleId=21, InstanceId=0, ApiId, ErrorId) khi FeeDevErrorDetect=TRUE.", anchor="middle")
+            heading(20, 26, "Hàng Rào Dev Errors [00010] & Runtime Errors [91002] (Mod ID = 21)"),
+            box_ml(20, 48, 195, 62, ["FEE_E_UNINIT (0x01)", "Dev: gọi trước Fee_Init"], stroke="var(--hb-err)"),
+            box_ml(235, 48, 200, 62, ["FEE_E_INVALID_BLOCK_NO", "Dev: 0x0000 / 0xFFFF / Unknown"], stroke="var(--hb-err)"),
+            box_ml(455, 48, 195, 62, ["FEE_E_INVALID_OFS/LEN/PTR", "Dev: sai biên hoặc NULL_PTR"], stroke="var(--hb-warn)"),
+            box_ml(670, 48, 190, 62, ["FEE_E_BUSY / CANCEL", "Runtime: bận hoặc hủy != BUSY"], stroke="var(--hb-warn)"),
+            label(440, 134, "Dev Errors (0x01..0x05) -> Det_ReportError | Runtime Errors (0x06, 0x08) -> Det_ReportRuntimeError [R25-11].", anchor="middle")
         ])
         return svg_wrap(880, 156, body)
 
     if key == "3-3":
         body = "\n".join([
-            heading(20, 26, "Luồng Lan Truyền Lỗi Phần Cứng DFlash Tới DEM"),
-            box_ml(20, 50, 240, 68, ["DFlash Silicon Fault", "ECC Double-Bit / Write Verify / Erase Fail"], stroke="var(--hb-err)"),
-            box_ml(315, 50, 230, 68, ["Fls / MemAcc Driver", "Trả MEMIF_JOB_FAILED về Fee"], stroke="var(--hb-warn)"),
-            box_ml(600, 50, 260, 68, ["Fee -> Dem_SetEventStatus()", "Lưu DTC & chuyển Sector -> CORRUPT"], stroke="var(--hb-err)", title_color="var(--hb-err)"),
+            heading(20, 26, "Luồng Lan Truyền Lỗi Phần Cứng Flash (Mem/Fls DEM & Unified Callback)"),
+            box_ml(20, 50, 240, 68, ["DFlash Silicon Fault", "ECC / Write Verify / Erase Fail"], stroke="var(--hb-err)"),
+            box_ml(315, 50, 245, 68, ["Mem / Fls -> DEM & MemAcc", "Mem báo DEM; MemAcc trả FAILED"], stroke="var(--hb-warn)"),
+            box_ml(605, 50, 255, 68, ["Fee_JobEndNotification [00194]", "MEMIF_JOB_FAILED -> NvM Error"], stroke="var(--hb-err)", title_color="var(--hb-err)"),
             arrow(260, 84, 315, 84, stroke="var(--hb-err)", marker="hbArrErr"),
-            arrow(545, 84, 600, 84, stroke="var(--hb-err)", marker="hbArrErr")
+            arrow(560, 84, 605, 84, stroke="var(--hb-err)", marker="hbArrErr")
         ])
         return svg_wrap(880, 142, body)
 
     if key == "4-0":
         body = "\n".join([
-            heading(20, 26, "Fee Module & Async Job State Machine"),
+            heading(20, 26, "Fee Module & Async Job State Machine (SWS_Fee_00090 / 00120)"),
             box_ml(20, 56, 150, 60, ["MEMIF_UNINIT", "Reset State"], stroke="var(--hb-err)"),
             box_ml(220, 56, 165, 60, ["MEMIF_IDLE", "Sẵn sàng nhận lệnh"], stroke="var(--hb-ok)"),
-            box_ml(450, 40, 200, 52, ["MEMIF_BUSY", "Write / Read / Invalidate"], stroke="var(--hb-pri)"),
-            box_ml(450, 110, 200, 52, ["MEMIF_BUSY_INTERNAL", "Background Garbage Collect"], stroke="var(--hb-warn)"),
+            box_ml(450, 40, 200, 52, ["MEMIF_BUSY", "Write / Read / EraseImm"], stroke="var(--hb-pri)"),
+            box_ml(450, 110, 200, 52, ["MEMIF_BUSY_INTERNAL", "Startup Scan / Background GC"], stroke="var(--hb-warn)"),
             box_ml(700, 56, 160, 60, ["JOB RESULT", "OK / CANCELED / FAIL"], stroke="var(--hb-pur)"),
             arrow(170, 86, 220, 86, stroke="var(--hb-ok)", marker="hbArrOk"),
             arrow(385, 76, 450, 66),
@@ -381,11 +381,60 @@ def get_fee_diagram(key):
         ])
         return svg_wrap(880, 162, body)
 
-    # 5-3 fallback
+    if key == "5-3":
+        body = "\n".join([
+            heading(20, 26, "Checklist Kiểm Thử Thực Chiến Module Fee Trước Khi Release ECU"),
+            box_ml(20, 48, 265, 96, ["1. Boundary & Alignment", "Test Block lẻ byte (14B, 17B)", "Kiểm tra Padding đúng 0xFF"], stroke="var(--hb-pri)"),
+            box_ml(307, 48, 265, 96, ["2. Power-Loss Testbench", "Ngắt nguồn tại Phase 1/2/GC", "Verify Recovery Fallback OK"], stroke="var(--hb-err)"),
+            box_ml(595, 48, 265, 96, ["3. Shutdown Budget", "Đo thời gian NvM_WriteAll", "Đảm bảo đã gọi FAST MODE"], stroke="var(--hb-ok)")
+        ])
+        return svg_wrap(880, 164, body)
+
+    if key == "6-0":
+        body = "\n".join([
+            heading(20, 26, "Phân Cấp Phần Cứng NOR DFlash: Bank/Cluster -> Physical Sector -> Page"),
+            box_ml(20, 46, 260, 112, ["Physical Flash Bank / Cluster", "Gồm >= 1 Physical Sector", "Quản lý chung qua MemAcc"], stroke="var(--hb-pri)", title_color="var(--hb-pri)"),
+            box_ml(315, 46, 260, 112, ["Physical Sector (Erase Unit)", "Đơn vị XÓA nhỏ nhất (0 -> 1 = 0xFF)", "Thường 2KB .. 64KB (Sim: 256B)"], stroke="var(--hb-warn)", title_color="var(--hb-warn)"),
+            box_ml(610, 46, 250, 112, ["Physical Write Page (ECC Word)", "Đơn vị NẠP nhỏ nhất (1 -> 0)", "Thường 4B / 8B / 16B"], stroke="var(--hb-ok)", title_color="var(--hb-ok)"),
+            arrow(280, 102, 315, 102, stroke="var(--hb-warn)", marker="hbArrWarn"),
+            arrow(575, 102, 610, 102, stroke="var(--hb-ok)", marker="hbArrOk")
+        ])
+        return svg_wrap(880, 178, body)
+
+    if key == "6-1":
+        body = "\n".join([
+            heading(20, 26, "Physical Page vs Virtual Page [SWS_Fee_00076 / SWS_Fee_00005]"),
+            box_ml(20, 48, 260, 82, ["Physical Write Page (ECC)", "Phần cứng MCU: VD = 8 Bytes", "Không ghi lẻ tránh hỏng ECC"], stroke="var(--hb-warn)"),
+            box_ml(320, 48, 260, 82, ["FeeVirtualPageSize (VP)", "Bội số nguyên của Physical Page", "VD: 8B (1x) hoặc 16B (2x) [00076]"], stroke="var(--hb-pri)"),
+            box_ml(620, 48, 240, 82, ["Aligned Logical Block [00005]", "Header(n*VP) + Payload(m*VP)", "Đệm 0xFF (Blk 14B -> 16B+8B)"], stroke="var(--hb-ok)"),
+            arrow(280, 89, 320, 89),
+            arrow(580, 89, 620, 89, stroke="var(--hb-ok)", marker="hbArrOk"),
+            label(440, 152, "Lưu ý: FeeMinimumReadPageSize [00196] (thường 1B) cho phép Partial Read nhỏ hơn Virtual Page.", anchor="middle")
+        ])
+        return svg_wrap(880, 172, body)
+
+    if key == "6-2":
+        body = "\n".join([
+            heading(20, 26, "Mô Hình Đa Bank Luân Phiên (Mặc Định 2 Bank, Tối Đa 4 Bank)"),
+            box_ml(20, 52, 185, 76, ["Bank 0", "ACTIVE BANK", "Đang append dữ liệu"], stroke="var(--hb-ok)", title_color="var(--hb-ok)"),
+            box_ml(235, 52, 185, 76, ["Bank 1", "STANDBY ERASED", "Nhận GC #1 (Min Erase)"], stroke="var(--hb-cyan)"),
+            box_ml(450, 52, 185, 76, ["Bank 2 (Optional)", "STANDBY ERASED", "Nhận GC #2 (Wear Balance)"], stroke="var(--hb-warn)"),
+            box_ml(665, 52, 195, 76, ["Bank 3 (Optional Max)", "STANDBY ERASED", "Có thể bớt nếu !=Active & !=GC"], stroke="var(--hb-pur)"),
+            arrow(205, 90, 235, 90, stroke="var(--hb-ok)", marker="hbArrOk"),
+            arrow(420, 90, 450, 90, stroke="var(--hb-warn)", marker="hbArrWarn"),
+            arrow(635, 90, 665, 90, stroke="var(--hb-warn)", marker="hbArrWarn"),
+            path_arrow("M 762 128 L 762 156 L 112 156 L 112 128", stroke="var(--hb-pri)", dashed=True),
+            label(440, 176, "Bớt Bank chỉ hợp lệ khi tổng số > 2, Bank không Active và không có GC Triggered.", color="var(--hb-err)", anchor="middle")
+        ])
+        return svg_wrap(880, 194, body)
+
+    # 6-3: Virtual Bank / Virtual Address Space
     body = "\n".join([
-        heading(20, 26, "Checklist Kiểm Thử Thực Chiến Module Fee Trước Khi Release ECU"),
-        box_ml(20, 48, 265, 96, ["1. Boundary & Alignment", "Test Block lẻ byte (14B, 17B)", "Kiểm tra Padding đúng 0xFF"], stroke="var(--hb-pri)"),
-        box_ml(307, 48, 265, 96, ["2. Power-Loss Testbench", "Ngắt nguồn tại Phase 1/2/GC", "Verify Recovery Fallback OK"], stroke="var(--hb-err)"),
-        box_ml(595, 48, 265, 96, ["3. Shutdown Budget", "Đo thời gian NvM_WriteAll", "Đảm bảo đã gọi FAST MODE"], stroke="var(--hb-ok)")
+        heading(20, 26, "Trừu Tượng Hóa Virtual Bank & Virtual EEPROM Address Space"),
+        box_ml(20, 48, 250, 96, ["Tầng Trên (NvM / MemIf)", "Chỉ thấy BlockNumber + Offset", "VD: 0x0020 (DS0), 0x0021 (DS1)", "Mù hoàn toàn về Bank vật lý"], stroke="var(--hb-pri)"),
+        box_ml(315, 48, 250, 96, ["Lớp Ảo Hóa Fee (RAM LUT)", "Map BlockNumber -> Active Bank", "Đổi nhãn Virtual Active/Standby", "tức thì khi Sector Switch"], stroke="var(--hb-cyan)"),
+        box_ml(610, 48, 250, 96, ["Tầng Vật Lý (Bank 0..3)", "Physical Sectors & Pages thực", "MemAcc_AddressArea [00155]", "Địa chỉ thật thay đổi sau mỗi GC"], stroke="var(--hb-ok)"),
+        arrow(270, 96, 315, 96),
+        arrow(565, 96, 610, 96, stroke="var(--hb-ok)", marker="hbArrOk")
     ])
-    return svg_wrap(880, 164, body)
+    return svg_wrap(880, 166, body)

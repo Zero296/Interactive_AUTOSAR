@@ -71,6 +71,38 @@ function restoreSimSnapshot(snap) {
   syncBitRegistersFromState();
 }
 
+function applyScenarioStepMeta(scen, stepIdx) {
+  if (!simState || !scen) return;
+  if (stepIdx <= 0) {
+    simState.stepExplain = scen.setupExplain || scen.summary || '';
+    simState.stepMeta = {
+      mode: 'SETUP',
+      stepIdx: 0,
+      totalSteps: scen.steps.length,
+      label: 'Bước 0: Trạng thái khởi tạo (Setup)',
+      apiFlow: (scen.setupMeta && scen.setupMeta.apiFlow) || 'Khởi tạo trạng thái ban đầu cho kịch bản',
+      bitImpact: (scen.setupMeta && scen.setupMeta.bitImpact) || `Thanh A: 0x${simState.moduleRegByte.toString(16).toUpperCase().padStart(2, '0')}`,
+      memoryImpact: (scen.setupMeta && scen.setupMeta.memoryImpact) || `Active Bank ${simState.activeBank}`,
+      swsRef: (scen.setupMeta && scen.setupMeta.swsRef) || 'AUTOSAR Classic Fee'
+    };
+  } else {
+    const st = scen.steps[stepIdx - 1];
+    if (st) {
+      if (st.desc) simState.stepExplain = st.desc;
+      simState.stepMeta = {
+        mode: 'STEP',
+        stepIdx,
+        totalSteps: scen.steps.length,
+        label: st.label || `Bước ${stepIdx}`,
+        apiFlow: st.apiFlow || 'Fee_MainFunction()',
+        bitImpact: st.bitImpact || `Thanh A: 0x${simState.moduleRegByte.toString(16).toUpperCase().padStart(2, '0')}`,
+        memoryImpact: st.memoryImpact || `Active Bank ${simState.activeBank}`,
+        swsRef: st.swsRef || 'AUTOSAR Classic Fee'
+      };
+    }
+  }
+}
+
 function loadScenarioByIndex(scenIdx, targetStepIdx = 0) {
   stopAutoPlay();
   const sIdx = Math.max(0, Math.min(SCENARIOS.length - 1, scenIdx));
@@ -81,10 +113,12 @@ function loadScenarioByIndex(scenIdx, targetStepIdx = 0) {
   _suppressUiRender = true;
   try {
     scen.setup();
+    applyScenarioStepMeta(scen, 0);
     uiState.stepSnapshots = [cloneSimSnapshot()];
     const clampedStep = Math.max(0, Math.min(scen.steps.length, targetStepIdx));
     for (let i = 0; i < clampedStep; i++) {
       scen.steps[i].action();
+      applyScenarioStepMeta(scen, i + 1);
       uiState.stepSnapshots[i + 1] = cloneSimSnapshot();
     }
     restoreSimSnapshot(uiState.stepSnapshots[clampedStep]);
@@ -112,6 +146,7 @@ function goToScenarioStep(stepIdx) {
     try {
       for (let i = uiState.currentStepIdx; i < clamped; i++) {
         scen.steps[i].action();
+        applyScenarioStepMeta(scen, i + 1);
         uiState.stepSnapshots[i + 1] = cloneSimSnapshot();
       }
       uiState.currentStepIdx = clamped;
@@ -171,6 +206,7 @@ function toggleScenarioAutoPlay() {
     return;
   }
   const scen = SCENARIOS[uiState.currentScenarioIdx];
+  if (!scen || !scen.steps || scen.steps.length === 0) return;
   if (uiState.currentStepIdx >= scen.steps.length) {
     goToScenarioStep(0);
   }
@@ -202,9 +238,19 @@ function runWhatIf(idx) {
   stopAutoPlay();
   const scen = SCENARIOS[uiState.currentScenarioIdx];
   if (!scen || !scen.whatIfs || !scen.whatIfs[idx]) return;
+  const wi = scen.whatIfs[idx];
   _suppressUiRender = true;
   try {
-    scen.whatIfs[idx].run();
+    const prevExplain = simState.stepExplain;
+    wi.run();
+    if (!simState.stepExplain || simState.stepExplain === prevExplain) {
+      simState.stepExplain = `🧪 Đã chạy thử nghiệm: ${wi.label}. Quan sát sự thay đổi trên Bank Map, Thanh A/B, State Machines và API Trace.`;
+    }
+    simState.stepMeta = {
+      ...(simState.stepMeta || {}),
+      mode: 'WHATIF',
+      label: wi.label
+    };
   } finally {
     _suppressUiRender = false;
   }
@@ -271,14 +317,22 @@ function qaFeeInvalidate() {
 function qaEraseAndWriteImmediate() {
   const bid = '0x0030';
   ecucConfig.SelectedFeeBlock = bid;
-  apiFeeEraseImmediateBlock(bid);
-  apiFeeWrite(bid, '0xFF 0xE1 [Crash Preempt QA]', { immediate: true });
+  if (!ecucConfig.FeeInitialized || simState.moduleState === 'MEMIF_UNINIT') {
+    apiFeeInit('Auto-Init before Immediate QA', { completeImmediately: true });
+  }
+  if (simState.moduleState === 'MEMIF_BUSY' && simState.activeJob) {
+    apiFeeCancel();
+  }
+  if (apiFeeEraseImmediateBlock(bid) === 'E_OK') {
+    _coreStepCompleteAsyncJob();
+    apiFeeWrite(bid, '0xFF 0xE1 [Crash Preempt QA]', { immediate: true });
+  }
   renderAll();
 }
 
 function qaTriggerGarbageCollection() {
   if (!ecucConfig.FeeInitialized || simState.moduleState === 'MEMIF_UNINIT') {
-    apiFeeInit('Auto-Init before GC');
+    apiFeeInit('Auto-Init before GC', { completeImmediately: true });
   }
   if (!simState.gcState.active) {
     startGarbageCollectionInternal(null);
@@ -376,8 +430,11 @@ function onConfigInputChanged(key) {
     }
   } else if (key === 'FeeInitialized') {
     if (val) {
-      apiFeeInit('Manual FeeInitialized=TRUE');
+      apiFeeInit('Manual FeeInitialized=TRUE', { completeImmediately: true });
     } else {
+      simState.initScanPending = false;
+      simState.activeJob = null;
+      simState.pendingUserJob = null;
       simState.moduleState = 'MEMIF_UNINIT';
       simState.moduleSmState = 'UNINIT';
     }
@@ -403,10 +460,9 @@ function renderConfigWarnings() {
   if (Number(ecucConfig.FeeBlockHeaderSize) % Number(ecucConfig.FeeVirtualPageSize) !== 0) {
     warnings.push(`Header (${ecucConfig.FeeBlockHeaderSize}B) sẽ được căn tròn lên ${alignUp(ecucConfig.FeeBlockHeaderSize, ecucConfig.FeeVirtualPageSize)}B theo bội số VirtualPage=${ecucConfig.FeeVirtualPageSize}B.`);
   }
-  const b0 = Number(ecucConfig.FeeBank0SizeBytes);
-  const b1 = Number(ecucConfig.FeeBank1SizeBytes);
-  if (b0 !== b1) {
-    warnings.push(`Bank 0 (${b0}B) != Bank 1 (${b1}B): Khi Garbage Collection copy sang bank nhỏ hơn có thể thiếu chỗ!`);
+  const bSizes = simState && simState.banks ? simState.banks.map((b) => getBankCapacity(b.id)) : [Number(ecucConfig.FeeBank0SizeBytes), Number(ecucConfig.FeeBank1SizeBytes)];
+  if (new Set(bSizes).size > 1) {
+    warnings.push(`Dung lượng giữa các Bank không đồng đều (${bSizes.join('B / ')}B): GC copy sang bank nhỏ hơn có thể thiếu chỗ!`);
   }
   const bn = String(ecucConfig.FeeBlockNumber || '').toUpperCase();
   if (bn === '0X0000' || bn === '0XFFFF') {
@@ -494,8 +550,10 @@ function renderHeaderAndLeft() {
   if (stepInd) stepInd.textContent = `Bước ${uiState.currentStepIdx}/${stepCount}`;
   const btnPrev = getEl('btnPrevStep');
   const btnNext = getEl('btnNextStep');
+  const btnAuto = getEl('btnAutoPlay');
   if (btnPrev) btnPrev.disabled = uiState.currentStepIdx <= 0;
   if (btnNext) btnNext.disabled = uiState.currentStepIdx >= stepCount;
+  if (btnAuto) btnAuto.disabled = stepCount === 0;
 
   const clk = getEl('clockVal');
   if (clk) clk.textContent = `${simState.clockMs} ms`;
@@ -527,6 +585,17 @@ function renderHeaderAndLeft() {
     bBank.textContent = `Bank ${simState.activeBank} (${actPct}%)`;
     bBank.className = 'state-badge ' + (actPct >= Number(ecucConfig.FeeGcTriggerThresholdPct) ? 'sb-warn' : 'sb-cyan');
   }
+  const bankCntVal = getEl('cfgBankCountVal');
+  const btnCfgAdd = getEl('btnCfgAddBank');
+  const btnCfgRem = getEl('btnCfgRemoveBank');
+  if (bankCntVal) bankCntVal.textContent = `${simState.banks.length}/${MAX_FEE_BANKS}`;
+  if (btnCfgAdd) btnCfgAdd.disabled = simState.banks.length >= MAX_FEE_BANKS;
+  if (btnCfgRem) {
+    const remCheck = canRemoveFlashBank(null);
+    btnCfgRem.disabled = !remCheck.allowed;
+    btnCfgRem.title = remCheck.allowed ? 'Bớt 1 Bank không Active (Min 2)' : remCheck.reason;
+  }
+
   const bMode = getEl('hdrBadgeMode');
   if (bMode) {
     const isFast = ecucConfig.ActiveMemIfMode === 'MEMIF_MODE_FAST';
@@ -547,15 +616,30 @@ function renderHeaderAndLeft() {
       : (simState.activeJob ? 'Cancel' : 'Reset');
   }
 
-  // Card 2 Scenario Summary & What-If Buttons
+  // Card 2 Scenario Summary & What-If Buttons (hidden on S0 empty sandbox)
+  const scenCard = getEl('scenSummaryCard');
+  if (scenCard) scenCard.classList.toggle('hidden', scen.id === 'S0');
   const sBadge = getEl('scenIdBadge');
   if (sBadge) {
-    sBadge.textContent = uiState.currentStepIdx === 0
-      ? `${scen.id} · Bước 0: Khởi tạo (Setup)`
-      : `${scen.id} · ${scen.steps[uiState.currentStepIdx - 1]?.label || ''}`;
+    sBadge.textContent = stepCount === 0
+      ? `${scen.id} · Chế độ Tự do (Rỗng)`
+      : (uiState.currentStepIdx === 0
+        ? `${scen.id} · Bước 0/${stepCount} (Setup)`
+        : `${scen.id} · Bước ${uiState.currentStepIdx}/${stepCount}`);
   }
   const sSum = getEl('scenSummaryBox');
-  if (sSum) sSum.textContent = scen.summary;
+  if (sSum) {
+    const activeLabel = uiState.currentStepIdx === 0
+      ? 'Bước 0: Trạng thái khởi tạo (Setup)'
+      : (scen.steps[uiState.currentStepIdx - 1]?.label || 'Thao tác');
+    const explainTxt = simState.stepExplain || scen.summary;
+    sSum.innerHTML = `
+      <div style="color:var(--txt-soft)">${escapeHtml(scen.summary)}</div>
+      <div class="scen-step-mini">
+        <span style="color:var(--cyan);font-weight:800">${escapeHtml(activeLabel)}:</span>
+        <span>${escapeHtml(explainTxt)}</span>
+      </div>`;
+  }
 
   const wCont = getEl('whatIfContainer');
   if (wCont) {
@@ -566,10 +650,11 @@ function renderHeaderAndLeft() {
 }
 
 function renderPanel1FlashLutAndBits() {
-  const b0s = getBankStats(0);
-  const b1s = getBankStats(1);
-  const actStats = simState.activeBank === 0 ? b0s : b1s;
+  const actStats = getBankStats(simState.activeBank);
   const erasedHex = getErasedByteLabel();
+  const eraseSummary = simState.banks.map((b) => `B${b.id}:${b.eraseCount}`).join('/');
+  const canAdd = simState.banks.length < MAX_FEE_BANKS;
+  const remGlobal = canRemoveFlashBank(null);
   const sumBar = getEl('flashSummaryBar');
   if (sumBar) {
     sumBar.innerHTML = `
@@ -579,7 +664,12 @@ function renderPanel1FlashLutAndBits() {
         Valid: <span style="color:var(--ok)">${actStats.validBytes}B</span> |
         Garbage: <span style="color:var(--mut)">${actStats.garbageBytes}B</span> |
         Ngưỡng GC: <span class="mono">${ecucConfig.FeeGcTriggerThresholdPct}% (${actStats.standardLimitBytes}B)</span> |
-        Erase B0/B1: <span class="mono">${simState.banks[0].eraseCount}/${simState.banks[1].eraseCount}</span>
+        Erase (${simState.banks.length} Banks): <span class="mono">${eraseSummary}</span>
+      </div>
+      <div class="flash-bank-ctrl">
+        <span id="bankCountBadge" class="pill pill-cyan">Banks: ${simState.banks.length}/${MAX_FEE_BANKS} (Min ${MIN_FEE_BANKS})</span>
+        <button id="btnAddBank" class="btn btn-xs btn-ok" onclick="addFlashBank()" ${canAdd ? '' : 'disabled'} title="${canAdd ? 'Thêm 1 Standby Bank mới (tối đa 4)' : 'Đã đạt tối đa 4 Bank'}">➕ Thêm Bank</button>
+        <button id="btnRemoveBank" class="btn btn-xs" onclick="removeFlashBank()" ${remGlobal.allowed ? '' : 'disabled'} title="${remGlobal.allowed ? 'Bớt 1 Bank không Active (Min 2)' : escapeHtml(remGlobal.reason)}">➖ Bớt Bank</button>
       </div>
       <div class="flash-legend">
         <span class="leg-dot"><span class="leg-sw" style="background:var(--ok-bg);border-color:var(--ok)"></span>VALID</span>
@@ -605,6 +695,10 @@ function renderPanel1FlashLutAndBits() {
               : (simState.gcState.active && simState.gcState.srcBank === bank.id
                   ? '<span class="pill pill-warn">GC SOURCE / ERASING</span>'
                   : (isGcDst ? '<span class="pill pill-cyan">GC COPY TARGET</span>' : '<span class="pill pill-mut">STANDBY ERASED</span>')));
+        const remCheck = canRemoveFlashBank(bank.id);
+        const remBankBtn = simState.banks.length > MIN_FEE_BANKS
+          ? `<button class="btn btn-xs" onclick="removeFlashBank(${bank.id})" ${remCheck.allowed ? '' : 'disabled'} title="${remCheck.allowed ? `Bớt ${bank.name}` : escapeHtml(remCheck.reason)}">✕ Bớt</button>`
+          : '';
 
         const slotHtml = bank.slots
           .map((slot) => {
@@ -641,7 +735,7 @@ function renderPanel1FlashLutAndBits() {
           <div class="bank-box ${boxCls}">
             <div class="bank-hdr">
               <span>${bank.name} (<span class="mono">0x${bank.baseAddr.toString(16).toUpperCase()}</span>) · Used ${st.usedBytes}/${st.capacity}B · Erase=${bank.eraseCount}</span>
-              ${rolePill}
+              <span class="bank-hdr-actions">${rolePill}${remBankBtn}</span>
             </div>
             <div class="bank-slots">
               ${slotHtml || `<div class="flash-slot slot-free"><div class="slot-top"><span>Erased Flash (${erasedHex})</span><span>${st.capacity}B</span></div><div class="slot-sub">Sạch 100%, sẵn sàng ghi hoặc nhận GC Copy</div></div>`}
@@ -791,7 +885,8 @@ function renderPanel2TimersAndStateMachines() {
           ? 65
           : Math.round(70 + (gc.eraseTicksDone / Math.max(1, gc.eraseTicksTotal)) * 30))
     : 0;
-  const wearPct = Math.min(100, Math.round((Math.max(simState.banks[0].eraseCount, simState.banks[1].eraseCount) / Math.max(1, Number(ecucConfig.FeeMaxEraseCyclesPerSector))) * 100));
+  const maxEraseSeen = Math.max(...simState.banks.map((b) => b.eraseCount));
+  const wearPct = Math.min(100, Math.round((maxEraseSeen / Math.max(1, Number(ecucConfig.FeeMaxEraseCyclesPerSector))) * 100));
 
   const tGrid = getEl('timersGrid');
   if (tGrid) {
@@ -809,7 +904,7 @@ function renderPanel2TimersAndStateMachines() {
         <div class="timer-bar"><div class="timer-fill pur" style="width:${gcPct}%"></div></div>
       </div>
       <div class="timer-card">
-        <div class="timer-top"><span>Độ Mòn Sector (Max ${ecucConfig.FeeMaxEraseCyclesPerSector})</span><span>${Math.max(simState.banks[0].eraseCount, simState.banks[1].eraseCount)} PEC</span></div>
+        <div class="timer-top"><span>Độ Mòn Sector (Max ${ecucConfig.FeeMaxEraseCyclesPerSector})</span><span>${maxEraseSeen} PEC</span></div>
         <div class="timer-bar"><div class="timer-fill ${wearPct > 70 ? 'err' : 'ok'}" style="width:${Math.max(2, wearPct)}%"></div></div>
       </div>`;
   }
@@ -850,7 +945,7 @@ function renderPanel2TimersAndStateMachines() {
       { id: 'UNINIT', title: 'MEMIF_UNINIT', sub: 'Chưa gọi Fee_Init() (B7=0)', cls: 'active-err' },
       { id: 'IDLE', title: 'MEMIF_IDLE', sub: 'RAM LUT sẵn sàng, chờ Read/Write', cls: 'active-ok' },
       { id: 'BUSY_USER_JOB', title: 'MEMIF_BUSY (User Job)', sub: 'Đang chạy Write / Read / Invalidate', cls: 'active-pri' },
-      { id: 'BUSY_INTERNAL_GC', title: 'MEMIF_BUSY_INTERNAL', sub: 'Garbage Collection nền / Sector Switch', cls: 'active-warn' },
+      { id: 'BUSY_INTERNAL_GC', title: 'MEMIF_BUSY_INTERNAL', sub: 'Startup Scan (Fee_Init) / GC nền [00120]', cls: 'active-warn' },
       { id: 'JOB_ERROR', title: 'ERROR / RECOVERY', sub: 'INCONSISTENT / INVALID / JOB_FAILED', cls: 'active-pur' }
     ];
     modSmEl.innerHTML = modNodes
@@ -891,13 +986,24 @@ function renderPanel3ArchitectureSvg() {
   const lowApi = getLowerApiNames();
   const isR23 = lowApi.isR23;
 
-  // Update dynamic Lower-Layer text (Fls vs MemAcc R23-11)
+  // Update dynamic architecture SVG labels (R25-11 MemAcc vs Classic Fls & live counters)
   const titleFls = getEl('svgTitle_MOD_FLS');
   const subFls = getEl('svgSub_MOD_FLS');
   const apiFls = getEl('svgApi_MOD_FLS');
-  if (titleFls) titleFls.textContent = isR23 ? 'MemAcc (AUTOSAR R23-11)' : 'Fls Driver (MCAL Classic)';
+  if (titleFls) titleFls.textContent = isR23 ? 'MemAcc (AUTOSAR R25-11)' : 'Fls Driver (MCAL Classic)';
   if (subFls) subFls.textContent = lowApi.subLabel;
-  if (apiFls) apiFls.textContent = isR23 ? 'MemAcc_MainFunction()' : 'Fls_MainFunction()';
+  if (apiFls) apiFls.textContent = isR23 ? 'MemAcc_MainFunction() → Fee_JobEndNotification() [00194]' : 'Fls_MainFunction()';
+
+  const detSub = getEl('svgSub_MOD_DET');
+  const demSub = getEl('svgSub_MOD_DEM');
+  const ecumSub = getEl('svgSub_MOD_ECUM');
+  const rteSub = getEl('svgSub_MOD_RTE');
+  const nvmSub = getEl('svgSub_MOD_NVM');
+  if (detSub) detSub.textContent = `Faults Logged: ${simState.stats.detCount} (${ecucConfig.FeeDevErrorDetect ? 'DEV ON' : 'DEV OFF'} + Runtime)`;
+  if (demSub) demSub.textContent = simState.stats.demCount > 0 ? `Mem HW / NvM DTC: ${simState.stats.demCount} FAULT` : 'Mem/Fls HW & NvM DTC: OK';
+  if (ecumSub) ecumSub.textContent = `Fee_Init | Mode: ${ecucConfig.ActiveMemIfMode}`;
+  if (rteSub) rteSub.textContent = `Period: ${ecucConfig.FeeMainFunctionPeriod} ms | ExclusiveArea_0`;
+  if (nvmSub) nvmSub.textContent = `CRC16 | JobResult: ${simState.jobResult}`;
 
   const feeSub1 = getEl('svgSub_MOD_FEE1');
   const feeSub2 = getEl('svgSub_MOD_FEE2');
@@ -907,7 +1013,7 @@ function renderPanel3ArchitectureSvg() {
   if (feeSub3) feeSub3.textContent = `Trailer=${getTrailerPatternLabel()} | GC=${ecucConfig.FeeGcTriggerThresholdPct}%`;
 
   const dflashSub = getEl('svgSub_MOD_DFLASH');
-  if (dflashSub) dflashSub.textContent = `B0 (${getBankStats(0).usedBytes}B) & B1 (${getBankStats(1).usedBytes}B)`;
+  if (dflashSub) dflashSub.textContent = simState.banks.map((b) => `B${b.id}(${getBankStats(b.id).usedBytes}B)`).join(' · ');
 
   // Highlight arrows & modules
   const allArrows = ['arr_swc_rte', 'arr_rte_nvm', 'arr_nvm_memif', 'arr_memif_fee', 'arr_fee_nvm', 'arr_ecum_fee', 'arr_fee_dem', 'arr_fee_det', 'arr_fee_fls', 'arr_fls_fee', 'arr_fls_dflash'];
@@ -956,22 +1062,61 @@ function renderInspector() {
   const selSlot = getInspectedSlot();
 
   if (uiState.activeInspTab === 0) {
-    // Tab 0: Bước Hiện Tại
+    // Tab 0: Bước Hiện Tại (Lộ trình + Giải thích chi tiết + Trạng thái Slot + Nhật ký)
     const recentLogs = simState.stepLog.slice(-6).reverse();
-    const stepHeadline = uiState.currentStepIdx === 0
-      ? `0. Trạng thái khởi tạo (Setup — Chưa chạy Bước 1: ${scen.steps[0]?.label || ''})`
-      : (stepObj ? stepObj.label : 'Interactive');
+    const stepCount = scen.steps.length;
+    const meta = simState.stepMeta || {};
+    const stepHeadline = meta.mode === 'WHATIF'
+      ? `🧪 Thử nghiệm: ${meta.label || 'What-If'}`
+      : meta.mode === 'MANUAL'
+        ? `⚡ Tương tác trực tiếp / Tick @ ${simState.clockMs}ms`
+        : stepCount === 0
+          ? 'Chế độ Tự do: Fee Rỗng Ban Đầu (Free Sandbox)'
+          : uiState.currentStepIdx === 0
+            ? `Bước 0/${stepCount}: Trạng thái khởi tạo (Setup)`
+          : `Bước ${uiState.currentStepIdx}/${stepCount}: ${stepObj ? stepObj.label : 'Interactive'}`;
+
+    const explainText = simState.stepExplain || (stepObj && stepObj.desc) || scen.setupExplain || scen.summary;
+    const apiFlowTxt = meta.apiFlow || (stepObj && stepObj.apiFlow) || '--';
+    const bitImpactTxt = meta.bitImpact || (stepObj && stepObj.bitImpact) || `Thanh A=0x${simState.moduleRegByte.toString(16).toUpperCase().padStart(2, '0')} | Thanh B=0x${simState.headerRegByte.toString(16).toUpperCase().padStart(2, '0')}`;
+    const memImpactTxt = meta.memoryImpact || (stepObj && stepObj.memoryImpact) || `Active Bank ${simState.activeBank} | LUT=${Object.keys(simState.lut).length}`;
+    const swsRefTxt = meta.swsRef || (stepObj && stepObj.swsRef) || 'AUTOSAR Classic Fee';
+
+    const roadmapHtml = [
+      `<button class="sr-pill ${uiState.currentStepIdx === 0 ? 'active' : 'done'}" onclick="goToScenarioStep(0)" title="Bước 0: Trạng thái khởi tạo (Setup)">0. Setup</button>`,
+      ...scen.steps.map((st, idx) => {
+        const sNum = idx + 1;
+        const cls = uiState.currentStepIdx === sNum ? 'active' : (uiState.currentStepIdx > sNum ? 'done' : '');
+        return `<button class="sr-pill ${cls}" onclick="goToScenarioStep(${sNum})" title="${escapeHtml(st.label)}">B${sNum}</button>`;
+      })
+    ].join('');
+
+    const regAHex = `0x${simState.moduleRegByte.toString(16).toUpperCase().padStart(2, '0')}`;
+    const regBHex = `0x${simState.headerRegByte.toString(16).toUpperCase().padStart(2, '0')}`;
+
     body.innerHTML = `
       <div class="insp-card">
-        <div class="insp-h">📍 Kịch bản & Bước đang xem</div>
-        <div style="font-size:12px;font-weight:700;margin-bottom:4px">${escapeHtml(scen.title)}</div>
-        <div style="font-size:11.5px;color:var(--cyan);font-weight:700;margin-bottom:6px">${escapeHtml(stepHeadline)}</div>
-        <div style="font-size:11px;color:var(--txt-soft)">${escapeHtml(scen.summary)}</div>
+        <div class="insp-h">📍 Kịch bản &amp; Lộ trình Mô phỏng (${escapeHtml(scen.id)})</div>
+        <div style="font-size:11.5px;font-weight:700;margin-bottom:4px">${escapeHtml(scen.title)}</div>
+        <div style="font-size:10.8px;color:var(--txt-soft);line-height:1.45">${escapeHtml(scen.summary)}</div>
+        <div class="step-roadmap">${roadmapHtml}</div>
+      </div>
+      <div class="insp-card step-explain-card">
+        <div class="insp-h">📖 Giải thích chi tiết Bước hiện tại</div>
+        <div class="step-explain-title">${escapeHtml(stepHeadline)}</div>
+        <div class="step-explain-body">${escapeHtml(explainText)}</div>
+        <div class="step-meta-list">
+          <div class="step-meta-row"><span class="step-meta-k">🔌 Luồng API:</span><span class="step-meta-v mono">${escapeHtml(apiFlowTxt)}</span></div>
+          <div class="step-meta-row"><span class="step-meta-k">🎛️ Thanh ghi/FSM:</span><span class="step-meta-v">${escapeHtml(bitImpactTxt)}</span></div>
+          <div class="step-meta-row"><span class="step-meta-k">💾 DFlash &amp; LUT:</span><span class="step-meta-v">${escapeHtml(memImpactTxt)}</span></div>
+          <div class="step-meta-row"><span class="step-meta-k">📘 Chuẩn SWS:</span><span class="step-meta-v mono" style="color:var(--pri)">${escapeHtml(swsRefTxt)}</span></div>
+        </div>
       </div>
       <div class="insp-card">
-        <div class="insp-h">🔍 Trạng thái Job & Slot đang soi</div>
+        <div class="insp-h">🔍 Trạng thái Job &amp; Slot đang soi</div>
         <div style="font-size:11px;line-height:1.55">
           • <b>Module Status:</b> <span class="mono">${simState.moduleState}</span> | <b>JobResult:</b> <span class="mono">${simState.jobResult}</span><br>
+          • <b>Thanh A / B:</b> <span class="mono">${regAHex} / ${regBHex}</span> | <b>RAM LUT:</b> <span class="mono">${Object.keys(simState.lut).length} entries</span><br>
           • <b>Read Output:</b> <span class="mono">${escapeHtml(simState.lastReadBuffer)}</span><br>
           • <b>Soi Slot:</b> ${selSlot ? `<span class="mono">${selSlot.blockId} #${selSlot.seq} @ Bank${selSlot.bankId}+0x${selSlot.offset.toString(16).toUpperCase()} (${selSlot.status}, ${selSlot.totalBytes}B)</span>` : 'Chưa chọn slot'}
         </div>

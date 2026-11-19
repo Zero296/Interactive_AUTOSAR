@@ -78,18 +78,53 @@ def build_shared_js_assertions(html_keys):
     throw new Error('ECUC key parity failed: diffTip=' + diffTip + ' diffHtml=' + diffHtml);
   }}
 
-  if (SCENARIOS.length !== 12) throw new Error('Expected 12 scenarios, got ' + SCENARIOS.length);
+  // Check default reload state is S0 (empty Fee sandbox) before switching scenarios
+  if (typeof document !== 'undefined') {{
+    const initSel = getEl('scenSelect');
+    if (!initSel || initSel.value !== 'S0') {{
+      throw new Error('Default scenario on reload must be S0, got ' + (initSel ? initSel.value : 'missing'));
+    }}
+    if (!getEl('btnNextStep').disabled || !getEl('btnAutoPlay').disabled) {{
+      throw new Error('Expected Next/AutoPlay disabled on S0 empty sandbox');
+    }}
+    const scenCard = getEl('scenSummaryCard');
+    if (!scenCard || !scenCard.classList.contains('hidden')) {{
+      throw new Error('Expected #scenSummaryCard to be hidden when S0 is active');
+    }}
+  }}
+  if (SCENARIOS[uiState.currentScenarioIdx].id !== 'S0' || getBankStats(0).usedBytes !== 0 || getBankStats(1).usedBytes !== 0 || Object.keys(simState.lut).length !== 0 || apiFeeGetStatus() !== 'MEMIF_UNINIT' || ecucConfig.FeeInitialized !== false) {{
+    throw new Error('Initial reload state S0 must have empty Bank0/Bank1, empty LUT, FeeInitialized=false, and MEMIF_UNINIT');
+  }}
+
+  if (SCENARIOS.length !== 13) throw new Error('Expected 13 scenarios (S0 + S1..S12), got ' + SCENARIOS.length);
   let whatIfCount = 0;
   for (let si = 0; si < SCENARIOS.length; si++) {{
     const sc = SCENARIOS[si];
+    if (!sc.setupExplain || sc.setupExplain.trim().length < 20) {{
+      throw new Error('Scenario ' + sc.id + ' missing detailed setupExplain');
+    }}
+    if (typeof document !== 'undefined') {{
+      const opt = document.querySelector('#scenSelect option[value="' + sc.id + '"]');
+      if (!opt) throw new Error('Missing dropdown option for ' + sc.id);
+      if (opt.textContent.trim() !== sc.title.trim()) {{
+        throw new Error('Dropdown vs SCENARIOS title mismatch for ' + sc.id + ': "' + opt.textContent.trim() + '" != "' + sc.title.trim() + '"');
+      }}
+    }}
     loadScenarioByIndex(si, 0);
     if (uiState.currentStepIdx !== 0) {{
       throw new Error('Scenario ' + sc.id + ' did not start at Step 0');
     }}
     for (let st = 1; st <= sc.steps.length; st++) {{
+      const stepDef = sc.steps[st - 1];
+      if (!stepDef.desc || stepDef.desc.trim().length < 30 || !stepDef.apiFlow || !stepDef.bitImpact || !stepDef.memoryImpact || !stepDef.swsRef) {{
+        throw new Error('Scenario ' + sc.id + ' step ' + st + ' missing detailed explanation metadata');
+      }}
       nextScenarioStep();
       if (uiState.currentStepIdx !== st) {{
         throw new Error('Expected step ' + st + ', got ' + uiState.currentStepIdx);
+      }}
+      if (simState.stepExplain !== stepDef.desc) {{
+        throw new Error('Scenario ' + sc.id + ' step ' + st + ' did not sync stepExplain');
       }}
     }}
     for (let st = sc.steps.length - 1; st >= 0; st--) {{
@@ -109,9 +144,9 @@ def build_shared_js_assertions(html_keys):
       whatIfCount += 1;
     }}
   }}
-  if (whatIfCount !== 36) throw new Error('Expected 36 what-ifs, got ' + whatIfCount);
+  if (whatIfCount !== 39) throw new Error('Expected 39 what-ifs, got ' + whatIfCount);
 
-  loadScenarioByIndex(1, 0); // S2 at Step 0 (Clean Setup, 0 writes)
+  loadScenarioByIndex(2, 0); // S2 at Step 0 (Clean Setup, 0 writes)
   if (simState.stats.totalWrites !== 0) {{
     throw new Error('S2 Step 0 should have 0 writes before Step 1, got ' + simState.stats.totalWrites);
   }}
@@ -120,13 +155,19 @@ def build_shared_js_assertions(html_keys):
     throw new Error('Geometry 14B/VP=8 failed: ' + JSON.stringify(g14));
   }}
 
-  loadScenarioByIndex(8, 0); // S9 Step 0 -> setup only
-  goToScenarioStep(1); // S9 Step 1 -> SLOW 32B
+  loadScenarioByIndex(9, 0); // S9 Step 0 -> setup only
+  goToScenarioStep(2); // S9 Step 2 -> SLOW 32B completed
   const slowLatency = simState.stats.lastLatencyMs;
-  goToScenarioStep(3); // S9 Step 3 -> FAST 32B
+  goToScenarioStep(4); // S9 Step 4 -> FAST 32B completed
   const fastLatency = simState.stats.lastLatencyMs;
   if (slowLatency !== 20 || fastLatency !== 5) {{
     throw new Error('Timing mismatch SLOW=' + slowLatency + 'ms, FAST=' + fastLatency + 'ms');
+  }}
+  if (typeof document !== 'undefined') {{
+    switchInspTab(0);
+    if (!document.querySelector('#inspBody .step-explain-card') || !document.querySelector('#inspBody .step-roadmap')) {{
+      throw new Error('Inspector Tab 0 missing step-explain-card or step-roadmap');
+    }}
   }}
 
   qaFeeWrite(); stepCompleteAsyncJob();
@@ -140,20 +181,148 @@ def build_shared_js_assertions(html_keys):
   const arxml = generateArxmlContent();
   const cfgh = generateFeeCfgH();
   const lcfg = generateFeeLcfgC();
-  if (!arxml.includes('<AUTOSAR') || !cfgh.includes('#define FEE_VIRTUAL_PAGE_SIZE') || !lcfg.includes('Fee_BlockConfig')) {{
-    throw new Error('Export output check failed');
+  if (!arxml.includes('<AUTOSAR') || !arxml.includes('VARIANT-PRE-COMPILE') || !arxml.includes('FeeMinimumReadPageSize') || !cfgh.includes('#define FEE_VIRTUAL_PAGE_SIZE') || !lcfg.includes('Fee_BlockConfig')) {{
+    throw new Error('Export output check failed (ARXML VARIANT-PRE-COMPILE / Header / Lcfg)');
+  }}
+
+  // R25-11 Behavioral Verification Suite
+  loadScenarioByIndex(1, 0); // S1 UNINIT
+  if (typeof document !== 'undefined' && getEl('scenSummaryCard').classList.contains('hidden')) {{
+    throw new Error('Expected #scenSummaryCard to be visible on S1');
+  }}
+  const preDet = simState.stats.detCount;
+  if (apiFeeGetStatus() !== 'MEMIF_UNINIT' || simState.stats.detCount !== preDet) {{
+    throw new Error('Fee_GetStatus on UNINIT must return MEMIF_UNINIT without DET');
+  }}
+  apiFeeInit('Verify Init R25-11');
+  if (apiFeeGetStatus() !== 'MEMIF_BUSY_INTERNAL') {{
+    throw new Error('SWS_Fee_00120: Fee_Init must transition to MEMIF_BUSY_INTERNAL, got ' + apiFeeGetStatus());
+  }}
+  ecucConfig.FeeDevErrorDetect = false;
+  apiFeeCancel();
+  if (!simState.lastErrorDet || simState.lastErrorDet.name !== 'FEE_E_INVALID_CANCEL') {{
+    throw new Error('SWS_Fee_00184/91002: Fee_Cancel during BUSY_INTERNAL must always raise Runtime Error FEE_E_INVALID_CANCEL');
+  }}
+  ecucConfig.FeeDevErrorDetect = true;
+  if (apiFeeRead('0x0010') !== 'E_OK') {{
+    throw new Error('SWS_Fee_00172: Fee_Read must be accepted during MEMIF_BUSY_INTERNAL');
+  }}
+  stepMainFunctionTick();
+  if (apiFeeGetStatus() !== 'MEMIF_IDLE' || apiFeeGetJobResult() !== 'MEMIF_JOB_OK') {{
+    throw new Error('SWS_Fee_00197: Expected MEMIF_IDLE / MEMIF_JOB_OK after tick, got ' + apiFeeGetStatus() + '/' + apiFeeGetJobResult());
+  }}
+
+  // Reject Immediate Write during MEMIF_BUSY [SWS_Fee_00144 / SWS_Fee_00009 Note]
+  apiFeeWrite('0x0020', '0x11 0x22 [Busy Guard]');
+  if (apiFeeWrite('0x0030', '0xFF [Must Fail BUSY]', {{ immediate: true }}) !== 'E_NOT_OK' || simState.lastErrorDet.name !== 'FEE_E_BUSY') {{
+    throw new Error('SWS_Fee_00144: Immediate Write must be rejected with FEE_E_BUSY when MEMIF_BUSY');
+  }}
+  apiFeeCancel();
+  if (apiFeeGetJobResult() !== 'MEMIF_JOB_CANCELED') {{
+    throw new Error('SWS_Fee_00157: Cancel should set MEMIF_JOB_CANCELED');
+  }}
+
+  // Background GC must NOT overwrite JobResult [SWS_Fee_00155]
+  startGarbageCollectionInternal(null);
+  if (apiFeeGetStatus() !== 'MEMIF_BUSY_INTERNAL') {{
+    throw new Error('SWS_Fee_00074: Background GC must report MEMIF_BUSY_INTERNAL');
+  }}
+  // Preempt Background GC with Immediate Write [SWS_Fee_00009]
+  if (apiFeeWrite('0x0030', '0xFF [Preempt BUSY_INTERNAL]', {{ immediate: true }}) !== 'E_OK') {{
+    throw new Error('SWS_Fee_00009: Immediate Write should preempt MEMIF_BUSY_INTERNAL background GC');
+  }}
+  stepMainFunctionTick();
+  while (simState.activeJob || (simState.gcState && simState.gcState.active)) {{
+    stepMainFunctionTick();
+  }}
+  startGarbageCollectionInternal(null);
+  // Force preserve previous jobResult across background GC after cancel test
+  simState.jobResult = 'MEMIF_JOB_CANCELED';
+  while (simState.gcState && simState.gcState.active) {{
+    stepMainFunctionTick();
+  }}
+  if (apiFeeGetJobResult() !== 'MEMIF_JOB_CANCELED') {{
+    throw new Error('SWS_Fee_00155: Background GC must preserve prior JobResult, got ' + apiFeeGetJobResult());
+  }}
+
+  // EraseImmediateBlock rejects non-immediate [00068] and runs async for immediate [00094]
+  if (apiFeeEraseImmediateBlock('0x0010') !== 'E_NOT_OK' || simState.lastErrorDet.name !== 'FEE_E_INVALID_BLOCK_NO') {{
+    throw new Error('SWS_Fee_00068: EraseImmediateBlock must reject non-immediate block');
+  }}
+  if (apiFeeEraseImmediateBlock('0x0030') !== 'E_OK' || apiFeeGetStatus() !== 'MEMIF_BUSY' || apiFeeGetJobResult() !== 'MEMIF_JOB_PENDING') {{
+    throw new Error('SWS_Fee_00094: EraseImmediateBlock must start async MEMIF_BUSY / MEMIF_JOB_PENDING');
+  }}
+  stepMainFunctionTick();
+  if (apiFeeGetStatus() !== 'MEMIF_IDLE' || apiFeeGetJobResult() !== 'MEMIF_JOB_OK') {{
+    throw new Error('SWS_Fee_00094: EraseImmediateBlock completion expected MEMIF_IDLE / MEMIF_JOB_OK');
+  }}
+
+  // Foreground GC (S7 Step 1) must stay MEMIF_BUSY [SWS_Fee_00025 / 00129]
+  loadScenarioByIndex(7, 1);
+  if (apiFeeGetStatus() !== 'MEMIF_BUSY' || apiFeeGetJobResult() !== 'MEMIF_JOB_PENDING') {{
+    throw new Error('SWS_Fee_00025: S7 Step 1 Foreground GC expected MEMIF_BUSY / MEMIF_JOB_PENDING, got ' + apiFeeGetStatus());
+  }}
+
+  // Multi-Bank (2..4) & Removal Guard Verification
+  loadScenarioByIndex(0, 0); // S0 starts at min/default 2 banks
+  if (simState.banks.length !== 2) throw new Error('Expected default 2 banks, got ' + simState.banks.length);
+  if (removeFlashBank() !== false || simState.banks.length !== 2) {{
+    throw new Error('Must forbid removing below minimum 2 banks');
+  }}
+  if (!addFlashBank() || simState.banks.length !== 3) throw new Error('Failed adding Bank 2');
+  if (!addFlashBank() || simState.banks.length !== 4) throw new Error('Failed adding Bank 3');
+  if (addFlashBank() !== false || simState.banks.length !== 4) {{
+    throw new Error('Must forbid exceeding maximum 4 banks');
+  }}
+  if (!generateFeeCfgH().includes('#define FEE_NUM_FLASH_BANKS             (4U)')) {{
+    throw new Error('Fee_Cfg.h must reflect 4 banks when 4 banks configured');
+  }}
+  // Forbid removing active bank
+  if (removeFlashBank(simState.activeBank) !== false || simState.banks.length !== 4) {{
+    throw new Error('Must forbid removing currently active bank');
+  }}
+  // Forbid removing while GC is triggered/active (test with 3 banks on S7)
+  loadScenarioByIndex(7, 0);
+  addFlashBank(); // Now 3 banks before triggering GC
+  apiFeeWrite('0x0020', '0x99 [Trigger GC with 3 banks]');
+  if (!simState.gcState.active) throw new Error('Expected GC triggered on S7');
+  if (removeFlashBank() !== false || removeFlashBank(2) !== false) {{
+    throw new Error('Must forbid removing any bank while GC is active/triggered');
+  }}
+  if (typeof document !== 'undefined' && getEl('btnRemoveBank') && !getEl('btnRemoveBank').disabled) {{
+    throw new Error('Expected btnRemoveBank UI button disabled while GC active');
+  }}
+  stepCompleteAsyncJob();
+  if (simState.activeBank !== 1) throw new Error('GC #1 expected activeBank=1, got ' + simState.activeBank);
+  // Test round-robin + wear-leveling GC #2 picks Bank 2 (lower eraseCount than Bank 0)
+  startGarbageCollectionInternal(null);
+  while (simState.gcState && simState.gcState.active) stepMainFunctionTick();
+  if (simState.activeBank !== 2) throw new Error('GC #2 expected activeBank=2 on 3-bank rotation, got ' + simState.activeBank);
+  // Active bank is now Bank 2: cannot remove Bank 2, CAN remove inactive Bank 0, keeping data & LUT on reindexed Bank 1!
+  const lutCountBeforeRem = Object.keys(simState.lut).length;
+  if (removeFlashBank(2) !== false) throw new Error('Must forbid removing active Bank 2');
+  if (!removeFlashBank(0) || simState.banks.length !== 2 || simState.activeBank !== 1) {{
+    throw new Error('Expected removing inactive Bank 0 to keep 2 banks with reindexed activeBank=1');
+  }}
+  if (Object.keys(simState.lut).length !== lutCountBeforeRem) {{
+    throw new Error('RAM LUT entries lost after removing inactive Bank 0');
   }}
 
   const modKeys = Object.keys(MODULES_INFO);
   if (modKeys.length !== 10) throw new Error('Expected 10 MODULES_INFO, got ' + modKeys.length);
   if (ABBREVIATIONS.length < 56) throw new Error('Expected >=56 ABBREVIATIONS, got ' + ABBREVIATIONS.length);
-  if (HANDBOOK_DATA.length !== 6) throw new Error('Expected 6 Handbook tabs');
+  if (HANDBOOK_DATA.length !== 7) throw new Error('Expected 7 Handbook tabs, got ' + HANDBOOK_DATA.length);
   let subTotal = 0;
+  let swsBarCount = 0;
   const svgs = [];
   HANDBOOK_DATA.forEach((t, ti) => {{
     if (t.subs.length !== 4) throw new Error('Tab ' + ti + ' expected 4 subs');
     t.subs.forEach((s, si) => {{
       subTotal += 1;
+      if (!s.contentHtml.includes('class="hb-sws-bar"') || !s.contentHtml.includes('class="hb-sws-chip')) {{
+        throw new Error('Missing SWS_ID strip in Handbook tab ' + ti + '-' + si);
+      }}
+      swsBarCount += 1;
       const m = s.contentHtml.match(/<svg[\\s\\S]*?<\\/svg>/);
       if (!m) throw new Error('Missing SVG in Handbook tab ' + ti + '-' + si);
       svgs.push({{ key: ti + '-' + si, svg: m[0] }});
@@ -162,7 +331,19 @@ def build_shared_js_assertions(html_keys):
 
   if (typeof switchMainView === 'function' && typeof document !== 'undefined') {{
     switchMainView('hb');
+    switchHbTab1(0);
+    switchHbTab2(0);
+    if (!document.querySelector('#hbContentArea .hb-sws-bar .hb-sws-chip')) {{
+      throw new Error('Expected rendered .hb-sws-bar .hb-sws-chip in Handbook DOM');
+    }}
     switchHbTab1(6);
+    for (let sbi = 0; sbi < 4; sbi++) {{
+      switchHbTab2(sbi);
+      if (!document.querySelector('#hbContentArea .hb-sws-bar') || !document.querySelector('#hbContentArea svg')) {{
+        throw new Error('Expected Sector/Page/Bank/Virtual sub-tab 6-' + sbi + ' to render SWS bar and SVG');
+      }}
+    }}
+    switchHbTab1(7);
     setAbbrCategory('GC');
     const inp = getEl('abbrSearchInput');
     if (inp) {{ inp.value = 'RAM'; filterAbbreviationTable(); }}
@@ -179,6 +360,7 @@ def build_shared_js_assertions(html_keys):
     abbreviations: ABBREVIATIONS.length,
     modules: modKeys.length,
     handbookTopics: subTotal,
+    swsBars: swsBarCount,
     slowLatency,
     fastLatency,
     svgs
@@ -282,10 +464,12 @@ def main():
     else:
         raise RuntimeError("Neither Chrome/Edge nor Node.js found to execute JS verification!")
 
+    assert summary["swsBars"] == 28, f"Expected 28 SWS_ID strips, got {summary['swsBars']}"
     print(
-        f"[PASS] 3. Runtime & ECUC parity verified: {summary['cfgKeys']} keys, "
+        f"[PASS] 3. Runtime, R25-11 SM & ECUC parity verified: {summary['cfgKeys']} keys, "
         f"{summary['scenarios']} scenarios, {summary['whatIfs']} What-Ifs, "
         f"{summary['modules']} modules, {summary['abbreviations']} abbrs, "
+        f"{summary['swsBars']}/28 SWS_ID strips, "
         f"Timing SLOW={summary['slowLatency']}ms vs FAST={summary['fastLatency']}ms."
     )
 
