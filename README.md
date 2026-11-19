@@ -1,58 +1,47 @@
-# AUTOSAR Classic Interactive Architecture & Simulation Hub
+# AUTOSAR Classic R25-11 Interactive Hub
 
-Bộ công cụ web tương tác mô phỏng kiến trúc phân tầng **AUTOSAR Classic R23-11** (74 modules, 23 luồng chạy end-to-end với 219 bước chi tiết) và liên kết tới **36 module đã gắn mô phỏng** (trên 29 file `.html`).
+Trang web offline tương tác giúp tra cứu kiến trúc **AUTOSAR Classic Platform R25-11** (theo `[SWS_BSW_91000..91002]`, **108** modules), chạy thử **27** luồng mô phỏng (**256** bước end-to-end) và mở nhanh **38** thẻ liên kết (**29** file `.html` mô phỏng chi tiết từng module).
 
 ---
 
-## 1. Cách mở nhanh
+## 1. Cách sử dụng nhanh
 
-- **Mở trực tiếp (Offline):** Double-click file `AUTOSAR.html` bằng trình duyệt bất kỳ (Chrome, Edge, Firefox). Toàn bộ dữ liệu mặc định đã được nhúng sẵn, không cần cài server hay internet.
-- **Chạy qua HTTP cục bộ (tự đồng bộ khi sửa `autosar_modules.json`):**
-  ```bash
+- **Mở trực tiếp (không cần cài đặt):** Double-click file `AUTOSAR.html`.
+- **Hoặc chạy qua local server** *(khuyên dùng nếu muốn tự động tải lại `autosar_modules.json` khi chỉnh sửa)*:
+  ```powershell
   python -m http.server 8000
   ```
-  Sau đó mở `http://localhost:8000/AUTOSAR.html`. Khi bạn chỉnh sửa `autosar_modules.json`, bấm **🔄 Reload** để cập nhật ngay.
+  Sau đó mở trình duyệt tại `http://localhost:8000/AUTOSAR.html`.
 
 ---
 
-## 2. Cấu trúc thư mục
+## 2. Chức năng chính trên giao diện
 
-```text
-├── AUTOSAR.html              # Trang Hub chính (Kiến trúc, Danh mục, JSON Studio, Hướng dẫn)
-├── autosar_modules.json      # File JSON cấu hình modules, đường dẫn .html và các luồng mô phỏng
-├── Simulation/               # 29 file mô phỏng phân theo layer AUTOSAR (tương ứng 36 module)
-│   ├── 01_Application/       # Tầng ASW (chờ bổ sung)
-│   ├── 02_RTE/               # AUTOSAR_RTE.html
-│   ├── 03_Services/          # 21 file (OS, EcuM, BswM, WdgM, DET, DEM, FiM, NvM, ComM, COM, Xfrm, PduR, SecOC, DCM, Nm_CanNm, CanNM, CanSM, DoCAN, DoIP, SoAd, TcpIp)
-│   ├── 04_ECU_Abstraction/   # 5 file (CanIf, MemIf, Fee, Ea, IoHwAb)
-│   ├── 05_MCAL/              # 2 file: AUTOSAR_MCAL.html (8-Module Core MCAL: #Mcu, #Port, #Dio, #Adc, #Pwm, #Spi, #Can, #Fls) & AUTOSAR_Eep.html
-│   ├── 06_Complex_Drivers/   # Chờ bổ sung
-│   ├── assets/               # Tài nguyên hình ảnh phụ trợ
-│   └── old/                  # Các bản mô phỏng cũ
-├── Design_docs/              # 24 tài liệu thiết kế mô phỏng (*_Simulation_design.md)
-├── Scripts/                  # 20 thư mục script build module (build_bswm, build_ecum, build_nvm, build_mcal, ...)
-└── _Archive/                 # File nén lưu trữ cũ
-```
+- **Kiến Trúc (Canvas):**
+  - Bấm vào từng module để xem tóm tắt, API/kết nối giữa các tầng và mở mô phỏng (chấm xanh lá).
+  - Chọn **Bus / Nhóm** (`Core`, `CAN`, `CAN XL`, `Diagnostic`, `Security`, `Ethernet`, `TimeSync`, `J1939`, `LIN`, `FlexRay`, `Memory`, `I/O`) hoặc gõ `FuSa` vào **ô tìm kiếm** (hoặc bấm vào tag `🛡️ FuSa` / `+ Tag` trong khung **Chi tiết & Mô phỏng**) để lọc **15** module Functional Safety ISO 26262.
+  - Chọn **Luồng mô phỏng (`F1`–`F27`)** ở thanh công cụ để xem đường đi gói tin/tín hiệu từng bước kèm mũi tên động và giải thích API R25-11.
+- **Danh Mục:** Bảng tra cứu toàn bộ 108 module theo tầng, chuẩn AUTOSAR R25-11 và trạng thái liên kết.
+- **JSON / Links:** Dán hoặc tải `autosar_modules.json` để cập nhật đường dẫn mô phỏng mà không cần sửa HTML.
+- **Hướng Dẫn:** Tổng hợp kiến trúc phân tầng R25-11, danh sách 38 thẻ liên kết (29 file `.html`) và bộ 27 luồng mô phỏng.
 
 ---
 
-## 3. Thao tác nhanh trên `AUTOSAR.html`
+## 3. Điểm cập nhật chuẩn AUTOSAR Classic R25-11
 
-1. **Khám phá module (`🗺️ Kiến Trúc`):**
-   - Click vào card module để chọn (highlight dây kết nối & xem API/mô tả ở cột phải **sticky**); click lại lần nữa để bỏ chọn.
-   - Double-click vào card màu xanh hoặc bấm **Mở ↗** để mở trình mô phỏng chi tiết của module đó.
-   - Gõ `/` để tìm nhanh module/API, lăn `Ctrl + Scroll` để zoom, kéo vùng trống để di chuyển.
-2. **Mô phỏng luồng chạy (`Luồng mô phỏng`):**
-   - Chọn 1 trong 23 luồng tiêu chuẩn (Boot-Up, OS Preemption/IOC/SchM, CAN Tx/Rx, CanTp đa khung, CAN Bus-Off, IpduM Multiplex, NM/Partial Networking, DoIP Ethernet, SOME/IP-SD Tx/Rx RPC, UdpNm, NvM/Fee/Eep, Det/Dlt, UDS/Security/Bootloader, Dem/FiM, WdgM, SecOC, I/O, CDD) rồi dùng **Bước Tiếp ▶** hoặc **▶ Tự Động** để xem đường đi động và giải thích API/ngữ cảnh/ý nghĩa ở cột phải.
-3. **Danh mục & Hướng dẫn (`📋 Danh Mục`, `📖 Hướng Dẫn`):**
-   - Tra cứu bảng toàn bộ 74 modules, kiểm tra trạng thái liên kết và khởi chạy nhanh các luồng từ tài liệu hướng dẫn.
+- **Cấu trúc BSW mới:** Bổ sung đầy đủ module chuẩn `[SWS_BSW_91000..91002]` như `Arti`, `SchM`, `SwCluC`, `BndM`, `LSduR`, `MemAcc`, `Mem`, `CorTst`, `RamTst`, `FlsTst`, `CanXL`, `CanXLTrcv`, `Dds`, `SomeIpXf`/`ComXf`/`E2EXf`/`DdsXf`, `SomeIpTp`, `Fw`, `Mka`, `Mirror`, `CanTSyn`/`EthTSyn`/`FrTSyn`, `IEEE1722Tp`, `FrArTp`, `Chrg`, `VdpCmR`, `Xcp`, `J1939*`, `I2C`, `Ocu`.
+- **Hợp nhất & thay thế theo R25-11:**
+  - `LdCom` được gộp vào `Com` dưới dạng **Large Data Path** (`Com_Transmit`).
+  - `LSduR` nằm giữa Upper Comm và `CanIf`/`EthIf`/`LinIf`/`FrIf` trên đường dữ liệu L-SDU.
+  - `MemAcc` + `Mem` thay thế truy cập trực tiếp `Fls`/`Eep` dưới `Fee`/`Ea`/`BndM` *(vẫn giữ 2 thẻ `[Legacy ≤ R20-11]` trỏ tới `AUTOSAR_MCAL.html#Fls` và `AUTOSAR_Eep.html` để không mất trình mô phỏng sẵn có)*.
+  - `Det` bỏ gọi trực tiếp sang `Dlt`, chuyển sang dùng hook `<User_Error_Hooks>` / `DetReportRuntimeErrorCallout`.
+- **4 luồng mô phỏng R25-11 mới (`F24`–`F27`):** `CanXL` + `Fw`, `Mka` MACsec + `EthTSyn`, `Dds` + `DdsXf`, và `SwCluC` + `BndM` + `CorTst`/`RamTst`/`FlsTst` + `MemAcc` + `Mem`.
 
 ---
 
-## 4. Thêm / sửa đường dẫn mô phỏng bằng JSON
+## 4. Cấu trúc thư mục
 
-Khi tạo thêm file mô phỏng mới (ví dụ `Simulation/03_Services/AUTOSAR_NvM.html`), bạn có thể cập nhật theo 1 trong 2 cách:
-
-- **Cách 1 — Sửa file `autosar_modules.json`:** Điền đường dẫn tương đối vào trường `"htmlPath"` của module tương ứng (hoặc thêm object mới vào `"modules"`). Nếu mở dạng `file://`, chỉ cần **kéo-thả file `.json` vào cửa sổ trình duyệt** hoặc bấm **📂 Nạp JSON**.
-- **Cách 2 — Sửa trực tiếp trên web:** Chọn module bất kỳ để gắn/sửa link ở cột phải, hoặc vào tab **🧩 JSON / Links** để chỉnh trực tiếp / thêm module mới.
-- **Lưu & chia sẻ:** Bấm **💾 Xuất JSON** để tải file `autosar_modules.json` mới, hoặc bấm **📥 Tải .HTML** để đóng gói toàn bộ cấu hình vào **1 file `AUTOSAR.html` duy nhất** gửi cho người khác.
+- `AUTOSAR.html`: Trang hub chính (nhúng sẵn JSON để chạy offline bằng `file://`).
+- `autosar_modules.json`: Dữ liệu 108 module, 38 liên kết mô phỏng và 27 luồng (256 bước).
+- `Simulation/`: Các file `.html` mô phỏng chi tiết được phân theo tầng (`01_Application` -> `06_CDD`).
+- `LocalDoc/`: Tài liệu tham khảo tiêu chuẩn **AUTOSAR Classic R25-11** (`CP/`).
