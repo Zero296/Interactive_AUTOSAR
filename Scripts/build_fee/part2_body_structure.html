@@ -61,7 +61,7 @@
         <span id="clockVal" class="clock-val mono">0 ms</span>
         <button class="btn btn-sm btn-ok" onclick="stepMainFunctionTick()" title="Chạy 1 chu kỳ Fee_MainFunction() &amp; Fls/MemAcc_MainFunction()">+1 Tick MainFn</button>
         <button class="btn btn-sm btn-cyan" onclick="stepCompleteAsyncJob()" title="Chạy liên tiếp MainFunction tới khi hoàn tất Job hiện tại">⚡ Xong Nhanh Job</button>
-        <button id="btnAutoClock" class="btn btn-sm" onclick="toggleAutoClock()">⏱ Auto</button>
+        <button id="btnAutoClock" class="btn btn-sm" onclick="toggleAutoClock()" title="Tự động tick Fee_MainFunction() mỗi 425ms (tốc độ 2x)">⏱ Auto (2x)</button>
       </div>
     </div>
 
@@ -375,8 +375,22 @@
         <span class="panel-sub">Click ô nhớ Flash, dòng LUT hoặc ô Bit để soi chi tiết</span>
       </div>
       <div class="panel-body tier-split">
-        <!-- TIER 1A: SUMMARY + 2 BANK MEMORY MAP + LUT & VIRTUAL PAGE ANATOMY -->
-        <div id="flashSummaryBar" class="flash-summary-bar"></div>
+        <!-- TIER 1A: SUMMARY + BANK MEMORY MAP + LUT & VIRTUAL PAGE ANATOMY -->
+        <div id="flashSummaryBar" class="flash-summary-bar">
+          <div id="flashSummaryInfo"></div>
+          <div id="flashBankCtrl" class="flash-bank-ctrl">
+            <span id="bankCountBadge" class="pill pill-cyan">Banks: 2/4 (Min 2)</span>
+            <button id="btnAddBank" class="btn btn-xs btn-ok" onclick="addFlashBank()">➕ Thêm Bank</button>
+            <button id="btnRemoveBank" class="btn btn-xs" onclick="removeFlashBank()">➖ Bớt Bank</button>
+          </div>
+          <div id="flashLegend" class="flash-legend">
+            <span class="leg-dot"><span class="leg-sw" style="background:var(--ok-bg);border-color:var(--ok)"></span>VALID</span>
+            <span class="leg-dot"><span class="leg-sw" style="background:var(--old-bg);border-color:var(--old-bdr)"></span>SUPERSEDED</span>
+            <span class="leg-dot"><span class="leg-sw" style="background:var(--pur-bg);border-color:var(--pur)"></span>INVALIDATED</span>
+            <span class="leg-dot"><span class="leg-sw" style="background:var(--err-bg);border-color:var(--err)"></span>TORN/INCONSISTENT</span>
+            <span class="leg-dot"><span class="leg-sw" style="background:var(--warn-bg);border-color:var(--warn)"></span>RESERVED IMM</span>
+          </div>
+        </div>
         <div id="bankMapBox" class="bank-wrap"></div>
 
         <div class="lut-anatomy-grid">

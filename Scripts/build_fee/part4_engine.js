@@ -1901,15 +1901,19 @@ function advanceOneTickGc() {
   return false;
 }
 
-function stepMainFunctionTick() {
-  if (!simState) return;
+function stepMainFunctionTick(opts = {}) {
+  if (!simState) return { worked: false };
+  const isAutoClock = Boolean(opts && opts.isAutoClock);
   const period = Math.max(1, Number(ecucConfig.FeeMainFunctionPeriod) || 5);
   simState.clockMs += period;
 
   if (!ecucConfig.FeeInitialized || simState.moduleState === 'MEMIF_UNINIT') {
+    if (isAutoClock) {
+      return { worked: false };
+    }
     addTrace('SchM', 'Fee_MainFunction()', '[SWS_Fee_00097] Bị bỏ qua vì MEMIF_UNINIT (chưa chạy Fee_Init)', 'WARN');
     syncBitRegistersFromState();
-    return;
+    return { worked: false };
   }
 
   // 0. Finish deferred Startup Scan from Fee_Init() [SWS_Fee_00197]
@@ -2308,6 +2312,9 @@ function stepMainFunctionTick() {
     return;
   }
 
+  if (isAutoClock) {
+    return { worked: false };
+  }
   addTrace('SchM', 'Fee_MainFunction()', '[SWS_Fee_00097] MEMIF_IDLE — Không có user job hoặc GC đang chờ', 'INFO');
   setStepExplain(
     'Fee_MainFunction() [SWS_Fee_00097] thực thi chu kỳ nhưng hệ thống đang MEMIF_IDLE (không có User Job hoặc công việc nội bộ chờ xử lý).',
@@ -2320,6 +2327,7 @@ function stepMainFunctionTick() {
     }
   );
   syncBitRegistersFromState();
+  return { worked: false };
 }
 
 function stepCompleteAsyncJob() {

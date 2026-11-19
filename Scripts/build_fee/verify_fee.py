@@ -266,6 +266,33 @@ def build_shared_js_assertions(html_keys):
   // Multi-Bank (2..4) & Removal Guard Verification
   loadScenarioByIndex(0, 0); // S0 starts at min/default 2 banks
   if (simState.banks.length !== 2) throw new Error('Expected default 2 banks, got ' + simState.banks.length);
+
+  // Auto-Clock zero-flicker / DOM-identity stability check (idle & active job) & 2x speed check (425ms)
+  if (typeof AUTO_CLOCK_INTERVAL_MS === 'undefined' || AUTO_CLOCK_INTERVAL_MS !== 425) {{
+    throw new Error('Expected AUTO_CLOCK_INTERVAL_MS === 425 (2x speed), got ' + (typeof AUTO_CLOCK_INTERVAL_MS !== 'undefined' ? AUTO_CLOCK_INTERVAL_MS : 'undefined'));
+  }}
+  if (typeof document !== 'undefined') {{
+    const btnAddRef = getEl('btnAddBank');
+    const bitRef = document.querySelector('#regABits .bit-box');
+    const slotRefIdle = document.querySelector('#bankMapBox .flash-slot');
+    const traceCountIdleBefore = simState.trace.length;
+    const idleTickRes = stepMainFunctionTick({{ isAutoClock: true }});
+    if (!idleTickRes || idleTickRes.worked !== false) throw new Error('AutoClock idle tick should report worked=false');
+    if (simState.trace.length !== traceCountIdleBefore) throw new Error('AutoClock idle tick must not spam trace');
+    if (btnAddRef !== getEl('btnAddBank') || bitRef !== document.querySelector('#regABits .bit-box') || slotRefIdle !== document.querySelector('#bankMapBox .flash-slot')) {{
+      throw new Error('AutoClock idle tick destroyed interactive DOM elements');
+    }}
+    loadScenarioByIndex(2, 1); // S2 Step 1: Active slow write
+    const slotWritingRef = document.querySelector('#bankMapBox .flash-slot');
+    const srPillRef = document.querySelector('#inspBody .sr-pill');
+    const whatIfRef = document.querySelector('#whatIfContainer .whatif-btn');
+    const workTickRes = stepMainFunctionTick({{ isAutoClock: true }});
+    if (!workTickRes || workTickRes.worked === false) throw new Error('AutoClock active tick should report worked=true');
+    if (slotWritingRef !== document.querySelector('#bankMapBox .flash-slot') || srPillRef !== document.querySelector('#inspBody .sr-pill') || whatIfRef !== document.querySelector('#whatIfContainer .whatif-btn')) {{
+      throw new Error('AutoClock active tick destroyed DOM nodes instead of updating in-place (risk of missed clicks)');
+    }}
+    loadScenarioByIndex(0, 0);
+  }}
   if (removeFlashBank() !== false || simState.banks.length !== 2) {{
     throw new Error('Must forbid removing below minimum 2 banks');
   }}

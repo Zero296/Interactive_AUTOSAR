@@ -1478,7 +1478,7 @@ mark {
         <span id="clockVal" class="clock-val mono">0 ms</span>
         <button class="btn btn-sm btn-ok" onclick="stepMainFunctionTick()" title="Chạy 1 chu kỳ Fee_MainFunction() &amp; Fls/MemAcc_MainFunction()">+1 Tick MainFn</button>
         <button class="btn btn-sm btn-cyan" onclick="stepCompleteAsyncJob()" title="Chạy liên tiếp MainFunction tới khi hoàn tất Job hiện tại">⚡ Xong Nhanh Job</button>
-        <button id="btnAutoClock" class="btn btn-sm" onclick="toggleAutoClock()">⏱ Auto</button>
+        <button id="btnAutoClock" class="btn btn-sm" onclick="toggleAutoClock()" title="Tự động tick Fee_MainFunction() mỗi 425ms (tốc độ 2x)">⏱ Auto (2x)</button>
       </div>
     </div>
 
@@ -1792,8 +1792,22 @@ mark {
         <span class="panel-sub">Click ô nhớ Flash, dòng LUT hoặc ô Bit để soi chi tiết</span>
       </div>
       <div class="panel-body tier-split">
-        <!-- TIER 1A: SUMMARY + 2 BANK MEMORY MAP + LUT & VIRTUAL PAGE ANATOMY -->
-        <div id="flashSummaryBar" class="flash-summary-bar"></div>
+        <!-- TIER 1A: SUMMARY + BANK MEMORY MAP + LUT & VIRTUAL PAGE ANATOMY -->
+        <div id="flashSummaryBar" class="flash-summary-bar">
+          <div id="flashSummaryInfo"></div>
+          <div id="flashBankCtrl" class="flash-bank-ctrl">
+            <span id="bankCountBadge" class="pill pill-cyan">Banks: 2/4 (Min 2)</span>
+            <button id="btnAddBank" class="btn btn-xs btn-ok" onclick="addFlashBank()">➕ Thêm Bank</button>
+            <button id="btnRemoveBank" class="btn btn-xs" onclick="removeFlashBank()">➖ Bớt Bank</button>
+          </div>
+          <div id="flashLegend" class="flash-legend">
+            <span class="leg-dot"><span class="leg-sw" style="background:var(--ok-bg);border-color:var(--ok)"></span>VALID</span>
+            <span class="leg-dot"><span class="leg-sw" style="background:var(--old-bg);border-color:var(--old-bdr)"></span>SUPERSEDED</span>
+            <span class="leg-dot"><span class="leg-sw" style="background:var(--pur-bg);border-color:var(--pur)"></span>INVALIDATED</span>
+            <span class="leg-dot"><span class="leg-sw" style="background:var(--err-bg);border-color:var(--err)"></span>TORN/INCONSISTENT</span>
+            <span class="leg-dot"><span class="leg-sw" style="background:var(--warn-bg);border-color:var(--warn)"></span>RESERVED IMM</span>
+          </div>
+        </div>
         <div id="bankMapBox" class="bank-wrap"></div>
 
         <div class="lut-anatomy-grid">
@@ -4588,15 +4602,19 @@ function advanceOneTickGc() {
   return false;
 }
 
-function stepMainFunctionTick() {
-  if (!simState) return;
+function stepMainFunctionTick(opts = {}) {
+  if (!simState) return { worked: false };
+  const isAutoClock = Boolean(opts && opts.isAutoClock);
   const period = Math.max(1, Number(ecucConfig.FeeMainFunctionPeriod) || 5);
   simState.clockMs += period;
 
   if (!ecucConfig.FeeInitialized || simState.moduleState === 'MEMIF_UNINIT') {
+    if (isAutoClock) {
+      return { worked: false };
+    }
     addTrace('SchM', 'Fee_MainFunction()', '[SWS_Fee_00097] Bị bỏ qua vì MEMIF_UNINIT (chưa chạy Fee_Init)', 'WARN');
     syncBitRegistersFromState();
-    return;
+    return { worked: false };
   }
 
   // 0. Finish deferred Startup Scan from Fee_Init() [SWS_Fee_00197]
@@ -4995,6 +5013,9 @@ function stepMainFunctionTick() {
     return;
   }
 
+  if (isAutoClock) {
+    return { worked: false };
+  }
   addTrace('SchM', 'Fee_MainFunction()', '[SWS_Fee_00097] MEMIF_IDLE — Không có user job hoặc GC đang chờ', 'INFO');
   setStepExplain(
     'Fee_MainFunction() [SWS_Fee_00097] thực thi chu kỳ nhưng hệ thống đang MEMIF_IDLE (không có User Job hoặc công việc nội bộ chờ xử lý).',
@@ -5007,6 +5028,7 @@ function stepMainFunctionTick() {
     }
   );
   syncBitRegistersFromState();
+  return { worked: false };
 }
 
 function stepCompleteAsyncJob() {
@@ -6807,11 +6829,38 @@ let _suppressUiRender = false;
 const _coreStepMainFunctionTick = stepMainFunctionTick;
 const _coreStepCompleteAsyncJob = stepCompleteAsyncJob;
 
-stepMainFunctionTick = function () {
-  _coreStepMainFunctionTick();
+const _renderedHtmlCache = typeof WeakMap !== 'undefined' ? new WeakMap() : null;
+
+function setHtmlIfChanged(el, nextHtml) {
+  if (!el) return false;
+  if (_renderedHtmlCache && _renderedHtmlCache.get(el) === nextHtml) return false;
+  if (_renderedHtmlCache) _renderedHtmlCache.set(el, nextHtml);
+  el.innerHTML = nextHtml;
+  return true;
+}
+
+function setTextIfChanged(el, nextText) {
+  if (!el) return false;
+  const txt = String(nextText);
+  if (el.textContent !== txt) el.textContent = txt;
+  return true;
+}
+
+function setAttrIfChanged(el, prop, nextVal) {
+  if (!el) return;
+  if (el[prop] !== nextVal) el[prop] = nextVal;
+}
+
+stepMainFunctionTick = function (opts = {}) {
+  const res = _coreStepMainFunctionTick(opts) || { worked: true };
   if (!_suppressUiRender && typeof document !== 'undefined') {
-    renderAll();
+    if (opts && opts.isAutoClock && res && res.worked === false) {
+      setTextIfChanged(getEl('clockVal'), `${simState.clockMs} ms`);
+    } else {
+      renderAll();
+    }
   }
+  return res;
 };
 
 stepCompleteAsyncJob = function () {
@@ -7006,18 +7055,20 @@ function toggleScenarioAutoPlay() {
   }, 1500);
 }
 
+const AUTO_CLOCK_INTERVAL_MS = 425; // 2x faster than initial 850ms tick interval
+
 function toggleAutoClock() {
   const btn = getEl('btnAutoClock');
   if (uiState.autoClockTimer) {
     clearInterval(uiState.autoClockTimer);
     uiState.autoClockTimer = null;
-    if (btn) btn.textContent = '⏱ Auto';
+    if (btn) btn.textContent = '⏱ Auto (2x)';
     return;
   }
   if (btn) btn.textContent = '⏸ Stop Clock';
   uiState.autoClockTimer = setInterval(() => {
-    stepMainFunctionTick();
-  }, 850);
+    stepMainFunctionTick({ isAutoClock: true });
+  }, AUTO_CLOCK_INTERVAL_MS);
 }
 
 function runWhatIf(idx) {
@@ -7168,18 +7219,20 @@ function switchCfgTab(idx) {
 
 function syncConfigToDOM() {
   if (typeof document === 'undefined') return;
+  const activeEl = document.activeElement;
   Object.keys(defaultConfig).forEach((key) => {
     const el = getEl(`cfg_${key}`);
-    if (!el) return;
+    if (!el || el === activeEl) return;
     const val = ecucConfig[key];
     if (el.type === 'checkbox') {
-      el.checked = Boolean(val);
+      if (el.checked !== Boolean(val)) el.checked = Boolean(val);
     } else {
-      el.value = String(val);
+      const strVal = String(val);
+      if (el.value !== strVal) el.value = strVal;
     }
   });
   const qaBlk = getEl('qaBlkSelect');
-  if (qaBlk && ecucConfig.SelectedFeeBlock) {
+  if (qaBlk && qaBlk !== activeEl && ecucConfig.SelectedFeeBlock && qaBlk.value !== ecucConfig.SelectedFeeBlock) {
     qaBlk.value = ecucConfig.SelectedFeeBlock;
   }
   renderConfigWarnings();
@@ -7259,10 +7312,10 @@ function renderConfigWarnings() {
   }
   if (warnings.length === 0) {
     box.classList.add('hidden');
-    box.innerHTML = '';
+    setHtmlIfChanged(box, '');
   } else {
     box.classList.remove('hidden');
-    box.innerHTML = `<div class="cfg-warn-banner">⚠️ ${warnings.map(escapeHtml).join('<br>⚠️ ')}</div>`;
+    setHtmlIfChanged(box, `<div class="cfg-warn-banner">⚠️ ${warnings.map(escapeHtml).join('<br>⚠️ ')}</div>`);
   }
 }
 
@@ -7419,20 +7472,45 @@ function renderHeaderAndLeft() {
       ? 'Bước 0: Trạng thái khởi tạo (Setup)'
       : (scen.steps[uiState.currentStepIdx - 1]?.label || 'Thao tác');
     const explainTxt = simState.stepExplain || scen.summary;
-    sSum.innerHTML = `
+    setHtmlIfChanged(sSum, `
       <div style="color:var(--txt-soft)">${escapeHtml(scen.summary)}</div>
       <div class="scen-step-mini">
         <span style="color:var(--cyan);font-weight:800">${escapeHtml(activeLabel)}:</span>
         <span>${escapeHtml(explainTxt)}</span>
-      </div>`;
+      </div>`);
   }
 
   const wCont = getEl('whatIfContainer');
   if (wCont) {
-    wCont.innerHTML = (scen.whatIfs || [])
+    const whatIfHtml = (scen.whatIfs || [])
       .map((w, idx) => `<button class="whatif-btn" onclick="runWhatIf(${idx})">💡 ${escapeHtml(w.label)}</button>`)
       .join('');
+    setHtmlIfChanged(wCont, whatIfHtml);
   }
+}
+
+function patchBankSlotsDom(slotsEl, items) {
+  while (slotsEl.children.length > items.length) {
+    slotsEl.removeChild(slotsEl.lastElementChild);
+  }
+  items.forEach((item, idx) => {
+    let el = slotsEl.children[idx];
+    if (!el) {
+      el = document.createElement('div');
+      slotsEl.appendChild(el);
+    }
+    if (el.getAttribute('data-slot-key') !== item.key) {
+      el.setAttribute('data-slot-key', item.key);
+    }
+    setAttrIfChanged(el, 'className', item.className);
+    setAttrIfChanged(el, 'title', item.title || '');
+    if (item.slotUid) {
+      el.onclick = () => selectFlashSlot(item.slotUid);
+    } else if (el.onclick) {
+      el.onclick = null;
+    }
+    setHtmlIfChanged(el, item.innerHtml);
+  });
 }
 
 function renderPanel1FlashLutAndBits() {
@@ -7441,95 +7519,131 @@ function renderPanel1FlashLutAndBits() {
   const eraseSummary = simState.banks.map((b) => `B${b.id}:${b.eraseCount}`).join('/');
   const canAdd = simState.banks.length < MAX_FEE_BANKS;
   const remGlobal = canRemoveFlashBank(null);
-  const sumBar = getEl('flashSummaryBar');
-  if (sumBar) {
-    sumBar.innerHTML = `
-      <div>
-        <b>Active Bank ${simState.activeBank}:</b>
-        <span class="mono">${actStats.usedBytes}/${actStats.capacity}B</span> (${actStats.usedPct}%) |
-        Valid: <span style="color:var(--ok)">${actStats.validBytes}B</span> |
-        Garbage: <span style="color:var(--mut)">${actStats.garbageBytes}B</span> |
-        Ngưỡng GC: <span class="mono">${ecucConfig.FeeGcTriggerThresholdPct}% (${actStats.standardLimitBytes}B)</span> |
-        Erase (${simState.banks.length} Banks): <span class="mono">${eraseSummary}</span>
-      </div>
-      <div class="flash-bank-ctrl">
-        <span id="bankCountBadge" class="pill pill-cyan">Banks: ${simState.banks.length}/${MAX_FEE_BANKS} (Min ${MIN_FEE_BANKS})</span>
-        <button id="btnAddBank" class="btn btn-xs btn-ok" onclick="addFlashBank()" ${canAdd ? '' : 'disabled'} title="${canAdd ? 'Thêm 1 Standby Bank mới (tối đa 4)' : 'Đã đạt tối đa 4 Bank'}">➕ Thêm Bank</button>
-        <button id="btnRemoveBank" class="btn btn-xs" onclick="removeFlashBank()" ${remGlobal.allowed ? '' : 'disabled'} title="${remGlobal.allowed ? 'Bớt 1 Bank không Active (Min 2)' : escapeHtml(remGlobal.reason)}">➖ Bớt Bank</button>
-      </div>
-      <div class="flash-legend">
-        <span class="leg-dot"><span class="leg-sw" style="background:var(--ok-bg);border-color:var(--ok)"></span>VALID</span>
-        <span class="leg-dot"><span class="leg-sw" style="background:var(--old-bg);border-color:var(--old-bdr)"></span>SUPERSEDED</span>
-        <span class="leg-dot"><span class="leg-sw" style="background:var(--pur-bg);border-color:var(--pur)"></span>INVALIDATED</span>
-        <span class="leg-dot"><span class="leg-sw" style="background:var(--err-bg);border-color:var(--err)"></span>TORN/INCONSISTENT</span>
-        <span class="leg-dot"><span class="leg-sw" style="background:var(--warn-bg);border-color:var(--warn)"></span>RESERVED IMM</span>
-      </div>`;
+
+  const infoEl = getEl('flashSummaryInfo');
+  if (infoEl) {
+    setHtmlIfChanged(infoEl, `
+      <b>Active Bank ${simState.activeBank}:</b>
+      <span class="mono">${actStats.usedBytes}/${actStats.capacity}B</span> (${actStats.usedPct}%) |
+      Valid: <span style="color:var(--ok)">${actStats.validBytes}B</span> |
+      Garbage: <span style="color:var(--mut)">${actStats.garbageBytes}B</span> |
+      Ngưỡng GC: <span class="mono">${ecucConfig.FeeGcTriggerThresholdPct}% (${actStats.standardLimitBytes}B)</span> |
+      Erase (${simState.banks.length} Banks): <span class="mono">${eraseSummary}</span>`);
+  }
+  setTextIfChanged(getEl('bankCountBadge'), `Banks: ${simState.banks.length}/${MAX_FEE_BANKS} (Min ${MIN_FEE_BANKS})`);
+  const btnAdd = getEl('btnAddBank');
+  if (btnAdd) {
+    setAttrIfChanged(btnAdd, 'disabled', !canAdd);
+    setAttrIfChanged(btnAdd, 'title', canAdd ? 'Thêm 1 Standby Bank mới (tối đa 4)' : 'Đã đạt tối đa 4 Bank');
+  }
+  const btnRem = getEl('btnRemoveBank');
+  if (btnRem) {
+    setAttrIfChanged(btnRem, 'disabled', !remGlobal.allowed);
+    setAttrIfChanged(btnRem, 'title', remGlobal.allowed ? 'Bớt 1 Bank không Active (Min 2)' : remGlobal.reason);
   }
 
   const bankBox = getEl('bankMapBox');
   if (bankBox) {
-    bankBox.innerHTML = simState.banks
-      .map((bank) => {
-        const st = getBankStats(bank.id);
-        const isActive = bank.id === simState.activeBank;
-        const isGcDst = simState.gcState.active && simState.gcState.dstBank === bank.id;
-        const boxCls = isActive ? 'bank-active' : isGcDst ? 'bank-gc' : '';
-        const rolePill = isActive
-          ? '<span class="pill pill-ok">ACTIVE BANK</span>'
-          : (bank.state === 'BANK_CORRUPT_DEM'
-              ? '<span class="pill pill-err">CORRUPT (DEM)</span>'
-              : (simState.gcState.active && simState.gcState.srcBank === bank.id
-                  ? '<span class="pill pill-warn">GC SOURCE / ERASING</span>'
-                  : (isGcDst ? '<span class="pill pill-cyan">GC COPY TARGET</span>' : '<span class="pill pill-mut">STANDBY ERASED</span>')));
-        const remCheck = canRemoveFlashBank(bank.id);
-        const remBankBtn = simState.banks.length > MIN_FEE_BANKS
-          ? `<button class="btn btn-xs" onclick="removeFlashBank(${bank.id})" ${remCheck.allowed ? '' : 'disabled'} title="${remCheck.allowed ? `Bớt ${bank.name}` : escapeHtml(remCheck.reason)}">✕ Bớt</button>`
-          : '';
+    if (bankBox.children.length !== simState.banks.length) {
+      bankBox.innerHTML = simState.banks
+        .map((bank) => `
+          <div class="bank-box">
+            <div class="bank-hdr">
+              <span class="bank-hdr-label"></span>
+              <span class="bank-hdr-actions">
+                <span class="bank-role-wrap"></span>
+                <button class="btn btn-xs bank-rem-btn" onclick="removeFlashBank(${bank.id})">✕ Bớt</button>
+              </span>
+            </div>
+            <div class="bank-slots"></div>
+          </div>`)
+        .join('');
+    }
+    simState.banks.forEach((bank, bi) => {
+      const card = bankBox.children[bi];
+      if (!card) return;
+      const st = getBankStats(bank.id);
+      const isActive = bank.id === simState.activeBank;
+      const isGcDst = simState.gcState.active && simState.gcState.dstBank === bank.id;
+      const boxCls = 'bank-box' + (isActive ? ' bank-active' : isGcDst ? ' bank-gc' : '');
+      setAttrIfChanged(card, 'className', boxCls);
 
-        const slotHtml = bank.slots
-          .map((slot) => {
-            let cls = 'slot-valid';
-            if (slot.status === 'SUPERSEDED') cls = 'slot-superseded';
-            else if (slot.status === 'INVALIDATED') cls = 'slot-invalid';
-            else if (slot.status === 'INCONSISTENT') cls = 'slot-torn';
-            else if (slot.status === 'WRITING_HDR' || slot.status === 'WRITING_DATA') cls = 'slot-writing';
-            const selCls = slot.uid === simState.selectedSlotUid ? 'selected-slot' : '';
-            const immTag = slot.immediate ? ' ⚡IMM' : '';
-            return `
-              <div class="flash-slot ${cls} ${selCls}" onclick="selectFlashSlot('${escapeHtml(slot.uid)}')" title="Click để xem Anatomy & Bit Thanh B">
-                <div class="slot-top">
-                  <span>${escapeHtml(slot.blockId)} #${slot.seq}${immTag}</span>
-                  <span>${slot.totalBytes}B</span>
-                </div>
-                <div class="slot-sub mono">0x${slot.offset.toString(16).toUpperCase().padStart(2, '0')} · ${slot.status}</div>
-              </div>`;
-          })
-          .join('');
+      const hdrLabelEl = card.querySelector('.bank-hdr-label');
+      setTextIfChanged(hdrLabelEl, `${bank.name} (0x${bank.baseAddr.toString(16).toUpperCase()}) · Used ${st.usedBytes}/${st.capacity}B · Erase=${bank.eraseCount}`);
 
+      const roleWrap = card.querySelector('.bank-role-wrap');
+      const rolePill = isActive
+        ? '<span class="pill pill-ok">ACTIVE BANK</span>'
+        : (bank.state === 'BANK_CORRUPT_DEM'
+            ? '<span class="pill pill-err">CORRUPT (DEM)</span>'
+            : (simState.gcState.active && simState.gcState.srcBank === bank.id
+                ? '<span class="pill pill-warn">GC SOURCE / ERASING</span>'
+                : (isGcDst ? '<span class="pill pill-cyan">GC COPY TARGET</span>' : '<span class="pill pill-mut">STANDBY ERASED</span>')));
+      setHtmlIfChanged(roleWrap, rolePill);
+
+      const remBtn = card.querySelector('.bank-rem-btn');
+      if (remBtn) {
+        const showRem = simState.banks.length > MIN_FEE_BANKS;
+        remBtn.classList.toggle('hidden', !showRem);
+        if (showRem) {
+          const remCheck = canRemoveFlashBank(bank.id);
+          setAttrIfChanged(remBtn, 'disabled', !remCheck.allowed);
+          setAttrIfChanged(remBtn, 'title', remCheck.allowed ? `Bớt ${bank.name}` : remCheck.reason);
+        }
+      }
+
+      const items = [];
+      bank.slots.forEach((slot) => {
+        let cls = 'slot-valid';
+        if (slot.status === 'SUPERSEDED') cls = 'slot-superseded';
+        else if (slot.status === 'INVALIDATED') cls = 'slot-invalid';
+        else if (slot.status === 'INCONSISTENT') cls = 'slot-torn';
+        else if (slot.status === 'WRITING_HDR' || slot.status === 'WRITING_DATA') cls = 'slot-writing';
+        const selCls = slot.uid === simState.selectedSlotUid ? ' selected-slot' : '';
+        const immTag = slot.immediate ? ' ⚡IMM' : '';
+        items.push({
+          key: slot.uid,
+          className: `flash-slot ${cls}${selCls}`,
+          title: 'Click để xem Anatomy & Bit Thanh B',
+          slotUid: slot.uid,
+          innerHtml: `<div class="slot-top"><span>${escapeHtml(slot.blockId)} #${slot.seq}${immTag}</span><span>${slot.totalBytes}B</span></div><div class="slot-sub mono">0x${slot.offset.toString(16).toUpperCase().padStart(2, '0')} · ${slot.status}</div>`
+        });
+      });
+
+      if (bank.slots.length === 0) {
+        items.push({
+          key: `ERASED_${bank.id}`,
+          className: 'flash-slot slot-free',
+          title: '',
+          slotUid: null,
+          innerHtml: `<div class="slot-top"><span>Erased Flash (${erasedHex})</span><span>${st.capacity}B</span></div><div class="slot-sub">Sạch 100%, sẵn sàng ghi hoặc nhận GC Copy</div>`
+        });
+      } else {
         const freeStd = Math.max(0, st.standardLimitBytes - st.usedBytes);
         const freeTotal = Math.max(0, st.capacity - st.usedBytes);
         const freeImmOnly = Math.max(0, freeTotal - freeStd);
-
-        const freeStdHtml = freeStd > 0
-          ? `<div class="flash-slot slot-free"><div class="slot-top"><span>Standard Free (${erasedHex})</span><span>${freeStd}B</span></div><div class="slot-sub">Tới ngưỡng GC ${ecucConfig.FeeGcTriggerThresholdPct}%</div></div>`
-          : '';
-        const immResHtml = freeImmOnly > 0
-          ? `<div class="flash-slot slot-imm-res"><div class="slot-top"><span>Reserved Imm Zone</span><span>${freeImmOnly}B</span></div><div class="slot-sub">Chỉ cho Immediate Block</div></div>`
-          : '';
-
-        return `
-          <div class="bank-box ${boxCls}">
-            <div class="bank-hdr">
-              <span>${bank.name} (<span class="mono">0x${bank.baseAddr.toString(16).toUpperCase()}</span>) · Used ${st.usedBytes}/${st.capacity}B · Erase=${bank.eraseCount}</span>
-              <span class="bank-hdr-actions">${rolePill}${remBankBtn}</span>
-            </div>
-            <div class="bank-slots">
-              ${slotHtml || `<div class="flash-slot slot-free"><div class="slot-top"><span>Erased Flash (${erasedHex})</span><span>${st.capacity}B</span></div><div class="slot-sub">Sạch 100%, sẵn sàng ghi hoặc nhận GC Copy</div></div>`}
-              ${bank.slots.length > 0 ? freeStdHtml + immResHtml : ''}
-            </div>
-          </div>`;
-      })
-      .join('');
+        if (freeStd > 0) {
+          items.push({
+            key: `FREE_STD_${bank.id}`,
+            className: 'flash-slot slot-free',
+            title: '',
+            slotUid: null,
+            innerHtml: `<div class="slot-top"><span>Standard Free (${erasedHex})</span><span>${freeStd}B</span></div><div class="slot-sub">Tới ngưỡng GC ${ecucConfig.FeeGcTriggerThresholdPct}%</div>`
+          });
+        }
+        if (freeImmOnly > 0) {
+          items.push({
+            key: `FREE_IMM_${bank.id}`,
+            className: 'flash-slot slot-imm-res',
+            title: '',
+            slotUid: null,
+            innerHtml: `<div class="slot-top"><span>Reserved Imm Zone</span><span>${freeImmOnly}B</span></div><div class="slot-sub">Chỉ cho Immediate Block</div>`
+          });
+        }
+      }
+      const slotsEl = card.querySelector('.bank-slots');
+      if (slotsEl) patchBankSlotsDom(slotsEl, items);
+    });
   }
 
   // RAM LUT Table
@@ -7550,12 +7664,13 @@ function renderPanel1FlashLutAndBits() {
   const lutBox = getEl('ramLutBox');
   if (lutBox) {
     const entries = Object.values(simState.lut);
+    let nextLutHtml = '';
     if (!ecucConfig.FeeEnableRamLutCache) {
-      lutBox.innerHTML = '<div style="font-size:11px;color:var(--warn)">RAM LUT Cache đang TẮT — Fee_Read() buộc phải quét tuần tự từ đầu tới cuối Active Bank!</div>';
+      nextLutHtml = '<div style="font-size:11px;color:var(--warn)">RAM LUT Cache đang TẮT — Fee_Read() buộc phải quét tuần tự từ đầu tới cuối Active Bank!</div>';
     } else if (entries.length === 0) {
-      lutBox.innerHTML = '<div style="font-size:11px;color:var(--mut)">Chưa có entry hợp lệ nào trong bảng tra nhanh RAM. Hãy chạy Fee_Init() hoặc ghi Block mới.</div>';
+      nextLutHtml = '<div style="font-size:11px;color:var(--mut)">Chưa có entry hợp lệ nào trong bảng tra nhanh RAM. Hãy chạy Fee_Init() hoặc ghi Block mới.</div>';
     } else {
-      lutBox.innerHTML = `
+      nextLutHtml = `
         <table class="lut-tbl">
           <thead><tr><th>Block</th><th>Bank</th><th>Offset</th><th>Seq</th><th>Trạng thái</th></tr></thead>
           <tbody>
@@ -7575,6 +7690,7 @@ function renderPanel1FlashLutAndBits() {
           </tbody>
         </table>`;
     }
+    setHtmlIfChanged(lutBox, nextLutHtml);
   }
 
   // Virtual Page Frame Anatomy
@@ -7595,7 +7711,7 @@ function renderPanel1FlashLutAndBits() {
           ? `INVALIDATION MARKER`
           : `Valid Trailer ${getTrailerPatternLabel()} Committed`);
 
-    vpBox.innerHTML = `
+    setHtmlIfChanged(vpBox, `
       <div style="font-size:10.5px;margin-bottom:4px;color:var(--txt-soft)">
         Đang soi: <b class="mono">${escapeHtml(hdrLabel)}</b> (${selSlot ? selSlot.status : 'Preview Geometry'})
       </div>
@@ -7609,7 +7725,7 @@ function renderPanel1FlashLutAndBits() {
         <div class="vp-page-row ${trlCls}">
           <b>[Cuối Slot] Padding (${selGeom.paddingBytes}B ${erasedHex}) + Trailer</b> — ${trlStateText}
         </div>
-      </div>`;
+      </div>`);
   }
 
   // Dual 8-Bit Registers
@@ -7620,33 +7736,37 @@ function renderPanel1FlashLutAndBits() {
 }
 
 function renderBitRegister(regCode, byteVal, prevVal, bitDefs, hexId, containerId) {
-  const hexEl = getEl(hexId);
-  if (hexEl) {
-    hexEl.textContent = `0x${byteVal.toString(16).toUpperCase().padStart(2, '0')} (${byteVal.toString(2).padStart(8, '0')})`;
-  }
+  setTextIfChanged(getEl(hexId), `0x${byteVal.toString(16).toUpperCase().padStart(2, '0')} (${byteVal.toString(2).padStart(8, '0')})`);
   const cont = getEl(containerId);
   if (!cont) return;
-  cont.innerHTML = bitDefs
-    .map((b) => {
-      const isOn = (byteVal & (1 << b.bit)) !== 0;
-      const changed = ((byteVal ^ prevVal) & (1 << b.bit)) !== 0;
-      let onCls = '';
-      if (isOn) {
-        if ((regCode === 'A' && (b.bit === 1)) || (regCode === 'B' && b.bit === 0)) onCls = 'on-err';
-        else if ((regCode === 'A' && (b.bit === 3 || b.bit === 2 || b.bit === 5)) || (regCode === 'B' && b.bit === 4)) onCls = 'on-warn';
-        else if ((regCode === 'A' && b.bit === 4) || (regCode === 'B' && b.bit === 1)) onCls = 'on-pur';
-        else if ((regCode === 'A' && b.bit === 6) || (regCode === 'B' && b.bit === 3)) onCls = 'on-cyan';
-        else onCls = 'on';
-      }
-      const chCls = changed ? 'bit-changed' : '';
-      return `
-        <div class="bit-box ${onCls} ${chCls}" onclick="toggleBitInteractive('${regCode}', ${b.bit})" title="B${b.bit} ${b.name} (${b.hex}): ${escapeHtml(b.desc)}">
+  if (cont.children.length !== bitDefs.length) {
+    cont.innerHTML = bitDefs
+      .map((b) => `
+        <div class="bit-box" onclick="toggleBitInteractive('${regCode}', ${b.bit})" title="B${b.bit} ${b.name} (${b.hex}): ${escapeHtml(b.desc)}">
           <div class="bit-idx">B${b.bit}</div>
-          <div class="bit-val">${isOn ? 1 : 0}</div>
+          <div class="bit-val">0</div>
           <div class="bit-tag">${b.name}</div>
-        </div>`;
-    })
-    .join('');
+        </div>`)
+      .join('');
+  }
+  bitDefs.forEach((b, idx) => {
+    const boxEl = cont.children[idx];
+    if (!boxEl) return;
+    const isOn = (byteVal & (1 << b.bit)) !== 0;
+    const changed = ((byteVal ^ prevVal) & (1 << b.bit)) !== 0;
+    let onCls = '';
+    if (isOn) {
+      if ((regCode === 'A' && (b.bit === 1)) || (regCode === 'B' && b.bit === 0)) onCls = ' on-err';
+      else if ((regCode === 'A' && (b.bit === 3 || b.bit === 2 || b.bit === 5)) || (regCode === 'B' && b.bit === 4)) onCls = ' on-warn';
+      else if ((regCode === 'A' && b.bit === 4) || (regCode === 'B' && b.bit === 1)) onCls = ' on-pur';
+      else if ((regCode === 'A' && b.bit === 6) || (regCode === 'B' && b.bit === 3)) onCls = ' on-cyan';
+      else onCls = ' on';
+    }
+    const nextCls = `bit-box${onCls}${changed ? ' bit-changed' : ''}`;
+    setAttrIfChanged(boxEl, 'className', nextCls);
+    const valEl = boxEl.querySelector('.bit-val');
+    setTextIfChanged(valEl, isOn ? '1' : '0');
+  });
 }
 
 function renderPanel2TimersAndStateMachines() {
@@ -7676,7 +7796,7 @@ function renderPanel2TimersAndStateMachines() {
 
   const tGrid = getEl('timersGrid');
   if (tGrid) {
-    tGrid.innerHTML = `
+    setHtmlIfChanged(tGrid, `
       <div class="timer-card">
         <div class="timer-top"><span>Bank ${simState.activeBank} Fill vs GC (${ecucConfig.FeeGcTriggerThresholdPct}%)</span><span>${actStats.usedPct}%</span></div>
         <div class="timer-bar"><div class="timer-fill ${actStats.usedPct >= Number(ecucConfig.FeeGcTriggerThresholdPct) ? 'warn' : 'ok'}" style="width:${actStats.usedPct}%"></div></div>
@@ -7692,7 +7812,7 @@ function renderPanel2TimersAndStateMachines() {
       <div class="timer-card">
         <div class="timer-top"><span>Độ Mòn Sector (Max ${ecucConfig.FeeMaxEraseCyclesPerSector})</span><span>${maxEraseSeen} PEC</span></div>
         <div class="timer-bar"><div class="timer-fill ${wearPct > 70 ? 'err' : 'ok'}" style="width:${Math.max(2, wearPct)}%"></div></div>
-      </div>`;
+      </div>`);
   }
 
   // Async 3-Phase Pipeline Bar
@@ -7709,7 +7829,7 @@ function renderPanel2TimersAndStateMachines() {
     } else if (simState.jobResult === 'MEMIF_JOB_OK' && simState.moduleState === 'MEMIF_IDLE' && simState.stats.totalWrites > 0) {
       p1 = p2 = p3 = p4 = 'pipe-done';
     }
-    pipeBox.innerHTML = `
+    setHtmlIfChanged(pipeBox, `
       <div style="display:flex;justify-content:space-between;font-size:10.5px;font-weight:800">
         <span>3-Phase Async Write Pipeline (${lowApi.write} + Trailer ${getTrailerPatternLabel()})</span>
         <span style="color:var(--mut)">${job ? `${job.blockId} (${job.phase})` : (simState.powerLossOccurred ? 'TORN WRITE INTERRUPTED!' : 'Sẵn sàng / Idle')}</span>
@@ -7719,7 +7839,7 @@ function renderPanel2TimersAndStateMachines() {
         <div class="pipe-step ${p2}">Phase 2: Payload + Pad (${bps}B/tick)</div>
         <div class="pipe-step ${p3}">Phase 3: Trailer ${getTrailerPatternLabel()}</div>
         <div class="pipe-step ${p4}">LUT + JobEndCallback</div>
-      </div>`;
+      </div>`);
   }
 
   // Dual State Machines
@@ -7734,7 +7854,7 @@ function renderPanel2TimersAndStateMachines() {
       { id: 'BUSY_INTERNAL_GC', title: 'MEMIF_BUSY_INTERNAL', sub: 'Startup Scan (Fee_Init) / GC nền [00120]', cls: 'active-warn' },
       { id: 'JOB_ERROR', title: 'ERROR / RECOVERY', sub: 'INCONSISTENT / INVALID / JOB_FAILED', cls: 'active-pur' }
     ];
-    modSmEl.innerHTML = modNodes
+    setHtmlIfChanged(modSmEl, modNodes
       .map((n) => {
         const active = simState.moduleSmState === n.id;
         return `<div class="sm-node ${active ? n.cls : ''}">
@@ -7742,7 +7862,7 @@ function renderPanel2TimersAndStateMachines() {
           <div class="sm-node-sub">${n.sub}</div>
         </div>`;
       })
-      .join('');
+      .join(''));
   }
 
   const secLbl = getEl('smSectorLbl');
@@ -7756,7 +7876,7 @@ function renderPanel2TimersAndStateMachines() {
       { id: 'IMMEDIATE_PREEMPT_ZONE', title: 'IMMEDIATE PREEMPTION ZONE', sub: 'Tạm hoãn GC ghi khẩn Crash Data', cls: 'active-pur' },
       { id: 'SECTOR_CORRUPT_DEM', title: 'SECTOR CORRUPT (DEM DTC)', sub: 'Lỗi phần cứng Erase / ECC Flash', cls: 'active-err' }
     ];
-    secSmEl.innerHTML = secNodes
+    setHtmlIfChanged(secSmEl, secNodes
       .map((n) => {
         const active = simState.sectorSmState === n.id;
         return `<div class="sm-node ${active ? n.cls : ''}">
@@ -7764,7 +7884,7 @@ function renderPanel2TimersAndStateMachines() {
           <div class="sm-node-sub">${n.sub}</div>
         </div>`;
       })
-      .join('');
+      .join(''));
   }
 }
 
@@ -7855,7 +7975,7 @@ function renderInspector() {
     const stepHeadline = meta.mode === 'WHATIF'
       ? `🧪 Thử nghiệm: ${meta.label || 'What-If'}`
       : meta.mode === 'MANUAL'
-        ? `⚡ Tương tác trực tiếp / Tick @ ${simState.clockMs}ms`
+        ? '⚡ Tương tác trực tiếp / Thực thi Async'
         : stepCount === 0
           ? 'Chế độ Tự do: Fee Rỗng Ban Đầu (Free Sandbox)'
           : uiState.currentStepIdx === 0
@@ -7880,44 +8000,51 @@ function renderInspector() {
     const regAHex = `0x${simState.moduleRegByte.toString(16).toUpperCase().padStart(2, '0')}`;
     const regBHex = `0x${simState.headerRegByte.toString(16).toUpperCase().padStart(2, '0')}`;
 
-    body.innerHTML = `
-      <div class="insp-card">
-        <div class="insp-h">📍 Kịch bản &amp; Lộ trình Mô phỏng (${escapeHtml(scen.id)})</div>
-        <div style="font-size:11.5px;font-weight:700;margin-bottom:4px">${escapeHtml(scen.title)}</div>
-        <div style="font-size:10.8px;color:var(--txt-soft);line-height:1.45">${escapeHtml(scen.summary)}</div>
-        <div class="step-roadmap">${roadmapHtml}</div>
-      </div>
-      <div class="insp-card step-explain-card">
-        <div class="insp-h">📖 Giải thích chi tiết Bước hiện tại</div>
-        <div class="step-explain-title">${escapeHtml(stepHeadline)}</div>
-        <div class="step-explain-body">${escapeHtml(explainText)}</div>
-        <div class="step-meta-list">
-          <div class="step-meta-row"><span class="step-meta-k">🔌 Luồng API:</span><span class="step-meta-v mono">${escapeHtml(apiFlowTxt)}</span></div>
-          <div class="step-meta-row"><span class="step-meta-k">🎛️ Thanh ghi/FSM:</span><span class="step-meta-v">${escapeHtml(bitImpactTxt)}</span></div>
-          <div class="step-meta-row"><span class="step-meta-k">💾 DFlash &amp; LUT:</span><span class="step-meta-v">${escapeHtml(memImpactTxt)}</span></div>
-          <div class="step-meta-row"><span class="step-meta-k">📘 Chuẩn SWS:</span><span class="step-meta-v mono" style="color:var(--pri)">${escapeHtml(swsRefTxt)}</span></div>
-        </div>
-      </div>
-      <div class="insp-card">
-        <div class="insp-h">🔍 Trạng thái Job &amp; Slot đang soi</div>
-        <div style="font-size:11px;line-height:1.55">
-          • <b>Module Status:</b> <span class="mono">${simState.moduleState}</span> | <b>JobResult:</b> <span class="mono">${simState.jobResult}</span><br>
-          • <b>Thanh A / B:</b> <span class="mono">${regAHex} / ${regBHex}</span> | <b>RAM LUT:</b> <span class="mono">${Object.keys(simState.lut).length} entries</span><br>
-          • <b>Read Output:</b> <span class="mono">${escapeHtml(simState.lastReadBuffer)}</span><br>
-          • <b>Soi Slot:</b> ${selSlot ? `<span class="mono">${selSlot.blockId} #${selSlot.seq} @ Bank${selSlot.bankId}+0x${selSlot.offset.toString(16).toUpperCase()} (${selSlot.status}, ${selSlot.totalBytes}B)</span>` : 'Chưa chọn slot'}
-        </div>
-      </div>
-      <div class="insp-card">
-        <div class="insp-h">📝 Nhật ký Sự kiện gần nhất</div>
-        ${recentLogs.map((l) => `<div style="font-size:11px;padding:3px 0;border-bottom:1px solid var(--bdr-soft)">${escapeHtml(l)}</div>`).join('') || '<div style="font-size:11px;color:var(--mut)">Chưa có log.</div>'}
-      </div>`;
+    let wrap = body.querySelector('.insp-tab0-wrap');
+    if (!wrap) {
+      if (_renderedHtmlCache) _renderedHtmlCache.delete(body);
+      body.innerHTML = `
+        <div class="insp-tab0-wrap">
+          <div class="insp-card insp-scen-card"></div>
+          <div class="insp-card step-explain-card"></div>
+          <div class="insp-card insp-job-card"></div>
+          <div class="insp-card insp-log-card"></div>
+        </div>`;
+      wrap = body.querySelector('.insp-tab0-wrap');
+    }
+    setHtmlIfChanged(wrap.querySelector('.insp-scen-card'), `
+      <div class="insp-h">📍 Kịch bản &amp; Lộ trình Mô phỏng (${escapeHtml(scen.id)})</div>
+      <div style="font-size:11.5px;font-weight:700;margin-bottom:4px">${escapeHtml(scen.title)}</div>
+      <div style="font-size:10.8px;color:var(--txt-soft);line-height:1.45">${escapeHtml(scen.summary)}</div>
+      <div class="step-roadmap">${roadmapHtml}</div>`);
+    setHtmlIfChanged(wrap.querySelector('.step-explain-card'), `
+      <div class="insp-h">📖 Giải thích chi tiết Bước hiện tại</div>
+      <div class="step-explain-title">${escapeHtml(stepHeadline)}</div>
+      <div class="step-explain-body">${escapeHtml(explainText)}</div>
+      <div class="step-meta-list">
+        <div class="step-meta-row"><span class="step-meta-k">🔌 Luồng API:</span><span class="step-meta-v mono">${escapeHtml(apiFlowTxt)}</span></div>
+        <div class="step-meta-row"><span class="step-meta-k">🎛️ Thanh ghi/FSM:</span><span class="step-meta-v">${escapeHtml(bitImpactTxt)}</span></div>
+        <div class="step-meta-row"><span class="step-meta-k">💾 DFlash &amp; LUT:</span><span class="step-meta-v">${escapeHtml(memImpactTxt)}</span></div>
+        <div class="step-meta-row"><span class="step-meta-k">📘 Chuẩn SWS:</span><span class="step-meta-v mono" style="color:var(--pri)">${escapeHtml(swsRefTxt)}</span></div>
+      </div>`);
+    setHtmlIfChanged(wrap.querySelector('.insp-job-card'), `
+      <div class="insp-h">🔍 Trạng thái Job &amp; Slot đang soi</div>
+      <div style="font-size:11px;line-height:1.55">
+        • <b>Module Status:</b> <span class="mono">${simState.moduleState}</span> | <b>JobResult:</b> <span class="mono">${simState.jobResult}</span><br>
+        • <b>Thanh A / B:</b> <span class="mono">${regAHex} / ${regBHex}</span> | <b>RAM LUT:</b> <span class="mono">${Object.keys(simState.lut).length} entries</span><br>
+        • <b>Read Output:</b> <span class="mono">${escapeHtml(simState.lastReadBuffer)}</span><br>
+        • <b>Soi Slot:</b> ${selSlot ? `<span class="mono">${selSlot.blockId} #${selSlot.seq} @ Bank${selSlot.bankId}+0x${selSlot.offset.toString(16).toUpperCase()} (${selSlot.status}, ${selSlot.totalBytes}B)</span>` : 'Chưa chọn slot'}
+      </div>`);
+    setHtmlIfChanged(wrap.querySelector('.insp-log-card'), `
+      <div class="insp-h">📝 Nhật ký Sự kiện gần nhất</div>
+      ${recentLogs.map((l) => `<div style="font-size:11px;padding:3px 0;border-bottom:1px solid var(--bdr-soft)">${escapeHtml(l)}</div>`).join('') || '<div style="font-size:11px;color:var(--mut)">Chưa có log.</div>'}`);
   } else if (uiState.activeInspTab === 1) {
     // Tab 1: Module I/O
     const m = MODULES_INFO[simState.selectedModule] || MODULES_INFO.MOD_FEE;
     const modPills = Object.values(MODULES_INFO)
       .map((x) => `<span class="mod-pill ${x.id === m.id ? 'active' : ''}" onclick="selectModule('${x.id}')">${x.id.replace('MOD_', '')}</span>`)
       .join('');
-    body.innerHTML = `
+    setHtmlIfChanged(body, `
       <div class="mod-list">${modPills}</div>
       <div class="insp-card">
         <div class="insp-h">📦 ${escapeHtml(m.name)}</div>
@@ -7926,11 +8053,11 @@ function renderInspector() {
         <div style="font-size:11px;margin-bottom:4px"><b>📥 Input:</b> ${escapeHtml(m.inputs)}</div>
         <div style="font-size:11px;margin-bottom:6px"><b>📤 Output Route:</b> ${escapeHtml(m.outputs)}</div>
         <div style="font-size:11px"><b>🔌 AUTOSAR APIs:</b><br><span class="mono">${m.apis.map(escapeHtml).join('<br>')}</span></div>
-      </div>`;
+      </div>`);
   } else if (uiState.activeInspTab === 2) {
     // Tab 2: Code C
     const snip = (simState.codeSnippets && simState.codeSnippets[0]) || { title: 'Fee_MainFunction()', code: 'Fee_MainFunction();' };
-    body.innerHTML = `
+    setHtmlIfChanged(body, `
       <div class="insp-card">
         <div class="insp-h">💻 ${escapeHtml(snip.title)}</div>
         <pre class="code-block">${escapeHtml(snip.code)}</pre>
@@ -7942,10 +8069,10 @@ HeaderSizeRaw   = ${ecucConfig.FeeBlockHeaderSize}U (Aligned ${alignUp(ecucConfi
 ErasedPattern   = ${getErasedByteLabel()}
 ValidTrailer    = ${getTrailerPatternLabel()}
 LowerLayer      = ${ecucConfig.FeeLowerLayerArchitecture}</pre>
-      </div>`;
+      </div>`);
   } else {
     // Tab 3: API Trace (DET/DEM)
-    body.innerHTML = (simState.trace || [])
+    setHtmlIfChanged(body, (simState.trace || [])
       .map((t) => {
         const cls = t.tag === 'ERR' ? 'err' : (t.tag === 'WARN' ? 'warn' : (t.tag === 'OK' ? 'ok' : ''));
         return `<div class="trace-item ${cls}">
@@ -7957,7 +8084,7 @@ LowerLayer      = ${ecucConfig.FeeLowerLayerArchitecture}</pre>
           <div style="color:var(--txt-soft)">${escapeHtml(t.detail)}</div>
         </div>`;
       })
-      .join('') || '<div class="insp-card">Chưa có trace API.</div>';
+      .join('') || '<div class="insp-card">Chưa có trace API.</div>');
   }
 }
 
